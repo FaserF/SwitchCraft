@@ -16,6 +16,9 @@ from switchcraft.utils.i18n import i18n
 from switchcraft.utils.updater import UpdateChecker
 from switchcraft.analyzers.universal import UniversalAnalyzer
 from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.security import SecurityChecker
+from switchcraft.utils.templates import TemplateGenerator
+from switchcraft.services.ai_service import SwitchCraftAI
 from switchcraft import __version__
 
 logging.basicConfig(level=logging.INFO)
@@ -69,21 +72,21 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Auto-Check Updates
         self.after(2000, self.check_updates_silently)
 
+        # Security Check
+        self.after(3000, self.check_security_silently)
+
+        # Initialize AI
+        self.ai_service = SwitchCraftAI()
+
+
+
         # Handle window close for "Update Later" feature
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def _should_show_ai_helper(self):
         """Determine if AI Helper tab should be shown."""
-        # Show for beta/dev versions
-        version_lower = __version__.lower()
-        if "beta" in version_lower or "dev" in version_lower:
-            return True
-
-        # Show if debug mode is enabled
-        if SwitchCraftConfig.is_debug_mode():
-            return True
-
-        return False
+        # Always show AI helper for now, as requested
+        return True
 
     def on_close(self):
         """Handle app close - open update if scheduled."""
@@ -275,8 +278,112 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         return checker.release_url
 
 
-    # --- Analyzer Tab ---
-    def setup_analyzer_tab(self):
+    # --- Security Logic ---
+    def check_security_silently(self):
+        threading.Thread(target=self._run_security_check, daemon=True).start()
+
+    def _run_security_check(self):
+        try:
+            issues = SecurityChecker.check_vulnerabilities()
+            if issues:
+                self.after(0, lambda: self.show_security_alert(issues))
+        except Exception as e:
+            logger.error(f"Security check error: {e}")
+
+    def show_security_alert(self, issues):
+        """Display non-intrusive warning about vulnerable dependencies."""
+        count = len(issues)
+        logger.warning(f"Security check found {count} vulnerable packages.")
+
+        # Create localized warning bar below banner (or row 2 if banner exists)
+        row_idx = 2
+
+        # Check if version banner exists (it would be at row 1)
+        # We can just pack/grid into a new frame.
+        # Let's verify grid config first: row 0 is tabview.
+        # Version banner uses row 1.
+
+        self.grid_rowconfigure(row_idx, weight=0)
+
+        alert_frame = ctk.CTkFrame(self, fg_color="#F57C00", corner_radius=0) # Orange
+        alert_frame.grid(row=row_idx, column=0, sticky="ew")
+
+        msg = f"🛡️ Security Notice: {count} installed component(s) have known vulnerabilities."
+
+        label = ctk.CTkLabel(alert_frame, text=msg, text_color="white", font=ctk.CTkFont(weight="bold"))
+        label.pack(side="left", padx=20, pady=5)
+
+        view_btn = ctk.CTkButton(
+            alert_frame,
+            text="View Details",
+            fg_color="white",
+            text_color="#E65100",
+            hover_color="#FFCC80",
+            width=100,
+            command=lambda: self.show_security_details(issues)
+        )
+        view_btn.pack(side="right", padx=20, pady=5)
+
+    def show_security_details(self, issues):
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Dependency Security Report")
+        dialog.geometry("600x500")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        ctk.CTkLabel(dialog, text="Vulnerability Report", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=10)
+
+        ctk.CTkLabel(
+            dialog,
+            text="The following Python libraries used by this internal tool have known vulnerabilities.\n"
+                 "This does NOT mean your computer is compromised, but these libraries should be updated in a future release.",
+            wraplength=550,
+            justify="left"
+        ).pack(pady=5, padx=20)
+
+        scroll_frame = ctk.CTkScrollableFrame(dialog)
+        scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        issue_body_lines = ["**Security Vulnerability Report**", "", "The following vulnerable packages were detected:", ""]
+
+        for issue in issues:
+            card = ctk.CTkFrame(scroll_frame, fg_color=("gray85", "gray20"))
+            card.pack(fill="x", pady=5)
+
+            title = f"{issue['package']} {issue['version']} - {issue['id']}"
+            issue_body_lines.append(f"- {title}: {issue['details_url']}")
+
+            ctk.CTkLabel(card, text=title, font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(5,0))
+            ctk.CTkLabel(card, text=issue['summary'], wraplength=500, text_color="gray").pack(anchor="w", padx=10, pady=(0,5))
+
+            link_btn = ctk.CTkButton(
+                card,
+                text="Open OSV.dev Entry",
+                height=24,
+                fg_color="transparent",
+                border_width=1,
+                command=lambda url=issue['details_url']: webbrowser.open(url)
+            )
+            link_btn.pack(anchor="e", padx=10, pady=5)
+
+        # Report Button
+        ctk.CTkLabel(dialog, text="Please report this to the developer so dependencies can be updated.").pack(pady=5)
+
+        def open_github_issue():
+            title = f"Security Vulnerability Report: {len(issues)} packages"
+            body = "\n".join(issue_body_lines)
+            url = f"https://github.com/FaserF/SwitchCraft/issues/new?title={requests.utils.quote(title)}&body={requests.utils.quote(body)}"
+            webbrowser.open(url)
+            dialog.destroy()
+
+        ctk.CTkButton(
+            dialog,
+            text="Report Issue on GitHub",
+            fg_color="green",
+            command=open_github_issue
+        ).pack(pady=10)
+
+
         self.tab_analyzer.grid_columnconfigure(0, weight=1)
         self.tab_analyzer.grid_rowconfigure(1, weight=1)
 
@@ -441,6 +548,41 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.add_copy_row(i18n.get("silent_install") + " (Params)", params, "green")
             self.add_full_command_row("Install Command (Full)", info.file_path, params, is_install=True, is_msi=("MSI" in info.installer_type))
             self.add_intune_row("Intune Install", info.file_path, params, is_msi=("MSI" in info.installer_type))
+
+            # --- Intune Script Generation ---
+            def generate_intune_script():
+                default_filename = f"Install-{info.product_name or 'App'}.ps1"
+                # Sanitize filename
+                default_filename = "".join(x for x in default_filename if x.isalnum() or x in "-_.")
+
+                save_path = ctk.filedialog.asksaveasfilename(
+                    defaultextension=".ps1",
+                    filetypes=[("PowerShell Script", "*.ps1")],
+                    initialfile=default_filename,
+                    title="Save Intune Script"
+                )
+                if save_path:
+                    # Collect metadata
+                    context_data = {
+                        "INSTALLER_FILE": Path(info.file_path).name,
+                        "INSTALL_ARGS": " ".join(info.install_switches) if info.install_switches else "/S",
+                        "APP_NAME": info.product_name or "Application",
+                        "PUBLISHER": info.manufacturer or "Unknown"
+                    }
+
+                    custom_template = SwitchCraftConfig.get_value("CustomTemplatePath")
+                    generator = TemplateGenerator(custom_template)
+
+                    if generator.generate(context_data, save_path):
+                        self.status_bar.configure(text=f"Script generated: {save_path}")
+                        try:
+                            # Open file in editor
+                            os.startfile(save_path)
+                        except: pass
+                    else:
+                        messagebox.showerror("Error", "Failed to generate script template.")
+
+            ctk.CTkButton(self.result_frame, text="✨ Generate Intune Script", fg_color="purple", command=generate_intune_script).pack(pady=5, fill="x")
         else:
              self.add_result_row(i18n.get("silent_install"), i18n.get("no_switches"), color="orange")
              if info.file_path.endswith('.exe'):
@@ -784,8 +926,21 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         self.append_chat("System", "Welcome to the AI Helper! (Mock Version)\nAsk me about silent switches or command line arguments.")
 
+        self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+
+        # Privacy Disclaimer (Green Text)
+        disclaimer_frame = ctk.CTkFrame(self.tab_helper, fg_color="transparent")
+        disclaimer_frame.grid(row=1, column=0, sticky="ew", padx=10)
+
+        ctk.CTkLabel(
+            disclaimer_frame,
+            text="🔒 Privacy Note: This AI is a local rule-based system. No data leaves your machine.",
+            text_color="green",
+            font=ctk.CTkFont(size=11, weight="bold")
+        ).pack(anchor="w")
+
         input_frame = ctk.CTkFrame(self.tab_helper, fg_color="transparent")
-        input_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
+        input_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=10)
 
         self.chat_entry = ctk.CTkEntry(input_frame, placeholder_text="Ask something...")
         self.chat_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
@@ -799,7 +954,13 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         if not msg: return
         self.append_chat("You", msg)
         self.chat_entry.delete(0, "end")
-        self.after(500, lambda: self.append_chat("AI", f"I'm currently a mock helper, but I heard you say: '{msg}'. \nCheckout https://silent.ls/ for a database!"))
+
+        # Query AI
+        if hasattr(self, 'ai_service'):
+            answer = self.ai_service.ask(msg)
+            self.after(200, lambda: self.append_chat("SwitchCraft AI", answer))
+        else:
+            self.after(500, lambda: self.append_chat("System", "AI Service not initialized."))
 
     def append_chat(self, sender, message):
         self.chat_frame.configure(state="normal")
@@ -890,6 +1051,35 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             wraplength=350
         )
         channel_desc.pack(pady=2)
+
+        # Template Selection
+        frame_tmpl = ctk.CTkFrame(self.tab_settings)
+        frame_tmpl.pack(fill="x", padx=10, pady=10)
+
+        lbl_tmpl = ctk.CTkLabel(frame_tmpl, text="PowerShell Template (Intune)", font=ctk.CTkFont(weight="bold"))
+        lbl_tmpl.pack(pady=5)
+
+        current_tmpl = SwitchCraftConfig.get_value("CustomTemplatePath")
+        display_tmpl = current_tmpl if current_tmpl else "Default Internal Template"
+
+        self.tmpl_path_label = ctk.CTkLabel(frame_tmpl, text=display_tmpl, text_color="gray", wraplength=300)
+        self.tmpl_path_label.pack(pady=2)
+
+        def select_template():
+            path = ctk.filedialog.askopenfilename(filetypes=[("PowerShell", "*.ps1")])
+            if path:
+                SwitchCraftConfig.set_user_preference("CustomTemplatePath", path)
+                self.tmpl_path_label.configure(text=path)
+
+        ctk.CTkButton(frame_tmpl, text="Select Custom Template", command=select_template).pack(pady=5)
+
+        def reset_template():
+             SwitchCraftConfig.set_user_preference("CustomTemplatePath", "")
+             self.tmpl_path_label.configure(text="Default Internal Template")
+
+        ctk.CTkButton(frame_tmpl, text="Reset to Default", fg_color="transparent", border_width=1, command=reset_template).pack(pady=2)
+
+
 
         # Update Check Button
         frame_upd = ctk.CTkFrame(self.tab_settings)

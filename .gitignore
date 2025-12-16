@@ -4,3 +4,8 @@
 /src/switchcraft/analyzers/__pycache__
 /.github/scripts/__pycache__
 /src/switchcraft/__pycache__
+/src/switchcraft/utils/__pycache__
+output.txt
+out_debug.txt
+final_test_output.txt
+out_debug_nocolor.txt

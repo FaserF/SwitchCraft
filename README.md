@@ -1,10 +1,12 @@
 # SwitchCraft 🧙‍♂️
 
-<img src="switchcraft_logo.png" width="200" alt="SwitchCraft Logo">
+<img src="images/switchcraft_logo.png" width="200" alt="SwitchCraft Logo">
 
 **SwitchCraft** is your ultimate utility for identifying silent installation parameters for EXE and MSI packages. Designed for IT Admins, Packagers, and Developers.
 
-![SwitchCraft UI](switchcraft_ui.png)
+<div align="center">
+  <img src="images/switchcraft_ui.png" alt="SwitchCraft UI" width="500" />
+</div>
 
 > [!NOTE]
 > **Active development is for Windows only.** Linux and macOS builds are untested but available. Bug reports for other platforms are welcome!

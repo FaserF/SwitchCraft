@@ -15,6 +15,22 @@ class TestSwitchCraftConfig(unittest.TestCase):
         if 'SWITCHCRAFT_DEBUG' in os.environ:
             del os.environ['SWITCHCRAFT_DEBUG']
 
+        # Mock winreg for Linux CI
+        self.winreg_mock = MagicMock()
+        self.winreg_mock.HKEY_LOCAL_MACHINE = -2147483646
+        self.winreg_mock.HKEY_CURRENT_USER = -2147483647
+        self.winreg_mock.KEY_READ = 131097
+        self.winreg_mock.KEY_WRITE = 131078
+        self.winreg_mock.REG_SZ = 1
+        self.winreg_mock.REG_DWORD = 4
+
+        sys.modules['winreg'] = self.winreg_mock
+
+    def tearDown(self):
+        # Clean up winreg mock
+        if 'winreg' in sys.modules:
+            del sys.modules['winreg']
+
     @patch('sys.platform', 'win32')
     @patch('switchcraft.utils.config.SwitchCraftConfig._read_registry')
     def test_precedence_policy_over_preference(self, mock_read_reg):
@@ -29,7 +45,7 @@ class TestSwitchCraftConfig(unittest.TestCase):
         def side_effect(root, key, value_name):
             if "Policies" in key:
                  # Simulate User Policy being set
-                 if root == -2147483647: # HKCU (approximate value check, better to check by arg matching)
+                 if root == -2147483647: # HKCU
                      return 1
                  return None
             return 0 # Preferences are set to 0
