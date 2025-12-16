@@ -2,6 +2,16 @@ name: Release Build
 
 on:
   workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - stable
+          - prerelease
+          - development
+        default: 'stable'
 
 permissions:
   contents: write
@@ -15,6 +25,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -27,7 +38,7 @@ jobs:
 
       - name: Generate Version
         id: version
-        run: python .github/scripts/generate_release_version.py
+        run: python .github/scripts/generate_release_version.py --type ${{ github.event.inputs.release_type }}
 
       - name: Update Version in Files
         run: |
@@ -40,13 +51,16 @@ jobs:
           # Update __init__.py
           sed -i "s/__version__ = \".*\"/__version__ = \"$VERSION\"/" src/switchcraft/__init__.py
 
+          # Update file_version_info.txt
+          python .github/scripts/update_version_info.py "$VERSION"
+
       - name: Commit and Tag
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add pyproject.toml src/switchcraft/__init__.py
+          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt
           git commit -m "chore(release): bump version to $VERSION [skip ci]"
           git tag "v$VERSION"
           git push origin main
@@ -57,11 +71,35 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          name: Release v${{ steps.version.outputs.version }}
+          name: ${{ github.event.inputs.release_type == 'stable' && format('Release v{0}', steps.version.outputs.version) || github.event.inputs.release_type == 'prerelease' && format('Pre-release v{0}', steps.version.outputs.version) || format('Development Build v{0}', steps.version.outputs.version) }}
           draft: false
-          prerelease: false
+          prerelease: ${{ github.event.inputs.release_type != 'stable' }}
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Main Branch to Dev Version
+        if: ${{ github.event.inputs.release_type == 'stable' }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Calculate next dev version (increment patch and add -dev)
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          NEXT_PATCH=$((PATCH + 1))
+          DEV_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-dev"
+
+          echo "Setting development version to $DEV_VERSION"
+
+          # Update version files
+          sed -i "s/version = \".*\"/version = \"$DEV_VERSION\"/" pyproject.toml
+          sed -i "s/__version__ = \".*\"/__version__ = \"$DEV_VERSION\"/" src/switchcraft/__init__.py
+          python .github/scripts/update_version_info.py "$DEV_VERSION"
+
+          # Commit
+          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt
+          git commit -m "chore: bump version to $DEV_VERSION for development [skip ci]"
+          git push origin main
 
   build:
     name: Build using PyInstaller
@@ -72,13 +110,13 @@ jobs:
         include:
           - os: windows-latest
             artifact_name: SwitchCraft.exe
-            asset_name: SwitchCraft-Windows.exe
+            asset_name: SwitchCraft-windows.exe
           - os: ubuntu-latest
             artifact_name: SwitchCraft
-            asset_name: SwitchCraft-Linux
+            asset_name: SwitchCraft-linux
           - os: macos-latest
             artifact_name: SwitchCraft
-            asset_name: SwitchCraft-MacOS
+            asset_name: SwitchCraft-macos
 
     steps:
     - uses: actions/checkout@v6
@@ -88,7 +126,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: '3.14'
+        python-version: '3.12'
 
     - name: Install Dependencies
       run: |
@@ -105,5 +143,18 @@ jobs:
       with:
         tag_name: v${{ needs.prepare_release.outputs.version }}
         files: dist/${{ matrix.artifact_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Rename and Upload with Platform Name
+      run: |
+        cp dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
+      shell: bash
+
+    - name: Upload Platform-Named Asset
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ needs.prepare_release.outputs.version }}
+        files: dist/${{ matrix.asset_name }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,10 @@
+pefile
+olefile
+requests
+click
+rich
+py7zr
+customtkinter
+tkinterdnd2
+pillow
+PyYAML

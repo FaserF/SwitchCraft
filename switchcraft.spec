@@ -58,5 +58,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='switchcraft_logo.png' # Assuming we convert png to ico or pyinstaller handles it (it prefers ico)
+    icon='switchcraft_logo.png', # Assuming we convert png to ico or pyinstaller handles it (it prefers ico)
+    version='file_version_info.txt'
 )

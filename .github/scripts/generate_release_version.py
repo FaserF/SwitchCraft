@@ -19,13 +19,23 @@ def get_existing_tags():
     except subprocess.CalledProcessError:
         return []
 
-def calculate_next_version(base_version, tags):
+def calculate_next_version(base_version, tags, release_type="stable"):
     """
     Calculates the next version based on the base_version (Year.Month) and existing tags.
-    Format: Year.Month.Version
+    Format: Year.Month.Version[-suffix]
+
+    Args:
+        base_version: The Year.Month base (e.g., "2025.12")
+        tags: List of existing git tags
+        release_type: One of "stable", "prerelease", "development"
+
+    Returns:
+        Version string with appropriate suffix
     """
     max_patch = -1
-    pattern = re.compile(rf"^{re.escape(base_version)}\.(\d+)$")
+
+    # Pattern matches versions with or without suffix
+    pattern = re.compile(rf"^{re.escape(base_version)}\.(\d+)(?:-.*)?$")
 
     for tag in tags:
         # Handle tags with or without 'v' prefix
@@ -36,32 +46,38 @@ def calculate_next_version(base_version, tags):
             if patch > max_patch:
                 max_patch = patch
 
-    # If no existing tag for this month, start with 0 or 1?
-    # User requested Year.Month.Version. Let's start with 0 if it's the first release of the month,
-    # or 1? Standard is usually 0 or 1. Let's stick to 0 as the first one, or 1?
-    # Usually 2025.12.0 or 2025.12.1.
-    # Let's align with the example "2025.12.2" -> suggests 0-based or 1-based.
-    # I'll start with 0.
-
     next_patch = max_patch + 1
-    return f"{base_version}.{next_patch}"
+    base_ver = f"{base_version}.{next_patch}"
+
+    # Add suffix based on release type
+    if release_type == "prerelease":
+        return f"{base_ver}-beta"
+    elif release_type == "development":
+        return f"{base_ver}-dev"
+    else:  # stable
+        return base_ver
 
 def main():
     parser = argparse.ArgumentParser(description="Generate the next version number.")
     parser.add_argument("--dry-run", action="store_true", help="Print version without side effects")
+    parser.add_argument("--type", dest="release_type",
+                       choices=["stable", "prerelease", "development"],
+                       default="stable",
+                       help="Type of release (stable, prerelease, development)")
     args = parser.parse_args()
 
     base_ver = get_current_date_version()
     tags = get_existing_tags()
-    next_version = calculate_next_version(base_ver, tags)
+    next_version = calculate_next_version(base_ver, tags, args.release_type)
 
     print(next_version)
 
     if not args.dry_run:
-        # We might want to set this as an output for GitHub Actions
+        # Set outputs for GitHub Actions
         if "GITHUB_OUTPUT" in os.environ:
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                 f.write(f"version={next_version}\n")
+                f.write(f"is_prerelease={args.release_type != 'stable'}\n")
 
 if __name__ == "__main__":
     main()

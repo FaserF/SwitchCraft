@@ -1,26 +1,69 @@
+Metadata-Version: 2.4
+Name: switchcraft
+Version: 2025.12.3
+Summary: A universal silent switch finder and installer analyzer.
+Author: FaserF
+License: MIT License
+
+        Copyright (c) 2025 FaserF
+
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+
+        The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+
+Project-URL: Homepage, https://github.com/FaserF/SwitchCraft
+Keywords: installer,silent-install,automation,winget,msi,exe
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: pefile
+Requires-Dist: olefile
+Requires-Dist: requests
+Requires-Dist: click
+Requires-Dist: rich
+Requires-Dist: py7zr
+Requires-Dist: customtkinter
+Requires-Dist: tkinterdnd2
+Requires-Dist: pillow
+Requires-Dist: PyYAML
+Dynamic: license-file
+
 # SwitchCraft 🧙‍♂️
 
 <img src="switchcraft_logo.png" width="200" alt="SwitchCraft Logo">
 
-**SwitchCraft** is your ultimate utility for identifying silent installation parameters for EXE and MSI packages. Designed for IT Admins, Packagers, and Developers.
-
-> [!NOTE]
-> **Active development is for Windows only.** Linux and macOS builds are untested but available. Bug reports for other platforms are welcome!
+**SwitchCraft** is your ultimate cross-platform utility for identifying silent installation parameters for EXE and MSI packages. Designed for IT Admins, Packagers, and Developers.
 
 ## ✨ Features
 
 - **🔎 Universal Analysis**:
   - **MSI**: Extracts `ProductCode`, `UpgradeCode`, manufacturer, version, and standard `/qn` switches
-  - **EXE**: Auto-detects 20+ installer frameworks and suggests appropriate silent switches
+  - **EXE**: Auto-detects installer framework and suggests appropriate silent switches
   - **Metadata**: Parses PE version info for product name, version, and company
 - **📦 Winget Integration**: Automatically checks if the package exists in the **Windows Package Manager** (winget) repository
 - **🖥️ GUI & Drag'n'Drop**: Modern, dark-mode friendly desktop interface
 - **⚔️ Automatic Brute Force**: Runs 15+ help argument variations to discover switches
+- **🔧 Cross-Platform**: Built with Python, running on Windows, Linux, and macOS
 - **🌐 Multi-Language**: English and German interface
 
 ## 🎯 Supported Installer Types
-
-### Standard Installers
 
 | Installer Type | Detection Confidence | Silent Install Switch |
 |---------------|---------------------|----------------------|
@@ -34,27 +77,8 @@
 | **Wise Installer** | 80% | `/S` |
 | **Setup Factory** | 75% | `/S` |
 | **Squirrel (Electron)** | 80% | `--silent` |
-
-### Vendor-Specific Installers
-
-| Vendor | Detection Confidence | Silent Install Switch |
-|--------|---------------------|----------------------|
-| **HP SoftPaq** | 85% | `-s -e <extract_path>` |
-| **Dell Update Package** | 85% | `/s /l=<logfile>` |
-| **SAP** | 80% | `/Silent` |
-| **Lenovo** | 80% | `/SILENT /VERYSILENT /NOREBOOT` |
-| **Intel** | 80% | `-s -a -s2 -norestart` |
-| **NVIDIA** | 80% | `-s -noreboot -clean` |
-| **AMD/ATI** | 75% | `/S` |
-| **Visual C++ Redist** | 90% | `/quiet /norestart` |
-| **Java/Oracle** | 80% | `/s INSTALL_SILENT=1` |
-
-### Packaged Applications (Not Installers)
-
-| Type | Detection Confidence |
-|------|---------------------|
-| **PyInstaller App** | 85% |
-| **cx_Freeze App** | 80% |
+| **PyInstaller App** | 85% | N/A (not an installer) |
+| **cx_Freeze App** | 80% | N/A (not an installer) |
 
 ## 🚀 Installation
 
@@ -112,24 +136,6 @@ When no installer type is detected, SwitchCraft automatically tries these help a
 ```
 
 The output is analyzed for common patterns and displayed in the GUI.
-
-## 📦 Archive Extraction & Nested Analysis
-
-If no silent switches are found for the main EXE, SwitchCraft will:
-
-1. **Attempt to extract** the EXE using 7-Zip (treats EXE as a self-extracting archive)
-2. **Scan for nested installers** (MSI, EXE) inside the extracted content
-3. **Analyze each nested executable** for silent install parameters
-4. **Display alternative installation instructions** showing which file to run
-
-> [!TIP]
-> Requires 7-Zip installed (`C:\Program Files\7-Zip\7z.exe`). If a main installer shows no switches but contains a nested MSI, you can extract it manually and run `msiexec /i nested.msi /qn`.
-
-### Silent Installation Disabled Detection
-
-SwitchCraft can detect when developers have **intentionally disabled** silent installation:
-- Binary flags like `SilentModeDisabled`, `RequireGUI`
-- Help text indicating "silent mode not supported"
 
 ## 🛠️ Development
 

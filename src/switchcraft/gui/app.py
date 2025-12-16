@@ -52,6 +52,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.setup_helper_tab()
         self.setup_settings_tab()
 
+        # Setup Beta/Dev banner if pre-release
+        self.setup_version_banner()
+
         # Auto-Check Updates
         self.after(2000, self.check_updates_silently)
 
@@ -65,6 +68,33 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                                              size=(64, 64))
         except Exception as e:
             logger.error(f"Failed to load assets: {e}")
+
+    def setup_version_banner(self):
+        """Display a warning banner for beta/dev versions."""
+        version_lower = __version__.lower()
+
+        if "beta" in version_lower or "dev" in version_lower:
+            # Determine banner color and text based on version type
+            if "dev" in version_lower:
+                bg_color = "#DC3545"  # Red for development
+                text = f"⚠️ DEVELOPMENT BUILD ({__version__}) - Unstable, for testing only"
+            else:
+                bg_color = "#FFC107"  # Orange/Yellow for beta
+                text = f"⚠️ BETA VERSION ({__version__}) - Not for production use"
+
+            # Create banner at the bottom of the window
+            self.grid_rowconfigure(1, weight=0)
+
+            banner_frame = ctk.CTkFrame(self, fg_color=bg_color, corner_radius=0)
+            banner_frame.grid(row=1, column=0, sticky="ew")
+
+            banner_label = ctk.CTkLabel(
+                banner_frame,
+                text=text,
+                text_color="black" if "beta" in version_lower else "white",
+                font=ctk.CTkFont(size=12, weight="bold")
+            )
+            banner_label.pack(pady=5)
 
     # --- Update Logic ---
     def check_updates_silently(self):
@@ -181,14 +211,16 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Universal / Brute Force Analysis
         brute_force_data = None
+        nested_data = None
+        silent_disabled = None
         uni = UniversalAnalyzer()
-        wrapper = uni.check_wrapper(path) # Check wrapper regardless
+        wrapper = uni.check_wrapper(path)  # Check wrapper regardless
 
-        if not info or info.installer_type == "Unknown" or wrapper:
+        if not info or info.installer_type == "Unknown" or "Unknown" in (info.installer_type or "") or wrapper:
             logger.info("Starting Universal Analysis...")
 
             # Brute Force
-            if not info or info.installer_type == "Unknown":
+            if not info or "Unknown" in (info.installer_type or ""):
                 bf_results = uni.brute_force_help(path)
 
                 if bf_results.get("detected_type"):
@@ -202,7 +234,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                     if "MSI" in bf_results["detected_type"]:
                          info.uninstall_switches = ["/x", "{ProductCode}"]
 
-                brute_force_data = bf_results["output"]
+                brute_force_data = bf_results.get("output", "")
+
+                # Check if silent mode is intentionally disabled
+                silent_disabled = uni.detect_silent_disabled(path, brute_force_data)
 
             if wrapper:
                 if not info:
@@ -214,19 +249,25 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
              from switchcraft.models import InstallerInfo
              info = InstallerInfo(file_path=str(path), installer_type="Unknown")
 
+        # If still no switches found, try to extract and analyze nested executables
+        if not info.install_switches and path.suffix.lower() == '.exe':
+            self.after(0, lambda: self.status_bar.configure(text="Extracting archive for nested analysis..."))
+            nested_data = uni.extract_and_analyze_nested(path)
+
         winget = WingetHelper()
         winget_url = None
         if info.product_name:
              winget_url = winget.search_by_name(info.product_name)
 
-        self.after(0, lambda i=info, w=winget_url, bf=brute_force_data: self.show_results(i, w, bf))
+        self.after(0, lambda i=info, w=winget_url, bf=brute_force_data, nd=nested_data, sd=silent_disabled:
+                   self.show_results(i, w, bf, nd, sd))
 
     def show_error(self, message):
          self.status_bar.configure(text=i18n.get("error"))
          label = ctk.CTkLabel(self.result_frame, text=message, text_color="red", font=ctk.CTkFont(size=14))
          label.pack(pady=20)
 
-    def show_results(self, info, winget_url, brute_force_data=None):
+    def show_results(self, info, winget_url, brute_force_data=None, nested_data=None, silent_disabled=None):
         self.status_bar.configure(text=i18n.get("analysis_complete"))
         self.clear_results()
 
@@ -239,6 +280,26 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.add_separator()
 
+        # Silent Disabled Warning
+        if silent_disabled and silent_disabled.get("disabled"):
+            warning_frame = ctk.CTkFrame(self.result_frame, fg_color="#8B0000", corner_radius=8)
+            warning_frame.pack(fill="x", pady=10, padx=5)
+
+            ctk.CTkLabel(
+                warning_frame,
+                text="⚠️ SILENT INSTALLATION APPEARS DISABLED",
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color="white"
+            ).pack(pady=5)
+
+            ctk.CTkLabel(
+                warning_frame,
+                text=f"Reason: {silent_disabled.get('reason', 'Unknown')}",
+                text_color="white"
+            ).pack(pady=2)
+
+            self.add_separator()
+
         # Install
         if info.install_switches:
             params = " ".join(info.install_switches)
@@ -249,9 +310,6 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
              self.add_result_row(i18n.get("silent_install"), i18n.get("no_switches"), color="orange")
              if info.file_path.endswith('.exe'):
                   self.add_copy_row(i18n.get("brute_force_help"), f'"{info.file_path}" /?', "orange")
-
-                  # Run brute force manual button?
-                  # Already ran automatically if unknown.
 
              if info.product_name:
                  search_query = f"{info.product_name} silent install switches"
@@ -270,6 +328,11 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                  self.add_copy_row("Intune Uninstall", u_params, "red")
             else:
                  self.add_intune_row("Intune Uninstall", "uninstall.exe", u_params, is_msi=False, is_uninstall=True)
+
+        # Nested Executables Section (Archive Extraction)
+        if nested_data and nested_data.get("extractable") and nested_data.get("nested_executables"):
+            self.add_separator()
+            self.show_nested_executables(nested_data, info)
 
         # Brute Force Output Log
         if brute_force_data:
@@ -300,6 +363,133 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         else:
             w_lbl = ctk.CTkLabel(winget_panel, text="Winget: No match found / No properties detected", text_color="gray")
             w_lbl.pack(pady=5)
+
+    def show_nested_executables(self, nested_data, parent_info):
+        """Display nested executables found inside an extracted archive."""
+
+        # Header with attention-grabbing styling
+        header_frame = ctk.CTkFrame(self.result_frame, fg_color="#1E5128", corner_radius=8)
+        header_frame.pack(fill="x", pady=10, padx=5)
+
+        ctk.CTkLabel(
+            header_frame,
+            text="📦 ARCHIVE EXTRACTED - NESTED INSTALLERS FOUND",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="white"
+        ).pack(pady=5)
+
+        ctk.CTkLabel(
+            header_frame,
+            text=f"No switches found for the main EXE. Extract with 7-Zip and use one of these:\n"
+                 f"Archive Type: {nested_data.get('archive_type', 'Unknown')}",
+            text_color="#90EE90"
+        ).pack(pady=5)
+
+        # Display each nested executable
+        for nested in nested_data.get("nested_executables", []):
+            nested_frame = ctk.CTkFrame(self.result_frame, fg_color=("gray85", "gray25"), corner_radius=5)
+            nested_frame.pack(fill="x", pady=5, padx=10)
+
+            # Executable name and type
+            name_label = ctk.CTkLabel(
+                nested_frame,
+                text=f"📄 {nested['name']} ({nested['type']})",
+                font=ctk.CTkFont(size=13, weight="bold"),
+                anchor="w"
+            )
+            name_label.pack(fill="x", padx=10, pady=5)
+
+            # Relative path
+            ctk.CTkLabel(
+                nested_frame,
+                text=f"Path inside archive: {nested['relative_path']}",
+                text_color="gray",
+                anchor="w"
+            ).pack(fill="x", padx=10)
+
+            # Analysis results
+            analysis = nested.get("analysis")
+            if analysis:
+                if analysis.installer_type:
+                    ctk.CTkLabel(
+                        nested_frame,
+                        text=f"Type: {analysis.installer_type}",
+                        text_color="cyan",
+                        anchor="w"
+                    ).pack(fill="x", padx=10)
+
+                if analysis.install_switches:
+                    switches_text = " ".join(analysis.install_switches)
+
+                    switch_frame = ctk.CTkFrame(nested_frame, fg_color="transparent")
+                    switch_frame.pack(fill="x", padx=10, pady=5)
+
+                    ctk.CTkLabel(
+                        switch_frame,
+                        text="Silent Switches:",
+                        font=ctk.CTkFont(weight="bold"),
+                        text_color="green",
+                        width=120
+                    ).pack(side="left")
+
+                    switch_box = ctk.CTkTextbox(switch_frame, height=30, fg_color=("gray95", "gray15"))
+                    switch_box.insert("0.0", switches_text)
+                    switch_box.configure(state="disabled")
+                    switch_box.pack(side="left", fill="x", expand=True, padx=5)
+
+                    def copy_switches(text=switches_text):
+                        self.clipboard_clear()
+                        self.clipboard_append(text)
+                        self.update()
+
+                    ctk.CTkButton(
+                        switch_frame,
+                        text="Copy",
+                        width=60,
+                        command=copy_switches
+                    ).pack(side="right")
+
+                    # Full command instruction
+                    full_cmd = f'"{nested["name"]}" {switches_text}'
+                    ctk.CTkLabel(
+                        nested_frame,
+                        text=f"💡 Extract archive, then run: {full_cmd}",
+                        text_color="yellow",
+                        font=ctk.CTkFont(size=11),
+                        wraplength=500
+                    ).pack(fill="x", padx=10, pady=5)
+
+            elif nested.get("error"):
+                ctk.CTkLabel(
+                    nested_frame,
+                    text=f"Error analyzing: {nested['error']}",
+                    text_color="red"
+                ).pack(fill="x", padx=10, pady=5)
+
+        # Cleanup instruction
+        if nested_data.get("temp_dir"):
+            cleanup_frame = ctk.CTkFrame(self.result_frame, fg_color="transparent")
+            cleanup_frame.pack(fill="x", pady=5)
+
+            ctk.CTkLabel(
+                cleanup_frame,
+                text=f"📁 Temporary extraction: {nested_data['temp_dir']}",
+                text_color="gray",
+                font=ctk.CTkFont(size=10)
+            ).pack(side="left", padx=10)
+
+            def cleanup_temp():
+                from switchcraft.analyzers.universal import UniversalAnalyzer
+                UniversalAnalyzer().cleanup_temp_dir(nested_data['temp_dir'])
+                self.status_bar.configure(text="Temporary files cleaned up")
+
+            ctk.CTkButton(
+                cleanup_frame,
+                text="Clean Up",
+                width=80,
+                fg_color="gray",
+                command=cleanup_temp
+            ).pack(side="right", padx=10)
 
     def add_result_row(self, label_text, value_text, color=None):
         frame = ctk.CTkFrame(self.result_frame, fg_color="transparent")
