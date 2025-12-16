@@ -1,13 +1,75 @@
 name: Release Build
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'pyproject.toml'
+      - '.github/workflows/release.yml'
 
 jobs:
+  prepare_release:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Generate Version
+        id: version
+        run: python .github/scripts/generate_release_version.py
+
+      - name: Update Version in Files
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Updating version to $VERSION"
+
+          # Update pyproject.toml
+          sed -i "s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+
+          # Update __init__.py
+          sed -i "s/__version__ = \".*\"/__version__ = \"$VERSION\"/" src/switchcraft/__init__.py
+
+      - name: Commit and Tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add pyproject.toml src/switchcraft/__init__.py
+          git commit -m "chore(release): bump version to $VERSION [skip ci]"
+          git tag "v$VERSION"
+          git push origin main
+          git push origin "v$VERSION"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build:
     name: Build using PyInstaller
+    needs: prepare_release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -23,12 +85,14 @@ jobs:
             asset_name: SwitchCraft-MacOS
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
+      with:
+        ref: v${{ needs.prepare_release.outputs.version }}
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.14'
+        python-version: '3.11'
 
     - name: Install Dependencies
       run: |
@@ -40,16 +104,10 @@ jobs:
       run: |
         pyinstaller switchcraft.spec
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.asset_name }}
-        path: dist/${{ matrix.artifact_name }}
-
-    - name: Upload to Release
-      if: github.event_name == 'release'
+    - name: Upload Release Asset
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: v${{ needs.prepare_release.outputs.version }}
         files: dist/${{ matrix.artifact_name }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
