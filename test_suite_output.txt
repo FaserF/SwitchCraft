@@ -1,0 +1,22 @@
+..E
+======================================================================
+ERROR: test_msi_analyzer_extension (test_analyzers.TestAnalyzers.test_msi_analyzer_extension)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Program Files\Python313\Lib\unittest\mock.py", line 1426, in patched
+    return func(*newargs, **newkeywargs)
+  File "C:\Users\fseitz\GitHub\SwitchCraft\tests\test_analyzers.py", line 13, in test_msi_analyzer_extension
+    self.assertFalse(analyzer.can_analyze(Path("test.exe")))
+                     ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\fseitz\GitHub\SwitchCraft\src\switchcraft\analyzers\msi.py", line 16, in can_analyze
+    if olefile.isOleFile(file_path):
+       ~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\fseitz\AppData\Roaming\Python\Python313\site-packages\olefile\olefile.py", line 325, in isOleFile
+    with open(filename, 'rb') as fp:
+         ~~~~^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'test.exe'
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.051s
+
+FAILED (errors=1)
