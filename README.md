@@ -2,6 +2,8 @@
 
 <img src="images/switchcraft_logo.png" width="200" alt="SwitchCraft Logo">
 
+[![GitHub all releases](https://img.shields.io/github/downloads/FaserF/SwitchCraft/total?color=blue&style=flat-square&logo=github&label=Downloads)](https://github.com/FaserF/SwitchCraft/releases)
+
 **SwitchCraft** is your ultimate utility for identifying silent installation parameters for EXE and MSI packages. Designed for IT Admins, Packagers, and Developers.
 
 <div align="center">

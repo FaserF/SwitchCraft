@@ -11,3 +11,4 @@ final_test_output.txt
 out_debug_nocolor.txt
 config_test_output.txt
 debug_suite.txt
+/src/switchcraft/generators/__pycache__

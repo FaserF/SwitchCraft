@@ -8,6 +8,7 @@ import logging
 from tkinter import messagebox
 import os
 import sys
+import uuid
 
 from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.exe import ExeAnalyzer
@@ -19,6 +20,8 @@ from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.security import SecurityChecker
 from switchcraft.utils.templates import TemplateGenerator
 from switchcraft.services.ai_service import SwitchCraftAI
+from switchcraft.analyzers.macos import MacOSAnalyzer
+from switchcraft.generators.macos import generate_intune_script as generate_mac_script, generate_mobileconfig
 from switchcraft import __version__
 
 logging.basicConfig(level=logging.INFO)
@@ -441,7 +444,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
              self.after(0, lambda: self.show_error(i18n.get("file_not_found")))
              return
 
-        analyzers = [MsiAnalyzer(), ExeAnalyzer()]
+        analyzers = [MsiAnalyzer(), ExeAnalyzer(), MacOSAnalyzer()]
         info = None
         for analyzer in analyzers:
             if analyzer.can_analyze(path):
@@ -521,6 +524,65 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.add_result_row(i18n.get("about_version"), info.product_version or "Unknown")
 
         self.add_separator()
+
+        # MacOS Specifics
+        if info.installer_type and "MacOS" in info.installer_type:
+            if info.bundle_id:
+                self.add_copy_row("Bundle ID", info.bundle_id, "teal")
+            if info.min_os_version:
+                 self.add_result_row("Min OS Version", info.min_os_version)
+
+            if info.package_ids:
+                self.add_separator()
+                ctk.CTkLabel(self.result_frame, text="Package IDs", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+                for pid in info.package_ids:
+                     self.add_copy_row("ID", pid, "teal")
+
+            self.add_separator()
+
+            # MacOS Generators
+            def generate_bash():
+                save_path = ctk.filedialog.asksaveasfilename(
+                    defaultextension=".sh",
+                    filetypes=[("Bash Script", "*.sh")],
+                    initialfile=f"Install-{info.product_name or 'App'}.sh",
+                    title="Save Intune Script"
+                )
+                if save_path:
+                    try:
+                        content = generate_mac_script(info)
+                        with open(save_path, "w", encoding='utf-8', newline='\\n') as f:
+                            f.write(content)
+                        self.status_bar.configure(text=f"Script saved: {save_path}")
+                        try: os.startfile(save_path)
+                        except: pass
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Failed to generate script: {e}")
+
+            ctk.CTkButton(self.result_frame, text="✨ Generate Intune Script (Bash)", fg_color="purple", command=generate_bash).pack(pady=5, fill="x")
+
+            def generate_profile():
+                 save_path = ctk.filedialog.asksaveasfilename(
+                     defaultextension=".mobileconfig",
+                     filetypes=[("MobileConfig", "*.mobileconfig")],
+                     initialfile=f"{info.product_name or 'Profile'}.mobileconfig",
+                     title="Save Configuration Profile"
+                 )
+                 if save_path:
+                     try:
+                         # Use existing metadata or defaults
+                         ident = info.bundle_id or f"com.switchcraft.{uuid.uuid4()}"
+                         name = f"Profile for {info.product_name or 'App'}"
+                         content = generate_mobileconfig(identifier=ident, display_name=name)
+                         with open(save_path, "w", encoding='utf-8') as f:
+                             f.write(content)
+                         self.status_bar.configure(text=f"Profile saved: {save_path}")
+                         try: os.startfile(save_path)
+                         except: pass
+                     except Exception as e:
+                         messagebox.showerror("Error", f"Failed to generate profile: {e}")
+
+            ctk.CTkButton(self.result_frame, text="⚙️ Create .mobileconfig Profile", fg_color="#0066CC", command=generate_profile).pack(pady=5, fill="x")
 
         # Silent Disabled Warning
         if silent_disabled and silent_disabled.get("disabled"):

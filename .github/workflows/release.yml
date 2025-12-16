@@ -66,12 +66,28 @@ jobs:
           git push origin main
           git push origin "v$VERSION"
 
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          python .github/scripts/generate_changelog.py --output changelog.md
+          # Read changelog content into a variable safely (multiline)
+          {
+            echo 'CHANGELOG_BODY<<EOF'
+            cat changelog.md
+            echo EOF
+          } >> "$GITHUB_ENV"
+
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: ${{ github.event.inputs.release_type == 'stable' && format('Release v{0}', steps.version.outputs.version) || github.event.inputs.release_type == 'prerelease' && format('Pre-release v{0}', steps.version.outputs.version) || format('Development Build v{0}', steps.version.outputs.version) }}
+          body: |
+            ![Downloads](https://img.shields.io/github/downloads/FaserF/SwitchCraft/v${{ steps.version.outputs.version }}/total?color=blue&style=flat-square)
+
+            ${{ env.CHANGELOG_BODY }}
+
           draft: false
           prerelease: ${{ github.event.inputs.release_type != 'stable' }}
           generate_release_notes: true
@@ -157,7 +173,12 @@ jobs:
 
         # Update version in ISS file
         $version = "${{ needs.prepare_release.outputs.version }}"
+        # Clean version for VersionInfoVersion (remove -beta, -dev, etc.)
+        $cleanVersion = $version -replace '[^0-9.]', ''
+
+        # Update both display version and numeric version
         (Get-Content switchcraft.iss) -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$version`"" | Set-Content switchcraft.iss
+        (Get-Content switchcraft.iss) -replace '#define MyAppVersionNumeric ".*"', "#define MyAppVersionNumeric `"$cleanVersion`"" | Set-Content switchcraft.iss
 
         # Build installer
         iscc switchcraft.iss

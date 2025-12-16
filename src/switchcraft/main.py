@@ -10,6 +10,7 @@ from rich.table import Table
 from switchcraft import __version__
 from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.exe import ExeAnalyzer
+from switchcraft.analyzers.macos import MacOSAnalyzer
 from switchcraft.utils.winget import WingetHelper
 from switchcraft.utils.config import SwitchCraftConfig
 
@@ -60,7 +61,7 @@ def cli(filepath, output_json):
     path = Path(filepath)
 
     # Analyzers
-    analyzers = [MsiAnalyzer(), ExeAnalyzer()]
+    analyzers = [MsiAnalyzer(), ExeAnalyzer(), MacOSAnalyzer()]
 
     info = None
     for analyzer in analyzers:
