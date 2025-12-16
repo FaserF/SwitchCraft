@@ -5,6 +5,7 @@ from pathlib import Path
 from PIL import Image
 import webbrowser
 import logging
+from tkinter import messagebox
 import os
 import sys
 
@@ -101,13 +102,18 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         threading.Thread(target=self._run_update_check, daemon=True).start()
 
     def _run_update_check(self, show_no_update=False):
-        checker = UpdateChecker()
-        has_update, version, data = checker.check_for_updates()
+        try:
+            checker = UpdateChecker()
+            has_update, version, data = checker.check_for_updates()
 
-        if has_update:
-            self.after(0, lambda: self.show_update_dialog(checker))
-        elif show_no_update:
-            self.after(0, lambda: ctk.filedialog.showinfo("Check for Updates", f"You are up to date! ({__version__})"))
+            if has_update:
+                self.after(0, lambda: self.show_update_dialog(checker))
+            elif show_no_update:
+                self.after(0, lambda: messagebox.showinfo("Check for Updates", f"You are up to date! ({__version__})"))
+        except Exception as e:
+            logger.error(f"Update check failed: {e}")
+            if show_no_update:
+                self.after(0, lambda err=str(e): messagebox.showerror(i18n.get("update_check_failed"), f"{i18n.get('could_not_check')}\n{err}"))
 
     def show_update_dialog(self, checker):
         dialog = ctk.CTkToplevel(self)
@@ -115,29 +121,29 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         dialog.geometry("500x400")
         dialog.transient(self)
 
-        ctk.CTkLabel(dialog, text="A new version of SwitchCraft is available!", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=10)
+        ctk.CTkLabel(dialog, text=i18n.get("update_available"), font=ctk.CTkFont(size=16, weight="bold")).pack(pady=10)
 
         info_frame = ctk.CTkFrame(dialog)
         info_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
-        ctk.CTkLabel(info_frame, text=f"Current Version: {checker.current_version}").pack(anchor="w", padx=10, pady=2)
-        ctk.CTkLabel(info_frame, text=f"New Version: {checker.latest_version}", text_color="green").pack(anchor="w", padx=10, pady=2)
+        ctk.CTkLabel(info_frame, text=f"{i18n.get('current_version')}: {checker.current_version}").pack(anchor="w", padx=10, pady=2)
+        ctk.CTkLabel(info_frame, text=f"{i18n.get('new_version')}: {checker.latest_version}", text_color="green").pack(anchor="w", padx=10, pady=2)
 
         date_str = checker.release_date.split("T")[0] if checker.release_date else "Unknown"
-        ctk.CTkLabel(info_frame, text=f"Released: {date_str}").pack(anchor="w", padx=10, pady=2)
+        ctk.CTkLabel(info_frame, text=f"{i18n.get('released')}: {date_str}").pack(anchor="w", padx=10, pady=2)
 
-        ctk.CTkLabel(dialog, text="Changelog:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(dialog, text=f"{i18n.get('changelog')}:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=20)
         textbox = ctk.CTkTextbox(dialog, height=100)
         textbox.pack(fill="x", padx=20, pady=5)
-        textbox.insert("0.0", checker.release_notes or "No changelog provided.")
+        textbox.insert("0.0", checker.release_notes or i18n.get("no_changelog"))
         textbox.configure(state="disabled")
 
         btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=20)
 
         download_url = checker.get_download_url()
-        ctk.CTkButton(btn_frame, text="Download Update", command=lambda: webbrowser.open(download_url)).pack(side="left", padx=5)
-        ctk.CTkButton(btn_frame, text="Skip", fg_color="gray", command=dialog.destroy).pack(side="right", padx=5)
+        ctk.CTkButton(btn_frame, text=i18n.get("download_update"), command=lambda: webbrowser.open(download_url)).pack(side="left", padx=5)
+        ctk.CTkButton(btn_frame, text=i18n.get("skip"), fg_color="gray", command=dialog.destroy).pack(side="right", padx=5)
 
 
     # --- Analyzer Tab ---
@@ -337,7 +343,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Brute Force Output Log
         if brute_force_data:
              self.add_separator()
-             lbl = ctk.CTkLabel(self.result_frame, text="Automated Analysis Output", font=ctk.CTkFont(weight="bold"))
+             lbl = ctk.CTkLabel(self.result_frame, text=i18n.get("automated_output"), font=ctk.CTkFont(weight="bold"))
              lbl.pack(pady=5)
 
              log_box = ctk.CTkTextbox(self.result_frame, height=150, fg_color="black", text_color="#00FF00", font=("Consolas", 11))
@@ -346,7 +352,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
              log_box.pack(fill="x", pady=5)
 
              if "MSI Wrapper" in info.installer_type:
-                  ctk.CTkLabel(self.result_frame, text="💡 Detected MSI Wrapper! Standard MSI switches may work.", text_color="cyan", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+                  ctk.CTkLabel(self.result_frame, text=i18n.get("msi_wrapper_tip"), text_color="cyan", font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
         # Winget
         self.add_separator()
@@ -361,8 +367,102 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                                      command=lambda: webbrowser.open(winget_url))
             link_btn.pack(pady=5, padx=10, fill="x")
         else:
-            w_lbl = ctk.CTkLabel(winget_panel, text="Winget: No match found / No properties detected", text_color="gray")
+            w_lbl = ctk.CTkLabel(winget_panel, text=i18n.get("winget_no_match"), text_color="gray")
             w_lbl.pack(pady=5)
+
+        # Parameter List - Show all found parameters with explanations
+        all_params = []
+        if info.install_switches:
+            all_params.extend(info.install_switches)
+        if info.uninstall_switches:
+            all_params.extend(info.uninstall_switches)
+
+        if all_params:
+            self.show_all_parameters(all_params)
+
+    def show_all_parameters(self, params):
+        """Display all found parameters with explanations."""
+        self.add_separator()
+
+        # Header
+        header_frame = ctk.CTkFrame(self.result_frame, fg_color=("#E8F5E9", "#1B5E20"), corner_radius=8)
+        header_frame.pack(fill="x", pady=10, padx=5)
+
+        ctk.CTkLabel(
+            header_frame,
+            text=f"📋 {i18n.get('found_params')}",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("black", "white")
+        ).pack(pady=8)
+
+        # Separate known and unknown params
+        known_params = []
+        unknown_params = []
+
+        for param in params:
+            explanation = i18n.get_param_explanation(param)
+            if explanation:
+                known_params.append((param, explanation))
+            else:
+                unknown_params.append(param)
+
+        # Known parameters with explanations
+        if known_params:
+            known_frame = ctk.CTkFrame(self.result_frame, fg_color=("gray90", "gray25"), corner_radius=5)
+            known_frame.pack(fill="x", pady=5, padx=10)
+
+            ctk.CTkLabel(
+                known_frame,
+                text=f"✓ {i18n.get('known_params')}",
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color="green"
+            ).pack(anchor="w", padx=10, pady=5)
+
+            for param, explanation in known_params:
+                param_row = ctk.CTkFrame(known_frame, fg_color="transparent")
+                param_row.pack(fill="x", padx=10, pady=2)
+
+                # Parameter name (monospace, colored)
+                ctk.CTkLabel(
+                    param_row,
+                    text=param,
+                    font=("Consolas", 12),
+                    text_color=("#0066CC", "#66B3FF"),
+                    width=180,
+                    anchor="w"
+                ).pack(side="left")
+
+                # Explanation
+                ctk.CTkLabel(
+                    param_row,
+                    text=f"→ {explanation}",
+                    text_color=("gray40", "gray70"),
+                    anchor="w"
+                ).pack(side="left", fill="x", expand=True)
+
+            # Padding at bottom of known params
+            ctk.CTkLabel(known_frame, text="", height=5).pack()
+
+        # Unknown parameters
+        if unknown_params:
+            unknown_frame = ctk.CTkFrame(self.result_frame, fg_color=("gray95", "gray30"), corner_radius=5)
+            unknown_frame.pack(fill="x", pady=5, padx=10)
+
+            ctk.CTkLabel(
+                unknown_frame,
+                text=f"? {i18n.get('unknown_params')}",
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color="orange"
+            ).pack(anchor="w", padx=10, pady=5)
+
+            unknown_text = "  ".join(unknown_params)
+            ctk.CTkLabel(
+                unknown_frame,
+                text=unknown_text,
+                font=("Consolas", 11),
+                text_color=("gray50", "gray60"),
+                wraplength=400
+            ).pack(anchor="w", padx=10, pady=(0, 8))
 
     def show_nested_executables(self, nested_data, parent_info):
         """Display nested executables found inside an extracted archive."""
@@ -609,7 +709,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Update Check
         frame_upd = ctk.CTkFrame(self.tab_settings)
         frame_upd.pack(fill="x", padx=10, pady=10)
-        ctk.CTkButton(frame_upd, text="Check for Updates", command=lambda: self._run_update_check(show_no_update=True)).pack(pady=10)
+        ctk.CTkButton(frame_upd, text=i18n.get("check_updates"), command=lambda: self._run_update_check(show_no_update=True)).pack(pady=10)
 
         # About
         frame_about = ctk.CTkFrame(self.tab_settings, fg_color="transparent")
@@ -624,7 +724,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         link.pack(pady=5)
 
         # Footer
-        ctk.CTkLabel(self.tab_settings, text="Brought to you by FaserF", text_color="gray").pack(side="bottom", pady=10)
+        ctk.CTkLabel(self.tab_settings, text=i18n.get("brought_by"), text_color="gray").pack(side="bottom", pady=10)
 
     def change_theme(self, value):
         if value == i18n.get("settings_light"): ctk.set_appearance_mode("Light")

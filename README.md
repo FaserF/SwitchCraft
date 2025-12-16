@@ -64,6 +64,67 @@ Download the latest standalone executable from the [Releases](https://github.com
 - **Linux**: `SwitchCraft-linux`
 - **macOS**: `SwitchCraft-macos`
 
+> [!WARNING]
+> ### ⚠️ False Positive Virus Warnings
+>
+> SwitchCraft may trigger security warnings from browsers, operating systems, or antivirus software. **This is a false positive** – the application is completely safe.
+
+#### Why this happens
+
+<details>
+<summary><b>🌐 Google Chrome / Edge</b> – "This file may be dangerous"</summary>
+
+Chrome uses **Safe Browsing** which flags files based on:
+- **Download frequency**: New/rarely downloaded files are flagged regardless of content
+- **Unsigned executables**: SwitchCraft doesn't have an expensive code-signing certificate
+- **Executable type**: All `.exe` downloads trigger extra scrutiny
+
+**Solution**: Click the `^` arrow → "Keep dangerous file" → "Keep anyway"
+</details>
+
+<details>
+<summary><b>🪟 Windows SmartScreen</b> – "Windows protected your PC"</summary>
+
+Microsoft SmartScreen blocks apps with low "reputation score" based on:
+- **Unknown publisher**: No code-signing certificate = "Unknown Publisher"
+- **Low download count**: New apps have no established reputation
+- **Application behavior**: SwitchCraft reads PE headers and runs processes (for help text detection), which looks suspicious to heuristics
+
+**Solution**: Click "More info" → "Run anyway"
+
+> After many users click "Run anyway", SmartScreen learns the app is safe.
+</details>
+
+<details>
+<summary><b>🛡️ Windows Defender / Microsoft Defender</b> – "Trojan:Win32/Wacatac.B!ml"</summary>
+
+Defender's **machine learning models** flag SwitchCraft because:
+- **PyInstaller-packaged apps** are commonly abused by malware
+- **Process execution**: Running `installer.exe /?` to detect help text triggers behavioral detection
+- **PE file parsing**: Reading executable metadata is similar to what malware does
+- **Archive extraction**: Using 7-Zip to extract nested files resembles unpacking behavior
+
+**Solution**: Add an exclusion in Windows Security → Virus & threat protection → Exclusions
+</details>
+
+<details>
+<summary><b>🔒 Other Antivirus (Kaspersky, Avast, Norton, etc.)</b></summary>
+
+Third-party AV software may flag SwitchCraft because:
+- **Heuristic detection**: The combination of PE parsing + process spawning + file extraction triggers generic "suspicious behavior" rules
+- **VirusTotal reputation**: Some AV vendors share detections, causing a cascade of false positives
+- **UPX compression**: PyInstaller uses UPX to compress executables, which is also used by malware to hide code
+
+**Solution**: Add SwitchCraft to your antivirus exclusion/whitelist
+</details>
+
+#### How to verify the file is safe
+
+1. **Check the source**: Download only from [GitHub Releases](https://github.com/FaserF/SwitchCraft/releases)
+2. **Verify the hash**: Compare SHA256 hash with the one published on the release page
+3. **Scan on VirusTotal**: Upload to [virustotal.com](https://www.virustotal.com) – expect 2-5 detections on new releases (these decrease over time)
+4. **Build from source**: Clone this repo and build yourself with `pyinstaller switchcraft.spec`
+
 No Python installation required!
 
 ### From Source
