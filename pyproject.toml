@@ -24,7 +24,8 @@ dependencies = [
     "py7zr",
     "customtkinter",
     "tkinterdnd2",
-    "pillow"
+    "pillow",
+    "PyYAML"
 ]
 requires-python = ">=3.9"
 

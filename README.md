@@ -1,6 +1,6 @@
 # SwitchCraft 🧙‍♂️
 
-![SwitchCraft Logo](switchcraft_logo.png)
+<img src="switchcraft_logo.png" width="200" alt="SwitchCraft Logo">
 
 **SwitchCraft** is your ultimate cross-platform utility for identifying silent installation parameters for EXE and MSI packages. Designed for IT Admins, Packagers, and Developers.
 
