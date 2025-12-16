@@ -9,3 +9,5 @@ output.txt
 out_debug.txt
 final_test_output.txt
 out_debug_nocolor.txt
+config_test_output.txt
+debug_suite.txt

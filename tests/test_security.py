@@ -18,8 +18,12 @@ class TestSecurityChecker(unittest.TestCase):
         self.assertEqual(pkgs[0]["version"], "1.0.0")
 
     @patch('requests.post')
+    @patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference')
+    @patch('switchcraft.utils.config.SwitchCraftConfig.get_value')
     @patch('switchcraft.utils.security.SecurityChecker.get_installed_packages')
-    def test_check_vulnerabilities_found(self, mock_get_pkgs, mock_post):
+    def test_check_vulnerabilities_found(self, mock_get_pkgs, mock_get_val, mock_set_val, mock_post):
+        # Bypass rate limit
+        mock_get_val.return_value = 0
         # Mock installed packages
         mock_get_pkgs.return_value = [{"package": {"name": "vuln-pkg", "ecosystem": "PyPI"}, "version": "1.0.0"}]
 
@@ -50,8 +54,12 @@ class TestSecurityChecker(unittest.TestCase):
         self.assertEqual(issues[0]["details_url"], "https://osv.dev/vulnerability/GHSA-1234")
 
     @patch('requests.post')
+    @patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference')
+    @patch('switchcraft.utils.config.SwitchCraftConfig.get_value')
     @patch('switchcraft.utils.security.SecurityChecker.get_installed_packages')
-    def test_check_vulnerabilities_none(self, mock_get_pkgs, mock_post):
+    def test_check_vulnerabilities_none(self, mock_get_pkgs, mock_get_val, mock_set_val, mock_post):
+        # Bypass rate limit
+        mock_get_val.return_value = 0
         mock_get_pkgs.return_value = [{"package": {"name": "safe-pkg", "ecosystem": "PyPI"}, "version": "1.0.0"}]
 
         mock_response = MagicMock()

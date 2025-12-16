@@ -57,9 +57,14 @@ class TemplateGenerator:
                 )
 
                 # Replace Install Args
-                # Pattern: $ExitCode = Start-Process-Function -FilePath $Installer -ArgumentList "/install /quiet /norestart"
-                # Note: We need to be careful not to break the code structure.
-                # We look for the Start-Process-Function call involving $Installer
+                # Check for $Arguments = "..." style
+                content = re.sub(
+                    r'(\$Arguments\s*=\s*")(.+?)(")',
+                    f'\\1{context.get("INSTALL_ARGS")}\\3',
+                    content
+                )
+
+                # Also check for inline -ArgumentList "..." just in case
                 content = re.sub(
                     r'(Start-Process-Function\s*-FilePath\s*\$Installer\s*-ArgumentList\s*")(.+?)(")',
                     f'\\1{context.get("INSTALL_ARGS")}\\3',
