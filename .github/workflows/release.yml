@@ -23,7 +23,7 @@ jobs:
             asset_name: SwitchCraft-MacOS
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -41,7 +41,7 @@ jobs:
         pyinstaller switchcraft.spec
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.asset_name }}
         path: dist/${{ matrix.artifact_name }}
