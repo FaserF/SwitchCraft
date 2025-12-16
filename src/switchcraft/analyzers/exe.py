@@ -29,6 +29,7 @@ class ExeAnalyzer(BaseAnalyzer):
         if self._check_nsis(pe, file_path):
             info.installer_type = "NSIS"
             info.install_switches = ["/S"]
+            info.uninstall_switches = ["/S"] # Standard NSIS uninstaller argument
             info.confidence = 0.9
             return info
 
@@ -50,6 +51,7 @@ class ExeAnalyzer(BaseAnalyzer):
         if self._check_7zip(file_path):
             info.installer_type = "7-Zip SFX"
             info.install_switches = ["/S"]
+            info.uninstall_switches = ["/S"]
             info.confidence = 0.9
             return info
 

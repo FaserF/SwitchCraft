@@ -2,13 +2,9 @@ name: Release Build
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'src/**'
-      - 'pyproject.toml'
-      - '.github/workflows/release.yml'
+
+permissions:
+  contents: write
 
 jobs:
   prepare_release:
@@ -27,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.14'
+          python-version: '3.12'
 
       - name: Generate Version
         id: version
