@@ -4,6 +4,8 @@
 
 **SwitchCraft** is your ultimate utility for identifying silent installation parameters for EXE and MSI packages. Designed for IT Admins, Packagers, and Developers.
 
+![SwitchCraft UI](switchcraft_ui.png)
+
 > [!NOTE]
 > **Active development is for Windows only.** Linux and macOS builds are untested but available. Bug reports for other platforms are welcome!
 
@@ -101,6 +103,23 @@ Debug output format:
 - **Windows**: `SwitchCraft-windows.exe`
 - **Linux**: `SwitchCraft-linux`
 - **macOS**: `SwitchCraft-macos`
+
+#### Install via Winget
+```powershell
+winget install FaserF.SwitchCraft
+```
+
+### Enterprise Deployment
+
+SwitchCraft is enterprise-ready and supports management via:
+- **Group Policy (GPO)**: Using ADMX templates
+- **Microsoft Intune**: Using ADMX ingestion or custom OMA-URIs
+- **Registry**: Comprehensive configuration control
+
+| Documentation | Description |
+|---------------|-------------|
+| [Registry Reference](docs/Registry.md) | All registry values and settings |
+| [GPO / Intune Policies](docs/PolicyDefinitions/README.md) | OMA-URI configuration and ADMX templates |
 
 > [!WARNING]
 > ### ⚠️ False Positive Virus Warnings

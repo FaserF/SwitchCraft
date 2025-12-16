@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitionResources xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                           revision="1.0"
+                           schemaVersion="1.0"
+                           xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+
+  <displayName>SwitchCraft</displayName>
+  <description>Policy settings for SwitchCraft - Silent Install Switch Finder</description>
+
+  <resources>
+    <stringTable>
+      <string id="Cat_SwitchCraft">SwitchCraft</string>
+      <string id="Cat_Updates">Updates</string>
+
+      <string id="DebugMode">Enable Debug Logging</string>
+      <string id="DebugMode_Help">Enables verbose debug logging for troubleshooting.
+
+When enabled, SwitchCraft will output detailed log information including:
+- Installer detection steps
+- PE file parsing details
+- Registry/Winget lookup operations
+- Network requests for update checks
+
+Logs are written to the console window (if running debug build) or can be viewed with Process Monitor.
+
+Requires application restart to take effect.</string>
+
+      <string id="UpdateChannel">Update Channel</string>
+      <string id="UpdateChannel_Help">Configures which update channel SwitchCraft uses for automatic update checks.
+
+Available channels:
+- Stable: Only production-ready releases (default)
+- Beta: Pre-release versions for testing new features
+- Dev: Latest development commits (may be unstable)
+
+Changes take effect immediately on next update check.</string>
+
+      <string id="Channel_Stable">Stable - Production releases only</string>
+      <string id="Channel_Beta">Beta - Include pre-release versions</string>
+      <string id="Channel_Dev">Dev - Latest development commits</string>
+    </stringTable>
+
+    <presentationTable>
+      <presentation id="UpdateChannel">
+        <dropdownList refId="UpdateChannelDropdown" defaultItem="0">Update Channel:</dropdownList>
+      </presentation>
+    </presentationTable>
+  </resources>
+
+</policyDefinitionResources>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitions xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   revision="1.0"
+                   schemaVersion="1.0"
+                   xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+
+  <policyNamespaces>
+    <target prefix="switchcraft" namespace="FaserF.SwitchCraft" />
+    <using prefix="windows" namespace="Microsoft.Policies.Windows" />
+  </policyNamespaces>
+
+  <resources minRequiredRevision="1.0" />
+
+  <categories>
+    <category name="SwitchCraft" displayName="$(string.Cat_SwitchCraft)" />
+    <category name="Updates" displayName="$(string.Cat_Updates)" parentCategory="SwitchCraft" />
+  </categories>
+
+  <policies>
+    <!-- Debug Mode -->
+    <policy name="DebugMode"
+            class="User"
+            displayName="$(string.DebugMode)"
+            explainText="$(string.DebugMode_Help)"
+            key="Software\FaserF\SwitchCraft"
+            valueName="DebugMode">
+      <parentCategory ref="SwitchCraft" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+
+    <!-- Update Channel -->
+    <policy name="UpdateChannel"
+            class="User"
+            displayName="$(string.UpdateChannel)"
+            explainText="$(string.UpdateChannel_Help)"
+            presentation="$(presentation.UpdateChannel)"
+            key="Software\FaserF\SwitchCraft">
+      <parentCategory ref="Updates" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <enum id="UpdateChannelDropdown" valueName="UpdateChannel">
+          <item displayName="$(string.Channel_Stable)">
+            <value>
+              <string>stable</string>
+            </value>
+          </item>
+          <item displayName="$(string.Channel_Beta)">
+            <value>
+              <string>beta</string>
+            </value>
+          </item>
+          <item displayName="$(string.Channel_Dev)">
+            <value>
+              <string>dev</string>
+            </value>
+          </item>
+        </enum>
+      </elements>
+    </policy>
+
+  </policies>
+
+</policyDefinitions>

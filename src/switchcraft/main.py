@@ -11,34 +11,13 @@ from switchcraft import __version__
 from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.exe import ExeAnalyzer
 from switchcraft.utils.winget import WingetHelper
+from switchcraft.utils.config import SwitchCraftConfig
 
-def is_debug_mode_enabled():
-    """Check if debug mode is enabled via registry, environment, or command line."""
-    # 1. Check command line argument
-    if '--debug' in sys.argv or '-d' in sys.argv:
-        return True
 
-    # 2. Check environment variable
-    if os.environ.get('SWITCHCRAFT_DEBUG', '').lower() in ('1', 'true', 'yes'):
-        return True
-
-    # 3. Check Windows registry (set by installer)
-    if sys.platform == 'win32':
-        try:
-            import winreg
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\FaserF\SwitchCraft', 0, winreg.KEY_READ)
-            value, _ = winreg.QueryValueEx(key, 'DebugMode')
-            winreg.CloseKey(key)
-            if value == 1:
-                return True
-        except (FileNotFoundError, OSError, WindowsError):
-            pass  # Registry key doesn't exist, ignore
-
-    return False
 
 def setup_logging():
     """Setup structured logging format based on debug mode setting."""
-    debug_enabled = is_debug_mode_enabled()
+    debug_enabled = SwitchCraftConfig.is_debug_mode()
 
     if debug_enabled:
         # Structured debug logging format for easy parsing
@@ -53,7 +32,7 @@ def setup_logging():
         logging.info(f"Python: {sys.version}")
         logging.info(f"Platform: {sys.platform}")
         logging.info(f"Executable: {sys.executable}")
-        logging.info(f"Debug enabled via: {'registry' if sys.platform == 'win32' else 'env/cli'}")
+        logging.info(f"Debug enabled via: {SwitchCraftConfig.is_debug_mode()}")
         logging.info("=" * 60)
     else:
         logging.basicConfig(level=logging.ERROR)

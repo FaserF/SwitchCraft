@@ -15,6 +15,7 @@ from switchcraft.utils.winget import WingetHelper
 from switchcraft.utils.i18n import i18n
 from switchcraft.utils.updater import UpdateChecker
 from switchcraft.analyzers.universal import UniversalAnalyzer
+from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft import __version__
 
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +33,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.title(i18n.get("app_title"))
         self.geometry("900x700")
 
+        # Pending update info (for "Update Later" feature)
+        self.pending_update = None
+
         # Load Assets
         self.logo_image = None
         self.load_assets()
@@ -45,12 +49,18 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.tabview.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
 
         self.tab_analyzer = self.tabview.add(i18n.get("tab_analyzer"))
-        self.tab_helper = self.tabview.add(i18n.get("tab_helper"))
+
+        # AI Helper tab - only show for debug mode, beta, or dev versions
+        self.show_ai_helper = self._should_show_ai_helper()
+        if self.show_ai_helper:
+            self.tab_helper = self.tabview.add(i18n.get("tab_helper"))
+
         self.tab_settings = self.tabview.add(i18n.get("tab_settings"))
 
         # Initialize Tabs
         self.setup_analyzer_tab()
-        self.setup_helper_tab()
+        if self.show_ai_helper:
+            self.setup_helper_tab()
         self.setup_settings_tab()
 
         # Setup Beta/Dev banner if pre-release
@@ -58,6 +68,29 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Auto-Check Updates
         self.after(2000, self.check_updates_silently)
+
+        # Handle window close for "Update Later" feature
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def _should_show_ai_helper(self):
+        """Determine if AI Helper tab should be shown."""
+        # Show for beta/dev versions
+        version_lower = __version__.lower()
+        if "beta" in version_lower or "dev" in version_lower:
+            return True
+
+        # Show if debug mode is enabled
+        if SwitchCraftConfig.is_debug_mode():
+            return True
+
+        return False
+
+    def on_close(self):
+        """Handle app close - open update if scheduled."""
+        if self.pending_update:
+            logger.info(f"Opening pending update: {self.pending_update['version']}")
+            webbrowser.open(self.pending_update['url'])
+        self.destroy()
 
     def load_assets(self):
         try:
@@ -103,47 +136,143 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def _run_update_check(self, show_no_update=False):
         try:
-            checker = UpdateChecker()
+            # Get configured update channel from registry
+            channel = SwitchCraftConfig.get_update_channel()
+            checker = UpdateChecker(channel=channel)
             has_update, version, data = checker.check_for_updates()
 
             if has_update:
                 self.after(0, lambda: self.show_update_dialog(checker))
             elif show_no_update:
-                self.after(0, lambda: messagebox.showinfo("Check for Updates", f"You are up to date! ({__version__})"))
+                channel_display = channel.capitalize()
+                self.after(0, lambda: messagebox.showinfo(i18n.get("check_updates"), f"{i18n.get('up_to_date')}\n\n{i18n.get('about_version')}: {__version__}\nChannel: {channel_display}"))
         except Exception as e:
             logger.error(f"Update check failed: {e}")
             if show_no_update:
                 self.after(0, lambda err=str(e): messagebox.showerror(i18n.get("update_check_failed"), f"{i18n.get('could_not_check')}\n{err}"))
 
-    def show_update_dialog(self, checker):
+    def _is_installed_version(self):
+        """Check if running as installed version (has registry entry) or portable."""
+        if sys.platform != 'win32':
+            return False
+
+        path = SwitchCraftConfig.get_value('InstallPath')
+        if path:
+            return path.lower() in sys.executable.lower()
+        return False
+
+    def _get_skipped_version(self):
+        """Get the version that user chose to skip."""
+        return SwitchCraftConfig.get_value("SkippedVersion", "")
+
+    def _set_skipped_version(self, version):
+        """Save skipped version to registry."""
+        SwitchCraftConfig.set_user_preference("SkippedVersion", version)
+
+    def show_update_dialog(self, checker, is_startup=False):
+        """Show update dialog with three options: Update Now, Update Later, Skip Version."""
+        # Check if this version was skipped
+        if is_startup and checker.latest_version == self._get_skipped_version():
+            logger.info(f"Skipping update dialog for skipped version: {checker.latest_version}")
+            return
+
         dialog = ctk.CTkToplevel(self)
-        dialog.title("Update Available 🚀")
-        dialog.geometry("500x400")
+        dialog.title(i18n.get("update_available_title"))
+        dialog.geometry("520x450")
         dialog.transient(self)
+        dialog.grab_set()  # Modal
 
-        ctk.CTkLabel(dialog, text=i18n.get("update_available"), font=ctk.CTkFont(size=16, weight="bold")).pack(pady=10)
+        # Header
+        ctk.CTkLabel(
+            dialog,
+            text=i18n.get("update_available"),
+            font=ctk.CTkFont(size=18, weight="bold")
+        ).pack(pady=15)
 
+        # Version info
         info_frame = ctk.CTkFrame(dialog)
-        info_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        info_frame.pack(fill="x", padx=20, pady=10)
 
         ctk.CTkLabel(info_frame, text=f"{i18n.get('current_version')}: {checker.current_version}").pack(anchor="w", padx=10, pady=2)
-        ctk.CTkLabel(info_frame, text=f"{i18n.get('new_version')}: {checker.latest_version}", text_color="green").pack(anchor="w", padx=10, pady=2)
+        ctk.CTkLabel(info_frame, text=f"{i18n.get('new_version')}: {checker.latest_version}", text_color="green", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=2)
 
-        date_str = checker.release_date.split("T")[0] if checker.release_date else "Unknown"
-        ctk.CTkLabel(info_frame, text=f"{i18n.get('released')}: {date_str}").pack(anchor="w", padx=10, pady=2)
+        date_str = checker.release_date.split("T")[0] if checker.release_date else i18n.get("unknown")
+        channel_str = checker.channel.capitalize() if hasattr(checker, 'channel') else "Stable"
+        ctk.CTkLabel(info_frame, text=f"{i18n.get('released')}: {date_str} | Channel: {channel_str}").pack(anchor="w", padx=10, pady=2)
 
-        ctk.CTkLabel(dialog, text=f"{i18n.get('changelog')}:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=20)
-        textbox = ctk.CTkTextbox(dialog, height=100)
+        # Changelog
+        ctk.CTkLabel(dialog, text=f"{i18n.get('changelog')}:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=20, pady=(10, 5))
+        textbox = ctk.CTkTextbox(dialog, height=120)
         textbox.pack(fill="x", padx=20, pady=5)
         textbox.insert("0.0", checker.release_notes or i18n.get("no_changelog"))
         textbox.configure(state="disabled")
 
+        # Get appropriate download URL (installer for installed, portable for portable)
+        is_installed = self._is_installed_version()
+        if is_installed:
+            # Prefer installer
+            download_url = self._get_installer_url(checker)
+        else:
+            # Prefer portable
+            download_url = self._get_portable_url(checker)
+
+        # Buttons frame
         btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=20)
 
-        download_url = checker.get_download_url()
-        ctk.CTkButton(btn_frame, text=i18n.get("download_update"), command=lambda: webbrowser.open(download_url)).pack(side="left", padx=5)
-        ctk.CTkButton(btn_frame, text=i18n.get("skip"), fg_color="gray", command=dialog.destroy).pack(side="right", padx=5)
+        # Update Now
+        def update_now():
+            webbrowser.open(download_url)
+            dialog.destroy()
+
+        ctk.CTkButton(
+            btn_frame,
+            text=i18n.get("update_now"),
+            fg_color="green",
+            command=update_now
+        ).pack(side="left", padx=5)
+
+        # Update Later (when closing app)
+        def update_later():
+            self.pending_update = {"url": download_url, "version": checker.latest_version}
+            dialog.destroy()
+            logger.info(f"Update scheduled for app close: {checker.latest_version}")
+
+        ctk.CTkButton(
+            btn_frame,
+            text=i18n.get("update_later"),
+            fg_color="#2B7A0B",
+            command=update_later
+        ).pack(side="left", padx=5)
+
+        # Skip this version
+        def skip_version():
+            self._set_skipped_version(checker.latest_version)
+            dialog.destroy()
+            logger.info(f"User skipped version: {checker.latest_version}")
+
+        ctk.CTkButton(
+            btn_frame,
+            text=i18n.get("skip_version"),
+            fg_color="gray",
+            command=skip_version
+        ).pack(side="right", padx=5)
+
+    def _get_installer_url(self, checker):
+        """Get installer download URL."""
+        for asset in checker.assets:
+            name = asset.get("name", "")
+            if "Setup" in name and name.endswith(".exe"):
+                return asset.get("browser_download_url")
+        return checker.release_url
+
+    def _get_portable_url(self, checker):
+        """Get portable download URL."""
+        for asset in checker.assets:
+            name = asset.get("name", "")
+            if "windows" in name.lower() and name.endswith(".exe") and "Setup" not in name:
+                return asset.get("browser_download_url")
+        return checker.release_url
 
 
     # --- Analyzer Tab ---
@@ -706,7 +835,63 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.lang_opt.set(current_lang)
         self.lang_opt.pack(pady=10)
 
-        # Update Check
+        # Debug Mode Toggle
+        frame_debug = ctk.CTkFrame(self.tab_settings)
+        frame_debug.pack(fill="x", padx=10, pady=10)
+
+        debug_label = i18n.get("settings_debug") if "settings_debug" in i18n.translations.get(i18n.language, {}) else "Debug Logging"
+        lbl_debug = ctk.CTkLabel(frame_debug, text=debug_label, font=ctk.CTkFont(weight="bold"))
+        lbl_debug.pack(pady=5)
+
+        self.debug_switch = ctk.CTkSwitch(
+            frame_debug,
+            text="Enable verbose logging",
+            command=self.toggle_debug_mode,
+            onvalue=1,
+            offvalue=0
+        )
+        # Load current debug setting
+        if self._get_registry_value("DebugMode", 0) == 1:
+            self.debug_switch.select()
+        self.debug_switch.pack(pady=5)
+
+        debug_hint = ctk.CTkLabel(
+            frame_debug,
+            text="Requires restart to take effect",
+            text_color="gray",
+            font=ctk.CTkFont(size=11)
+        )
+        debug_hint.pack(pady=2)
+
+        # Update Channel Selection
+        frame_channel = ctk.CTkFrame(self.tab_settings)
+        frame_channel.pack(fill="x", padx=10, pady=10)
+
+        channel_label = i18n.get("settings_channel") if "settings_channel" in i18n.translations.get(i18n.language, {}) else "Update Channel"
+        lbl_channel = ctk.CTkLabel(frame_channel, text=channel_label, font=ctk.CTkFont(weight="bold"))
+        lbl_channel.pack(pady=5)
+
+        self.channel_opt = ctk.CTkSegmentedButton(
+            frame_channel,
+            values=["Stable", "Beta", "Dev"],
+            command=self.change_update_channel
+        )
+        # Load current channel from registry
+        current_channel = self._get_registry_value("UpdateChannel", "stable")
+        channel_map = {"stable": "Stable", "beta": "Beta", "dev": "Dev"}
+        self.channel_opt.set(channel_map.get(current_channel, "Stable"))
+        self.channel_opt.pack(pady=5)
+
+        channel_desc = ctk.CTkLabel(
+            frame_channel,
+            text="Stable: Releases only | Beta: Pre-releases | Dev: Latest commits",
+            text_color="gray",
+            font=ctk.CTkFont(size=11),
+            wraplength=350
+        )
+        channel_desc.pack(pady=2)
+
+        # Update Check Button
         frame_upd = ctk.CTkFrame(self.tab_settings)
         frame_upd.pack(fill="x", padx=10, pady=10)
         ctk.CTkButton(frame_upd, text=i18n.get("check_updates"), command=lambda: self._run_update_check(show_no_update=True)).pack(pady=10)
@@ -725,6 +910,51 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Footer
         ctk.CTkLabel(self.tab_settings, text=i18n.get("brought_by"), text_color="gray").pack(side="bottom", pady=10)
+
+    def _get_registry_value(self, name, default=None):
+        """Read a value from the Windows registry."""
+        if sys.platform != 'win32':
+            return default
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\FaserF\SwitchCraft', 0, winreg.KEY_READ)
+            value, _ = winreg.QueryValueEx(key, name)
+            winreg.CloseKey(key)
+            return value
+        except:
+            return default
+
+    def _set_registry_value(self, name, value, value_type=None):
+        """Write a value to the Windows registry."""
+        if sys.platform != 'win32':
+            return
+        try:
+            import winreg
+            # Determine value type
+            if value_type is None:
+                if isinstance(value, int):
+                    value_type = winreg.REG_DWORD
+                else:
+                    value_type = winreg.REG_SZ
+
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, r'Software\FaserF\SwitchCraft')
+            winreg.SetValueEx(key, name, 0, value_type, value)
+            winreg.CloseKey(key)
+        except Exception as e:
+            logger.error(f"Failed to write registry value {name}: {e}")
+
+    def toggle_debug_mode(self):
+        """Toggle debug mode setting."""
+        enabled = self.debug_switch.get()
+        self._set_registry_value("DebugMode", int(enabled))
+        logger.info(f"Debug mode {'enabled' if enabled else 'disabled'} (restart required)")
+
+    def change_update_channel(self, value):
+        """Change update channel setting."""
+        channel_map = {"Stable": "stable", "Beta": "beta", "Dev": "dev"}
+        channel = channel_map.get(value, "stable")
+        self._set_registry_value("UpdateChannel", channel)
+        logger.info(f"Update channel changed to: {channel}")
 
     def change_theme(self, value):
         if value == i18n.get("settings_light"): ctk.set_appearance_mode("Light")

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitionResources xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                           revision="1.0"
+                           schemaVersion="1.0"
+                           xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+
+  <displayName>SwitchCraft</displayName>
+  <description>Richtlinieneinstellungen für SwitchCraft - Silent Install Switch Finder</description>
+
+  <resources>
+    <stringTable>
+      <string id="Cat_SwitchCraft">SwitchCraft</string>
+      <string id="Cat_Updates">Updates</string>
+
+      <string id="DebugMode">Debug-Protokollierung aktivieren</string>
+      <string id="DebugMode_Help">Aktiviert die ausführliche Debug-Protokollierung zur Fehlerbehebung.
+
+Bei Aktivierung gibt SwitchCraft detaillierte Protokollinformationen aus:
+- Installer-Erkennungsschritte
+- PE-Datei-Parsing-Details
+- Registry/Winget-Abfragen
+- Netzwerkanfragen für Update-Prüfungen
+
+Protokolle werden im Konsolenfenster ausgegeben (bei Debug-Build) oder können mit Process Monitor eingesehen werden.
+
+Erfordert einen Neustart der Anwendung.</string>
+
+      <string id="UpdateChannel">Update-Kanal</string>
+      <string id="UpdateChannel_Help">Konfiguriert den Update-Kanal für automatische Update-Prüfungen.
+
+Verfügbare Kanäle:
+- Stable: Nur produktionsreife Releases (Standard)
+- Beta: Vorabversionen zum Testen neuer Funktionen
+- Dev: Neueste Entwicklungs-Commits (möglicherweise instabil)
+
+Änderungen werden bei der nächsten Update-Prüfung wirksam.</string>
+
+      <string id="Channel_Stable">Stable - Nur Produktions-Releases</string>
+      <string id="Channel_Beta">Beta - Vorabversionen einschließen</string>
+      <string id="Channel_Dev">Dev - Neueste Entwicklungs-Commits</string>
+    </stringTable>
+
+    <presentationTable>
+      <presentation id="UpdateChannel">
+        <dropdownList refId="UpdateChannelDropdown" defaultItem="0">Update-Kanal:</dropdownList>
+      </presentation>
+    </presentationTable>
+  </resources>
+
+</policyDefinitionResources>
