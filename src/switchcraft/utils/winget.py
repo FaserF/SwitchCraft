@@ -43,14 +43,14 @@ class WingetHelper:
 
         # Try to find loose match
         for vendor_dir in search_root.iterdir():
-            if vendor_dir.is_dir():
-                 # Check vendor name match or inside
-                 if product_name.lower() in vendor_dir.name.lower():
-                     return self._construct_github_url(vendor_dir)
+            # Check vendor name match or inside
+            if product_name.lower() in vendor_dir.name.lower():
+                 return self._construct_github_url(vendor_dir)
 
-                 for pkg_dir in vendor_dir.iterdir():
-                     if product_name.lower() in pkg_dir.name.lower():
-                         return self._construct_github_url(pkg_dir)
+            if vendor_dir.is_dir():
+                for pkg_dir in vendor_dir.iterdir():
+                    if product_name.lower() in pkg_dir.name.lower():
+                        return self._construct_github_url(pkg_dir)
         return None
 
     def _construct_github_url(self, path: Path) -> str:

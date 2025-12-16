@@ -13,11 +13,22 @@ from switchcraft.utils.winget import WingetHelper
 logging.basicConfig(level=logging.ERROR)
 
 @click.command()
-@click.argument('filepath', type=click.Path(exists=True))
+@click.argument('filepath', type=click.Path(exists=True), required=False)
 @click.option('--json', 'output_json', is_flag=True, help="Output in JSON format")
 @click.version_option(__version__)
 def cli(filepath, output_json):
     """SwitchCraft: Analyze installers for silent switches."""
+
+    if not filepath:
+        # Launch GUI if no file provided
+        try:
+            from switchcraft.gui.app import main as gui_main
+            gui_main()
+            return
+        except ImportError as e:
+            print(f"[bold red]GUI dependencies not found. Please install 'customtkinter' and 'tkinterdnd2'. Error: {e}[/bold red]")
+            return
+
     path = Path(filepath)
 
     # Analyzers

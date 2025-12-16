@@ -128,8 +128,17 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.add_copy_row("Silent Install", cmd, "green")
         else:
              self.add_result_row("Silent Install", "No automatic switches found.", color="yellow")
+             # Brute Force Suggestion
              if info.file_path.endswith('.exe'):
                   self.add_copy_row("Brute Force Help", f'"{info.file_path}" /?', "orange")
+
+             # Google Search fallback
+             if info.product_name:
+                 search_query = f"{info.product_name} silent install switches"
+                 search_url = f"https://www.google.com/search?q={search_query.replace(' ', '+')}"
+                 btn = ctk.CTkButton(self.result_frame, text="Search Online for Switches",
+                                          fg_color="gray", command=lambda: webbrowser.open(search_url))
+                 btn.pack(pady=5, fill="x")
 
         if info.uninstall_switches:
             cmd = " ".join(info.uninstall_switches)
