@@ -138,20 +138,12 @@ jobs:
       run: |
         pyinstaller switchcraft.spec
 
-    - name: Upload Release Asset
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: v${{ needs.prepare_release.outputs.version }}
-        files: dist/${{ matrix.artifact_name }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Rename and Upload with Platform Name
+    - name: Rename to Platform Name
       run: |
-        cp dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
+        mv dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
       shell: bash
 
-    - name: Upload Platform-Named Asset
+    - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ needs.prepare_release.outputs.version }}

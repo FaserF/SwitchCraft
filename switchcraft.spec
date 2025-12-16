@@ -19,6 +19,7 @@ datas = [
     (ctk_path, ctk_name),
     (tkdnd_path, tkdnd_name),
     ('switchcraft_logo.png', '.'),
+    ('src/switchcraft/assets', 'switchcraft/assets'),
 ]
 
 a = Analysis(

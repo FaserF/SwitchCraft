@@ -282,12 +282,27 @@ class ExeAnalyzer(BaseAnalyzer):
         """Check for 7-Zip SFX signature."""
         try:
             with open(file_path, 'rb') as f:
+                # Check first 200KB for 7z signature
                 header = f.read(1024 * 200)
                 if b"7z\xBC\xAF\x27\x1C" in header:
                     return True
+
+                # For large SFX files, check for 7-Zip SFX markers in PE metadata/strings
+                # These are present even when the archive starts later in the file
+                markers_7z_sfx = [
+                    b"7-Zip SFX",
+                    b"7z SFX",
+                    b"Oleg N. Scherbakov",  # Author of popular 7z SFX module
+                    b"7zS.sfx",
+                    b"7zSD.sfx",
+                ]
+                for marker in markers_7z_sfx:
+                    if marker in header:
+                        return True
         except Exception:
             pass
         return False
+
 
     def _check_pyinstaller(self, pe: pefile.PE, file_path: Path) -> bool:
         """Check for PyInstaller packaged executable."""
