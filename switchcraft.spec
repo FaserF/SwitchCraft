@@ -18,7 +18,7 @@ tkdnd_path, tkdnd_name = get_package_data(tkinterdnd2)
 datas = [
     (ctk_path, ctk_name),
     (tkdnd_path, tkdnd_name),
-    ('switchcraft_logo.png', '.'),
+    ('images/switchcraft_logo.png', '.'),
     ('src/switchcraft/assets', 'switchcraft/assets'),
 ]
 
@@ -59,6 +59,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='switchcraft_logo.png', # Assuming we convert png to ico or pyinstaller handles it (it prefers ico)
+    icon='images/switchcraft_logo.png', # Assuming we convert png to ico or pyinstaller handles it (it prefers ico)
     version='file_version_info.txt'
 )
