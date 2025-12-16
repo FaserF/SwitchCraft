@@ -143,10 +143,39 @@ jobs:
         mv dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
       shell: bash
 
+    - name: Build Windows Installer
+      if: matrix.os == 'windows-latest'
+      run: |
+        # Install Inno Setup
+        choco install innosetup -y
+
+        # Install ImageMagick for PNG to ICO conversion
+        choco install imagemagick -y
+
+        # Convert PNG to ICO with multiple sizes
+        magick switchcraft_logo.png -define icon:auto-resize=256,128,64,48,32,16 switchcraft_logo.ico
+
+        # Update version in ISS file
+        $version = "${{ needs.prepare_release.outputs.version }}"
+        (Get-Content switchcraft.iss) -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$version`"" | Set-Content switchcraft.iss
+
+        # Build installer
+        iscc switchcraft.iss
+      shell: pwsh
+
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ needs.prepare_release.outputs.version }}
         files: dist/${{ matrix.asset_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Windows Installer
+      if: matrix.os == 'windows-latest'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ needs.prepare_release.outputs.version }}
+        files: dist/SwitchCraft-Setup.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

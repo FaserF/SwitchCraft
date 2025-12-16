@@ -1,0 +1,158 @@
+name: Repository Cleanup
+
+on:
+  schedule:
+    # Run every Sunday at 3 AM UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (show what would be deleted)'
+        required: false
+        type: boolean
+        default: false
+      max_age_days:
+        description: 'Delete workflow runs older than X days'
+        required: false
+        type: number
+        default: 30
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  cleanup_workflow_runs:
+    name: Cleanup Old Workflow Runs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          retain_days: ${{ inputs.max_age_days || 30 }}
+          keep_minimum_runs: 3
+          delete_workflow_pattern: "all"
+
+  cleanup_caches:
+    name: Cleanup Old Caches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup old caches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const caches = await github.rest.actions.getActionsCacheList({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+
+            const now = new Date();
+            const maxAge = 14 * 24 * 60 * 60 * 1000; // 14 days in ms
+            let deleted = 0;
+
+            for (const cache of caches.data.actions_caches) {
+              const cacheAge = now - new Date(cache.last_accessed_at);
+              if (cacheAge > maxAge) {
+                if (${{ inputs.dry_run || false }}) {
+                  console.log(`[DRY RUN] Would delete cache: ${cache.key} (${cache.size_in_bytes} bytes)`);
+                } else {
+                  await github.rest.actions.deleteActionsCacheById({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    cache_id: cache.id
+                  });
+                  console.log(`Deleted cache: ${cache.key}`);
+                  deleted++;
+                }
+              }
+            }
+            console.log(`Deleted ${deleted} old caches`);
+
+  cleanup_stale_branches:
+    name: Cleanup Stale Branches
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Delete merged branches
+        run: |
+          echo "Checking for merged branches to delete..."
+
+          # Get all remote branches except main, master, develop
+          BRANCHES=$(git branch -r --merged origin/main | grep -v 'main\|master\|develop\|HEAD' | sed 's/origin\///')
+
+          if [ -z "$BRANCHES" ]; then
+            echo "No stale branches found."
+            exit 0
+          fi
+
+          for branch in $BRANCHES; do
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "[DRY RUN] Would delete branch: $branch"
+            else
+              echo "Deleting merged branch: $branch"
+              git push origin --delete "$branch" || echo "Could not delete $branch"
+            fi
+          done
+
+  cleanup_draft_releases:
+    name: Cleanup Old Draft Releases
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old draft releases
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const releases = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+
+            const now = new Date();
+            const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+            let deleted = 0;
+
+            for (const release of releases.data) {
+              if (release.draft) {
+                const releaseAge = now - new Date(release.created_at);
+                if (releaseAge > maxAge) {
+                  if (${{ inputs.dry_run || false }}) {
+                    console.log(`[DRY RUN] Would delete draft release: ${release.name || release.tag_name}`);
+                  } else {
+                    await github.rest.repos.deleteRelease({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      release_id: release.id
+                    });
+                    console.log(`Deleted draft release: ${release.name || release.tag_name}`);
+                    deleted++;
+                  }
+                }
+              }
+            }
+            console.log(`Deleted ${deleted} old draft releases`);
+
+  summary:
+    name: Cleanup Summary
+    runs-on: ubuntu-latest
+    needs: [cleanup_workflow_runs, cleanup_caches, cleanup_stale_branches, cleanup_draft_releases]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## 🧹 Repository Cleanup Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Task | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow Runs | ${{ needs.cleanup_workflow_runs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Caches | ${{ needs.cleanup_caches.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Stale Branches | ${{ needs.cleanup_stale_branches.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Draft Releases | ${{ needs.cleanup_draft_releases.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Dry run mode: ${{ inputs.dry_run || false }}" >> $GITHUB_STEP_SUMMARY

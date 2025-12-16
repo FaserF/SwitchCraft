@@ -59,7 +59,45 @@
 ## 🚀 Installation
 
 ### Pre-built Binaries
-Download the latest standalone executable from the [Releases](https://github.com/FaserF/SwitchCraft/releases) page:
+Download from the [Releases](https://github.com/FaserF/SwitchCraft/releases) page:
+
+#### Windows Installer (Recommended)
+- **`SwitchCraft-Setup.exe`** – Full installer with Start Menu, Desktop shortcuts, and Add/Remove Programs entry
+
+| Install Mode | Default Location | How to trigger |
+|-------------|------------------|----------------|
+| **User** | `%LOCALAPPDATA%\FaserF\SwitchCraft` | Just run the installer |
+| **Admin** | `C:\Program Files\FaserF\SwitchCraft` | Run as Administrator |
+
+**Silent Install:**
+```powershell
+# Standard silent install
+SwitchCraft-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+
+# Silent install with debug logging enabled
+SwitchCraft-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DEBUGMODE
+```
+
+**Silent Uninstall:** Use the same switches with the uninstaller from Add/Remove Programs.
+
+#### Debug Logging Mode
+Enable verbose structured logging for troubleshooting or log analysis:
+
+| Method | How to enable |
+|--------|---------------|
+| **Installer checkbox** | Select "Enable Debug Logging" during installation |
+| **Silent install** | Add `/DEBUGMODE` or `/DEBUGMODE=1` parameter |
+| **Environment variable** | Set `SWITCHCRAFT_DEBUG=1` |
+| **Command line** | Run with `--debug` or `-d` flag |
+
+Debug output format:
+```
+[2025-12-16 23:00:00] [INFO    ] [main] SwitchCraft v2025.12.5 - Debug Log
+[2025-12-16 23:00:00] [DEBUG   ] [exe] Analyzing: C:\path\installer.exe
+[2025-12-16 23:00:00] [DEBUG   ] [exe] Detected: NSIS (confidence: 90%)
+```
+
+#### Portable Executables (No Install)
 - **Windows**: `SwitchCraft-windows.exe`
 - **Linux**: `SwitchCraft-linux`
 - **macOS**: `SwitchCraft-macos`
