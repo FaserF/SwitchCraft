@@ -18,3 +18,5 @@ debug_suite.txt
 /src/switchcraft/__pycache__
 test_output.txt
 debug_ai_i18n.py
+/src/switchcraft/__pycache__
+*.pyc
