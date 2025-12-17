@@ -179,7 +179,7 @@ jobs:
         choco install imagemagick -y
 
         # Convert PNG to ICO with multiple sizes
-        magick switchcraft_logo.png -define icon:auto-resize=256,128,64,48,32,16 switchcraft_logo.ico
+        magick images/switchcraft_logo.png -define icon:auto-resize=256,128,64,48,32,16 switchcraft_logo.ico
 
         # Update version in ISS file
         $version = "${{ needs.prepare_release.outputs.version }}"

@@ -80,7 +80,7 @@ Name: "debugmode"; Description: "{cm:DebugMode}"; GroupDescription: "{cm:DebugMo
 Source: "dist\SwitchCraft.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Logo/Icon
-Source: "switchcraft_logo.png"; DestDir: "{app}"; Flags: ignoreversion
+Source: "images\switchcraft_logo.png"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; Start Menu
