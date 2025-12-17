@@ -6,8 +6,8 @@ VSVersionInfo(
   ffi=FixedFileInfo(
     # filevers and prodvers should be always a tuple with four items: (1, 2, 3, 4)
     # Set not needed items to zero 0.
-    filevers=(2025, 12, 9, 0),
-    prodvers=(2025, 12, 9, 0),
+    filevers=(2025, 12, 10, 0),
+    prodvers=(2025, 12, 10, 0),
     # Contains a bitmask that specifies the valid bits 'flags'r
     mask=0x3f,
     # Contains a bitmask that specifies the Boolean attributes of the file.
@@ -31,12 +31,12 @@ VSVersionInfo(
         u'040904B0',
         [StringStruct(u'CompanyName', u'FaserF'),
         StringStruct(u'FileDescription', u'SwitchCraft'),
-        StringStruct(u'FileVersion', u'2025.12.9.0'),
+        StringStruct(u'FileVersion', u'2025.12.10.0'),
         StringStruct(u'InternalName', u'SwitchCraft'),
         StringStruct(u'LegalCopyright', u'Copyright (c) 2025 FaserF'),
         StringStruct(u'OriginalFilename', u'SwitchCraft.exe'),
         StringStruct(u'ProductName', u'SwitchCraft'),
-        StringStruct(u'ProductVersion', u'2025.12.9.0')])
+        StringStruct(u'ProductVersion', u'2025.12.10-dev')])
       ]),
     VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
   ]
