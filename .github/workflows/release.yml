@@ -54,6 +54,18 @@ jobs:
           # Update file_version_info.txt
           python .github/scripts/update_version_info.py "$VERSION"
 
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          python .github/scripts/generate_changelog.py --output changelog.md
+          # Read changelog content into a variable safely (multiline)
+          {
+            echo 'CHANGELOG_BODY<<EOF'
+            cat changelog.md
+            echo ""
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
       - name: Commit and Tag
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -74,17 +86,6 @@ jobs:
           # Always tag and push the tag
           git tag "v$VERSION"
           git push origin "v$VERSION"
-
-      - name: Generate Changelog
-        id: changelog
-        run: |
-          python .github/scripts/generate_changelog.py --output changelog.md
-          # Read changelog content into a variable safely (multiline)
-          {
-            echo 'CHANGELOG_BODY<<EOF'
-            cat changelog.md
-            echo EOF
-          } >> "$GITHUB_ENV"
 
       - name: Create GitHub Release
         id: create_release
