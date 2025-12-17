@@ -8,8 +8,8 @@ import logging
 from tkinter import messagebox
 import os
 import sys
-import uuid
-import shutil
+
+
 import ctypes
 
 
@@ -19,6 +19,7 @@ from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.security import SecurityChecker
 from switchcraft.services.ai_service import SwitchCraftAI
 from switchcraft.services.notification_service import NotificationService
+
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.gui.views.intune_view import IntuneView
 from switchcraft.gui.views.settings_view import SettingsView

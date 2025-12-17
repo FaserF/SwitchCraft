@@ -52,3 +52,5 @@ test_results.txt
 log.txt
 smoke_retry*.txt
 smoke_out.txt
+winget_out.txt
+flake8_log.txt
