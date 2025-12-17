@@ -48,8 +48,8 @@ class ExeAnalyzer(BaseAnalyzer):
         # 2. Inno Setup Detection
         if self._check_inno(pe, file_path):
             info.installer_type = "Inno Setup"
-            info.install_switches = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
-            info.uninstall_switches = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+            info.install_switches = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", '/LOG="install.log"', '/DIR="C:\\InstallPath"']
+            info.uninstall_switches = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", '/LOG="uninstall.log"']
             info.confidence = 0.9
             pe.close()
             return info

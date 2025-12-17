@@ -1,0 +1,75 @@
+name: Retract Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag/Release to retract (e.g. 2025.12.8-beta)'
+        required: true
+        type: string
+      delete_artifacts:
+        description: 'Delete workflow artifacts associated with this ref?'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  retract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Delete Release & Tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag_name }}
+        run: |
+          echo "Retracting release/tag: $TAG"
+
+          # Check if release exists
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Deleting release $TAG (and its assets)..."
+            gh release delete "$TAG" --cleanup-tag --yes
+          else
+            echo "Release $TAG not found."
+
+            # Check if tag exists (if release didn't exist but tag did)
+            if git show-ref --tags --quiet --verify "refs/tags/$TAG"; then
+               echo "Deleting tag $TAG..."
+               git push origin --delete "$TAG"
+            elif gh api "repos/${{ github.repository }}/git/refs/tags/$TAG" > /dev/null 2>&1; then
+               # Remote check via API
+               echo "Deleting remote tag $TAG via API..."
+               gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/$TAG"
+            else
+               echo "Tag $TAG not found."
+            fi
+          fi
+
+      - name: Cleanup Workflow Runs
+        if: ${{ inputs.delete_artifacts }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag_name }}
+        run: |
+          echo "Searching for workflow runs triggered by $TAG..."
+          # List runs for the event 'push' or 'release' associated with the tag
+          # Note: filtering by branch/tag in 'gh run list' is not strictly supported for tags in all versions,
+          # but we can filter by event or just list and grep.
+
+          # More reliable: Use GitHub API to list runs for the SHA of the tag?
+          # Or just basic cleanup.
+
+          # Listing runs associated with branch usually works, for tag it's trickier.
+          # Simplification: Delete runs where head_branch == tag
+
+          runs=$(gh run list --json databaseId,headBranch,event --jq ".[] | select(.headBranch == \"$TAG\") | .databaseId")
+
+          for run_id in $runs; do
+            echo "Deleting run ID: $run_id"
+            gh run delete "$run_id"
+          done

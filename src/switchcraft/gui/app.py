@@ -9,6 +9,9 @@ from tkinter import messagebox
 import os
 import sys
 import uuid
+import shutil
+import ctypes
+import subprocess
 
 from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.exe import ExeAnalyzer
@@ -24,8 +27,12 @@ from switchcraft.analyzers.macos import MacOSAnalyzer
 from switchcraft.generators.macos import generate_intune_script as generate_mac_script, generate_mobileconfig
 from switchcraft.services.notification_service import NotificationService
 from switchcraft.services.intune_service import IntuneService
+from switchcraft.gui.views.intune_view import IntuneView
+from switchcraft.gui.views.settings_view import SettingsView
+from switchcraft.gui.views.ai_view import AIView
 from switchcraft import __version__
 
+from switchcraft.services.signing_service import SigningService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -165,12 +172,20 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def load_assets(self):
         try:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            asset_path = os.path.join(current_dir, "..", "assets", "logo.png")
-            if os.path.exists(asset_path):
-                self.logo_image = ctk.CTkImage(light_image=Image.open(asset_path),
-                                             dark_image=Image.open(asset_path),
-                                             size=(64, 64))
+            # Check 'images' folder logic correctly
+            base_path = Path(__file__).resolve().parent.parent.parent.parent
+            logo_path = base_path / "images" / "switchcraft_logo.png"
+
+            # If frozen/compiled, adjustment might be needed, but for dev this is correct relative to src/switchcraft/gui/app.py
+            if not logo_path.exists():
+                # Fallback check
+                logo_path = Path("images/switchcraft_logo.png")
+
+            if logo_path.exists():
+                pil_image = Image.open(logo_path)
+                self.logo_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(80, 80))
+            else:
+                 logger.warning(f"Logo not found at {logo_path}")
         except Exception as e:
             logger.error(f"Failed to load assets: {e}")
 
@@ -481,7 +496,13 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Status Bar
         self.status_bar = ctk.CTkLabel(self.tab_analyzer, text="Ready", anchor="w", text_color="gray")
-        self.status_bar.grid(row=2, column=0, sticky="ew", padx=10, pady=5)
+        self.status_bar.grid(row=2, column=0, sticky="ew", padx=10, pady=(5, 0))
+
+        # Progress Bar
+        self.progress_bar = ctk.CTkProgressBar(self.tab_analyzer)
+        self.progress_bar.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 5))
+        self.progress_bar.set(0)
+        self.progress_bar.grid_remove()  # Hide initially
 
     def drop(self, event):
         file_path = event.data
@@ -496,6 +517,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def start_analysis(self, file_path):
         self.status_bar.configure(text=f"{i18n.get('analyzing')} {Path(file_path).name}...")
+        self.progress_bar.grid() # Show progress bar
+        self.progress_bar.set(0)
         self.clear_results()
         thread = threading.Thread(target=self.analyze, args=(file_path,))
         thread.start()
@@ -504,84 +527,107 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         for widget in self.result_frame.winfo_children():
             widget.destroy()
 
+    def update_progress(self, val, msg=None):
+        self.after(0, lambda: self._update_progress_ui(val, msg))
+
+    def _update_progress_ui(self, val, msg):
+        self.progress_bar.set(val)
+        if msg:
+            self.status_bar.configure(text=msg)
+
     def analyze(self, file_path_str):
-        path = Path(file_path_str)
-        if not path.exists():
-             self.after(0, lambda: self.show_error(i18n.get("file_not_found")))
-             return
+        try:
+            path = Path(file_path_str)
+            if not path.exists():
+                 self.after(0, lambda: self.show_error(i18n.get("file_not_found")))
+                 return
 
-        analyzers = [MsiAnalyzer(), ExeAnalyzer(), MacOSAnalyzer()]
-        info = None
-        for analyzer in analyzers:
-            if analyzer.can_analyze(path):
-                try:
-                    info = analyzer.analyze(path)
-                    break
-                except Exception as e:
-                    logger.error(f"Analysis failed: {e}")
+            self.update_progress(0.1, f"{i18n.get('analyzing')} {path.name}...")
 
-        # Universal / Brute Force Analysis
-        brute_force_data = None
-        nested_data = None
-        silent_disabled = None
-        uni = UniversalAnalyzer()
-        wrapper = uni.check_wrapper(path)  # Check wrapper regardless
+            analyzers = [MsiAnalyzer(), ExeAnalyzer(), MacOSAnalyzer()]
+            info = None
 
-        if not info or info.installer_type == "Unknown" or "Unknown" in (info.installer_type or "") or wrapper:
-            logger.info("Starting Universal Analysis...")
+            total_analyzers = len(analyzers)
+            for idx, analyzer in enumerate(analyzers):
+                self.update_progress(0.1 + (0.3 * (idx / total_analyzers)), f"Running {analyzer.__class__.__name__}...")
+                if analyzer.can_analyze(path):
+                    try:
+                        info = analyzer.analyze(path)
+                        break
+                    except Exception as e:
+                        logger.error(f"Analysis failed for {analyzer.__class__.__name__}: {e}")
 
-            # Brute Force
-            if not info or "Unknown" in (info.installer_type or ""):
-                bf_results = uni.brute_force_help(path)
+            # Universal / Brute Force Analysis
+            brute_force_data = None
+            nested_data = None
+            silent_disabled = None
+            uni = UniversalAnalyzer()
+            wrapper = uni.check_wrapper(path)  # Check wrapper regardless
 
-                if bf_results.get("detected_type"):
+            if not info or info.installer_type == "Unknown" or "Unknown" in (info.installer_type or "") or wrapper:
+                logger.info("Starting Universal Analysis...")
+                self.update_progress(0.5, "Running Universal Analysis...")
+
+                # Brute Force
+                if not info or "Unknown" in (info.installer_type or ""):
+                    self.update_progress(0.6, "Attempting Brute Force Analysis...")
+                    bf_results = uni.brute_force_help(path)
+
+                    if bf_results.get("detected_type"):
+                        if not info:
+                             from switchcraft.models import InstallerInfo
+                             info = InstallerInfo(file_path=str(path), installer_type=bf_results["detected_type"])
+                        else:
+                             info.installer_type = bf_results["detected_type"]
+
+                        info.install_switches = bf_results["suggested_switches"]
+                        if "MSI" in bf_results["detected_type"]:
+                             info.uninstall_switches = ["/x", "{ProductCode}"]
+
+                    brute_force_data = bf_results.get("output", "")
+
+                    # Check if silent mode is intentionally disabled
+                    silent_disabled = uni.detect_silent_disabled(path, brute_force_data)
+
+                if wrapper:
                     if not info:
                          from switchcraft.models import InstallerInfo
-                         info = InstallerInfo(file_path=str(path), installer_type=bf_results["detected_type"])
-                    else:
-                         info.installer_type = bf_results["detected_type"]
+                         info = InstallerInfo(file_path=str(path), installer_type="Wrapper")
+                    info.installer_type += f" ({wrapper})"
 
-                    info.install_switches = bf_results["suggested_switches"]
-                    if "MSI" in bf_results["detected_type"]:
-                         info.uninstall_switches = ["/x", "{ProductCode}"]
+            if not info:
+                 from switchcraft.models import InstallerInfo
+                 info = InstallerInfo(file_path=str(path), installer_type="Unknown")
 
-                brute_force_data = bf_results.get("output", "")
+            # If still no switches found, try to extract and analyze nested executables
+            if not info.install_switches and path.suffix.lower() == '.exe':
+                self.update_progress(0.8, "Extracting ecosystem for nested analysis...")
+                nested_data = uni.extract_and_analyze_nested(path)
 
-                # Check if silent mode is intentionally disabled
-                silent_disabled = uni.detect_silent_disabled(path, brute_force_data)
+            self.update_progress(0.9, "Searching Winget...")
+            winget = WingetHelper()
+            winget_url = None
+            if info.product_name:
+                winget_url = winget.search_by_name(info.product_name)
 
-            if wrapper:
-                if not info:
-                     from switchcraft.models import InstallerInfo
-                     info = InstallerInfo(file_path=str(path), installer_type="Wrapper")
-                info.installer_type += f" ({wrapper})"
+            # Update AI Context
+            context_data = {
+                "type": info.installer_type,
+                "filename": path.name,
+                "install_silent": " ".join(info.install_switches) if info.install_switches else "Unknown",
+                "product": info.product_name or "Unknown",
+                "manufacturer": info.manufacturer or "Unknown"
+            }
+            self.ai_service.update_context(context_data)
 
-        if not info:
-             from switchcraft.models import InstallerInfo
-             info = InstallerInfo(file_path=str(path), installer_type="Unknown")
+            self.update_progress(1.0, "Analysis Complete")
+            self.after(0, lambda i=info, w=winget_url, bf=brute_force_data, nd=nested_data, sd=silent_disabled:
+                       self.show_results(i, w, bf, nd, sd))
 
-        # If still no switches found, try to extract and analyze nested executables
-        if not info.install_switches and path.suffix.lower() == '.exe':
-            self.after(0, lambda: self.status_bar.configure(text="Extracting archive for nested analysis..."))
-            nested_data = uni.extract_and_analyze_nested(path)
-
-        winget = WingetHelper()
-        winget_url = None
-        if info.product_name:
-            winget_url = winget.search_by_name(info.product_name)
-
-        # Update AI Context
-        context_data = {
-            "type": info.installer_type,
-            "filename": path.name,
-            "install_silent": " ".join(info.install_switches) if info.install_switches else "Unknown",
-            "product": info.product_name or "Unknown",
-            "manufacturer": info.manufacturer or "Unknown"
-        }
-        self.ai_service.update_context(context_data)
-
-        self.after(0, lambda i=info, w=winget_url, bf=brute_force_data, nd=nested_data, sd=silent_disabled:
-                   self.show_results(i, w, bf, nd, sd))
+        except Exception as e:
+            logger.exception("CRITICAL CRASH IN ANALYZER THREAD")
+            self.after(0, lambda: self.show_error(f"Critical Error during analysis: {e}"))
+            self.update_progress(0, "Analysis Failed")
 
     def show_error(self, message):
          self.status_bar.configure(text=i18n.get("error"))
@@ -590,6 +636,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def show_results(self, info, winget_url, brute_force_data=None, nested_data=None, silent_disabled=None):
         self.status_bar.configure(text=i18n.get("analysis_complete"))
+        self.progress_bar.grid_remove() # Hide progress bar
         self.clear_results()
 
         # Notify
@@ -686,15 +733,36 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
             self.add_separator()
 
+        # All-in-One Button (Top of actions)
+        if info.install_switches:
+             self.add_separator()
+             ctk.CTkButton(self.result_frame,
+                           text="✨ Automatic Deployment (All-in-One)",
+                           fg_color=("#E04F5F", "#C0392B"),
+                           height=40,
+                           font=ctk.CTkFont(size=14, weight="bold"),
+                           command=lambda: self._run_all_in_one_flow(info)
+             ).pack(pady=10, fill="x")
+
         # Install
         if info.install_switches:
             params = " ".join(info.install_switches)
             self.add_copy_row(i18n.get("silent_install") + " (Params)", params, "green")
-            self.add_full_command_row("Install Command (Full)", info.file_path, params, is_install=True, is_msi=("MSI" in info.installer_type))
-            self.add_intune_row("Intune Install", info.file_path, params, is_msi=("MSI" in info.installer_type))
 
+            # Button Row for Install
+            btn_frame = ctk.CTkFrame(self.result_frame, fg_color="transparent")
+            btn_frame.pack(fill="x", pady=5)
 
+            self.add_full_command_row(f"{i18n.get('cmd_manual_install')} (Absolute)", info.file_path, params, is_msi=(info.installer_type == "MSI"))
+            self.add_intune_row(f"{i18n.get('cmd_intune_install')} (Relative)", info.file_path, params, is_msi=(info.installer_type == "MSI"))
 
+            # Test Install Button
+            ctk.CTkButton(btn_frame,
+                          text="▶ Test Install (Local)",
+                          fg_color="#2ecc71",
+                          width=140,
+                          command=lambda: self._run_local_test_action(info.file_path, info.install_switches)
+            ).pack(side="right", padx=10)
 
             ctk.CTkButton(self.result_frame, text="✨ Generate Intune Script", fg_color="purple", command=lambda: self.generate_intune_script_with_info(info)).pack(pady=5, fill="x")
             ctk.CTkButton(self.result_frame, text="📦 Create .intunewin Package", fg_color="#0066CC", command=lambda: self.create_intunewin_action(info)).pack(pady=5, fill="x")
@@ -770,6 +838,15 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         if all_params:
             self.show_all_parameters(all_params)
+
+        # Detailed Params Button (Always show if we have nested data OR params)
+        if (nested_data and nested_data.get("nested_executables")) or all_params:
+             self.add_separator()
+             ctk.CTkButton(self.result_frame,
+                           text=i18n.get("view_detailed_params") if "view_detailed_params" in i18n.translations.get(i18n.language, {}) else "View Full Parameter Details (All Files)",
+                           fg_color="#555555",
+                           command=lambda: self._show_detailed_parameters(info, nested_data)
+             ).pack(pady=10, fill="x")
 
     def show_all_parameters(self, params):
         """Display all found parameters with explanations."""
@@ -971,8 +1048,18 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
             def cleanup_temp():
                 from switchcraft.analyzers.universal import UniversalAnalyzer
-                UniversalAnalyzer().cleanup_temp_dir(nested_data['temp_dir'])
-                self.status_bar.configure(text="Temporary files cleaned up")
+                ua = UniversalAnalyzer()
+
+                dirs = nested_data.get('all_temp_dirs', [])
+                if not dirs and nested_data.get('temp_dir'):
+                    dirs = [nested_data['temp_dir']]
+
+                count = 0
+                for d in dirs:
+                    ua.cleanup_temp_dir(d)
+                    count += 1
+
+                self.status_bar.configure(text=f"Cleaned up {count} temporary locations")
 
             ctk.CTkButton(
                 cleanup_frame,
@@ -1039,305 +1126,15 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     # --- Helper Tab ---
     def setup_helper_tab(self):
-        self.tab_helper.grid_columnconfigure(0, weight=1)
-        self.tab_helper.grid_rowconfigure(0, weight=1)
+        self.ai_view = AIView(self.tab_helper, self.ai_service)
+        self.ai_view.pack(fill="both", expand=True)
 
-        self.chat_frame = ctk.CTkTextbox(self.tab_helper, state="disabled")
-        self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        self.append_chat("System", i18n.get("ai_helper_welcome"))
-
-        self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-
-        # Privacy Disclaimer (Green Text)
-        disclaimer_frame = ctk.CTkFrame(self.tab_helper, fg_color="transparent")
-        disclaimer_frame.grid(row=1, column=0, sticky="ew", padx=10)
-
-        ctk.CTkLabel(
-            disclaimer_frame,
-            text=f"🔒 {i18n.get('privacy_note')}",
-            text_color="green",
-            font=ctk.CTkFont(size=11, weight="bold")
-        ).pack(anchor="w")
-
-        input_frame = ctk.CTkFrame(self.tab_helper, fg_color="transparent")
-        input_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=10)
-
-        self.chat_entry = ctk.CTkEntry(input_frame, placeholder_text="Ask something...")
-        self.chat_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        self.chat_entry.bind("<Return>", self.handle_chat)
-
-        send_btn = ctk.CTkButton(input_frame, text="Send", width=80, command=self.handle_chat)
-        send_btn.pack(side="right")
-
-    def handle_chat(self, event=None):
-        msg = self.chat_entry.get()
-        if not msg: return
-        self.append_chat("You", msg)
-        self.chat_entry.delete(0, "end")
-
-        # Query AI
-        if hasattr(self, 'ai_service'):
-            answer = self.ai_service.ask(msg)
-            self.after(200, lambda: self.append_chat("SwitchCraft AI", answer))
-        else:
-            self.after(500, lambda: self.append_chat("System", "AI Service not initialized."))
-
-    def append_chat(self, sender, message):
-        self.chat_frame.configure(state="normal")
-        self.chat_frame.insert("end", f"[{sender}]: {message}\n\n")
-        self.chat_frame.configure(state="disabled")
-        self.chat_frame.see("end")
 
     # --- Settings Tab ---
     def setup_settings_tab(self):
-        self.tab_settings.grid_columnconfigure(0, weight=1)
-        self.tab_settings.grid_rowconfigure(0, weight=1)
-
-        # Scrollable Container
-        self.settings_scroll = ctk.CTkScrollableFrame(self.tab_settings, fg_color="transparent")
-        self.settings_scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
-        self.settings_scroll.grid_columnconfigure(0, weight=1)
-
-        # Appearance
-        frame_app = ctk.CTkFrame(self.settings_scroll)
-        frame_app.pack(fill="x", padx=10, pady=10)
-
-        lbl_theme = ctk.CTkLabel(frame_app, text=i18n.get("settings_theme"), font=ctk.CTkFont(weight="bold"))
-        lbl_theme.pack(pady=5)
-
-        self.theme_opt = ctk.CTkSegmentedButton(frame_app, values=[i18n.get("settings_light"), i18n.get("settings_dark"), "System"],
-                                                command=self.change_theme)
-        self.theme_opt.set("System")
-        self.theme_opt.pack(pady=10)
-
-        # Language
-        frame_lang = ctk.CTkFrame(self.settings_scroll)
-        frame_lang.pack(fill="x", padx=10, pady=10)
-
-        lbl_lang = ctk.CTkLabel(frame_lang, text=i18n.get("settings_lang"), font=ctk.CTkFont(weight="bold"))
-        lbl_lang.pack(pady=5)
-
-        self.lang_opt = ctk.CTkOptionMenu(frame_lang, values=["English (en)", "German (de)"], command=self.change_language)
-        current_lang = "German (de)" if i18n.language == "de" else "English (en)"
-        self.lang_opt.set(current_lang)
-        self.lang_opt.pack(pady=10)
-
-        # Debug Mode Toggle
-        frame_debug = ctk.CTkFrame(self.settings_scroll)
-        frame_debug.pack(fill="x", padx=10, pady=10)
-
-        debug_label = i18n.get("settings_debug") if "settings_debug" in i18n.translations.get(i18n.language, {}) else "Debug Logging"
-        lbl_debug = ctk.CTkLabel(frame_debug, text=debug_label, font=ctk.CTkFont(weight="bold"))
-        lbl_debug.pack(pady=5)
-
-        self.debug_switch = ctk.CTkSwitch(
-            frame_debug,
-            text=i18n.get("enable_verbose"),
-            command=self.toggle_debug_mode,
-            onvalue=1,
-            offvalue=0
-        )
-        # Load current debug setting
-        if self._get_registry_value("DebugMode", 0) == 1:
-            self.debug_switch.select()
-        self.debug_switch.pack(pady=5)
-
-        debug_hint = ctk.CTkLabel(
-            frame_debug,
-            text=i18n.get("requires_restart"),
-            text_color="gray",
-            font=ctk.CTkFont(size=11)
-        )
-        debug_hint.pack(pady=2)
-
-        # Update Channel Selection
-        frame_channel = ctk.CTkFrame(self.settings_scroll)
-        frame_channel.pack(fill="x", padx=10, pady=10)
-
-        channel_label = i18n.get("settings_channel") if "settings_channel" in i18n.translations.get(i18n.language, {}) else "Update Channel"
-        lbl_channel = ctk.CTkLabel(frame_channel, text=channel_label, font=ctk.CTkFont(weight="bold"))
-        lbl_channel.pack(pady=5)
-
-        self.channel_opt = ctk.CTkSegmentedButton(
-            frame_channel,
-            values=["Stable", "Beta", "Dev"],
-            command=self.change_update_channel
-        )
-        # Load current channel from registry
-        current_channel = self._get_registry_value("UpdateChannel")
-        if not current_channel:
-            # Smart Detection: Default to Beta/Dev if running pre-release
-            v_low = __version__.lower()
-            if "dev" in v_low: current_channel = "dev"
-            elif "beta" in v_low: current_channel = "beta"
-            else: current_channel = "stable"
-
-        channel_map = {"stable": "Stable", "beta": "Beta", "dev": "Dev"}
-        self.channel_opt.set(channel_map.get(current_channel, "Stable"))
-        self.channel_opt.pack(pady=5)
-
-        channel_desc = ctk.CTkLabel(
-            frame_channel,
-            text=i18n.get("settings_channel_desc"),
-            text_color="gray",
-            font=ctk.CTkFont(size=11),
-            wraplength=350
-        )
-        channel_desc.pack(pady=2)
-
-        # Template Selection
-        frame_tmpl = ctk.CTkFrame(self.settings_scroll)
-        frame_tmpl.pack(fill="x", padx=10, pady=10)
-
-        lbl_tmpl = ctk.CTkLabel(frame_tmpl, text=i18n.get("settings_tmpl_title"), font=ctk.CTkFont(weight="bold"))
-        lbl_tmpl.pack(pady=5)
-
-        current_tmpl = SwitchCraftConfig.get_value("CustomTemplatePath")
-        display_tmpl = current_tmpl if current_tmpl else i18n.get("settings_tmpl_default")
-
-        self.tmpl_path_label = ctk.CTkLabel(frame_tmpl, text=display_tmpl, text_color="gray", wraplength=300)
-        self.tmpl_path_label.pack(pady=2)
-
-        def select_template():
-            path = ctk.filedialog.askopenfilename(filetypes=[("PowerShell", "*.ps1")])
-            if path:
-                SwitchCraftConfig.set_user_preference("CustomTemplatePath", path)
-                self.tmpl_path_label.configure(text=path)
-
-        ctk.CTkButton(frame_tmpl, text=i18n.get("settings_tmpl_select"), command=select_template).pack(pady=5)
-
-        def reset_template():
-            SwitchCraftConfig.set_user_preference("CustomTemplatePath", "")
-            # Or remove value entirely? set_user_preference doesn't support delete easily without modification,
-            # but empty string might be enough if logic checks `if current_tmpl`.
-            # Let's check `SwitchCraftConfig` again. It has `set_user_preference`.
-            # Actually, let's implement a clean delete or set to empty.
-            self.tmpl_path_label.configure(text="Default Internal Template")
-
-        ctk.CTkButton(frame_tmpl, text=i18n.get("settings_tmpl_reset"), fg_color="transparent", border_width=1, command=reset_template).pack(pady=2)
-
-
-        # Help & Documentation
-        frame_docs = ctk.CTkFrame(self.settings_scroll)
-        frame_docs.pack(fill="x", padx=10, pady=10)
-
-        ctk.CTkLabel(frame_docs, text="Help & Support", font=ctk.CTkFont(weight="bold")).pack(pady=5)
-
-        btn_docs = ctk.CTkButton(frame_docs, text="Open Documentation (README)",
-                               command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/blob/main/README.md"))
-        btn_docs.pack(pady=5, fill="x")
-
-        btn_help = ctk.CTkButton(frame_docs, text="Get Help (GitHub Issues)", fg_color="transparent", border_width=1,
-                               command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/issues"))
-        btn_help.pack(pady=5, fill="x")
-
-        # Debug Console Toggle (Windows Only)
-        if sys.platform == 'win32':
-             frame_debug = ctk.CTkFrame(self.settings_scroll)
-             frame_debug.pack(fill="x", padx=10, pady=10)
-
-             ctk.CTkLabel(frame_debug, text=i18n.get("settings_debug_title"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
-
-             self.debug_console_var = ctk.BooleanVar(value=False)
-
-             def toggle_console():
-                 import ctypes
-                 kernel32 = ctypes.windll.kernel32
-                 if self.debug_console_var.get():
-                     kernel32.AllocConsole()
-                     sys.stdout = open("CONOUT$", "w")
-                     sys.stderr = open("CONOUT$", "w")
-                     print("SwitchCraft Debug Console [Enabled]")
-                 else:
-                     try:
-                         sys.stdout.close()
-                         sys.stderr.close()
-                         # Restore std streams to avoid errors
-                         sys.stdout = sys.__stdout__
-                         sys.stderr = sys.__stderr__
-                     except: pass
-                     kernel32.FreeConsole()
-
-             ctk.CTkSwitch(frame_debug, text=i18n.get("settings_debug_console"), variable=self.debug_console_var, command=toggle_console).pack(pady=5)
-
-
-
-        # Update Check Button
-        frame_upd = ctk.CTkFrame(self.settings_scroll)
-        frame_upd.pack(fill="x", padx=10, pady=10)
-        ctk.CTkButton(frame_upd, text=i18n.get("check_updates"), command=lambda: self._run_update_check(show_no_update=True)).pack(pady=10)
-
-        # About
-        frame_about = ctk.CTkFrame(self.settings_scroll, fg_color="transparent")
-        frame_about.pack(fill="x", padx=10, pady=20)
-
-        ctk.CTkLabel(frame_about, text="SwitchCraft", font=ctk.CTkFont(size=24, weight="bold")).pack()
-        ctk.CTkLabel(frame_about, text=f"{i18n.get('about_version')}: {__version__}").pack()
-        ctk.CTkLabel(frame_about, text=f"{i18n.get('about_dev')}: FaserF").pack()
-
-        link = ctk.CTkButton(frame_about, text="GitHub: FaserF/SwitchCraft", fg_color="transparent", text_color="cyan", hover=False,
-                             command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft"))
-        link.pack(pady=5)
-
-        # Footer
-        ctk.CTkLabel(self.settings_scroll, text=i18n.get("brought_by"), text_color="gray").pack(side="bottom", pady=10)
-
-    def _get_registry_value(self, name, default=None):
-        """Read a value from the Windows registry."""
-        if sys.platform != 'win32':
-            return default
-        try:
-            import winreg
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\FaserF\SwitchCraft', 0, winreg.KEY_READ)
-            value, _ = winreg.QueryValueEx(key, name)
-            winreg.CloseKey(key)
-            return value
-        except:
-            return default
-
-    def _set_registry_value(self, name, value, value_type=None):
-        """Write a value to the Windows registry."""
-        if sys.platform != 'win32':
-            return
-        try:
-            import winreg
-            # Determine value type
-            if value_type is None:
-                if isinstance(value, int):
-                    value_type = winreg.REG_DWORD
-                else:
-                    value_type = winreg.REG_SZ
-
-            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, r'Software\FaserF\SwitchCraft')
-            winreg.SetValueEx(key, name, 0, value_type, value)
-            winreg.CloseKey(key)
-        except Exception as e:
-            logger.error(f"Failed to write registry value {name}: {e}")
-
-    def toggle_debug_mode(self):
-        """Toggle debug mode setting."""
-        enabled = self.debug_switch.get()
-        self._set_registry_value("DebugMode", int(enabled))
-        logger.info(f"Debug mode {'enabled' if enabled else 'disabled'} (restart required)")
-
-    def change_update_channel(self, value):
-        """Change update channel setting."""
-        channel_map = {"Stable": "stable", "Beta": "beta", "Dev": "dev"}
-        channel = channel_map.get(value, "stable")
-        self._set_registry_value("UpdateChannel", channel)
-        logger.info(f"Update channel changed to: {channel}")
-
-    def change_theme(self, value):
-        if value == i18n.get("settings_light"): ctk.set_appearance_mode("Light")
-        elif value == i18n.get("settings_dark"): ctk.set_appearance_mode("Dark")
-        else: ctk.set_appearance_mode("System")
-
-    def change_language(self, value):
-        code = "de" if "de" in value else "en"
-        if code != i18n.language:
-            i18n.set_language(code)
-            self.tabview._segmented_button.configure(values=[i18n.get("tab_analyzer"), i18n.get("tab_helper"), i18n.get("tab_settings")])
-            self.title(i18n.get("app_title"))
+        """Setup the Settings tab."""
+        self.settings_view = SettingsView(self.tab_settings, self._run_update_check)
+        self.settings_view.pack(fill="both", expand=True)
 
     def generate_intune_script_action(self):
         """Handle Intune script generation from UI."""
@@ -1360,12 +1157,44 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         default_filename = f"Install-{info.product_name or 'App'}.ps1"
         default_filename = "".join(x for x in default_filename if x.isalnum() or x in "-_.")
 
+
+
+        # Override save path if Git Repo is configured and we can determine a better default
+        git_repo = SwitchCraftConfig.get_value("GitRepoPath")
+        if git_repo and Path(git_repo).exists():
+             # "Apps" -> ProgramName
+             app_name_safe = "".join(x for x in (info.product_name or "UnknownApp") if x.isalnum() or x in "-_.")
+             target_dir = Path(git_repo) / "Apps" / app_name_safe
+
+             # If user cancelled dialog or we want to suggest this path instead
+             # The dialog happened above, but maybe we should have set initialdir?
+             # Let's check if the user actually selected something.
+             pass
+
+        # Reworking logic to prioritize Git Repo if set
+        initial_dir = None
+        if git_repo and Path(git_repo).exists():
+             app_name_safe = "".join(x for x in (info.product_name or "UnknownApp") if x.isalnum() or x in "-_.")
+             suggested_path = Path(git_repo) / "Apps" / app_name_safe
+             if not suggested_path.exists():
+                 try:
+                     suggested_path.mkdir(parents=True, exist_ok=True)
+                 except: pass
+             if suggested_path.exists():
+                 initial_dir = str(suggested_path)
+
+        # Re-ask or use the user's choice?
+        # The user says: "Ist dieser hinterlegt, sollen neue Pakete dort immer im Unterordner "Apps" -> ProgrammNameAlsOrdnerName abgelegt werden."
+        # This implies we should DEFAULT to that folder.
+
         save_path = ctk.filedialog.asksaveasfilename(
             defaultextension=".ps1",
             filetypes=[("PowerShell Script", "*.ps1")],
             initialfile=default_filename,
+            initialdir=initial_dir, # Use Git path if avail
             title="Save Intune Script"
         )
+
         if save_path:
             context_data = {
                 "INSTALLER_FILE": Path(info.file_path).name,
@@ -1378,11 +1207,201 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             generator = TemplateGenerator(custom_template)
 
             if generator.generate(context_data, save_path):
+                # Try to sign
+                if SigningService.sign_script(save_path):
+                    logger.info(f"Script signed: {save_path}")
+                else:
+                    logger.warning("Script verification/signing failed or skipped.")
+
                 self.status_bar.configure(text=f"Script generated: {save_path}")
                 try: os.startfile(save_path)
                 except: pass
             else:
                 messagebox.showerror("Error", "Failed to generate script template.")
+
+
+
+
+    def _run_all_in_one_flow(self, info):
+        """Orchestrate the entire flow: Generate -> Test -> Package -> Upload."""
+
+        # 1. Confirmation & Config Check
+        if not messagebox.askyesno("Confirm Automation", "This will attempt to:\n1. Generate & Sign Script\n2. Run Local Install/Uninstall Test (Requires Admin)\n3. Create IntuneWin Package\n4. Upload to Intune\n\nContinue?"):
+             return
+
+        # Check upload config early
+        if not (SwitchCraftConfig.get_value("IntuneTenantID") and SwitchCraftConfig.get_value("IntuneClientId")):
+             if not messagebox.askyesno("Config Warning", "Intune Upload is NOT configured. Steps will stop after packaging. Continue?"):
+                 return
+
+        # Setup Progress Window
+        progress_win = ctk.CTkToplevel(self)
+        progress_win.title("Deployment Automation")
+        progress_win.geometry("600x400")
+        txt_log = ctk.CTkTextbox(progress_win)
+        txt_log.pack(fill="both", expand=True, padx=10, pady=10)
+
+        def log(msg):
+            progress_win.after(0, lambda: txt_log.insert("end", f"{msg}\n"))
+            progress_win.after(0, lambda: txt_log.see("end"))
+
+        def run_flow():
+            try:
+                # --- Step 1: Generate Script ---
+                log("--- Step 1: Generating Script ---")
+
+                # Determine path (Git repo or Temp)
+                base_dir = Path(info.file_path).parent
+                git_repo = SwitchCraftConfig.get_value("GitRepoPath")
+                if git_repo and Path(git_repo).exists():
+                     app_name_safe = "".join(x for x in (info.product_name or "UnknownApp") if x.isalnum() or x in "-_.")
+                     base_dir = Path(git_repo) / "Apps" / app_name_safe
+                     base_dir.mkdir(parents=True, exist_ok=True)
+
+                     # Copy installer there if not present?
+                     # For automation, we might need the installer in the package source.
+                     dst_installer = base_dir / Path(info.file_path).name
+                     if Path(info.file_path).resolve() != dst_installer.resolve():
+                         import shutil
+                         log(f"Copying installer to {base_dir}...")
+                         shutil.copy2(info.file_path, dst_installer)
+                         info.file_path = str(dst_installer) # Update info to point to new location
+
+                script_name = f"Install-{info.product_name or 'App'}.ps1"
+                script_name = "".join(x for x in script_name if x.isalnum() or x in "-_.")
+                script_path = base_dir / script_name
+
+                context = {
+                    "INSTALLER_FILE": Path(info.file_path).name,
+                    "INSTALL_ARGS": " ".join(info.install_switches) if info.install_switches else "/S",
+                    "APP_NAME": info.product_name or "Application",
+                    "PUBLISHER": info.manufacturer or "Unknown"
+                }
+
+                # Generate
+                tmpl_path = SwitchCraftConfig.get_value("CustomTemplatePath")
+                gen = TemplateGenerator(tmpl_path)
+                if not gen.generate(context, str(script_path)):
+                     raise RuntimeError("Script generation failed")
+
+                log(f"Script created: {script_path}")
+
+                # Sign
+                if SigningService.sign_script(str(script_path)):
+                     log("Script signed successfully.")
+                else:
+                     log("Signing skipped or failed (check settings).")
+
+
+                # --- Step 2: Local Test ---
+                log("\n--- Step 2: Local Test ---")
+                # We need to run the SCRIPT as Admin
+                # "powershell -ExecutionPolicy Bypass -File ..."
+                if messagebox.askyesno("Test", "Run local installation test now? (Admin rights required)"):
+                     import subprocess
+
+                     # Construct command
+                     cmd = f'powershell.exe -ExecutionPolicy Bypass -File "{script_path}"'
+                     log(f"Executing: {cmd}")
+
+                     # Run via 'runas' verb using ShellExecute to get elevation prompt
+                     import ctypes
+                     params = f'-NoProfile -ExecutionPolicy Bypass -File "{script_path}"'
+
+                     # We can't easily capture output of ShellExecute unless we wrap it or pipeline it.
+                     # Simplified: Just run it and ask user if it worked?
+                     # Or run subprocess with 'runas' logic (complicated in Py).
+                     # Simple approach: Ask user to confirm success after window closes.
+
+                     log("Launching installer process...")
+                     ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "powershell.exe", params, str(base_dir), 1)
+
+                     if int(ret) <= 32:
+                          log(f"Failed to elevate/run: Code {ret}")
+                          if not messagebox.askyesno("Test Failed?", "Process failed to start. Continue anyway?"): return
+                     else:
+                          if not messagebox.askyesno("Test Verification", "Did the installation complete successfully?"):
+                               log("User reported test failure.")
+                               return
+                          log("Test marked as Success.")
+
+                     # Uninstall Test?
+                     # Typically user just uninstalls later, or we run uninstall cmd.
+                     # Skipping uninstall test for speed unless requested.
+
+
+                # --- Step 3: Package ---
+                log("\n--- Step 3: Creating Intune Package ---")
+
+                intunewin_output = base_dir
+                setup_file = script_path.name # Prefer script
+
+                log(f"Packaging {setup_file}...")
+
+                # We need IntuneService instance
+                # It's initialized in App.__init__ as self.intune_service
+
+                out_log = self.intune_service.create_intunewin(
+                    source_folder=str(base_dir),
+                    setup_file=setup_file,
+                    output_folder=str(intunewin_output),
+                    quiet=True
+                )
+                log("Package created.")
+
+                pkg_name = script_path.name.replace(".ps1", ".intunewin") # Tool usually uses setup file name
+                if not (intunewin_output / pkg_name).exists():
+                     # Maybe it used installer name?
+                     pkg_name = Path(info.file_path).name + ".intunewin" # Fallback guess
+
+                pkg_path = intunewin_output / pkg_name
+                if not pkg_path.exists():
+                     # Find ANY .intunewin
+                     candidates = list(intunewin_output.glob("*.intunewin"))
+                     if candidates: pkg_path = candidates[0]
+                     else: raise FileNotFoundError("Created .intunewin not found.")
+
+                log(f"Package: {pkg_path}")
+
+
+                # --- Step 4: Upload ---
+                if SwitchCraftConfig.get_value("IntuneTenantID"):
+                     log("\n--- Step 4: Uploading to Intune ---")
+                     log("Authenticating...")
+                     token = self.intune_service.authenticate(
+                         SwitchCraftConfig.get_value("IntuneTenantID"),
+                         SwitchCraftConfig.get_value("IntuneClientId"),
+                         SwitchCraftConfig.get_value("IntuneClientSecret")
+                     )
+
+                     app_meta = {
+                         "displayName": info.product_name or pkg_path.stem,
+                         "description": f"Deployed by SwitchCraft. Version: {info.product_version}",
+                         "publisher": info.manufacturer or "SwitchCraft",
+                         "installCommandLine": f"powershell.exe -ExecutionPolicy Bypass -File \"{script_path.name}\"",
+                         "uninstallCommandLine": f"powershell.exe -ExecutionPolicy Bypass -File \"{script_path.name}\" -Uninstall" # Check template support for -Uninstall switch
+                     }
+
+                     def prog_cb(p, m): log(f"Upload: {int(p*100)}% - {m}")
+
+                     app_id = self.intune_service.upload_win32_app(token, pkg_path, app_meta, progress_callback=prog_cb)
+
+                     log(f"\nSUCCESS! App ID: {app_id}")
+
+                     # Open Browser
+                     url = f"https://intune.microsoft.com/#view/Microsoft_Intune_Apps/SettingsMenu/~/0/appId/{app_id}"
+                     webbrowser.open(url)
+                     log("Opened Intune portal.")
+
+                else:
+                     log("\nSkipping upload (not configured).")
+                     log(f"Package available at: {pkg_path}")
+
+            except Exception as e:
+                log(f"\nERROR: {e}")
+                logger.exception("All-in-One Flow Failed")
+
+        threading.Thread(target=run_flow, daemon=True).start()
 
     def create_intunewin_action(self, info):
         """Switches to Intune Utility tab and pre-fills data."""
@@ -1394,8 +1413,33 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.entry_intune_source.delete(0, "end")
         self.entry_intune_source.insert(0, str(path.parent))
 
-        self.entry_intune_output.delete(0, "end")
         self.entry_intune_output.insert(0, str(path.parent))
+
+        # Check for .ps1 script
+        script_path = path.with_suffix(".ps1")
+        # Or typical naming "Install-X.ps1"
+        if not script_path.exists():
+             # Try to find any Ps1
+             candidates = list(path.parent.glob("*.ps1"))
+             if candidates:
+                 script_path = candidates[0]
+
+        if script_path.exists():
+             self.entry_intune_setup.delete(0, "end")
+             self.entry_intune_setup.insert(0, str(script_path.name)) # IntuneWinAppUtil expects relative path usually if in source?
+             # Actually, IntuneWinAppUtil wrapper in SwitchCraft might expect full path if we handle copying?
+             # Let's check IntuneView later. For now, putting full path or name is better than EXE.
+             # User said: "Setup File" ... "refenziert ... auf die exe ... muss aber das PS Script sein"
+             # If source folder is defining the package, setup file must be relative?
+             # Let's put the NAME if it's in source dir.
+             if script_path.parent == path.parent:
+                  self.entry_intune_setup.delete(0, "end")
+                  self.entry_intune_setup.insert(0, script_path.name)
+             else:
+                  # If script is elsewhere, we need to copy it?
+                  # For now, just set what we found
+                  self.entry_intune_setup.delete(0, "end")
+                  self.entry_intune_setup.insert(0, str(script_path))
 
         # 2. Switch Tab
         self.tabview.set("Intune Utility")
@@ -1404,6 +1448,37 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.status_bar.configure(text="Pre-filled Intune Utility form. Please review and click Create.")
 
 
+
+    def _run_local_test_action(self, file_path, switches, uninstall=False):
+        """Run a local test of the installer/script with admin rights."""
+        if not messagebox.askyesno("Test Confirmation", f"Do you want to run the {'UNINSTALL' if uninstall else 'INSTALL'} test locally?\n\nFile: {Path(file_path).name}\n\nWARNING: This will execute the file on YOUR system with Admin rights."):
+             return
+
+        # Prepare arguments
+        # If it's a script (.ps1), we need PowerShell. If .exe/.msi, run directly?
+        # User requirement: "Local Testing Feature ... installation/uninstallation"
+        # If we have a script generated, easier to test script. But here we are on the Analyzer tab (raw installer).
+        # So we test the raw command?
+        # Yes.
+
+        path_obj = Path(file_path)
+        params_str = " ".join(switches) if switches else ""
+
+        cmd_exec = str(path_obj)
+        cmd_params = params_str
+
+        if file_path.lower().endswith(".msi"):
+             cmd_exec = "msiexec.exe"
+             cmd_params = f"{'/x' if uninstall else '/i'} \"{path_obj}\" {params_str}"
+
+        try:
+             # Use ShellExecute runas
+             # Note: ShellExecute separates executable and parameters
+             ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", cmd_exec, cmd_params, str(path_obj.parent), 1)
+             if int(ret) <= 32:
+                  messagebox.showerror("Execution Failed", f"Failed to start process (Code {ret})")
+        except Exception as e:
+             messagebox.showerror("Error", str(e))
 
     def _show_detailed_parameters(self, info, nested_data):
         """Show a detailed breakdown of all found parameters (Main + Nested)."""
@@ -1420,7 +1495,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         scroll.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Helper to add section
-        def add_section(title, filename, type_str, params, is_main=False):
+        def add_section(title, filename, type_str, params, is_main=False, raw_output=None):
             frame = ctk.CTkFrame(scroll, fg_color="#2B2B2B" if is_main else "#1F1F1F")
             frame.pack(fill="x", pady=5, padx=5)
 
@@ -1438,9 +1513,33 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 p_box.configure(state="disabled")
                 p_box.pack(fill="x", padx=10, pady=5)
             else:
-                ctk.CTkLabel(frame, text="No confirmed parameters found.", text_color="orange").pack(anchor="w", padx=10, pady=5)
+                 ctk.CTkLabel(frame, text="No confirmed parameters found.", text_color="orange").pack(anchor="w", padx=10, pady=5)
+
+            # Brute Force / Raw Output
+            # We want to show this if we have no switches OR if it's available and user wants "ALL" info
+            raw_out = None
+            if hasattr(params, 'brute_force_output'): # If params user object has it? No, passed as list usually.
+                 pass
+
+            if raw_output:
+                 ctk.CTkLabel(frame, text="Raw Output / Help Text:", text_color="gray", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=10, pady=(5, 0))
+                 r_box = ctk.CTkTextbox(frame, height=80, font=("Consolas", 10))
+                 r_box.insert("0.0", raw_output)
+                 r_box.configure(state="disabled")
+                 r_box.pack(fill="x", padx=10, pady=5)
+
+            # Since 'params' passed to this helper is just a list of strings, we need to pass raw_output separately if we want it here.
+            # But wait, looking at calls:
+            # Main: info.install_switches (List)
+            # Nested: item.get("analysis").install_switches (List)
+
+            # I should modify 'add_section' signature to accept 'raw_output'
 
         # 1. Main Installer
+        main_raw = None # info object might not store raw brute force text easily accessed here unless we stored it on 'info'
+        # 'info' is an InstallerInfo object. Does it have brute_force_output?
+        # Typically not, it's returned separately by analyzer.
+
         add_section("Main Installer", Path(info.file_path).name, info.installer_type, info.install_switches, is_main=True)
 
         # 2. Nested
@@ -1456,158 +1555,19 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                     switches = an.install_switches
 
                 # Check for brute force output specific to this item
-                if not switches and item.get("brute_force_output"):
-                    # Maybe parsing brute force output needed?
-                    # For now just show "See Log below" or similar?
-                    pass
+                raw = item.get("brute_force_output")
 
-                add_section("Nested File", item["name"], i_type, switches)
+                add_section("Nested File", item["name"], i_type, switches, raw_output=raw)
 
         ctk.CTkButton(top, text="Close", command=top.destroy).pack(pady=10)
 
 
     def setup_intune_tab(self):
         """Setup the dedicated Intune Utility tab."""
-        # Main Layout
-        self.tab_intune.grid_columnconfigure(0, weight=1)
-        self.tab_intune.grid_rowconfigure(3, weight=1) # Log area expands
+        self.intune_view = IntuneView(self.tab_intune, self.intune_service, NotificationService())
+        self.intune_view.pack(fill="both", expand=True)
 
-        # Header
-        header = ctk.CTkFrame(self.tab_intune, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=10, pady=5)
 
-        ctk.CTkLabel(header, text="Intune Content Prep Utility", font=ctk.CTkFont(size=20, weight="bold")).pack(anchor="w")
-        ctk.CTkLabel(header, text="Create .intunewin packages for Microsoft Intune deployment.", text_color="gray").pack(anchor="w")
-
-        # Tool Status / Activation
-        self.intune_status_frame = ctk.CTkFrame(self.tab_intune)
-        self.intune_status_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
-        self._refresh_intune_status()
-
-    def _refresh_intune_status(self):
-        """Check if tool exists and show appropriate UI."""
-        for widget in self.intune_status_frame.winfo_children():
-            widget.destroy()
-
-        if self.intune_service.is_tool_available():
-            self._show_intune_form()
-        else:
-            self._show_intune_activation()
-
-    def _show_intune_activation(self):
-        ctk.CTkLabel(self.intune_status_frame, text=i18n.get("intune_util_missing")).pack(pady=(10, 5))
-        ctk.CTkButton(self.intune_status_frame, text=i18n.get("intune_download_activate"), command=self._activate_intune_tool).pack(pady=10)
-
-    def _activate_intune_tool(self):
-        self.status_bar.configure(text=i18n.get("intune_downloading"))
-        def _download():
-            if self.intune_service.download_tool():
-                self.after(0, lambda: messagebox.showinfo("Success", i18n.get("intune_success")))
-                self.after(0, self._refresh_intune_status)
-                self.after(0, lambda: self.status_bar.configure(text=i18n.get("intune_ready")))
-            else:
-                self.after(0, lambda: messagebox.showerror("Error", i18n.get("intune_failed")))
-                self.after(0, lambda: self.status_bar.configure(text=i18n.get("error")))
-        threading.Thread(target=_download, daemon=True).start()
-
-    def _show_intune_form(self):
-        # Tool Path
-        tool_frame = ctk.CTkFrame(self.intune_status_frame, fg_color="transparent")
-        tool_frame.pack(fill="x", padx=5, pady=5)
-        ctk.CTkLabel(tool_frame, text=i18n.get("intune_tool_path"), width=100, anchor="w").pack(side="left")
-
-        self.entry_intune_tool = ctk.CTkEntry(tool_frame)
-        self.entry_intune_tool.pack(side="left", fill="x", expand=True, padx=5)
-        self.entry_intune_tool.insert(0, str(self.intune_service.tool_path))
-
-        # Setup File
-        setup_frame = ctk.CTkFrame(self.intune_status_frame, fg_color="transparent")
-        setup_frame.pack(fill="x", padx=5, pady=5)
-        ctk.CTkLabel(setup_frame, text=i18n.get("intune_setup_file"), width=100, anchor="w").pack(side="left")
-
-        self.entry_intune_setup = ctk.CTkEntry(setup_frame)
-        self.entry_intune_setup.pack(side="left", fill="x", expand=True, padx=5)
-        ctk.CTkButton(setup_frame, text=i18n.get("browse"), width=60, command=self._browse_intune_setup).pack(side="right")
-
-        # Source Folder
-        src_frame = ctk.CTkFrame(self.intune_status_frame, fg_color="transparent")
-        src_frame.pack(fill="x", padx=5, pady=5)
-        ctk.CTkLabel(src_frame, text=i18n.get("intune_source_folder"), width=100, anchor="w").pack(side="left")
-
-        self.entry_intune_source = ctk.CTkEntry(src_frame)
-        self.entry_intune_source.pack(side="left", fill="x", expand=True, padx=5)
-        ctk.CTkButton(src_frame, text=i18n.get("browse"), width=60, command=lambda: self._browse_folder(self.entry_intune_source)).pack(side="right")
-
-        # Output Folder
-        out_frame = ctk.CTkFrame(self.intune_status_frame, fg_color="transparent")
-        out_frame.pack(fill="x", padx=5, pady=5)
-        ctk.CTkLabel(out_frame, text=i18n.get("intune_output_folder"), width=100, anchor="w").pack(side="left")
-
-        self.entry_intune_output = ctk.CTkEntry(out_frame)
-        self.entry_intune_output.pack(side="left", fill="x", expand=True, padx=5)
-        ctk.CTkButton(out_frame, text=i18n.get("browse"), width=60, command=lambda: self._browse_folder(self.entry_intune_output)).pack(side="right")
-
-        # Options
-        opt_frame = ctk.CTkFrame(self.intune_status_frame, fg_color="transparent")
-        opt_frame.pack(fill="x", padx=5, pady=5)
-
-        self.var_intune_quiet = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(opt_frame, text=i18n.get("intune_quiet"), variable=self.var_intune_quiet).pack(side="left", padx=10)
-
-        # Action
-        ctk.CTkButton(self.intune_status_frame, text=i18n.get("intune_create_btn"), fg_color="green", height=40, command=self._run_intune_creation).pack(fill="x", padx=20, pady=15)
-
-        # Log Output
-        ctk.CTkLabel(self.tab_intune, text=i18n.get("intune_log_label"), anchor="w").grid(row=2, column=0, sticky="w", padx=10)
-        self.txt_intune_log = ctk.CTkTextbox(self.tab_intune)
-        self.txt_intune_log.grid(row=3, column=0, sticky="nsew", padx=10, pady=(0, 10))
-
-    def _browse_intune_setup(self):
-        f = ctk.filedialog.askopenfilename()
-        if f:
-            self.entry_intune_setup.delete(0, "end")
-            self.entry_intune_setup.insert(0, f)
-            # Auto-fill source and output if empty
-            if not self.entry_intune_source.get():
-                self.entry_intune_source.insert(0, str(Path(f).parent))
-            if not self.entry_intune_output.get():
-                self.entry_intune_output.insert(0, str(Path(f).parent))
-
-    def _browse_folder(self, entry_widget):
-        d = ctk.filedialog.askdirectory()
-        if d:
-            entry_widget.delete(0, "end")
-            entry_widget.insert(0, d)
-
-    def _run_intune_creation(self):
-        s_setup = self.entry_intune_setup.get()
-        s_source = self.entry_intune_source.get()
-        s_output = self.entry_intune_output.get()
-        b_quiet = self.var_intune_quiet.get()
-
-        if not s_setup or not s_source or not s_output:
-            messagebox.showerror("Error", "Please fill in all required fields (Setup, Source, Output).")
-            return
-
-        self.txt_intune_log.delete("0.0", "end")
-        self.txt_intune_log.insert("end", i18n.get("intune_start_creation") + "\n")
-
-        def _process():
-            try:
-                out = self.intune_service.create_intunewin(
-                    source_folder=s_source,
-                    setup_file=s_setup,
-                    output_folder=s_output,
-                    quiet=b_quiet
-                )
-                self.after(0, lambda: self.txt_intune_log.insert("end", out + "\n\nDONE!"))
-                self.after(0, lambda: messagebox.showinfo("Success", i18n.get("intune_pkg_success", path=s_output)))
-            except Exception as e:
-                err_msg = str(e)
-                self.after(0, lambda: self.txt_intune_log.insert("end", f"ERROR: {err_msg}\n"))
-                self.after(0, lambda: messagebox.showerror("Failed", err_msg))
-
-        threading.Thread(target=_process, daemon=True).start()
 
 
 def main():

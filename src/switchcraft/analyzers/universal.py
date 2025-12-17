@@ -307,10 +307,11 @@ class UniversalAnalyzer:
 
         return switches[:5]  # Limit to 5 most relevant switches
 
-    def extract_and_analyze_nested(self, file_path: Path) -> Dict:
+    def extract_and_analyze_nested(self, file_path: Path, depth: int = 1, max_depth: int = 2) -> Dict:
         """
         Attempts to extract the archive (SFX or otherwise) and analyze nested executables.
         Uses 7-Zip command line for maximum compatibility.
+        Recursively extracts nested wrappers up to max_depth.
 
         Returns:
             Dict with keys:
@@ -323,6 +324,7 @@ class UniversalAnalyzer:
             "extractable": False,
             "nested_executables": [],
             "temp_dir": None,
+            "all_temp_dirs": [],
             "archive_type": None,
             "error": None
         }
@@ -348,6 +350,7 @@ class UniversalAnalyzer:
         # Create temp directory
         temp_dir = tempfile.mkdtemp(prefix="switchcraft_extract_")
         result["temp_dir"] = temp_dir
+        result["all_temp_dirs"].append(temp_dir)
 
         try:
             # Try to list archive contents first
@@ -436,6 +439,28 @@ class UniversalAnalyzer:
                             nested_info["error"] = str(e)
 
                         result["nested_executables"].append(nested_info)
+
+                        # Recursive Extraction Check
+                        if depth < max_depth and ext == '.exe':
+                             # Quick check if it is a wrapper
+                            is_wrapper = self.check_wrapper(full_path)
+                            if is_wrapper:
+                                logger.info(f"Detected nested wrapper: {file} ({is_wrapper}). Recursing...")
+
+                                # Recurse
+                                sub_result = self.extract_and_analyze_nested(full_path, depth=depth+1, max_depth=max_depth)
+
+                                if sub_result["extractable"]:
+                                    # Add children to our list, modifying path to show hierarchy
+                                    for sub in sub_result.get("nested_executables", []):
+                                        sub["relative_path"] = f"{rel_path}/{sub['relative_path']}"
+                                        result["nested_executables"].append(sub)
+
+                                    # Track sub temp dirs for cleanup
+                                    if "all_temp_dirs" in sub_result:
+                                        result["all_temp_dirs"].extend(sub_result["all_temp_dirs"])
+                                    elif sub_result.get("temp_dir"):
+                                         result["all_temp_dirs"].append(sub_result["temp_dir"])
 
             # Sort by likelihood - MSI first, then EXE with detected type
             result["nested_executables"].sort(

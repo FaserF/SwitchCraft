@@ -28,7 +28,11 @@
   - **Metadata**: Parses PE version info for product name, version, and company
 - **📦 Winget Integration**: Automatically checks if the package exists in the **Windows Package Manager** (winget) repository
 - **🔔 Notification System**: Get native desktop alerts when analysis completes or packages are created
-- **☁️ Intune Integration**: Auto-download the Win32 Content Prep Tool and create `.intunewin` packages with one click
+- **☁️ Intune Integration**: Auto-download Win32 Tool, create `.intunewin`, and **upload directly to Intune** via Graph API
+- **✍️ Script Signing**: Automatically sign generated PowerShell scripts with your code-signing certificate (auto-detected or PFX)
+- **⚡ All-in-One Automation**: Generate Script -> Test Locally -> Package -> Upload to Intune in one click
+- **🧪 Local Testing**: Test install and uninstall commands locally with Admin rights before deploying
+- **📂 Git Integration**: Automatically organize generated packages into your Git repository structure
 - **🖥️ GUI & Drag'n'Drop**: Modern, dark-mode friendly desktop interface
 - **⚔️ Automatic Brute Force**: Runs 15+ help argument variations to discover switches
 - **🌐 Multi-Language**: English and German interface
@@ -169,6 +173,8 @@ For more granular control over the installation location and logging:
 
 SwitchCraft is completely ready for modern management:
 - **Intune Script Generation**: Automatically create `.intunewin` ready install/uninstall scripts (PowerShell) directly from the analysis result.
+- **Direct Upload**: Configure your Azure AD / Entra ID App Credentials in settings to enable direct upload to Intune.
+- **Script Signing**: Enforce code signing on all generated scripts for AppLocker/WDAC compliance.
 - **MacOS Support**: Generate `install.sh` scripts and `.mobileconfig` profiles for Intune management of Mac apps.
 - **Custom Templates**: Use your own company-branded PowerShell templates for script generation (configure in Settings).
 
@@ -210,6 +216,7 @@ This script is used for installing/uninstalling SwitchCraft itself (e.g., via In
 |---------------|-------------|
 | [Registry Reference](docs/Registry.md) | All registry values and settings |
 | [GPO / Intune Policies](docs/PolicyDefinitions/README.md) | OMA-URI configuration and ADMX templates |
+| [Intune App Registration](docs/INTUNE_SETUP.md) | Guide to setting up Azure AD App for Upload |
 
 ## 🍎 MacOS Support
 SwitchCraft runs on MacOS (build from source or use binary releases) and supports analysis of:
