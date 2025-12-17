@@ -1,6 +1,6 @@
 # SwitchCraft 🧙‍♂️
 
-<img src="images/switchcraft_logo.png" width="200" alt="SwitchCraft Logo">
+<img src="images/switchcraft_logo_with_Text.png" width="200" alt="SwitchCraft Logo">
 
 [![GitHub all releases](https://img.shields.io/github/downloads/FaserF/SwitchCraft/total?color=blue&style=flat-square&logo=github&label=Downloads)](https://github.com/FaserF/SwitchCraft/releases)
 
