@@ -12,7 +12,7 @@ class SwitchCraftConfig:
     1. Machine Policy (HKLM\\Software\\Policies\\FaserF\\SwitchCraft) - Intune/GPO
     2. User Policy (HKCU\\Software\\Policies\\FaserF\\SwitchCraft) - Intune/GPO
     3. Machine Preference (HKLM\\Software\\FaserF\\SwitchCraft)
-    4. User Preference (HKCU\Software\FaserF\SwitchCraft) - Default User Settings
+    4. User Preference (HKCU\\Software\\FaserF\\SwitchCraft) - Default User Settings
     """
 
     POLICY_PATH = r"Software\Policies\FaserF\SwitchCraft"

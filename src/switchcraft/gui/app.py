@@ -626,7 +626,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         except Exception as e:
             logger.exception("CRITICAL CRASH IN ANALYZER THREAD")
-            self.after(0, lambda: self.show_error(f"Critical Error during analysis: {e}"))
+            err = str(e)
+            self.after(0, lambda: self.show_error(f"Critical Error during analysis: {err}"))
             self.update_progress(0, "Analysis Failed")
 
     def show_error(self, message):

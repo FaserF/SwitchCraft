@@ -241,8 +241,9 @@ class IntuneView(ctk.CTkFrame):
                 self.intune_service.upload_win32_app(token, possible_intunewin, app_info, progress_callback=progress_cb)
 
             except Exception as e:
-                self.after(0, lambda: messagebox.showerror("Upload Failed", str(e)))
-                self.after(0, lambda: self.txt_intune_log.insert("end", f"ERROR: {e}\n"))
+                err_msg = str(e)
+                self.after(0, lambda: messagebox.showerror("Upload Failed", err_msg))
+                self.after(0, lambda: self.txt_intune_log.insert("end", f"ERROR: {err_msg}\n"))
 
         threading.Thread(target=_process_upload, daemon=True).start()
 
