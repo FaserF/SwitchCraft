@@ -25,7 +25,8 @@ dependencies = [
     "customtkinter",
     "tkinterdnd2",
     "pillow",
-    "PyYAML"
+    "PyYAML",
+    "plyer"
 ]
 requires-python = ">=3.9"
 

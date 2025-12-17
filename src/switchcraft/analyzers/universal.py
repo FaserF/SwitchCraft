@@ -32,9 +32,47 @@ class UniversalAnalyzer:
             ["--version"],
             ["/info"],
             ["-i"],
-            ["--silent"],  # Sometimes shows usage when called incorrectly
+            ["--silent"],
             ["/silent"],
+            # Expanded params for Phase 2
+            ["/S"],
+            ["-s"],
+            ["/quiet"],
+            ["-quiet"],
+            ["/qn"],
+            ["/q"],
+            ["--quite"], # typo safety
+            ["/verysilent"],
+            ["-verysilent"],
         ]
+
+
+
+    def check_corruption(self, file_path: Path) -> Tuple[bool, Optional[str]]:
+        """
+        Checks for basic file corruption using header validation.
+        Returns (is_corrupted, reason).
+        """
+        try:
+            if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+                 return True, "File is empty or does not exist."
+
+            with open(file_path, 'rb') as f:
+                header = f.read(4)
+
+            # EXE (MZ)
+            if str(file_path).lower().endswith(".exe"):
+                if not header.startswith(b'MZ'):
+                     return True, "Invalid EXE header (missing 'MZ')."
+
+            # MSI (OLE Compound File)
+            elif str(file_path).lower().endswith(".msi"):
+                if not header.startswith(b'\xD0\xCF\x11\xE0'):
+                     return True, "Invalid MSI header (missing OLE signature)."
+
+            return False, None
+        except Exception as e:
+            return True, f"Read error: {e}"
 
     def check_wrapper(self, file_path: Path) -> Optional[str]:
         """
@@ -83,6 +121,59 @@ class UniversalAnalyzer:
         }
 
         captured_output = ""
+
+        # 0. Try "All at once" strategy first (Phase 2 Req)
+        # Many CLIs basically dump help if you send ANY invalid or help arg.
+        # Sending multiple might trigger help immediately or error-help.
+        # We skip params that trigger installation (/silent, /s) for safety here.
+        safe_all_args = ["/?", "--help", "-h", "/h"]
+        try:
+             # Just try a few common ones concatenated? No, usually executables take one mode.
+             # But we can try to RUN once with a safe help argument and see if it dumps EVERYTHING.
+             pass
+        except: pass
+
+        # Actually, the user requirement is: "Try all brute force parameters AT ONCE".
+        # This implies running: `setup.exe /? --help -h /help ...`
+        # This often confuses the parser into showing help/error usage.
+
+        try:
+             all_safe_args = [x[0] for x in self.brute_force_commands if "silent" not in x[0] and "/s" not in x[0].lower() and "/q" not in x[0].lower()]
+             # Limit to avoid command line length issues
+             all_safe_args = all_safe_args[:10]
+
+             cmd_args = all_safe_args
+
+             startupinfo = None
+             if os.name == 'nt':
+                 startupinfo = subprocess.STARTUPINFO()
+                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+             proc = subprocess.run(
+                 [str(file_path)] + cmd_args,
+                 capture_output=True,
+                 text=True,
+                 timeout=5,
+                 startupinfo=startupinfo,
+                 encoding='cp1252' if os.name == 'nt' else 'utf-8',
+                 errors='ignore'
+             )
+             output = proc.stdout + "\n" + proc.stderr
+
+             if output.strip():
+                 captured_output += f"--- Attempt: ALL PARAMS (Exit: {proc.returncode}) ---\n"
+                 detected, switches = self._analyze_help_text(output)
+                 if detected:
+                     result["detected_type"] = detected
+                     result["suggested_switches"] = switches
+                     result["output"] = captured_output + output
+                     return result # Success on first try!
+
+                 captured_output += output + "\n"
+
+        except Exception as e:
+             captured_output += f"--- Attempt: ALL PARAMS Failed: {e} ---\n"
+
 
         for cmd_args in self.brute_force_commands:
             try:

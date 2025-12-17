@@ -73,15 +73,31 @@ class ExeAnalyzer(BaseAnalyzer):
 
         # 5. PyInstaller Detection (Python-based EXE)
         if self._check_pyinstaller(pe, file_path):
-            info.installer_type = "PyInstaller Application"
-            info.install_switches = []  # Not an installer, it's a packaged app
-            info.confidence = 0.85
+            info.installer_type = "Portable App (PyInstaller)"
+            info.install_switches = []
+            info.confidence = 0.9
+            pe.close()
+            return info
+
+        # PortableApps.com Format
+        if self._check_portableapps(pe, file_path):
+            info.installer_type = "PortableApps.com Formatter"
+            info.install_switches = []
+            info.confidence = 0.95
+            pe.close()
+            return info
+
+        # Generic Portable Wrapper Detection
+        if self._check_generic_portable(file_path):
+            info.installer_type = "Portable Application (Generic)"
+            info.install_switches = []
+            info.confidence = 0.6
             pe.close()
             return info
 
         # 6. cx_Freeze Detection
         if self._check_cx_freeze(file_path):
-            info.installer_type = "cx_Freeze Application"
+            info.installer_type = "Portable App (cx_Freeze)"
             info.install_switches = []
             info.confidence = 0.8
             pe.close()
@@ -208,6 +224,13 @@ class ExeAnalyzer(BaseAnalyzer):
             info.installer_type = "Unknown EXE (Switches Found)"
             info.install_switches = found_switches
             info.confidence = 0.5
+
+        # Finally, check if it might be a portable app that just doesn't support switches
+        # Only if nothing else found
+        if "Unknown" in info.installer_type and not info.install_switches:
+             if self._check_generic_portable(file_path, loose=True):
+                 info.installer_type = "Likely Portable Application"
+                 info.confidence = 0.4
 
         pe.close()
         return info
@@ -628,6 +651,79 @@ class ExeAnalyzer(BaseAnalyzer):
                 name_lower = file_path.name.lower()
                 if name_lower.startswith("jre") or name_lower.startswith("jdk"):
                     return True
+        except Exception:
+            pass
+        return False
+
+    def _check_portableapps(self, pe: pefile.PE, file_path: Path) -> bool:
+        """Check for PortableApps.com launcher."""
+        try:
+            with open(file_path, 'rb') as f:
+                data = f.read(1024 * 512)
+                markers = [
+                    b"PortableApps.com",
+                    b"PortableApps.comLauncher",
+                    b"PortableApps.comInstaller",
+                ]
+                for marker in markers:
+                    if marker in data:
+                        return True
+
+            # Check PE resources for "PortableApps.com"
+            if hasattr(pe, 'FileInfo'):
+                for file_info in pe.FileInfo:
+                    for entry in file_info:
+                        if hasattr(entry, 'StringTable'):
+                            for st in entry.StringTable:
+                                for key, value in st.entries.items():
+                                    val_str = value.decode('utf-8', errors='ignore')
+                                    if "PortableApps.com" in val_str:
+                                        return True
+        except Exception:
+            pass
+        return False
+
+    def _check_generic_portable(self, file_path: Path, loose: bool = False) -> bool:
+        """
+        Check for signs of a generic portable app wrapper.
+        If loose is True, checks for less specific indicators (fallback).
+        """
+        try:
+            with open(file_path, 'rb') as f:
+                data = f.read(1024 * 1024) # Read 1MB
+
+                # Strong indicators
+                strong_markers = [
+                    b"BoxedAppScanner",
+                    b"Virtual Box",
+                    b"Enigma Virtual Box",
+                    b"VMWare ThinApp",
+                    b"Turbo Studio",
+                    b"Spoon Studio",
+                    b"Cameyo",
+                    b"Evalaze"
+                ]
+
+                for marker in strong_markers:
+                    if marker in data:
+                        return True
+
+                if loose:
+                    # Weak indicators / patterns for self-contained apps
+                    weak_markers = [
+                        b"App\\AppInfo", # Common portable structure reference
+                        b"Data\\Settings",
+                        b"Portable",
+                    ]
+
+                    found_weak = 0
+                    for marker in weak_markers:
+                        if marker in data:
+                            found_weak += 1
+
+                    if found_weak >= 2:
+                        return True
+
         except Exception:
             pass
         return False

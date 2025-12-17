@@ -12,3 +12,9 @@ out_debug_nocolor.txt
 config_test_output.txt
 debug_suite.txt
 /src/switchcraft/generators/__pycache__
+/src/switchcraft/__pycache__
+/src/switchcraft/__pycache__
+/src/switchcraft/services/__pycache__
+/src/switchcraft/__pycache__
+test_output.txt
+debug_ai_i18n.py

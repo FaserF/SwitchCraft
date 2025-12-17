@@ -31,13 +31,14 @@ jobs:
         # Install dev dependencies if needed, or just run tests if they don't need extra
 
     - name: Run Tests
-      # If you have tests, run them. If not, this is a placeholder or check if tests folder exists
       run: |
-        if [ -d "tests" ]; then
-          python -m unittest discover tests
-        else
-          echo "No tests found"
-        fi
+        python -m unittest discover tests
+      shell: bash
+
+    - name: Smoke Test (CLI)
+      run: |
+        python -m switchcraft.main --version
+        python -m switchcraft.main --help
       shell: bash
 
   build_check:

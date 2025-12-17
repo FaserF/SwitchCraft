@@ -19,6 +19,10 @@ class InstallerInfo:
     min_os_version: Optional[str] = None
     package_ids: List[str] = field(default_factory=list)
 
+    # Validation
+    is_corrupted: bool = False
+    corruption_reason: Optional[str] = None
+
     def __str__(self):
         return (
             f"Installer: {self.product_name} {self.product_version}\n"

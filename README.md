@@ -4,7 +4,14 @@
 
 [![GitHub all releases](https://img.shields.io/github/downloads/FaserF/SwitchCraft/total?color=blue&style=flat-square&logo=github&label=Downloads)](https://github.com/FaserF/SwitchCraft/releases)
 
-**SwitchCraft** is your ultimate utility for identifying silent installation parameters for EXE and MSI packages. Designed for IT Admins, Packagers, and Developers.
+**SwitchCraft is your comprehensive packaging assistant for IT Professionals. It goes beyond simple switch identification to streamline your entire application packaging workflow:
+
+- 🔍 **Universal Analysis**: Instantly identify silent switches for EXE, MSI, and obscure installer frameworks.
+- 🤖 **AI-Powered Helper**: Get context-aware packaging advice and troubleshooting for Intune errors.
+- 📦 **Intune Ready**: Generate standardized PowerShell installation scripts automatically.
+- 🌍 **Cross-Platform**: Download and manage installers for Windows, Linux, and macOS.
+- 🛡️ **Integrity & Security**: Brute-force analysis for undocumented installers and file integrity checks.
+
 
 <div align="center">
   <img src="images/switchcraft_ui.png" alt="SwitchCraft UI" width="500" />
@@ -84,7 +91,15 @@ SwitchCraft-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 SwitchCraft-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DEBUGMODE
 ```
 
-**Silent Uninstall:** Use the same switches with the uninstaller from Add/Remove Programs.
+
+**Silent Uninstall:**
+```powershell
+# Standard Silent Uninstall
+"%LOCALAPPDATA%\FaserF\SwitchCraft\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+
+# Via SwitchCraft.ps1 Helper Script
+.\SwitchCraft.ps1 -InstallMode Uninstall
+```
 
 #### Debug Logging Mode
 Enable verbose structured logging for troubleshooting or log analysis:
@@ -113,17 +128,44 @@ Debug output format:
 winget install FaserF.SwitchCraft
 ```
 
+#### CLI "One-Liner" (PowerShell)
+Install the latest version directly from your terminal:
+```powershell
+iex (irm https://raw.githubusercontent.com/FaserF/SwitchCraft/main/install.ps1)
+```
+
+**Installer Script Parameters:**
+The install script supports several optional parameters:
+```powershell
+# Install specific version (e.g. v2025.12.1)
+.\install.ps1 -Version "v2025.12.1"
+
+# Download Portable Version to Desktop instead of installing
+.\install.ps1 -Portable
+
+# Silent Mode (for automated deployments)
+.\install.ps1 -Silent
+```
+
 ### Enterprise Deployment
 
-SwitchCraft is enterprise-ready and supports management via:
-- **Group Policy (GPO)**: Using ADMX templates
-- **Microsoft Intune**: Using ADMX ingestion or custom OMA-URIs
-- **Registry**: Comprehensive configuration control
+SwitchCraft is completely ready for modern management:
+- **Intune Script Generation**: Automatically create `.intunewin` ready install/uninstall scripts (PowerShell) directly from the analysis result.
+- **MacOS Support**: Generate `install.sh` scripts and `.mobileconfig` profiles for Intune management of Mac apps.
+- **Custom Templates**: Use your own company-branded PowerShell templates for script generation (configure in Settings).
 
 | Documentation | Description |
 |---------------|-------------|
 | [Registry Reference](docs/Registry.md) | All registry values and settings |
 | [GPO / Intune Policies](docs/PolicyDefinitions/README.md) | OMA-URI configuration and ADMX templates |
+
+## 🍎 MacOS Support
+SwitchCraft runs on MacOS (build from source or use binary releases) and supports analysis of:
+- **.dmg** (Disk Images) - Detects mountable apps
+- **.pkg** (Installer Packages) - Extracts Package IDs and Version
+- **.app** (Bundles) - Reads Info.plist metadata
+
+> **Note**: While the app runs on MacOS, "Silent Switch" detection is primarily a Windows concept. On MacOS, it helps generate deployment scripts.
 
 > [!WARNING]
 > ### ⚠️ False Positive Virus Warnings
@@ -183,10 +225,8 @@ Third-party AV software may flag SwitchCraft because:
 
 1. **Check the source**: Download only from [GitHub Releases](https://github.com/FaserF/SwitchCraft/releases)
 2. **Verify the hash**: Compare SHA256 hash with the one published on the release page
-3. **Scan on VirusTotal**: Upload to [virustotal.com](https://www.virustotal.com) – expect 2-5 detections on new releases (these decrease over time)
-4. **Build from source**: Clone this repo and build yourself with `pyinstaller switchcraft.spec`
-
-No Python installation required!
+3. **Scan on VirusTotal**: Upload to [virustotal.com](https://www.virustotal.com) – expect 2-5 detections on new releases (these decrease over time). If you see 30+ detections, it might be a real issue or modified file.
+4. **Build from source**: Clone this repo and build yourself with `pyinstaller switchcraft.spec`. No Python coding knowledge required!
 
 ### From Source
 ```bash

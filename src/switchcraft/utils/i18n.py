@@ -1,6 +1,7 @@
 import locale
 import json
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -47,139 +48,36 @@ KNOWN_PARAMS = {
     "ADDLOCAL=ALL": ("Install all features (MSI)", "Alle Funktionen installieren (MSI)"),
 }
 
+
 class I18n:
     def __init__(self):
         self.language = self._detect_language()
-        self.translations = {
-            "en": {
-                "app_title": "SwitchCraft 🧙‍♂️",
-                "tab_analyzer": "Analyzer",
-                "tab_helper": "AI Helper",
-                "tab_settings": "Settings",
-                "drag_drop": "Drag & Drop Installer Here\n(EXE / MSI)",
-                "analyzing": "Analyzing",
-                "analysis_complete": "Analysis Complete",
-                "error": "Error",
-                "file_not_found": "File not found.",
-                "unknown_installer": "Could not identify installer type.",
-                "silent_install": "Silent Install",
-                "silent_uninstall": "Silent Uninstall",
-                "no_switches": "No automatic switches found.",
-                "brute_force_help": "Brute Force Help",
-                "search_online": "Search Online for Switches",
-                "view_winget": "View on Winget GitHub",
-                "settings_theme": "Theme",
-                "settings_lang": "Language",
-                "settings_debug": "Debug Logging",
-                "settings_channel": "Update Channel",
-                "settings_dark": "Dark",
-                "settings_light": "Light",
-                "about_dev": "Developer",
-                "about_version": "Version",
-                "winget_found": "Winget Match Found!",
-                "winget_no_match": "Winget: No match found",
-                "manual_select": "Select File",
-                # New translations
-                "ready": "Ready",
-                "copy": "Copy",
-                "send": "Send",
-                "skip": "Skip",
-                "clean_up": "Clean Up",
-                "check_updates": "Check for Updates",
-                "update_available": "A new version of SwitchCraft is available!",
-                "update_available_title": "Update Available 🚀",
-                "update_now": "Update Now",
-                "update_later": "Update Later",
-                "skip_version": "Skip Version",
-                "changelog": "Changelog",
-                "download_update": "Download Update",
-                "current_version": "Current Version",
-                "new_version": "New Version",
-                "released": "Released",
-                "unknown": "Unknown",
-                "no_changelog": "No changelog provided.",
-                "up_to_date": "You are up to date!",
-                "update_check_failed": "Update Check Failed",
-                "could_not_check": "Could not check for updates:",
-                "extracting_archive": "Extracting archive for nested analysis...",
-                "temp_cleaned": "Temporary files cleaned up",
-                "automated_output": "Automated Analysis Output",
-                "silent_switches": "Silent Switches",
-                "ask_something": "Ask something...",
-                "ai_helper_welcome": "Welcome to the AI Helper!\nAsk me about silent switches or command line arguments.",
-                "brought_by": "Brought to you by FaserF",
-                "msi_wrapper_tip": "💡 Detected MSI Wrapper! Standard MSI switches may work.",
-                # Parameter list
-                "found_params": "Found Parameters",
-                "known_params": "Known Parameters",
-                "unknown_params": "Unknown Parameters",
-                "param_explanation": "Explanation",
-            },
-            "de": {
-                "app_title": "SwitchCraft 🧙‍♂️",
-                "tab_analyzer": "Analyse",
-                "tab_helper": "KI Helfer",
-                "tab_settings": "Einstellungen",
-                "drag_drop": "Installer hier ablegen\n(EXE / MSI)",
-                "analyzing": "Analysiere",
-                "analysis_complete": "Analyse abgeschlossen",
-                "error": "Fehler",
-                "file_not_found": "Datei nicht gefunden.",
-                "unknown_installer": "Installer-Typ konnte nicht erkannt werden.",
-                "silent_install": "Silent Installation",
-                "silent_uninstall": "Silent Deinstallation",
-                "no_switches": "Keine automatischen Switches gefunden.",
-                "brute_force_help": "Brute Force Hilfe",
-                "search_online": "Online nach Switches suchen",
-                "view_winget": "Auf Winget GitHub ansehen",
-                "settings_theme": "Design",
-                "settings_lang": "Sprache",
-                "settings_debug": "Debug-Protokollierung",
-                "settings_channel": "Update-Kanal",
-                "settings_dark": "Dunkel",
-                "settings_light": "Hell",
-                "about_dev": "Entwickler",
-                "about_version": "Version",
-                "winget_found": "Winget Treffer gefunden!",
-                "winget_no_match": "Winget: Kein Treffer gefunden",
-                "manual_select": "Datei auswählen",
-                # New translations
-                "ready": "Bereit",
-                "copy": "Kopieren",
-                "send": "Senden",
-                "skip": "Überspringen",
-                "clean_up": "Aufräumen",
-                "check_updates": "Nach Updates suchen",
-                "update_available": "Eine neue Version von SwitchCraft ist verfügbar!",
-                "update_available_title": "Update verfügbar 🚀",
-                "update_now": "Jetzt aktualisieren",
-                "update_later": "Später aktualisieren",
-                "skip_version": "Version überspringen",
-                "changelog": "Änderungsprotokoll",
-                "download_update": "Update herunterladen",
-                "current_version": "Aktuelle Version",
-                "new_version": "Neue Version",
-                "released": "Veröffentlicht",
-                "unknown": "Unbekannt",
-                "no_changelog": "Kein Änderungsprotokoll vorhanden.",
-                "up_to_date": "Du bist auf dem neuesten Stand!",
-                "update_check_failed": "Update-Prüfung fehlgeschlagen",
-                "could_not_check": "Update-Prüfung fehlgeschlagen:",
-                "extracting_archive": "Entpacke Archiv für verschachtelte Analyse...",
-                "temp_cleaned": "Temporäre Dateien aufgeräumt",
-                "automated_output": "Automatisierte Analyse-Ausgabe",
-                "silent_switches": "Silent Switches",
-                "ask_something": "Frage etwas...",
-                "ai_helper_welcome": "Willkommen beim KI Helfer!\nFrage mich nach Silent Switches oder Kommandozeilen-Argumenten.",
-                "brought_by": "Ein Projekt von FaserF",
-                "msi_wrapper_tip": "💡 MSI Wrapper erkannt! Standard MSI-Switches funktionieren möglicherweise.",
-                # Parameter list
-                "found_params": "Gefundene Parameter",
-                "known_params": "Bekannte Parameter",
-                "unknown_params": "Unbekannte Parameter",
-                "param_explanation": "Erklärung",
-            }
-        }
+        self.translations = {}
+        self._load_translations()
+
+    def _load_translations(self):
+        """Load translations from JSON files in assets/lang."""
+        try:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            # Adjusted path: src/switchcraft/utils/../assets/lang
+            lang_dir = os.path.join(base_path, "..", "assets", "lang")
+
+            for lang_code in ["en", "de"]:
+                file_path = os.path.join(lang_dir, f"{lang_code}.json")
+                if os.path.exists(file_path):
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            self.translations[lang_code] = json.load(f)
+                    except Exception as e:
+                         # Fallback for dev environment or broken file
+                         logger.error(f"Failed to load {lang_code} translation: {e}")
+
+            # Ensure English exists as fallback at minimum
+            if "en" not in self.translations:
+                self.translations["en"] = {} # Will cause issues but prevents crash
+
+        except Exception as e:
+            logger.error(f"Critical i18n error: {e}")
 
     def _detect_language(self):
         try:
@@ -197,8 +95,31 @@ class I18n:
             logger.warning(f"Language {lang_code} not supported, falling back to English.")
             self.language = "en"
 
-    def get(self, key):
-        return self.translations.get(self.language, self.translations["en"]).get(key, key)
+    def get(self, key, lang=None, **kwargs):
+        """
+        Get translated string.
+        Supports explicit language override 'lang'.
+        Supports format arguments explicitly passed as kwargs.
+        """
+        target_lang = lang if lang else self.language
+
+        # Get dictionary for target language, fallback to EN
+        lang_dict = self.translations.get(target_lang, self.translations.get("en", {}))
+
+        # Get value, fallback to English value, then to key
+        val = lang_dict.get(key)
+        if val is None:
+             val = self.translations.get("en", {}).get(key, key)
+
+        # Format if kwargs provided
+        if kwargs and isinstance(val, str):
+            try:
+                return val.format(**kwargs)
+            except Exception as e:
+                logger.warning(f"Failed to format string '{key}': {e}")
+                return val
+
+        return val
 
     def get_param_explanation(self, param):
         """Get explanation for a known parameter in current language."""

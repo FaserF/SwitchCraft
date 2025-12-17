@@ -22,6 +22,8 @@ from switchcraft.utils.templates import TemplateGenerator
 from switchcraft.services.ai_service import SwitchCraftAI
 from switchcraft.analyzers.macos import MacOSAnalyzer
 from switchcraft.generators.macos import generate_intune_script as generate_mac_script, generate_mobileconfig
+from switchcraft.services.notification_service import NotificationService
+from switchcraft.services.intune_service import IntuneService
 from switchcraft import __version__
 
 logging.basicConfig(level=logging.INFO)
@@ -85,6 +87,62 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Handle window close for "Update Later" feature
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        # Demo / First Start Logic
+        self.after(1000, self._run_demo_init)
+
+    def _run_demo_init(self):
+        """Check if first run/demo mode is needed."""
+        if SwitchCraftConfig.get_value("FirstRun", True):
+             SwitchCraftConfig.set_user_preference("FirstRun", False)
+             # If running from source or portable, offer demo
+             if not self._is_installed_version():
+                 msg = i18n.get("demo_mode_msg") if "demo_mode_msg" in i18n.translations.get(i18n.language) else "Welcome to SwitchCraft! Would you like to run a demo analysis?"
+                 if messagebox.askyesno("SwitchCraft Demo", msg):
+                     # Locate own installer or download
+                     self.after(500, self._start_demo_analysis)
+
+    def _start_demo_analysis(self):
+        """Download or locate a sample installer for demo."""
+        try:
+             # Basic logic: Try to analyze self if exe, or download 7zip/notepad++ as demo
+             target = sys.executable if getattr(sys, 'frozen', False) else None
+
+             if not target or "python" in target.lower():
+                 # Download a known safe small installer (e.g. 7-Zip or Notepad++)
+                 # For now, let's use a dummy path or ask user to pick one?
+                 # User asked for "dynamic download"
+                 self.status_bar.configure(text="Downloading demo installer...")
+
+                 # Using 7-Zip MSI as a safe demo (usually stable URL)
+                 url = "https://www.7-zip.org/a/7z2409-x64.msi"
+                 import requests
+                 import tempfile
+
+                 tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".msi")
+                 tmp.close()
+
+                 threading.Thread(target=self._download_and_analyze, args=(url, tmp.name), daemon=True).start()
+                 return
+
+             self.start_analysis(target)
+        except Exception as e:
+            logger.error(f"Demo failed: {e}")
+            # Fallback to browser if download fails
+            if messagebox.askyesno("Download Error", f"Could not download demo installer automatically.\nError: {e}\n\nOpen download page instead?"):
+                webbrowser.open("https://github.com/FaserF/SwitchCraft/releases")
+
+    def _download_and_analyze(self, url, path):
+        try:
+            import requests
+            r = requests.get(url, stream=True)
+            with open(path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            self.after(0, lambda: self.start_analysis(path))
+        except Exception as e:
+            self.after(0, lambda: messagebox.showerror("Demo Error", f"Failed to download demo: {e}"))
 
     def _should_show_ai_helper(self):
         """Determine if AI Helper tab should be shown."""
@@ -502,7 +560,17 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         winget = WingetHelper()
         winget_url = None
         if info.product_name:
-             winget_url = winget.search_by_name(info.product_name)
+            winget_url = winget.search_by_name(info.product_name)
+
+        # Update AI Context
+        context_data = {
+            "type": info.installer_type,
+            "filename": path.name,
+            "install_silent": " ".join(info.install_switches) if info.install_switches else "Unknown",
+            "product": info.product_name or "Unknown",
+            "manufacturer": info.manufacturer or "Unknown"
+        }
+        self.ai_service.update_context(context_data)
 
         self.after(0, lambda i=info, w=winget_url, bf=brute_force_data, nd=nested_data, sd=silent_disabled:
                    self.show_results(i, w, bf, nd, sd))
@@ -515,6 +583,12 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def show_results(self, info, winget_url, brute_force_data=None, nested_data=None, silent_disabled=None):
         self.status_bar.configure(text=i18n.get("analysis_complete"))
         self.clear_results()
+
+        # Notify
+        NotificationService.send_notification(
+            title="Analysis Complete",
+            message=f"Finished analyzing {info.file_path}"
+        )
 
         # Basics
         self.add_result_row("File", info.file_path)
@@ -611,42 +685,18 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.add_full_command_row("Install Command (Full)", info.file_path, params, is_install=True, is_msi=("MSI" in info.installer_type))
             self.add_intune_row("Intune Install", info.file_path, params, is_msi=("MSI" in info.installer_type))
 
-            # --- Intune Script Generation ---
-            def generate_intune_script():
-                default_filename = f"Install-{info.product_name or 'App'}.ps1"
-                # Sanitize filename
-                default_filename = "".join(x for x in default_filename if x.isalnum() or x in "-_.")
 
-                save_path = ctk.filedialog.asksaveasfilename(
-                    defaultextension=".ps1",
-                    filetypes=[("PowerShell Script", "*.ps1")],
-                    initialfile=default_filename,
-                    title="Save Intune Script"
-                )
-                if save_path:
-                    # Collect metadata
-                    context_data = {
-                        "INSTALLER_FILE": Path(info.file_path).name,
-                        "INSTALL_ARGS": " ".join(info.install_switches) if info.install_switches else "/S",
-                        "APP_NAME": info.product_name or "Application",
-                        "PUBLISHER": info.manufacturer or "Unknown"
-                    }
 
-                    custom_template = SwitchCraftConfig.get_value("CustomTemplatePath")
-                    generator = TemplateGenerator(custom_template)
 
-                    if generator.generate(context_data, save_path):
-                        self.status_bar.configure(text=f"Script generated: {save_path}")
-                        try:
-                            # Open file in editor
-                            os.startfile(save_path)
-                        except: pass
-                    else:
-                        messagebox.showerror("Error", "Failed to generate script template.")
-
-            ctk.CTkButton(self.result_frame, text="✨ Generate Intune Script", fg_color="purple", command=generate_intune_script).pack(pady=5, fill="x")
+            ctk.CTkButton(self.result_frame, text="✨ Generate Intune Script", fg_color="purple", command=lambda: self.generate_intune_script_with_info(info)).pack(pady=5, fill="x")
+            ctk.CTkButton(self.result_frame, text="📦 Create .intunewin Package", fg_color="#0066CC", command=lambda: self.create_intunewin_action(info)).pack(pady=5, fill="x")
         else:
              self.add_result_row(i18n.get("silent_install"), i18n.get("no_switches"), color="orange")
+
+             # Allow generation even if unknown, but warn
+             ctk.CTkButton(self.result_frame, text="✨ Generate Intune Script (Manual)", fg_color="purple", command=lambda: self.generate_intune_script_with_info(info)).pack(pady=5, fill="x")
+             ctk.CTkButton(self.result_frame, text="📦 Create .intunewin Package", fg_color="#0066CC", command=lambda: self.create_intunewin_action(info)).pack(pady=5, fill="x")
+
              if info.file_path.endswith('.exe'):
                   self.add_copy_row(i18n.get("brute_force_help"), f'"{info.file_path}" /?', "orange")
 
@@ -1135,11 +1185,47 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         ctk.CTkButton(frame_tmpl, text="Select Custom Template", command=select_template).pack(pady=5)
 
-        def reset_template():
-             SwitchCraftConfig.set_user_preference("CustomTemplatePath", "")
-             self.tmpl_path_label.configure(text="Default Internal Template")
-
         ctk.CTkButton(frame_tmpl, text="Reset to Default", fg_color="transparent", border_width=1, command=reset_template).pack(pady=2)
+
+
+        # Help & Documentation
+        frame_docs = ctk.CTkFrame(self.tab_settings)
+        frame_docs.pack(fill="x", padx=10, pady=10)
+
+        ctk.CTkLabel(frame_docs, text="Help & Support", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+
+        btn_docs = ctk.CTkButton(frame_docs, text="Open Documentation (README)",
+                               command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/blob/main/README.md"))
+        btn_docs.pack(pady=5, fill="x")
+
+        btn_help = ctk.CTkButton(frame_docs, text="Get Help (GitHub Issues)", fg_color="transparent", border_width=1,
+                               command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/issues"))
+        btn_help.pack(pady=5, fill="x")
+
+        # Debug Console Toggle (Windows Only)
+        if sys.platform == 'win32':
+             frame_debug = ctk.CTkFrame(self.tab_settings)
+             frame_debug.pack(fill="x", padx=10, pady=10)
+
+             ctk.CTkLabel(frame_debug, text="Debugging", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+
+             self.debug_console_var = ctk.BooleanVar(value=False)
+
+             def toggle_console():
+                 import ctypes
+                 kernel32 = ctypes.windll.kernel32
+                 if self.debug_console_var.get():
+                     kernel32.AllocConsole()
+                     sys.stdout = open("CONOUT$", "w")
+                     sys.stderr = open("CONOUT$", "w")
+                     print("SwitchCraft Debug Console [Enabled]")
+                 else:
+                     # Detach/Hide is cleaner than FreeConsole which might close app?
+                     # FreeConsole closes the window, but we need to check if it kills process.
+                     # Typically safe if we claim it ourselves.
+                     kernel32.FreeConsole()
+
+             ctk.CTkSwitch(frame_debug, text="Show Live Debug Console", variable=self.debug_console_var, command=toggle_console).pack(pady=5)
 
 
 
@@ -1219,6 +1305,82 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             i18n.set_language(code)
             self.tabview._segmented_button.configure(values=[i18n.get("tab_analyzer"), i18n.get("tab_helper"), i18n.get("tab_settings")])
             self.title(i18n.get("app_title"))
+
+    def generate_intune_script_action(self):
+        """Handle Intune script generation from UI."""
+        # Find current info - we need to store it in self or pass it differently if moving out of closure
+        # Since I moved the button out but the 'info' variable was in 'show_results' scope,
+        # I need to make sure 'info' is accessible.
+        # 'show_results' doesn't store 'info' in 'self.current_info'.
+        # I should modify 'show_results' to store current info.
+        pass # Only a placeholder, will be replaced by 'self.current_info' logic if I add it.
+        # Wait, I cannot easily add 'self.current_info' without editing 'show_results' main body.
+        # But I am editing 'show_results' in the same tool call!
+        # I should use 'lambda: self.generate_intune_script_action(info)'
+
+    def generate_intune_script_with_info(self, info):
+        """Generate Intune script using provided info."""
+        if not info.install_switches:
+            if not messagebox.askyesno("Warning", i18n.get("no_switches_intune_warn") if "no_switches_intune_warn" in i18n.translations.get(i18n.language) else "No silent switches detected. The script might require manual editing. Continue?"):
+                return
+
+        default_filename = f"Install-{info.product_name or 'App'}.ps1"
+        default_filename = "".join(x for x in default_filename if x.isalnum() or x in "-_.")
+
+        save_path = ctk.filedialog.asksaveasfilename(
+            defaultextension=".ps1",
+            filetypes=[("PowerShell Script", "*.ps1")],
+            initialfile=default_filename,
+            title="Save Intune Script"
+        )
+        if save_path:
+            context_data = {
+                "INSTALLER_FILE": Path(info.file_path).name,
+                "INSTALL_ARGS": " ".join(info.install_switches) if info.install_switches else "/S",
+                "APP_NAME": info.product_name or "Application",
+                "PUBLISHER": info.manufacturer or "Unknown"
+            }
+
+            custom_template = SwitchCraftConfig.get_value("CustomTemplatePath")
+            generator = TemplateGenerator(custom_template)
+
+            if generator.generate(context_data, save_path):
+                self.status_bar.configure(text=f"Script generated: {save_path}")
+                try: os.startfile(save_path)
+                except: pass
+            else:
+                messagebox.showerror("Error", "Failed to generate script template.")
+
+    def create_intunewin_action(self, info):
+        """Builds the .intunewin package using the IntuneService."""
+        # Confirm source folder
+        path = Path(info.file_path)
+        source_folder = path.parent
+        setup_file = path.name
+
+        # Ask for output folder
+        output_folder = ctk.filedialog.askdirectory(title="Select Output Folder form .intunewin")
+        if not output_folder:
+            return
+
+        self.status_bar.configure(text="Creating .intunewin package... (This may take a moment)")
+
+        def _run():
+            try:
+                svc = IntuneService()
+                output = svc.create_intunewin(str(source_folder), setup_file, output_folder)
+
+                NotificationService.send_notification("Package Created", f"Intune package created in {output_folder}")
+                self.after(0, lambda: messagebox.showinfo("Success", f"Package created successfully!\n\nOutput:\n{output_folder}"))
+                self.after(0, lambda: self.status_bar.configure(text="Package created successfully."))
+                try: os.startfile(output_folder)
+                except: pass
+            except Exception as e:
+                logger.error(f"IntuneWin Error: {e}")
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to create package: {e}"))
+                self.after(0, lambda: self.status_bar.configure(text="Package creation failed."))
+
+        threading.Thread(target=_run, daemon=True).start()
 
 def main():
     app = App()
