@@ -22,7 +22,7 @@ class TestIntuneService(unittest.TestCase):
             url_lower = helper.search_by_name("switchcraft")
             self.assertEqual(url_lower, "https://github.com/microsoft/winget-pkgs/tree/master/manifests/s/FaserF/SwitchCraft")
 
-    @patch('switchcraft.services.intune_service.subprocess.run')
+    @patch('switchcraft_advanced.services.intune_service.subprocess.run')
     def test_create_intunewin_args(self, mock_run):
         """Test that create_intunewin constructs the correct command line."""
         mock_run.return_value.returncode = 0

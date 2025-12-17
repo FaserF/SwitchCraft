@@ -14,10 +14,11 @@ from switchcraft import __version__
 logger = logging.getLogger(__name__)
 
 class SettingsView(ctk.CTkFrame):
-    def __init__(self, parent, show_update_callback, intune_service):
+    def __init__(self, parent, show_update_callback, intune_service, on_winget_toggle=None):
         super().__init__(parent)
         self.show_update_callback = show_update_callback
         self.intune_service = intune_service
+        self.on_winget_toggle = on_winget_toggle
 
         # Grid layout
         self.grid_columnconfigure(0, weight=1)
@@ -50,7 +51,10 @@ class SettingsView(ctk.CTkFrame):
 
         self.winget_var = ctk.BooleanVar(value=SwitchCraftConfig.get_value("EnableWinget", True))
         def toggle_winget():
-            SwitchCraftConfig.set_user_preference("EnableWinget", self.winget_var.get())
+            val = self.winget_var.get()
+            SwitchCraftConfig.set_user_preference("EnableWinget", val)
+            if self.on_winget_toggle:
+                self.on_winget_toggle(val)
 
         ctk.CTkSwitch(frame_general, text=i18n.get("settings_enable_winget", default="Enable Winget Integration"), variable=self.winget_var, command=toggle_winget).pack(pady=5)
 
@@ -476,9 +480,19 @@ class SettingsView(ctk.CTkFrame):
 
         # Key Entry (Dynamic)
         self.ai_key_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        ctk.CTkLabel(self.ai_key_frame, text=i18n.get("settings_ai_key")).pack(anchor="w")
+
+        # Header Row for Key
+        head_key = ctk.CTkFrame(self.ai_key_frame, fg_color="transparent")
+        head_key.pack(fill="x")
+        ctk.CTkLabel(head_key, text=i18n.get("settings_ai_key")).pack(side="left", anchor="w")
+
+        self.btn_get_key = ctk.CTkButton(head_key, text="Get API Key 🔗", width=100, height=20,
+                                         fg_color="transparent", border_width=1, text_color=("#3B8ED0", "#1F6AA5"),
+                                         command=self._open_api_key_url)
+        self.btn_get_key.pack(side="right", padx=5)
+
         self.ai_key_entry = ctk.CTkEntry(self.ai_key_frame, show="*")
-        self.ai_key_entry.pack(fill="x")
+        self.ai_key_entry.pack(fill="x", pady=(2, 0))
 
         # Model Entry
         self.ai_model_frame = ctk.CTkFrame(frame, fg_color="transparent")
@@ -507,16 +521,33 @@ class SettingsView(ctk.CTkFrame):
             self.ai_key_entry.delete(0, "end")
             if val: self.ai_key_entry.insert(0, val)
 
+    def _open_api_key_url(self):
+        provider = self.ai_provider_var.get()
+        if provider == "openai":
+            webbrowser.open("https://platform.openai.com/api-keys")
+        elif provider == "gemini":
+            webbrowser.open("https://aistudio.google.com/app/apikey")
+
     def _save_ai_settings(self):
         provider = self.ai_provider_var.get()
-        SwitchCraftConfig.set_user_preference("AIProvider", provider)
-        SwitchCraftConfig.set_user_preference("AIModel", self.ai_model_entry.get().strip())
+        key_val = self.ai_key_entry.get().strip()
+
+        # Validation: If provider is NOT local, we must have a key.
+        # But wait - if a key is already saved (masked), the entry might be empty?
+        # No, setup_ai_config reloads it into the entry.
+        # So if the user clears it, it's empty.
 
         if provider != "local":
+            if not key_val:
+                messagebox.showerror("Missing API Key", f"Please enter a valid API Key for {provider.capitalize()}.")
+                return
+
             secret_key = "OPENAI_API_KEY" if provider == "openai" else "GEMINI_API_KEY"
-            key_val = self.ai_key_entry.get().strip()
-            if key_val:
-                SwitchCraftConfig.set_secret(secret_key, key_val)
+            SwitchCraftConfig.set_secret(secret_key, key_val)
+
+        # Only switch provider if validation passed
+        SwitchCraftConfig.set_user_preference("AIProvider", provider)
+        SwitchCraftConfig.set_user_preference("AIModel", self.ai_model_entry.get().strip())
 
         messagebox.showinfo("Saved", "AI Settings Saved. Please restart to apply changes.")
 

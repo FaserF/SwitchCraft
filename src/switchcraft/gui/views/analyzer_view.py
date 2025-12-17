@@ -32,6 +32,9 @@ class AnalyzerView(ctk.CTkFrame):
         self.ai_service = ai_service
         self.app = app_context # Access to main app for tab switching or shared state if really needed
 
+        self.queue = []
+        self._is_analyzing = False
+
         # Grid layout
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -75,10 +78,34 @@ class AnalyzerView(ctk.CTkFrame):
         self.progress_bar.grid_remove()
 
     def _on_drop(self, event):
-        file_path = event.data
-        if file_path.startswith('{') and file_path.endswith('}'):
-            file_path = file_path[1:-1]
-        self._start_analysis(file_path)
+        data = event.data
+        files = []
+
+        # Parse TkinterDnD file list (space-separated, curlies for spaces)
+        import re
+        # Match {path with spaces} OR non-space-sequence
+        pattern = r'\{([^{}]+)\}|(\S+)'
+        matches = re.findall(pattern, data)
+
+        for m in matches:
+            # m is tuple (group1, group2), only one is non-empty
+            path = m[0] if m[0] else m[1]
+            if path:
+                files.append(path)
+
+        if not files: return
+
+        self.queue.extend(files)
+        self._process_queue()
+
+    def _process_queue(self):
+        if self._is_analyzing: return
+
+        if not self.queue:
+            return # Done
+
+        next_file = self.queue.pop(0)
+        self._start_analysis(next_file)
 
     def _on_browse(self):
         file_path = ctk.filedialog.askopenfilename(filetypes=[("Installers", "*.exe;*.msi")])
@@ -86,6 +113,11 @@ class AnalyzerView(ctk.CTkFrame):
             self._start_analysis(file_path)
 
     def _start_analysis(self, file_path):
+        if self._is_analyzing:
+            self.queue.append(file_path)
+            return
+
+        self._is_analyzing = True
         self.status_bar.configure(text=f"{i18n.get('analyzing')} {Path(file_path).name}...")
         self.progress_bar.grid()
         self.progress_bar.set(0)
@@ -197,6 +229,16 @@ class AnalyzerView(ctk.CTkFrame):
             if self.ai_service:
                 self.ai_service.update_context(context_data)
 
+            if hasattr(self.app, 'history_service'):
+                try:
+                    self.app.history_service.add_entry({
+                        "filename": path.name,
+                        "filepath": str(path),
+                        "product": info.product_name or "Unknown",
+                        "type": info.installer_type
+                    })
+                except Exception as e: logger.error(f"Failed to save history: {e}")
+
             self._update_progress(1.0, "Analysis Complete")
             self.after(0, lambda i=info, w=winget_url, bf=brute_force_data, nd=nested_data, sd=silent_disabled:
                        self._show_results(i, w, bf, nd, sd))
@@ -206,6 +248,7 @@ class AnalyzerView(ctk.CTkFrame):
             err = str(e)
             self.after(0, lambda: self._show_error(f"Critical Error during analysis: {err}"))
             self._update_progress(0, "Analysis Failed")
+            self._is_analyzing = False
             NotificationService.send_notification("Analysis Failed", f"Error analyzing {Path(file_path_str).name}: {err}")
         except SystemExit:
             logger.error("Analyzer thread attempted sys.exit()!")
@@ -213,6 +256,15 @@ class AnalyzerView(ctk.CTkFrame):
             NotificationService.send_notification("Analysis Error", "Critical system error during analysis.")
 
     def _show_results(self, info, winget_url, brute_force_data=None, nested_data=None, silent_disabled=None):
+        self._is_analyzing = False
+
+        # Check Queue logic
+        if self.queue:
+            remaining = len(self.queue)
+            self.status_bar.configure(text=f"Batch Processing... ({remaining} remaining)")
+            self.after(500, self._process_queue)
+            return
+
         self.status_bar.configure(text=i18n.get("analysis_complete"))
         self.progress_bar.grid_remove()
         self._clear_results()

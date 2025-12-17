@@ -47,6 +47,8 @@
     "up_to_date": "You are up to date!",
     "update_check_failed": "Update Check Failed",
     "could_not_check": "Could not check for updates:",
+    "no_update_found": "No updates available.",
+    "update_check_title": "Update Check",
     "extracting_archive": "Extracting archive for nested analysis...",
     "temp_cleaned": "Temporary files cleaned up",
     "automated_output": "Automated Analysis Output",

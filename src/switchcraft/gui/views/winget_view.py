@@ -9,7 +9,7 @@ import webbrowser
 from pathlib import Path
 
 from switchcraft.utils.i18n import i18n
-from switchcraft.utils.winget import WingetHelper
+# from switchcraft.utils.winget import WingetHelper # Moved to Addon
 
 logger = logging.getLogger(__name__)
 
@@ -82,13 +82,24 @@ class WingetView(ctk.CTkFrame):
         self.update()
 
         def _search_thread():
-            results = self.winget_helper.search_packages(query)
-            self.after(0, lambda: self._display_results(results))
+            error_msg = None
+            results = []
+            try:
+                results = self.winget_helper.search_packages(query)
+            except Exception as e:
+                error_msg = str(e)
+
+            self.after(0, lambda: self._display_results(results, error=error_msg))
 
         threading.Thread(target=_search_thread, daemon=True).start()
 
-    def _display_results(self, results):
+    def _display_results(self, results, error=None):
         for w in self.results_scroll.winfo_children(): w.destroy()
+
+        if error:
+            err_label = ctk.CTkLabel(self.results_scroll, text=f"Error: {error}", text_color="red", wraplength=250)
+            err_label.pack(pady=20, padx=10)
+            return
 
         if not results:
             ctk.CTkLabel(self.results_scroll, text=i18n.get("winget_no_results")).pack(pady=20)

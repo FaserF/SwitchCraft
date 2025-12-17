@@ -11,65 +11,28 @@ GITHUB_WINGET_URL = "https://github.com/microsoft/winget-pkgs/tree/master/manife
 
 class WingetHelper:
     def __init__(self):
-        self.local_repo = WINGET_PKGS_PATH if WINGET_PKGS_PATH.exists() else None
+        self.local_repo = None # Deprecated local path
 
     def search_by_product_code(self, product_code: str) -> Optional[str]:
-        """Search local winget repo for a product code."""
-        if not self.local_repo or not product_code:
-            return None
-
-        product_code = product_code.strip("{}").upper() # Normalize MSI product code
-
-        # This is a naive scan. A real index would be better, but this is MVP.
-        # We can use 'grep' or 'findstr' via generic search if we want speed,
-        # but purely pythonic recursive glob might be slow on 400k files.
-        # So we might skip deep scan for now or limit it.
-        # Using 'fd' or 'ripgrep' if available would be best.
         return None
 
     def search_by_name(self, product_name: str) -> Optional[str]:
-        """Search for a product name using local repo or CLI."""
+        """Search for a product name using CLI."""
         if not product_name:
             return None
 
-        # Special Case for SwitchCraft (Self-detection)
+        # Self-check
         if "switchcraft" in product_name.lower():
             return "https://github.com/microsoft/winget-pkgs/tree/master/manifests/s/FaserF/SwitchCraft"
 
-        # 1. Try Local Repo (if valid)
-        if self.local_repo:
-            url = self._search_local_repo(product_name)
-            if url: return url
-
-        # 2. Try CLI Search (Robust Fallback)
         return self._search_cli(product_name)
 
     def _search_local_repo(self, product_name: str) -> Optional[str]:
-        import difflib
-        search_term = product_name.lower().replace(" ", "")
-        first_char = search_term[0] if search_term[0].isalnum() else "_"
-        search_root = self.local_repo / first_char.lower()
-
-        if not search_root.exists(): return None
-
-        found_matches = []
-        for vendor_dir in search_root.iterdir():
-            if vendor_dir.is_dir():
-                # Vendor match
-                if search_term in vendor_dir.name.lower():
-                    for pkg_dir in vendor_dir.iterdir(): found_matches.append(pkg_dir)
-                else:
-                    # Package match
-                    for pkg_dir in vendor_dir.iterdir():
-                         if search_term in pkg_dir.name.lower(): found_matches.append(pkg_dir)
-
-        if found_matches:
-            best_match = max(found_matches, key=lambda p: difflib.SequenceMatcher(None, product_name.lower(), p.name.lower()).ratio())
-            return self._construct_github_url(best_match)
         return None
 
     def _search_cli(self, query: str) -> Optional[str]:
         """Run winget search and parse ID."""
+        if not query: return None
         import subprocess
         import shutil
 
@@ -80,10 +43,9 @@ class WingetHelper:
             # Clean query
             clean_query = "".join(x for x in query if x.isalnum() or x in " -_.")
 
-            # winget search --name "Node.js" --source winget
-            cmd = ["winget", "search", "--name", clean_query, "--source", "winget", "--accept-source-agreements"]
+            # winget search --name <query> --source winget
+            cmd = ["winget", "search", "--name", clean_query, "--source", "winget", "--accept-source-agreements", "--disable-interactivity"]
 
-            # Run without window (Windows specific)
             startupinfo = None
             if hasattr(subprocess, 'STARTUPINFO'):
                 startupinfo = subprocess.STARTUPINFO()
@@ -100,14 +62,13 @@ class WingetHelper:
 
             if proc.returncode != 0:
                 logger.warning(f"Winget CLI failed code {proc.returncode}")
-                return None
+                # Code 1 usually means no results, but we should verify stdout
+                pass
 
             # Parse Header: Name Id Version Match Source
             lines = proc.stdout.strip().splitlines()
             if len(lines) < 3: return None
 
-            # Skip Header and Separator (usually lines 0 and 1)
-            # Find the header line index just in case
             header_idx = -1
             for i, line in enumerate(lines):
                 if "Id" in line and "Version" in line:
@@ -117,15 +78,7 @@ class WingetHelper:
             if header_idx == -1 or header_idx + 2 >= len(lines):
                 return None
 
-            # Analyzing offsets is tricky due to variable spacing.
-            # But columns are spaced. Usually Name (variable) Id (variable) ...
-            # Let's take the first result line roughly.
             first_row = lines[header_idx + 2]
-
-            # Robust split? It's column based.
-            # Usually the ID is the second "token" if the Name doesn't contain spaces? No, Name has spaces.
-            # Column-based parsing required.
-
             header = lines[header_idx]
             id_start = header.find("Id")
             version_start = header.find("Version")
@@ -135,11 +88,6 @@ class WingetHelper:
             app_id = first_row[id_start:version_start].strip()
 
             if app_id:
-                # Construct winget.run URL (Unofficial but contains the ID for our parser)
-                # Format: https://winget.run/pkg/<Publisher>/<Package>
-                # But our parser uses split("/pkg/")[-1].replace("/", ".")
-                # So if ID is "OpenJS.NodeJS", we want "OpenJS/NodeJS"
-
                 parts = app_id.split(".")
                 if len(parts) >= 2:
                     return f"https://winget.run/pkg/{parts[0]}/{'.'.join(parts[1:])}"
@@ -160,12 +108,12 @@ class WingetHelper:
         import shutil
 
         if not shutil.which("winget"):
+            logger.warning("Winget CLI not found in PATH")
             return []
 
         try:
-            # winget search <query> --source winget --accept-source-agreements
-            # Note: without --exact it searches fuzzy
-            cmd = ["winget", "search", query, "--source", "winget", "--accept-source-agreements"]
+            # --exact match is too strict for general search
+            cmd = ["winget", "search", query, "--source", "winget", "--accept-source-agreements", "--disable-interactivity"]
 
             startupinfo = None
             if hasattr(subprocess, 'STARTUPINFO'):
@@ -174,15 +122,20 @@ class WingetHelper:
 
             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)
 
-            if proc.returncode != 0 and proc.returncode != 1: # 0=Success, 1=No results
+            # If nothing found, winget often returns 1 and prints "No package found..."
+            if "No package found" in proc.stdout:
                 return []
+
+            if proc.returncode != 0 and proc.returncode != 1: # 0=Success, 1=No results
+                logger.error(f"Winget CLI error {proc.returncode}: {proc.stderr or proc.stdout}")
+                # We can return an error dict, but type hint says List
+                # Or we raise an exception to be caught by UI
+                raise RuntimeError(f"Winget Error {proc.returncode}: {proc.stdout}")
 
             lines = proc.stdout.strip().splitlines()
             results = []
 
             # Header parsing logic
-            # Name      Id          Version   Match Source
-            # ---------------------------------------------
             if len(lines) < 3: return []
 
             header = lines[0]
@@ -208,17 +161,12 @@ class WingetHelper:
             for line in lines[2:]:
                 if not line.strip(): continue
 
-                # Fixed width parsing based on header offsets
-                # Name is from 0 to id_idx
-                # Id is from id_idx to ver_idx
-                # Version is from ver_idx ...
-
-                # Careful: The last column might not have a start index if header ended
+                # Stop if we hit footer or progress
+                if line.startswith("---") or "package found" in line: continue
 
                 name = line[:id_idx].strip()
                 p_id = line[id_idx:ver_idx].strip()
 
-                # Version usually ends at Match or Source
                 end_ver = match_idx if match_idx != -1 else src_idx
                 if end_ver == -1: end_ver = len(line)
 

@@ -27,7 +27,7 @@ class TestPhase4Features(unittest.TestCase):
         except Exception as e:
             self.fail(f"NotificationService raised exception: {e}")
 
-    @patch('requests.get')
+    @patch('switchcraft_advanced.services.intune_service.requests.get')
     def test_intune_download(self, mock_get):
         """Test downloading the Intune tool."""
         mock_response = MagicMock()
@@ -47,7 +47,7 @@ class TestPhase4Features(unittest.TestCase):
         with open(self.intune_service.tool_path, 'rb') as f:
             self.assertEqual(f.read(), b"fake_exe_content")
 
-    @patch('subprocess.run')
+    @patch('switchcraft_advanced.services.intune_service.subprocess.run')
     def test_create_intunewin(self, mock_run):
         """Test creating .intunewin package."""
         # Create dummy setup file

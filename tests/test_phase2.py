@@ -51,7 +51,7 @@ class TestPhase2Features(unittest.TestCase):
         self.assertIn("/VERYSILENT", response)
 
     # --- Brute Force Tests ---
-    @patch("switchcraft.analyzers.universal.subprocess.run")
+    @patch("switchcraft_advanced.analyzers.universal.subprocess.run")
     def test_brute_force_try_all(self, mock_run):
         """Test that the new 'Try All' strategy is attempted."""
         uni = UniversalAnalyzer()

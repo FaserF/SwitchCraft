@@ -79,10 +79,17 @@ class SwitchCraftAI:
     def ask(self, query: str) -> str:
         """Determines the answer using Configured Provider."""
 
-        if self.provider == "openai" and self.client:
-            return self._ask_openai(query)
-        elif self.provider == "gemini" and self.client:
-            return self._ask_gemini(query)
+        if self.provider == "openai":
+            if self.client:
+                return self._ask_openai(query)
+            else:
+                return "Error: OpenAI Provider configured but not initialized. Please check your API Key in Settings."
+
+        elif self.provider == "gemini":
+            if self.client:
+                return self._ask_gemini(query)
+            else:
+                return "Error: Gemini Provider configured but not initialized. Please check your API Key in Settings."
 
         # Fallback / Local
         return self._ask_smart_regex(query)
