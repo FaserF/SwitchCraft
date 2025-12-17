@@ -58,19 +58,27 @@ class I18n:
     def _load_translations(self):
         """Load translations from JSON files in assets/lang."""
         try:
-            base_path = os.path.dirname(os.path.abspath(__file__))
-            # Adjusted path: src/switchcraft/utils/../assets/lang
-            lang_dir = os.path.join(base_path, "..", "assets", "lang")
+            # Use pathlib for better cross-platform handling
+            from pathlib import Path
+            base_path = Path(__file__).parent
+            # src/switchcraft/utils/../assets/lang -> src/switchcraft/assets/lang
+            lang_dir = base_path.parent / "assets" / "lang"
+
+            logger.debug(f"Loading translations from: {lang_dir.resolve()}")
+
+            if not lang_dir.exists():
+                logger.error(f"Language directory not found: {lang_dir.resolve()}")
 
             for lang_code in ["en", "de"]:
-                file_path = os.path.join(lang_dir, f"{lang_code}.json")
-                if os.path.exists(file_path):
+                file_path = lang_dir / f"{lang_code}.json"
+                if file_path.exists():
                     try:
                         with open(file_path, "r", encoding="utf-8") as f:
                             self.translations[lang_code] = json.load(f)
                     except Exception as e:
-                         # Fallback for dev environment or broken file
                          logger.error(f"Failed to load {lang_code} translation: {e}")
+                else:
+                    logger.warning(f"Translation file missing: {file_path}")
 
             # Ensure English exists as fallback at minimum
             if "en" not in self.translations:
@@ -81,7 +89,11 @@ class I18n:
 
     def _detect_language(self):
         try:
-            lang, _ = locale.getdefaultlocale()
+            # Fix DeprecationWarning for Python 3.11+
+            lang = locale.getlocale()[0]
+            if not lang:
+                 lang = locale.getdefaultlocale()[0] # Fallback if getlocale returns None (e.g. C locale)
+
             if lang and lang.startswith("de"):
                 return "de"
         except Exception as e:

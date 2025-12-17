@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 @click.command()
 @click.argument('filepath', type=click.Path(exists=True), required=False)
 @click.option('--json', 'output_json', is_flag=True, help="Output in JSON format")
-@click.version_option(__version__)
+@click.version_option(__version__, message='SwitchCraft, version %(version)s')
 def cli(filepath, output_json):
     """SwitchCraft: Analyze installers for silent switches."""
 
