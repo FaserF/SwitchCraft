@@ -35,3 +35,6 @@ switchcraft = "switchcraft.main:cli"
 
 [project.urls]
 Homepage = "https://github.com/FaserF/SwitchCraft"
+
+[tool.setuptools.package-data]
+switchcraft = ["assets/**/*", "assets/lang/*.json"]
