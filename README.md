@@ -18,6 +18,7 @@
 - [**☁️ Enterprise & Intune**](docs/INTUNE.md): Guide to Automation, Intune Uploads, Group Assignments, and Script Signing.
 - [**Registry Reference**](docs/Registry.md): Configuration via Registry.
 - [**GPO / Policies**](docs/PolicyDefinitions/README.md): ADMX Templates.
+- [**🔐 Security Guide**](docs/SECURITY.md): Details on Encryption, ASR, and Safe Usage.
 
 ## 🚀 Installation
 

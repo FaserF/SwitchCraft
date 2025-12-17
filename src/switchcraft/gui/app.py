@@ -237,8 +237,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                     self.after(0, lambda: messagebox.showinfo(i18n.get("update_available_title"), i18n.get("no_update_found") or "No updates available."))
             except Exception as e:
                 logger.error(f"Update check failed: {e}")
+                error_msg = str(e)
                 if show_no_update:
-                    self.after(0, lambda: messagebox.showerror("Update Error", str(e)))
+                    self.after(0, lambda: messagebox.showerror("Update Error", error_msg))
 
         threading.Thread(target=_target, daemon=True).start()
 

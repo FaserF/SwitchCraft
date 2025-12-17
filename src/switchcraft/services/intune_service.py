@@ -161,12 +161,21 @@ class IntuneService:
             payload = json.loads(payload_bytes)
 
             roles = payload.get("roles", [])
-            required = "DeviceManagementApps.ReadWrite.All"
+            mandatory = ["DeviceManagementApps.ReadWrite.All"]
 
-            if required in roles:
-                return True, "OK"
-            else:
-                return False, f"Missing Role: {required}\nFound: {', '.join(roles) if roles else 'None'}"
+            # Check mandatory
+            missing = [r for r in mandatory if r not in roles]
+            if missing:
+                return False, f"Missing Mandatory Role: {', '.join(missing)}"
+
+            # Check optional (accept higher/alternative if logic allows, here we check Group Read)
+            # Accept Group.Read.All OR Group.ReadWrite.All
+            has_group_read = any(r in roles for r in ["Group.Read.All", "Group.ReadWrite.All"])
+
+            if not has_group_read:
+                return True, "ok_with_warning: Missing 'Group.Read.All'. App assignment verification will fail, but upload will work."
+
+            return True, "OK"
         except Exception as e:
             logger.error(f"Permission verification error: {e}")
             return False, f"Verification Error: {e}"

@@ -223,7 +223,11 @@ class SettingsView(ctk.CTkFrame):
         ctk.CTkLabel(parent, text=label).pack(anchor="w", padx=10)
         entry = ctk.CTkEntry(parent, show="*" if hide else "")
         entry.pack(fill="x", padx=10, pady=(0, 5))
-        val = SwitchCraftConfig.get_value(config_key, "")
+        # Try getting from keyring first, then registry
+        val = SwitchCraftConfig.get_secret(config_key)
+        if not val:
+            val = SwitchCraftConfig.get_value(config_key, "")
+
         if val: entry.insert(0, val)
         return entry
 
@@ -248,16 +252,28 @@ class SettingsView(ctk.CTkFrame):
                     # Verify Permissions
                     is_valid, msg = self.intune_service.verify_graph_permissions(token)
                     if is_valid:
-                        # Success - Save Config
+                        # Success - Save Config securely
+                        # Tenant ID is public info, Registry is fine
                         SwitchCraftConfig.set_user_preference("IntuneTenantID", t_id)
-                        SwitchCraftConfig.set_user_preference("IntuneClientId", c_id)
-                        SwitchCraftConfig.set_user_preference("IntuneClientSecret", sec)
+
+                        # Client ID and Secret in Keyring
+                        SwitchCraftConfig.set_secret("IntuneClientId", c_id)
+                        SwitchCraftConfig.set_secret("IntuneClientSecret", sec)
+
+                        # Clear potential plaintext form registry if exists (migration)
+                        SwitchCraftConfig.set_user_preference("IntuneClientSecret", "")
+                        SwitchCraftConfig.set_user_preference("IntuneClientId", "")
 
                         self.after(0, lambda: self._on_verify_success())
+
+                        if "ok_with_warning" in msg:
+                             clean_msg = msg.replace("ok_with_warning: ", "")
+                             self.after(0, lambda: messagebox.showwarning(i18n.get("settings_verify_warning") or "Permission Warning", clean_msg))
                     else:
                         raise RuntimeError(f"Permissions missing: {msg}")
             except Exception as e:
-                self.after(0, lambda: self._on_verify_fail(str(e)))
+                error_msg = str(e)
+                self.after(0, lambda: self._on_verify_fail(error_msg))
 
         import threading
         threading.Thread(target=_verify_thread, daemon=True).start()

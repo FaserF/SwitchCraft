@@ -118,3 +118,22 @@ class SwitchCraftConfig:
 
         except Exception as e:
             logger.error(f"Failed to set user preference '{value_name}': {e}")
+
+    @classmethod
+    def get_secret(cls, key_name: str) -> Optional[str]:
+        """Retrieve a secret from the system keyring."""
+        try:
+            import keyring
+            return keyring.get_password("SwitchCraft", key_name)
+        except Exception as e:
+            logger.error(f"Failed to get secret '{key_name}': {e}")
+            return None
+
+    @classmethod
+    def set_secret(cls, key_name: str, value: str):
+        """Store a secret securely in the system keyring."""
+        try:
+            import keyring
+            keyring.set_password("SwitchCraft", key_name, value)
+        except Exception as e:
+            logger.error(f"Failed to set secret '{key_name}': {e}")
