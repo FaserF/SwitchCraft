@@ -2,6 +2,9 @@ import customtkinter as ctk
 import webbrowser
 import sys
 import logging
+import json
+import re
+import os
 from tkinter import messagebox
 from switchcraft.utils.i18n import i18n
 from switchcraft.utils.config import SwitchCraftConfig
@@ -39,6 +42,17 @@ class SettingsView(ctk.CTkFrame):
             font=ctk.CTkFont(size=11)
         )
         debug_hint.pack(pady=2)
+
+        # General Settings (Winget)
+        frame_general = ctk.CTkFrame(self.settings_scroll)
+        frame_general.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(frame_general, text="General", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+
+        self.winget_var = ctk.BooleanVar(value=SwitchCraftConfig.get_value("EnableWinget", True))
+        def toggle_winget():
+            SwitchCraftConfig.set_user_preference("EnableWinget", self.winget_var.get())
+
+        ctk.CTkSwitch(frame_general, text=i18n.get("settings_enable_winget", default="Enable Winget Integration"), variable=self.winget_var, command=toggle_winget).pack(pady=5)
 
         # Update Channel Selection
         frame_channel = ctk.CTkFrame(self.settings_scroll)
@@ -101,6 +115,10 @@ class SettingsView(ctk.CTkFrame):
             self.tmpl_path_label.configure(text=i18n.get("settings_tmpl_default"))
 
         ctk.CTkButton(frame_tmpl, text=i18n.get("settings_tmpl_reset"), fg_color="transparent", border_width=1, command=reset_template).pack(pady=2)
+
+        link_tmpl = ctk.CTkButton(frame_tmpl, text="View Templates on GitHub", fg_color="transparent", text_color="#3B8ED0", hover=False,
+                                 command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/tree/main/src/switchcraft/assets/templates"))
+        link_tmpl.pack(pady=2)
 
         # --- NEW SETTINGS ---
 
@@ -204,6 +222,10 @@ class SettingsView(ctk.CTkFrame):
         frame = ctk.CTkFrame(self.settings_scroll)
         frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(frame, text="Intune / Graph API", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+
+        link_doc = ctk.CTkButton(frame, text="Documentation (GitHub)", fg_color="transparent", text_color="#3B8ED0", hover=False, height=20,
+                                 command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/blob/main/docs/SECURITY.md"))
+        link_doc.pack(pady=(0, 10))
 
         self.ent_tenant = self._create_intune_entry(frame, "Tenant ID:", "IntuneTenantID")
         self.ent_client = self._create_intune_entry(frame, "Client ID (App ID):", "IntuneClientId")
@@ -333,6 +355,11 @@ class SettingsView(ctk.CTkFrame):
         self.tool_path_entry = ctk.CTkEntry(tool_frame)
         self.tool_path_entry.pack(side="left", fill="x", expand=True, pady=2)
         val = SwitchCraftConfig.get_value("IntuneToolPath", "")
+        if not val:
+            # Check default location
+            default_path = os.path.join(os.getcwd(), "Bin", "IntuneWinAppUtil.exe")
+            if os.path.exists(default_path):
+                val = default_path
         if val: self.tool_path_entry.insert(0, val)
 
         def save_tool(event=None):
@@ -367,14 +394,29 @@ class SettingsView(ctk.CTkFrame):
         self.ent_grp_id = ctk.CTkEntry(input_frame, placeholder_text="Object ID (GUID)")
         self.ent_grp_id.pack(side="left", fill="x", expand=True, padx=(0,5))
 
+        def get_groups():
+            raw = SwitchCraftConfig.get_value("IntuneTestGroups", "[]")
+            if isinstance(raw, str):
+                try: return json.loads(raw)
+                except: return []
+            return raw if isinstance(raw, list) else []
+
+        def save_groups(groups):
+            SwitchCraftConfig.set_user_preference("IntuneTestGroups", json.dumps(groups))
+            self.refresh_group_list()
+
         def add_grp():
             n = self.ent_grp_name.get().strip()
             i = self.ent_grp_id.get().strip()
             if n and i:
-                 current = SwitchCraftConfig.get_value("IntuneTestGroups", [])
+                 # GUID Validation
+                 if not re.match(r"^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$", i):
+                     messagebox.showwarning("Invalid ID", "Please enter a valid GUID (Object ID).")
+                     return
+
+                 current = get_groups()
                  current.append({"name": n, "id": i})
-                 SwitchCraftConfig.set_user_preference("IntuneTestGroups", current)
-                 self.refresh_group_list()
+                 save_groups(current)
                  self.ent_grp_name.delete(0, "end")
                  self.ent_grp_id.delete(0, "end")
 
@@ -384,22 +426,105 @@ class SettingsView(ctk.CTkFrame):
         for widget in self.group_scroll.winfo_children():
             widget.destroy()
 
-        groups = SwitchCraftConfig.get_value("IntuneTestGroups", [])
+        raw = SwitchCraftConfig.get_value("IntuneTestGroups", "[]")
+        groups = []
+        if isinstance(raw, str):
+            try: groups = json.loads(raw)
+            except: pass
+        elif isinstance(raw, list):
+            groups = raw
+
         for idx, grp in enumerate(groups):
             row = ctk.CTkFrame(self.group_scroll, fg_color="transparent")
             row.pack(fill="x")
             ctk.CTkLabel(row, text=f"{grp.get('name')} ({grp.get('id')})").pack(side="left")
             def rem(x=idx):
-                current = SwitchCraftConfig.get_value("IntuneTestGroups", [])
-                if 0 <= x < len(current):
-                    current.pop(x)
-                    SwitchCraftConfig.set_user_preference("IntuneTestGroups", current)
+                current = groups # Closure over reference? Need fresh load to be safe or copy
+                # Safer to reload
+                raw_curr = SwitchCraftConfig.get_value("IntuneTestGroups", "[]")
+                curr = json.loads(raw_curr) if isinstance(raw_curr, str) else (raw_curr if isinstance(raw_curr, list) else [])
+
+                if 0 <= x < len(curr):
+                    curr.pop(x)
+                    SwitchCraftConfig.set_user_preference("IntuneTestGroups", json.dumps(curr))
                     self.refresh_group_list()
+
             ctk.CTkButton(row, text="X", width=30, fg_color="red", command=rem).pack(side="right")
 
+        self._setup_ai_config()
+        self._setup_debug_console()
+
+    def _setup_ai_config(self):
+        """AI Assistant Configuration."""
+        frame = ctk.CTkFrame(self.settings_scroll)
+        frame.pack(fill="x", padx=10, pady=10)
+
+        ctk.CTkLabel(frame, text=i18n.get("settings_ai_title"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
+
+        # Provider Selection
+        ctk.CTkLabel(frame, text=i18n.get("settings_ai_provider")).pack(anchor="w", padx=10)
+
+        self.ai_provider_var = ctk.StringVar(value=SwitchCraftConfig.get_value("AIProvider", "local"))
+
+        provider_menu = ctk.CTkOptionMenu(
+            frame,
+            variable=self.ai_provider_var,
+            values=["local", "openai", "gemini"],
+            command=self._on_ai_provider_change
+        )
+        provider_menu.pack(fill="x", padx=10, pady=(0, 5))
+
+        # Key Entry (Dynamic)
+        self.ai_key_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        ctk.CTkLabel(self.ai_key_frame, text=i18n.get("settings_ai_key")).pack(anchor="w")
+        self.ai_key_entry = ctk.CTkEntry(self.ai_key_frame, show="*")
+        self.ai_key_entry.pack(fill="x")
+
+        # Model Entry
+        self.ai_model_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        ctk.CTkLabel(self.ai_model_frame, text=i18n.get("settings_ai_model")).pack(anchor="w")
+        self.ai_model_entry = ctk.CTkEntry(self.ai_model_frame, placeholder_text="e.g. gpt-4o")
+        v = SwitchCraftConfig.get_value("AIModel", "")
+        if v: self.ai_model_entry.insert(0, v)
+        self.ai_model_entry.pack(fill="x")
+
+        # Save Button
+        ctk.CTkButton(frame, text="Save AI Settings", command=self._save_ai_settings).pack(pady=10)
+
+        # Initial State
+        self._on_ai_provider_change(self.ai_provider_var.get())
+
+    def _on_ai_provider_change(self, value):
+        if value == "local":
+            self.ai_key_frame.pack_forget()
+            self.ai_model_frame.pack_forget()
+        else:
+            self.ai_key_frame.pack(fill="x", padx=10, pady=5)
+            self.ai_model_frame.pack(fill="x", padx=10, pady=5)
+            # Load specific key
+            secret_key = "OPENAI_API_KEY" if value == "openai" else "GEMINI_API_KEY"
+            val = SwitchCraftConfig.get_secret(secret_key)
+            self.ai_key_entry.delete(0, "end")
+            if val: self.ai_key_entry.insert(0, val)
+
+    def _save_ai_settings(self):
+        provider = self.ai_provider_var.get()
+        SwitchCraftConfig.set_user_preference("AIProvider", provider)
+        SwitchCraftConfig.set_user_preference("AIModel", self.ai_model_entry.get().strip())
+
+        if provider != "local":
+            secret_key = "OPENAI_API_KEY" if provider == "openai" else "GEMINI_API_KEY"
+            key_val = self.ai_key_entry.get().strip()
+            if key_val:
+                SwitchCraftConfig.set_secret(secret_key, key_val)
+
+        messagebox.showinfo("Saved", "AI Settings Saved. Please restart to apply changes.")
+
     def _setup_debug_console(self):
+        """Setup debug console toggle."""
         frame_debug = ctk.CTkFrame(self.settings_scroll)
         frame_debug.pack(fill="x", padx=10, pady=10)
+
 
         ctk.CTkLabel(frame_debug, text=i18n.get("settings_debug_title"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
 

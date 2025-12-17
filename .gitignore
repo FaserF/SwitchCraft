@@ -48,3 +48,7 @@ debug_suite.txt
 # SwitchCraft tools
 tools/
 *.exe
+test_results.txt
+log.txt
+smoke_retry*.txt
+smoke_out.txt

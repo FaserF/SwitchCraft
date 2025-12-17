@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: switchcraft
-Version: 2025.12.3
+Version: 2025.12.11.dev0
 Summary: A universal silent switch finder and installer analyzer.
 Author: FaserF
 License: MIT License
@@ -43,58 +43,57 @@ Requires-Dist: customtkinter
 Requires-Dist: tkinterdnd2
 Requires-Dist: pillow
 Requires-Dist: PyYAML
+Requires-Dist: plyer
+Requires-Dist: keyring
+Requires-Dist: openai
+Requires-Dist: google-generativeai
 Dynamic: license-file
 
 # SwitchCraft 🧙‍♂️
 
-<img src="switchcraft_logo.png" width="200" alt="SwitchCraft Logo">
+<img src="images/switchcraft_logo_with_Text.png" width="200" alt="SwitchCraft Logo">
 
-**SwitchCraft** is your ultimate cross-platform utility for identifying silent installation parameters for EXE and MSI packages. Designed for IT Admins, Packagers, and Developers.
+[![GitHub all releases](https://img.shields.io/github/downloads/FaserF/SwitchCraft/total?color=blue&style=flat-square&logo=github&label=Downloads)](https://github.com/FaserF/SwitchCraft/releases)
 
-## ✨ Features
+**SwitchCraft is your comprehensive packaging assistant for IT Professionals. It goes beyond simple switch identification to streamline your entire application packaging workflow.**
 
-- **🔎 Universal Analysis**:
-  - **MSI**: Extracts `ProductCode`, `UpgradeCode`, manufacturer, version, and standard `/qn` switches
-  - **EXE**: Auto-detects installer framework and suggests appropriate silent switches
-  - **Metadata**: Parses PE version info for product name, version, and company
-- **📦 Winget Integration**: Automatically checks if the package exists in the **Windows Package Manager** (winget) repository
-- **🖥️ GUI & Drag'n'Drop**: Modern, dark-mode friendly desktop interface
-- **⚔️ Automatic Brute Force**: Runs 15+ help argument variations to discover switches
-- **🔧 Cross-Platform**: Built with Python, running on Windows, Linux, and macOS
-- **🌐 Multi-Language**: English and German interface
+<div align="center">
+  <img src="images/switchcraft_ui.png" alt="SwitchCraft UI" width="1000" />
+</div>
 
-## 🎯 Supported Installer Types
+> [!NOTE]
+> **Active development is for Windows only.** Linux and macOS builds are untested but available. Bug reports for other platforms are welcome!
 
-| Installer Type | Detection Confidence | Silent Install Switch |
-|---------------|---------------------|----------------------|
-| **MSI Database** | 100% | `/qn /norestart` |
-| **NSIS** | 90% | `/S` |
-| **Inno Setup** | 90% | `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` |
-| **InstallShield** | 80% | `/s /v"/qn"` |
-| **7-Zip SFX** | 90% | `/S` |
-| **WiX Burn Bundle** | 85% | `/quiet /norestart` |
-| **Advanced Installer** | 80% | `/exenoui /qn` |
-| **Wise Installer** | 80% | `/S` |
-| **Setup Factory** | 75% | `/S` |
-| **Squirrel (Electron)** | 80% | `--silent` |
-| **PyInstaller App** | 85% | N/A (not an installer) |
-| **cx_Freeze App** | 80% | N/A (not an installer) |
+## 📚 Documentation
+- [**✨ Features & Analysis**](docs/FEATURES.md): Detailed breakdown of supported installers and analysis capabilities.
+- [**📦 Winget Store & Integration**](docs/WINGET.md): Using the Winget Store and Auto-Update deployment.
+- [**☁️ Enterprise & Intune**](docs/INTUNE.md): Guide to Automation, Intune Uploads, Group Assignments, and Script Signing.
+- [**Registry Reference**](docs/Registry.md): Configuration via Registry.
+- [**GPO / Policies**](docs/PolicyDefinitions/README.md): ADMX Templates.
+- [**🔐 Security Guide**](docs/SECURITY.md): Details on Encryption, ASR, and Safe Usage.
 
 ## 🚀 Installation
 
 ### Pre-built Binaries
-Download the latest standalone executable from the [Releases](https://github.com/FaserF/SwitchCraft/releases) page:
-- **Windows**: `SwitchCraft-windows.exe`
-- **Linux**: `SwitchCraft-linux`
-- **macOS**: `SwitchCraft-macos`
+Download from the [Releases](https://github.com/FaserF/SwitchCraft/releases) page:
 
-No Python installation required!
+#### Windows Installer (Recommended)
+- **`SwitchCraft-Setup.exe`** – Full installer with Start Menu, Desktop shortcuts.
+  - **User Scope**: Installs to `%LOCALAPPDATA%` (Default).
+  - **Machine Scope**: Run as Admin to install to `%PROGRAMFILES%`.
+  - **Silent Install**: `SwitchCraft-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`
 
-### From Source
-```bash
-git clone https://github.com/FaserF/SwitchCraft.git
-cd SwitchCraft
-pip install .
+#### Portable Executables
+- **Windows**: `SwitchCraft-windows.exe` (No Install required)
+
+### Install via Winget
+```powershell
+winget install FaserF.SwitchCraft
+```
+
+### CLI "One-Liner" (PowerShell)
+```powershell
+iex (irm https://raw.githubusercontent.com/FaserF/SwitchCraft/main/install.ps1)
 ```
 
 ## 💻 Usage
@@ -103,8 +102,6 @@ pip install .
 Simply run the application without arguments:
 ```bash
 switchcraft
-# or
-python -m switchcraft.gui.app
 ```
 Then **Drag & Drop** your installer into the window or click to browse.
 
@@ -115,89 +112,7 @@ switchcraft analyze setup.exe
 
 # JSON output for scripting
 switchcraft analyze setup.exe --json
-
-# Check version
-switchcraft --version
 ```
-
-## 🔧 Supported File Types
-
-| Extension | Description |
-|-----------|-------------|
-| `.exe` | Windows Executable (installer or packaged app) |
-| `.msi` | Windows Installer Database |
-
-## ⚔️ Brute Force Parameter Discovery
-
-When no installer type is detected, SwitchCraft automatically tries these help arguments:
-
-```
-/?  --help  -h  /help  /h  -?  --info  -help  --usage  -V  --version  /info  -i  --silent  /silent
-```
-
-The output is analyzed for common patterns and displayed in the GUI.
-
-## 🛠️ Development
-
-### Prerequisites
-- Python 3.9+
-- Install dependencies: `pip install -e .[dev]`
-
-### Running Tests
-```bash
-python -m unittest discover tests
-```
-
-### Building Executables Manually
-
-#### Using PyInstaller (Recommended)
-```bash
-# Install PyInstaller and dependencies
-pip install pyinstaller customtkinter tkinterdnd2 pillow
-
-# Build using the spec file
-pyinstaller switchcraft.spec
-
-# The executable will be in dist/SwitchCraft.exe (Windows) or dist/SwitchCraft (Linux/Mac)
-```
-
-#### Using cx_Freeze (Alternative)
-```bash
-pip install cx_Freeze
-python setup_freeze.py build
-```
-
-### Project Structure
-```
-SwitchCraft/
-├── src/switchcraft/
-│   ├── analyzers/        # Installer detection logic
-│   │   ├── base.py       # Abstract base analyzer
-│   │   ├── exe.py        # EXE analyzer (11+ installer types)
-│   │   ├── msi.py        # MSI database analyzer
-│   │   └── universal.py  # Brute force & wrapper detection
-│   ├── gui/              # CustomTkinter GUI
-│   │   └── app.py        # Main application window
-│   ├── utils/            # Helper utilities
-│   │   ├── i18n.py       # Internationalization
-│   │   ├── updater.py    # Auto-update checker
-│   │   └── winget.py     # Winget repository lookup
-│   └── main.py           # CLI entry point
-├── tests/                # Unit tests
-└── switchcraft.spec      # PyInstaller build specification
-```
-
-## 📋 Release Types
-
-SwitchCraft uses CalVer versioning: `YEAR.MONTH.PATCH[-suffix]`
-
-| Release Type | Version Format | Example | Description |
-|-------------|---------------|---------|-------------|
-| **Stable** | `YYYY.MM.X` | `2025.12.3` | Production-ready release |
-| **Pre-release (Beta)** | `YYYY.MM.X-beta` | `2025.12.4-beta` | Feature-complete but testing |
-| **Development** | `YYYY.MM.X-dev` | `2025.12.5-dev` | Experimental builds |
-
-> **Note**: Beta and development versions display a warning banner in the GUI.
 
 ## 🤝 Contributing
 Open Source under the **MIT License**. PRs are welcome!

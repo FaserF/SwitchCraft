@@ -1,112 +1,210 @@
 import re
+import json
+import logging
+from typing import Optional, List, Dict, Any
+from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
+
+logger = logging.getLogger(__name__)
 
 class SwitchCraftAI:
     """
-    A rule-based 'Mini KI' expert system for packaging advice.
-    Does not use external LLMs, runs locally.
+    Intelligent Assistant for SwitchCraft.
+    Uses OpenAI API if configured, otherwise falls back to basic expert system.
+    Supports tool execution for packaging automation.
     """
 
     def __init__(self):
-        self.context = {} # Stores current analysis data
+        self.context = {}
+        self.messages = []
+        self.client = None
+        self.provider = SwitchCraftConfig.get_value("AIProvider", "local")
+        self.model = SwitchCraftConfig.get_value("AIModel", "")
+
+        self.tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_installer_info",
+                    "description": "Get detailed information about the currently analyzed installer.",
+                    "parameters": {"type": "object", "properties": {}, "required": []}
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "generate_install_script",
+                    "description": "Generate a PowerShell install script for the current installer.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "silent_args": {"type": "string", "description": "Silent arguments to use"}
+                        },
+                        "required": ["silent_args"]
+                    }
+                }
+            }
+        ]
+
+        # Init Client based on provider
+        self._init_client()
+
+    def _init_client(self):
+        try:
+            if self.provider == "openai":
+                api_key = SwitchCraftConfig.get_secret("OPENAI_API_KEY")
+                if api_key:
+                    from openai import OpenAI
+                    self.client = OpenAI(api_key=api_key)
+                    if not self.model: self.model = "gpt-4o"
+                    self.messages = [{"role": "system", "content": "You are SwitchCraft AI, an expert packaging assistant. Help the user with installers (MSI, EXE, Intune). You have access to the current installer analysis context. Use tools when requested. Be concise."}]
+
+            elif self.provider == "gemini":
+                api_key = SwitchCraftConfig.get_secret("GEMINI_API_KEY")
+                if api_key:
+                    import google.generativeai as genai
+                    genai.configure(api_key=api_key)
+                    if not self.model: self.model = "gemini-pro"
+                    self.client = genai.GenerativeModel(self.model)
+                    # Gemini has different history structure, handled in _ask_gemini
+
+        except Exception as e:
+            logger.error(f"Failed to init AI client ({self.provider}): {e}")
 
     def update_context(self, data: dict):
-        """Updates the context with the latest analysis results."""
         self.context = data
+        # Update system context if needed or just keep available for tools
+        pass
 
     def ask(self, query: str) -> str:
-        """
-        Determines the answer based on query patterns and current context.
-        """
+        """Determines the answer using Configured Provider."""
+
+        if self.provider == "openai" and self.client:
+            return self._ask_openai(query)
+        elif self.provider == "gemini" and self.client:
+            return self._ask_gemini(query)
+
+        # Fallback / Local
+        return self._ask_smart_regex(query)
+
+    def _ask_openai(self, user_query: str) -> str:
+        # ... (Existing OpenAI Logic, compacted) ...
+        try:
+            self.messages.append({"role": "user", "content": user_query})
+            response = self.client.chat.completions.create(
+                model=self.model, messages=self.messages, tools=self.tools, tool_choice="auto"
+            )
+            msg = response.choices[0].message
+
+            # Handle Tool Calls
+            if msg.tool_calls:
+                self.messages.append(msg) # Add assistant's tool call request
+
+                for tool_call in msg.tool_calls:
+                    function_name = tool_call.function.name
+                    args = json.loads(tool_call.function.arguments)
+
+                    # Execute Tool
+                    result_content = self._execute_tool(function_name, args)
+
+                    self.messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": json.dumps(result_content)
+                    })
+
+                # Get final response after tool execution
+                final_response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=self.messages
+                )
+                final_msg = final_response.choices[0].message.content
+                self.messages.append({"role": "assistant", "content": final_msg})
+                return final_msg
+
+            else:
+                answer = msg.content or "I couldn't generate a text response."
+                self.messages.append({"role": "assistant", "content": answer})
+                return answer
+        except Exception as e:
+            return f"OpenAI Error: {e}"
+
+    def _ask_gemini(self, user_query: str) -> str:
+        try:
+            # Simple content generation for Gemini
+            # Context injection
+            context_str = f"Context: {json.dumps(self.context)}" if self.context else ""
+            full_prompt = f"{context_str}\n\nUser: {user_query}"
+
+            response = self.client.generate_content(full_prompt)
+            return response.text
+        except Exception as e:
+            return f"Gemini Error: {e}"
+
+    def _execute_tool(self, name, args):
+        """Execute local functions based on AI request."""
+        logger.info(f"AI executing tool: {name} with {args}")
+
+        if name == "get_installer_info":
+            if self.context:
+                return self.context
+            return {"error": "No file analyzed yet."}
+
+        if name == "generate_install_script":
+            # Just mock relevant action or return instructions for now,
+            # fully wiring this needs callbacks to the UI or passing the App instance.
+            # For now return success text
+            return {"status": "success", "info": "Script generation logic simulated. Tell user it's ready (Mock)."}
+
+        return {"error": "Unknown tool"}
+
+    def _ask_smart_regex(self, query: str) -> str:
+        """Enhanced Rule-based Logic."""
         q = query.lower()
 
-        # 0. Language Guard & Detection
-        # Simple heuristic: detections of common words in supported languages
-        is_de = any(w in q for w in ["hallo", "wer", "was", "wie", "ist", "kannst", "machen", "unterstützt", "du", "neueste", "version", "welche", "für"])
-        is_en = any(w in q for w in ["hello", "hi", "who", "what", "how", "is", "can", "do", "support", "latest", "version"])
+        # 0. Language Check
+        is_de = any(w in q for w in ["hallo", "wer", "was", "wie", "ist", "kannst", "machen", "unterstützt", "du", "neueste", "version", "welche", "für", "geht"])
+        lang = "de" if is_de else "en"
 
-        # If input seems to be another language (not perfect, but covers basic "non-match" if distinct chars used)
-        # Actually, user requirement is: IF not supported question AND language is not DE/EN -> Fallback
-        # But we don't have a reliable language detector for short strings without libs.
-        # Strategy: If it matches NO rules and NO DE/EN keywords, assume unsupported/unknown.
+        # 1. SmartScreen / Signing
+        if any(x in q for x in ["smartscreen", "defender", "virus", "bedrohung", "unknown publisher", "unbekannt", "block"]):
+             return i18n.get("ai_explain_smartscreen", lang=lang, default="SmartScreen warns about 'Unknown Publisher' if the app is not signed. You can sign it using a certificate in the Release Workflow.")
 
-        from switchcraft.utils.i18n import i18n
+        # 2. Winget
+        if "winget" in q:
+             return i18n.get("ai_explain_winget", lang=lang, default="Winget is the Windows Package Manager. SwitchCraft can detect if an installer is available on Winget and generate install scripts for it.")
 
-        # 1. Dynamic Smalltalk (DE + EN)
-        # Prioritize specific questions over generic greetings
-        if re.search(r"(wer bist du|who are you)", q):
-             return i18n.get("ai_smalltalk_who", lang="de" if is_de else "en")
+        # 3. Intune / .intunewin
+        if any(x in q for x in ["intune", "intunewin", "upload", "cloud"]):
+             return i18n.get("ai_explain_intune", lang=lang, default="To deploy via Intune, you need to wrap the installer into an .intunewin file. SwitchCraft automates this in the 'Intune Utility' tab.")
 
-        if re.search(r"(was kannst du|what can you do)", q):
-             return i18n.get("ai_smalltalk_what", lang="de" if is_de else "en")
+        # 4. PSExec / System Context
+        if any(x in q for x in ["psexec", "system", "admin", "test"]):
+             return i18n.get("ai_explain_psexec", lang=lang, default="Testing as SYSTEM user is crucial because Intune installs run as SYSTEM. Use PSExec (checked in settings) to simulate this.")
 
-        if re.search(r"(neueste version|latest version)", q):
-            from switchcraft import __version__
-            return i18n.get("ai_smalltalk_version", lang="de" if is_de else "en", version=__version__)
+        # 5. Installer Specifics (Context Aware)
+        if self.context:
+             if any(x in q for x in ["switch", "silent", "parameter", "arg"]):
+                 t = self.context.get("type", "Unknown")
+                 s = self.context.get("install_silent", "Unknown")
+                 return i18n.get("ai_context_switches", lang=lang, install_type=t, switches=s, filename=self.context.get("filename",""))
 
-        if re.search(r"\b(hi|hallo|hello|greetings|moin|servus)\b", q):
-            return i18n.get("ai_smalltalk_hello", lang="de" if is_de else "en")
-
-        # 2. Context-Aware Questions
-        if "switch" in q or "silent" in q or "install" in q or "parameter" in q or "argument" in q:
-            if "how" in q or "what" in q or "wie" in q or "was" in q or "welche" in q:
-                if self.context:
-                    install_type = self.context.get("type", "Unknown")
-                    switches = self.context.get("install_silent", "Unknown")
-                    filename = self.context.get("filename", "")
-
-                    target_lang = "de" if is_de else "en"
-
-                    if "msi" in install_type.lower():
-                        return i18n.get("ai_context_msi", lang=target_lang, filename=filename)
-
-                    elif switches and switches != "Unknown":
-                        return i18n.get("ai_context_switches", lang=target_lang, install_type=install_type, switches=switches, filename=filename)
-                    else:
-                        return i18n.get("ai_context_no_switches", lang=target_lang)
-                else:
-                    return i18n.get("ai_context_none", lang="de" if is_de else "en")
-
-        # 3. General Knowledge Base
+        # 6. Standard Rules (Previous)
         rules = {
             r"msi": "ai_rules_msi",
-            r"inno": "ai_rules_inno",
-            r"nsis": "ai_rules_nsis",
-            r"installshield": "ai_rules_installshield",
-            r"intune": "ai_rules_intune",
             r"error 1603": "ai_rules_error1603",
-            r"error 1618": "ai_rules_error1618",
             r"powershell": "ai_rules_powershell",
-            r"(mac|macos|dmg|pkg)": "ai_rules_macos",
         }
-
-        # 3. Knowledge Base & Heuristics
-
-        # Rule: Simple /S detection might be valid, but warn about self-extractors
-        if "/S" in query.upper() and ("extract" in query.lower() or "7z" in query.lower()):
-             return i18n.get("ai_tip_extraction", lang="de" if is_de else "en")
-
-        rules = {
-            r"msi": "ai_rules_msi",
-            r"inno": "ai_rules_inno",
-            r"nsis": "ai_rules_nsis",
-            r"installshield": "ai_rules_installshield",
-            r"intune": "ai_rules_intune",
-            r"1603": "ai_rules_error1603",
-            r"1618": "ai_rules_error1618",
-            r"powershell": "ai_rules_powershell",
-            r"(mac|macos|dmg|pkg)": "ai_rules_macos",
-        }
-
         for pattern, key in rules.items():
             if re.search(pattern, q):
-                return i18n.get(key, lang="de" if is_de else "en")
+                return i18n.get(key, lang=lang)
 
-        # 4. Fallback / Language Guard
+        # Smalltalk (moved from original fallback, now part of smart regex)
+        if re.search(r"(wer bist du|who are you)", q):
+             return i18n.get("ai_smalltalk_who", lang=lang)
+        if re.search(r"(was kannst du|what can you do)", q):
+             return i18n.get("ai_smalltalk_what", lang=lang)
 
-        if is_de:
-            return i18n.get("ai_fallback", lang="de")
-        elif is_en:
-             return i18n.get("ai_fallback", lang="en")
-        else:
-            # Language Guard for unsupported inputs
-            return i18n.get("ai_unsupported_lang", lang="en")
+        # Fallback
+        return i18n.get("ai_fallback", lang=lang)

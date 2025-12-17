@@ -107,7 +107,7 @@ class I18n:
             logger.warning(f"Language {lang_code} not supported, falling back to English.")
             self.language = "en"
 
-    def get(self, key, lang=None, **kwargs):
+    def get(self, key, lang=None, default=None, **kwargs):
         """
         Get translated string.
         Supports explicit language override 'lang'.
@@ -118,10 +118,13 @@ class I18n:
         # Get dictionary for target language, fallback to EN
         lang_dict = self.translations.get(target_lang, self.translations.get("en", {}))
 
-        # Get value, fallback to English value, then to key
+        # Get value, fallback to English value, then to default (if provided), else key
         val = lang_dict.get(key)
         if val is None:
-             val = self.translations.get("en", {}).get(key, key)
+             val = self.translations.get("en", {}).get(key)
+
+        if val is None:
+            val = default if default is not None else key
 
         # Format if kwargs provided
         if kwargs and isinstance(val, str):

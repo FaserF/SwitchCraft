@@ -28,10 +28,21 @@ class AIView(ctk.CTkFrame):
         disclaimer_frame = ctk.CTkFrame(self, fg_color="transparent")
         disclaimer_frame.grid(row=1, column=0, sticky="ew", padx=10)
 
+        # Privacy Disclaimer
+        provider = SwitchCraftConfig.get_value("AIProvider", "local")
+        if provider == "local":
+             text_key = "privacy_note_local"
+             color = "green"
+             provider_name = i18n.get("ai_local")
+        else:
+             text_key = "privacy_note_cloud"
+             color = "red"
+             provider_name = i18n.get("ai_openai") if provider == "openai" else i18n.get("ai_gemini")
+
         ctk.CTkLabel(
             disclaimer_frame,
-            text=f"🔒 {i18n.get('privacy_note')}",
-            text_color="green",
+            text=f"🔒 {i18n.get(text_key, provider=provider_name)}",
+            text_color=color,
             font=ctk.CTkFont(size=11, weight="bold")
         ).pack(anchor="w")
 

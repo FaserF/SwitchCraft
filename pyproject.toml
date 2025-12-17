@@ -27,7 +27,9 @@ dependencies = [
     "pillow",
     "PyYAML",
     "plyer",
-    "keyring"
+    "keyring",
+    "openai",
+    "google-generativeai"
 ]
 requires-python = ">=3.9"
 

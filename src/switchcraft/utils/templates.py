@@ -40,6 +40,13 @@ class TemplateGenerator:
                 logger.error(f"Template not found: {self.template_path}")
                 return False
 
+            # Add global SwitchCraft metadata
+            from switchcraft import __version__
+            if "SWITCHCRAFT_VERSION" not in context:
+                 context["SWITCHCRAFT_VERSION"] = __version__
+            if "SWITCHCRAFT_GITHUB" not in context:
+                 context["SWITCHCRAFT_GITHUB"] = "https://github.com/FaserF/SwitchCraft"
+
             # 1. Enterprise Template Specific Logic (Regex Replacement)
             # Detect if it's the specific enterprise template by looking for unique function names
             # User requested anonymization of company name "PARI"

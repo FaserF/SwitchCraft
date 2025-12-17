@@ -232,9 +232,29 @@ class IntuneView(ctk.CTkFrame):
                     "displayName": possible_intunewin.stem,
                     "description": "Uploaded via SwitchCraft",
                     "publisher": "SwitchCraft User",
-                    "installCommandLine": "install.cmd", # Fallback, ideally from analysis context if passed
-                    "uninstallCommandLine": "uninstall.cmd"
+                    "installCommandLine": "install.cmd",
+                    "uninstallCommandLine": "uninstall.cmd",
+                    "developer": "",
+                    "informationUrl": None,
+                    "privacyInformationUrl": None,
+                    "notes": "Packaged by SwitchCraft"
                 }
+
+                # Apply Context Metadata if available
+                if hasattr(self, 'current_metadata') and self.current_metadata:
+                    meta = self.current_metadata
+                    if meta.get("Name"): app_info["displayName"] = meta.get("Name")
+                    if meta.get("description"): app_info["description"] = meta.get("description")
+                    if meta.get("publisher"): app_info["publisher"] = meta.get("publisher")
+                    if meta.get("author"): app_info["developer"] = meta.get("author")
+                    if meta.get("homepage"): app_info["informationUrl"] = meta.get("homepage")
+                    if meta.get("license_url"): app_info["notes"] += f"\nLicense: {meta.get('license_url')}"
+
+                    # Detect Command Line if Script
+                    if str(possible_intunewin).lower().endswith(".ps1.intunewin") or str(setup_name).lower().endswith(".ps1"):
+                         base_cmd = f"powershell.exe -ExecutionPolicy Bypass -File \"{setup_name}\""
+                         app_info["installCommandLine"] = base_cmd + " -InstallMode Install"
+                         app_info["uninstallCommandLine"] = base_cmd + " -InstallMode Uninstall"
 
                 def progress_cb(p, msg):
                      self.after(0, lambda: self.txt_intune_log.insert("end", f"{int(p*100)}% - {msg}\n"))
@@ -250,8 +270,9 @@ class IntuneView(ctk.CTkFrame):
 
         threading.Thread(target=_process_upload, daemon=True).start()
 
-    def prefill_form(self, setup_path):
+    def prefill_form(self, setup_path, metadata=None):
         """Pre-fills the form from an external request."""
+        self.current_metadata = metadata
         path = Path(setup_path)
         if hasattr(self, 'entry_intune_setup'):
             self.entry_intune_setup.delete(0, "end")

@@ -15,6 +15,7 @@
 
 ## 📚 Documentation
 - [**✨ Features & Analysis**](docs/FEATURES.md): Detailed breakdown of supported installers and analysis capabilities.
+- [**📦 Winget Store & Integration**](docs/WINGET.md): Using the Winget Store and Auto-Update deployment.
 - [**☁️ Enterprise & Intune**](docs/INTUNE.md): Guide to Automation, Intune Uploads, Group Assignments, and Script Signing.
 - [**Registry Reference**](docs/Registry.md): Configuration via Registry.
 - [**GPO / Policies**](docs/PolicyDefinitions/README.md): ADMX Templates.

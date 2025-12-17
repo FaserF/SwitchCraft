@@ -8,3 +8,7 @@ customtkinter
 tkinterdnd2
 pillow
 PyYAML
+plyer
+keyring
+openai
+google-generativeai

@@ -179,10 +179,13 @@ class AnalyzerView(ctk.CTkFrame):
                 self._update_progress(0.8, "Deep Analysis Complete")
 
             self._update_progress(0.9, "Searching Winget...")
-            winget = WingetHelper()
             winget_url = None
-            if info.product_name:
-                winget_url = winget.search_by_name(info.product_name)
+            if SwitchCraftConfig.get_value("EnableWinget", True):
+                winget = WingetHelper()
+                if info.product_name:
+                    winget_url = winget.search_by_name(info.product_name)
+            else:
+                logger.info("Winget search disabled in settings.")
 
             context_data = {
                 "type": info.installer_type,
@@ -342,20 +345,20 @@ class AnalyzerView(ctk.CTkFrame):
                  if "/pkg/" in winget_url:
                      default_id = winget_url.split("/pkg/")[-1].replace("/", ".")
 
-                 app_id = ctk.CTkInputDialog(text="Enter Winget App ID:", title="Create Winget Script").get_input()
+                 app_id = ctk.CTkInputDialog(text=i18n.get("winget_script_id_prompt"), title=i18n.get("winget_script_title")).get_input()
                  if not app_id:
                      if default_id: app_id = default_id
                      else: return
 
                  self._generate_winget_install_script(app_id, info)
 
-            ctk.CTkButton(btn_row, text="Create Install Script", fg_color="green", command=create_winget_script).pack(side="left", padx=10, expand=True, fill="x")
+            ctk.CTkButton(btn_row, text=i18n.get("winget_create_script_btn"), fg_color="green", command=create_winget_script).pack(side="left", padx=10, expand=True, fill="x")
 
             # Winget-AutoUpdate Hint
             hint_frame = ctk.CTkFrame(winget_panel, fg_color="transparent")
             hint_frame.pack(fill="x", pady=5)
 
-            ctk.CTkLabel(hint_frame, text="💡 Tip: Easily deploy via ", text_color="gray").pack(side="left", padx=(10,0))
+            ctk.CTkLabel(hint_frame, text=i18n.get("winget_tip"), text_color="gray").pack(side="left", padx=(10,0))
             link = ctk.CTkButton(hint_frame, text="Winget-AutoUpdate", fg_color="transparent", text_color="#3B8ED0", hover=False, width=120,
                                  command=lambda: webbrowser.open("https://github.com/Romanitho/Winget-AutoUpdate?tab=readme-ov-file#custom-scripts-mods-feature-for-apps"))
             link.pack(side="left")

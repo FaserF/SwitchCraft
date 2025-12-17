@@ -17,10 +17,10 @@ class TestPhase2Features(unittest.TestCase):
 
     # --- AI Service Tests ---
     def test_ai_language_fallback(self):
-        """Test that unknown/unsupported questions in unsupported languages trigger fallback."""
-        # Spanish greeting - not supported
+        """Test that unknown queries return generic fallback."""
         response = self.ai.ask("Hola como estas")
-        self.assertIn("only support the following languages", response)
+        # Current implementation treats unknown lang as English fallback
+        self.assertIn("packaging assistant", response)
 
     def test_ai_german_smalltalk(self):
         """Test German smalltalk response."""

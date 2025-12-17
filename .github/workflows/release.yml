@@ -169,6 +169,37 @@ jobs:
         cp dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
       shell: bash
 
+    - name: Decode Signing Certificate
+      if: matrix.os == 'windows-latest'
+      env:
+        SIGNING_CERT: ${{ secrets.SIGNING_CERT }}
+      run: |
+        if ($env:SIGNING_CERT) {
+          $certBytes = [System.Convert]::FromBase64String($env:SIGNING_CERT)
+          [System.IO.File]::WriteAllBytes("cert.pfx", $certBytes)
+          Write-Host "Certificate decoded successfully."
+        } else {
+          Write-Warning "SIGNING_CERT secret not found. Signing will be skipped."
+        }
+      shell: pwsh
+
+    - name: Sign Standalone Executable
+      if: matrix.os == 'windows-latest'
+      env:
+        SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+      run: |
+        if (Test-Path "cert.pfx") {
+            # Find signtool
+            $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Include signtool.exe -Recurse | Select-Object -Last 1
+            if ($signtool) {
+                Write-Host "Signing SwitchCraft.exe with $($signtool.FullName)..."
+                & $signtool.FullName sign /f "cert.pfx" /p "$env:SIGNING_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "dist/SwitchCraft-windows.exe"
+            } else {
+                Write-Error "Signtool not found!"
+            }
+        }
+      shell: pwsh
+
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
@@ -200,6 +231,26 @@ jobs:
 
         # Build installer
         iscc switchcraft.iss
+      shell: pwsh
+
+    - name: Sign Windows Installer
+      if: matrix.os == 'windows-latest'
+      env:
+        SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+      run: |
+        if (Test-Path "cert.pfx") {
+            $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Include signtool.exe -Recurse | Select-Object -Last 1
+            if ($signtool) {
+                Write-Host "Signing SwitchCraft-Setup.exe..."
+                & $signtool.FullName sign /f "cert.pfx" /p "$env:SIGNING_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "dist/SwitchCraft-Setup.exe"
+            }
+        }
+      shell: pwsh
+
+    - name: Cleanup Certificate
+      if: always() && matrix.os == 'windows-latest'
+      run: |
+        if (Test-Path "cert.pfx") { Remove-Item "cert.pfx" -Force }
       shell: pwsh
 
     - name: Upload Windows Installer

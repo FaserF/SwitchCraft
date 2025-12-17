@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from tkinterdnd2 import TkinterDnD, DND_FILES
+from tkinterdnd2 import TkinterDnD
 import threading
 from pathlib import Path
 from PIL import Image
@@ -24,6 +24,8 @@ from switchcraft.gui.views.intune_view import IntuneView
 from switchcraft.gui.views.settings_view import SettingsView
 from switchcraft.gui.views.ai_view import AIView
 from switchcraft.gui.views.analyzer_view import AnalyzerView
+from switchcraft.gui.views.winget_view import WingetView
+from switchcraft.utils.winget import WingetHelper
 from switchcraft import __version__
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -51,6 +53,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Initialize Services early
         self.ai_service = SwitchCraftAI()
         self.intune_service = IntuneService()
+        self.winget_helper = WingetHelper()
 
         # Grid Layout
         self.grid_columnconfigure(0, weight=1)
@@ -77,6 +80,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Intune Utility Tab
         self.tab_intune = self.tabview.add("Intune Utility")
         self.setup_intune_tab()
+
+        self.tab_winget = self.tabview.add("Winget Store")
+        self.setup_winget_tab()
 
         self.setup_settings_tab()
 
@@ -117,7 +123,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 # Download a known safe small installer (e.g. 7-Zip or Notepad++)
                 # For now, let's use a dummy path or ask user to pick one?
                 # User asked for "dynamic download"
-                self.status_bar.configure(text="Downloading demo installer...")
+                self.status_bar.configure(text=i18n.get("demo_downloading"))
 
                 # Using 7-Zip MSI as a safe demo (usually stable URL)
                 url = "https://www.7-zip.org/a/7z2409-x64.msi"
@@ -135,7 +141,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             logger.error(f"Demo failed: {e}")
             # Fallback to browser if download fails
             if messagebox.askyesno(
-                    "Download Error", f"Could not download demo installer automatically.\nError: {e}\n\nOpen download page instead?"):
+                    i18n.get("demo_error_title"), i18n.get("demo_ask_download", error=str(e))):
                 webbrowser.open("https://github.com/FaserF/SwitchCraft/releases")
 
     def _download_and_analyze(self, url, path):
@@ -148,8 +154,23 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
             self.after(0, lambda: self.start_analysis(path))
         except Exception as e:
+            logger.error(f"Download failed: {e}")
+            err_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Download Error", err_msg))
+
+    def start_analysis(self, file_path):
+        """Delegate analysis to AnalyzerView and switch tabs."""
+        try:
+            self.tabview.set(i18n.get("tab_analyzer"))
+            # Ensure analyzer view is ready
+            if hasattr(self, 'analyzer_view'):
+                self.analyzer_view._start_analysis(file_path)
+            else:
+                logger.error("Analyzer View not initialized")
+                messagebox.showerror(i18n.get("error"), "Analyzer component not ready.")
+        except Exception as e:
             error_msg = str(e)
-            self.after(0, lambda: messagebox.showerror("Demo Error", f"Failed to download demo: {error_msg}"))
+            self.after(0, lambda: messagebox.showerror(i18n.get("demo_error_title"), i18n.get("demo_ask_download", error=error_msg)))
 
     def _should_show_ai_helper(self):
         """Determine if AI Helper tab should be shown."""
@@ -165,21 +186,25 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def load_assets(self):
         try:
-            # Check 'images' folder logic correctly
-            base_path = Path(__file__).resolve().parent.parent.parent.parent
-            logo_path = base_path / "images" / "switchcraft_logo.png"
+            # Load Logo
+            logo_path = self._get_resource_path("switchcraft_logo.png")
 
+            # Dev environment fallback (if not found at root in dev)
             if not logo_path.exists():
-                # Fallback check
-                logo_path = Path("images/switchcraft_logo.png")
+                # Try standard project structure relative to this file
+                # src/switchcraft/gui/app.py -> root/images/
+                base = Path(__file__).parent.parent.parent.parent
+                logo_path = base / "images" / "switchcraft_logo.png"
 
             if logo_path.exists():
                 pil_image = Image.open(logo_path)
                 self.logo_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(80, 80))
-                # Set Window Icon (Taskbar)
+
+                # Set Window Icon (Taskbar/Titlebar)
+                # Use iconphoto for PNG support
                 from PIL import ImageTk
                 icon_photo = ImageTk.PhotoImage(pil_image)
-                self.iconphoto(False, icon_photo)
+                self.iconphoto(True, icon_photo) # True applies to all future toplevels too
 
                 # Fix Taskbar Grouping
                 myappid = f"switchcraft.app.{__version__}"
@@ -191,6 +216,16 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 logger.warning(f"Logo not found at {logo_path}")
         except Exception as e:
             logger.error(f"Failed to load assets: {e}")
+
+    def _get_resource_path(self, relative_path):
+        """Get absolute path to resource, works for dev and for PyInstaller."""
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
+
+        return Path(base_path) / relative_path
 
     def setup_version_banner(self):
         """Display a warning banner for beta/dev versions."""
@@ -529,10 +564,22 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
 
 
+
     def setup_intune_tab(self):
         """Setup the dedicated Intune Utility tab."""
         self.intune_view = IntuneView(self.tab_intune, self.intune_service, NotificationService())
         self.intune_view.pack(fill="both", expand=True)
+
+    def setup_winget_tab(self):
+        self.winget_view = WingetView(self.tab_winget, self.winget_helper, self.intune_service, NotificationService())
+        self.winget_view.pack(fill="both", expand=True)
+
+    def start_analysis_tab(self, file_path):
+        self.start_analysis(file_path)
+
+    def show_intune_tab(self, setup_path, metadata=None):
+        self.tabview.set("Intune Utility")
+        self.intune_view.prefill_form(setup_path, metadata)
 
 
 def main():
