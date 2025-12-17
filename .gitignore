@@ -21,3 +21,5 @@ debug_ai_i18n.py
 /src/switchcraft/__pycache__
 *.pyc
 /manifests
+/src/switchcraft/utils/__pycache__
+/tests/__pycache__

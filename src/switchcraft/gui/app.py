@@ -48,6 +48,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.logo_image = None
         self.load_assets()
 
+        # Initialize Services early
+        self.ai_service = SwitchCraftAI()
+        self.intune_service = IntuneService()
+
         # Grid Layout
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -69,9 +73,6 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.setup_analyzer_tab()
         if self.show_ai_helper:
             self.setup_helper_tab()
-        self.setup_analyzer_tab()
-        if self.show_ai_helper:
-            self.setup_helper_tab()
 
         # Intune Utility Tab
         self.tab_intune = self.tabview.add("Intune Utility")
@@ -87,10 +88,6 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Security Check
         self.after(3000, self.check_security_silently)
-
-        # Initialize AI
-        self.ai_service = SwitchCraftAI()
-        self.intune_service = IntuneService()
 
 
 
