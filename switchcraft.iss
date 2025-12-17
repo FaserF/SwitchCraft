@@ -35,8 +35,8 @@ DefaultGroupName={#MyAppPublisher}\{#MyAppName}
 AllowNoIcons=yes
 DisableDirPage=no
 
-; Privileges - ask user or use admin if available
-PrivilegesRequired=lowest
+; Privileges - force admin for machine-wide install
+PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog commandline
 
 ; Output settings

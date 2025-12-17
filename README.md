@@ -27,6 +27,8 @@
   - **EXE**: Auto-detects 20+ installer frameworks and suggests appropriate silent switches
   - **Metadata**: Parses PE version info for product name, version, and company
 - **📦 Winget Integration**: Automatically checks if the package exists in the **Windows Package Manager** (winget) repository
+- **🔔 Notification System**: Get native desktop alerts when analysis completes or packages are created
+- **☁️ Intune Integration**: Auto-download the Win32 Content Prep Tool and create `.intunewin` packages with one click
 - **🖥️ GUI & Drag'n'Drop**: Modern, dark-mode friendly desktop interface
 - **⚔️ Automatic Brute Force**: Runs 15+ help argument variations to discover switches
 - **🌐 Multi-Language**: English and German interface
@@ -145,6 +147,22 @@ The install script supports several optional parameters:
 
 # Silent Mode (for automated deployments)
 .\install.ps1 -Silent
+```powershell
+# Install specific version (e.g. v2025.12.1)
+.\install.ps1 -Version "v2025.12.1"
+
+# Download Portable Version to Desktop instead of installing
+.\install.ps1 -Portable
+
+# Silent Mode (for automated deployments)
+.\install.ps1 -Silent
+```
+
+### Advanced Installation (SwitchCraft.ps1)
+For more granular control over the installation location and logging:
+
+```powershell
+.\SwitchCraft.ps1 -InstallMode Install -InstallPath "C:\Tools\SwitchCraft" -InstallerLogPath "C:\Logs\SwitchCraft_Setup.log"
 ```
 
 ### Enterprise Deployment
@@ -153,6 +171,40 @@ SwitchCraft is completely ready for modern management:
 - **Intune Script Generation**: Automatically create `.intunewin` ready install/uninstall scripts (PowerShell) directly from the analysis result.
 - **MacOS Support**: Generate `install.sh` scripts and `.mobileconfig` profiles for Intune management of Mac apps.
 - **Custom Templates**: Use your own company-branded PowerShell templates for script generation (configure in Settings).
+
+## 🎛️ Parameters Reference
+
+### SwitchCraft Application (`switchcraft.exe` / `main.py`)
+
+| Argument | Description |
+|----------|-------------|
+| `filepath` | (Optional) Path to the installer file to analyze immediately. |
+| `--json` | Output analysis results in JSON format (for scripting). |
+| `--debug`, `-d` | Enable verbose debug logging to console. |
+| `--version` | Show application version. |
+| `--help` | Show help message. |
+
+### Installation Script (`install.ps1`)
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `-Version` | String | Install a specific version (e.g., "v2025.12.1"). Defaults to "latest". |
+| `-Portable` | Switch | Download the portable executable instead of installing. |
+| `-Silent` | Switch | Run in silent mode (no user interaction). |
+
+### SwitchCraft Helper Script (`SwitchCraft.ps1`)
+
+This script is used for installing/uninstalling SwitchCraft itself (e.g., via Intune).
+
+| Parameter | Mandatory | Description |
+|-----------|-----------|-------------|
+| `-InstallMode` | Yes | `Install` or `Uninstall`. |
+| `-AdminPermissions`| No | Check for admin rights before proceeding (used if installing to Program Files). |
+| `-InstallPath` | No | Custom installation directory (Inno Setup `/DIR`). |
+| `-InstallerLogPath`| No | Path to generate installation log file (Inno Setup `/LOG`). |
+| `-logpath` | No | Custom log path for the script itself (Not recommended changing). |
+
+
 
 | Documentation | Description |
 |---------------|-------------|

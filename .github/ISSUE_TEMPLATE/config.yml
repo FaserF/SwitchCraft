@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: SwitchCraft Documentation
+    url: https://github.com/FaserF/SwitchCraft#readme
+    about: Read the documentation before opening an issue.

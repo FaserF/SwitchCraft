@@ -1,0 +1,78 @@
+name: Bug Report
+description: Create a report to help us improve SwitchCraft
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        Please fill out the sections below to help us verify and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: When I click on 'Analyze', the application crashes...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Open SwitchCraft
+        2. Drag and drop 'installer.exe'
+        3. Click on 'Universal Analysis'
+        4. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+      placeholder: The silent switches should be displayed in the results panel.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: SwitchCraft Version
+      description: Which version of SwitchCraft are you using? (e.g. v2025.12.1)
+      placeholder: v2025.12.x
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What OS are you running SwitchCraft on?
+      options:
+        - Windows 11
+        - Windows 10
+        - Windows Server
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs & Screenshots
+      description: |
+        Paste any relevant logs (enable Debug Mode via Settings or `--debug`) or drag and drop screenshots here.
+        If the installer analysis failed, please include the name/type of the installer.
+      render: shell
+    validations:
+      required: false

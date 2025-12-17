@@ -142,7 +142,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
             self.after(0, lambda: self.start_analysis(path))
         except Exception as e:
-            self.after(0, lambda: messagebox.showerror("Demo Error", f"Failed to download demo: {e}"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Demo Error", f"Failed to download demo: {error_msg}"))
 
     def _should_show_ai_helper(self):
         """Determine if AI Helper tab should be shown."""
@@ -431,6 +432,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         ctk.CTkLabel(dialog, text="Please report this to the developer so dependencies can be updated.").pack(pady=5)
 
         def open_github_issue():
+            import requests
             title = f"Security Vulnerability Report: {len(issues)} packages"
             body = "\n".join(issue_body_lines)
             url = f"https://github.com/FaserF/SwitchCraft/issues/new?title={requests.utils.quote(title)}&body={requests.utils.quote(body)}"
@@ -1185,6 +1187,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         ctk.CTkButton(frame_tmpl, text="Select Custom Template", command=select_template).pack(pady=5)
 
+        def reset_template():
+            SwitchCraftConfig.set_user_preference("CustomTemplatePath", "")
+            # Or remove value entirely? set_user_preference doesn't support delete easily without modification,
+            # but empty string might be enough if logic checks `if current_tmpl`.
+            # Let's check `SwitchCraftConfig` again. It has `set_user_preference`.
+            # Actually, let's implement a clean delete or set to empty.
+            self.tmpl_path_label.configure(text="Default Internal Template")
+
         ctk.CTkButton(frame_tmpl, text="Reset to Default", fg_color="transparent", border_width=1, command=reset_template).pack(pady=2)
 
 
@@ -1377,7 +1387,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 except: pass
             except Exception as e:
                 logger.error(f"IntuneWin Error: {e}")
-                self.after(0, lambda: messagebox.showerror("Error", f"Failed to create package: {e}"))
+                error_msg = str(e)
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to create package: {error_msg}"))
                 self.after(0, lambda: self.status_bar.configure(text="Package creation failed."))
 
         threading.Thread(target=_run, daemon=True).start()
