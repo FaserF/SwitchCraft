@@ -386,7 +386,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             command=open_github_issue
         ).pack(pady=10)
 
-
+    def setup_analyzer_tab(self):
         self.tab_analyzer.grid_columnconfigure(0, weight=1)
         self.tab_analyzer.grid_rowconfigure(1, weight=1)
 
