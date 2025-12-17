@@ -6,15 +6,15 @@ from tkinter import messagebox
 from switchcraft.utils.i18n import i18n
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.updater import UpdateChecker
-from switchcraft.utils.templates import TemplateGenerator
 from switchcraft import __version__
 
 logger = logging.getLogger(__name__)
 
 class SettingsView(ctk.CTkFrame):
-    def __init__(self, parent, show_update_callback):
+    def __init__(self, parent, show_update_callback, intune_service):
         super().__init__(parent)
         self.show_update_callback = show_update_callback
+        self.intune_service = intune_service
 
         # Grid layout
         self.grid_columnconfigure(0, weight=1)
@@ -101,7 +101,6 @@ class SettingsView(ctk.CTkFrame):
             self.tmpl_path_label.configure(text=i18n.get("settings_tmpl_default"))
 
         ctk.CTkButton(frame_tmpl, text=i18n.get("settings_tmpl_reset"), fg_color="transparent", border_width=1, command=reset_template).pack(pady=2)
-
 
         # --- NEW SETTINGS ---
 
@@ -198,13 +197,7 @@ class SettingsView(ctk.CTkFrame):
                 self.cert_path_entry.insert(0, path)
                 save_cert_path()
 
-        def auto_detect_cert():
-             # Placeholder for auto-detect logic (calls a service)
-             # For now, we simulate detection or just warn
-             messagebox.showinfo("Auto Check", "Will attempt to auto-detect cert during generation if path is empty.")
-
         ctk.CTkButton(btn_frame, text="Browse...", width=100, command=browse_cert).pack(side="left", padx=5)
-        # ctk.CTkButton(btn_frame, text="Auto-Detect", width=100, fg_color="gray", command=auto_detect_cert).pack(side="left", padx=5)
 
 
     def _setup_intune_settings(self):
@@ -212,22 +205,72 @@ class SettingsView(ctk.CTkFrame):
         frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(frame, text="Intune / Graph API", font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
-        def create_entry(label, key, hide=False):
-            ctk.CTkLabel(frame, text=label).pack(anchor="w", padx=10)
-            entry = ctk.CTkEntry(frame, show="*" if hide else "")
-            entry.pack(fill="x", padx=10, pady=(0, 5))
-            val = SwitchCraftConfig.get_value(key, "")
-            if val: entry.insert(0, val)
+        self.ent_tenant = self._create_intune_entry(frame, "Tenant ID:", "IntuneTenantID")
+        self.ent_client = self._create_intune_entry(frame, "Client ID (App ID):", "IntuneClientId")
+        self.ent_secret = self._create_intune_entry(frame, "Client Secret:", "IntuneClientSecret", hide=True)
 
-            def save(event=None):
-                SwitchCraftConfig.set_user_preference(key, entry.get())
+        # Verify & Save Button
+        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame.pack(fill="x", pady=10)
 
-            entry.bind("<FocusOut>", save)
-            return entry
+        self.btn_verify = ctk.CTkButton(btn_frame, text="Verify & Save Credentials", fg_color="green", command=self._verify_and_save_intune)
+        self.btn_verify.pack(pady=5, fill="x")
 
-        create_entry("Tenant ID:", "IntuneTenantID")
-        create_entry("Client ID (App ID):", "IntuneClientId")
-        create_entry("Client Secret:", "IntuneClientSecret", hide=True)
+        self.lbl_verify_status = ctk.CTkLabel(frame, text="", text_color="gray")
+        self.lbl_verify_status.pack(pady=2)
+
+    def _create_intune_entry(self, parent, label, config_key, hide=False):
+        ctk.CTkLabel(parent, text=label).pack(anchor="w", padx=10)
+        entry = ctk.CTkEntry(parent, show="*" if hide else "")
+        entry.pack(fill="x", padx=10, pady=(0, 5))
+        val = SwitchCraftConfig.get_value(config_key, "")
+        if val: entry.insert(0, val)
+        return entry
+
+    def _verify_and_save_intune(self):
+        t_id = self.ent_tenant.get().strip()
+        c_id = self.ent_client.get().strip()
+        sec = self.ent_secret.get().strip()
+
+        if not (t_id and c_id and sec):
+            messagebox.showwarning("Incomplete", i18n.get("settings_verify_incomplete"))
+            return
+
+        self.btn_verify.configure(state="disabled", text=(i18n.get("settings_verify_validating") or "Verifying..."))
+        self.lbl_verify_status.configure(text=i18n.get("settings_verify_progress"), text_color="blue")
+        self.update()
+
+        def _verify_thread():
+            try:
+                # Attempt Authentication
+                token = self.intune_service.authenticate(t_id, c_id, sec)
+                if token:
+                    # Verify Permissions
+                    is_valid, msg = self.intune_service.verify_graph_permissions(token)
+                    if is_valid:
+                        # Success - Save Config
+                        SwitchCraftConfig.set_user_preference("IntuneTenantID", t_id)
+                        SwitchCraftConfig.set_user_preference("IntuneClientId", c_id)
+                        SwitchCraftConfig.set_user_preference("IntuneClientSecret", sec)
+
+                        self.after(0, lambda: self._on_verify_success())
+                    else:
+                        raise RuntimeError(f"Permissions missing: {msg}")
+            except Exception as e:
+                self.after(0, lambda: self._on_verify_fail(str(e)))
+
+        import threading
+        threading.Thread(target=_verify_thread, daemon=True).start()
+
+    def _on_verify_success(self):
+        self.btn_verify.configure(state="normal", text="Verify & Save Credentials")
+        self.lbl_verify_status.configure(text=i18n.get("settings_verify_success"), text_color="green")
+        messagebox.showinfo(i18n.get("settings_verify_success_title"), i18n.get("settings_verify_success_msg"))
+
+    def _on_verify_fail(self, error_msg):
+        self.btn_verify.configure(state="normal", text="Verify & Save Credentials")
+        self.lbl_verify_status.configure(text=i18n.get("settings_verify_fail"), text_color="red")
+        messagebox.showerror(i18n.get("settings_verify_fail"), i18n.get("settings_verify_fail_msg", error=error_msg))
 
 
     def _setup_path_settings(self):

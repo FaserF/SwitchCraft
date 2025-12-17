@@ -179,6 +179,7 @@ class IntuneView(ctk.CTkFrame):
                 )
                 self.after(0, lambda: self.txt_intune_log.insert("end", out + "\n\nDONE!"))
                 self.after(0, lambda: messagebox.showinfo("Success", i18n.get("intune_pkg_success", path=s_output)))
+                self.notification_service.send_notification("Package Created", f"Created .intunewin package in {s_output}")
                 # Open Explorer
                 try: os.startfile(s_output)
                 except: pass
@@ -239,11 +240,13 @@ class IntuneView(ctk.CTkFrame):
                      self.after(0, lambda: self.txt_intune_log.insert("end", f"{int(p*100)}% - {msg}\n"))
 
                 self.intune_service.upload_win32_app(token, possible_intunewin, app_info, progress_callback=progress_cb)
+                self.notification_service.send_notification("Upload Complete", f"{possible_intunewin.name} uploaded successfully!")
 
             except Exception as e:
                 err_msg = str(e)
                 self.after(0, lambda: messagebox.showerror("Upload Failed", err_msg))
                 self.after(0, lambda: self.txt_intune_log.insert("end", f"ERROR: {err_msg}\n"))
+                self.notification_service.send_notification("Upload Failed", err_msg)
 
         threading.Thread(target=_process_upload, daemon=True).start()
 

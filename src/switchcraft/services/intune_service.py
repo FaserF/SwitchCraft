@@ -140,6 +140,37 @@ class IntuneService:
             logger.error(f"Authentication failed: {e}")
             raise RuntimeError(f"Authentication failed: {e}")
 
+    def verify_graph_permissions(self, token):
+        """
+        Decodes the JWT token to verify if proper roles are assigned.
+        Checks for 'DeviceManagementApps.ReadWrite.All'.
+        Returns (True, "OK") or (False, "Missing Permission: ...")
+        """
+        try:
+            # Simple JWT decode without library dependency (we trust the source)
+            parts = token.split('.')
+            if len(parts) != 3:
+                return False, "Invalid Token Format"
+
+            # Padding for base64
+            payload_part = parts[1]
+            padded = payload_part + '=' * (4 - len(payload_part) % 4)
+            import base64
+            import json
+            payload_bytes = base64.urlsafe_b64decode(padded)
+            payload = json.loads(payload_bytes)
+
+            roles = payload.get("roles", [])
+            required = "DeviceManagementApps.ReadWrite.All"
+
+            if required in roles:
+                return True, "OK"
+            else:
+                return False, f"Missing Role: {required}\nFound: {', '.join(roles) if roles else 'None'}"
+        except Exception as e:
+            logger.error(f"Permission verification error: {e}")
+            return False, f"Verification Error: {e}"
+
     def upload_win32_app(self, token, intunewin_path, app_info, progress_callback=None):
         """
         Uploads a .intunewin package to Intune.
