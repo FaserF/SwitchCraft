@@ -266,17 +266,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         ctk.CTkLabel(
             info_frame,
-            text=f"{
-                i18n.get('current_version')}: {
-                checker.current_version}").pack(
+            text=f"{i18n.get('current_version')}: {checker.current_version}"
+        ).pack(
             anchor="w",
             padx=10,
             pady=2)
         ctk.CTkLabel(
             info_frame,
-            text=f"{
-                i18n.get('new_version')}: {
-                checker.latest_version}",
+            text=f"{i18n.get('new_version')}: {checker.latest_version}",
             text_color="green",
             font=ctk.CTkFont(
                 weight="bold")).pack(
@@ -1265,7 +1262,6 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Override save path if Git Repo is configured and we can determine a better default
         git_repo = SwitchCraftConfig.get_value("GitRepoPath")
 
-
         # Reworking logic to prioritize Git Repo if set
         initial_dir = None
         if git_repo and Path(git_repo).exists():
@@ -1393,8 +1389,6 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 # We need to run the SCRIPT as Admin
                 # "powershell -ExecutionPolicy Bypass -File ..."
                 if messagebox.askyesno("Test", "Run local installation test now? (Admin rights required)"):
-
-
                     # Construct command
                     cmd = f'powershell.exe -ExecutionPolicy Bypass -File "{script_path}"'
                     log(f"Executing: {cmd}")
