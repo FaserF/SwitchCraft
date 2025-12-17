@@ -7,7 +7,7 @@
 **SwitchCraft is your comprehensive packaging assistant for IT Professionals. It goes beyond simple switch identification to streamline your entire application packaging workflow.**
 
 <div align="center">
-  <img src="images/switchcraft_ui.png" alt="SwitchCraft UI" width="500" />
+  <img src="images/switchcraft_ui.png" alt="SwitchCraft UI" width="1000" />
 </div>
 
 > [!NOTE]
