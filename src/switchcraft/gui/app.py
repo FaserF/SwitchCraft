@@ -601,8 +601,13 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
             # If still no switches found, try to extract and analyze nested executables
             if not info.install_switches and path.suffix.lower() == '.exe':
-                self.update_progress(0.8, "Extracting ecosystem for nested analysis...")
+                self.update_progress(0, "Extracting ecosystem for nested analysis... (This may take a while)")
+                self.progress_bar.configure(mode="indeterminate")
+                self.progress_bar.start()
                 nested_data = uni.extract_and_analyze_nested(path)
+                self.progress_bar.stop()
+                self.progress_bar.configure(mode="determinate")
+                self.update_progress(0.8, "Deep Analysis Complete")
 
             self.update_progress(0.9, "Searching Winget...")
             winget = WingetHelper()
@@ -629,6 +634,12 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             err = str(e)
             self.after(0, lambda: self.show_error(f"Critical Error during analysis: {err}"))
             self.update_progress(0, "Analysis Failed")
+        except SystemExit:
+            logger.error("Analyzer thread attempted sys.exit()!")
+            self.update_progress(0, "Analysis Error")
+        except:
+             logger.exception("Unknown Fatal Error in Analyzer")
+             self.after(0, lambda: self.show_error("Unknown Fatal Error"))
 
     def show_error(self, message):
          self.status_bar.configure(text=i18n.get("error"))
@@ -837,8 +848,16 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         if info.uninstall_switches:
             all_params.extend(info.uninstall_switches)
 
+        # Collect nested switches recursively for display
+        if nested_data and nested_data.get("nested_executables"):
+             for nested in nested_data["nested_executables"]:
+                  if nested.get("analysis") and nested["analysis"].install_switches:
+                       all_params.extend(nested["analysis"].install_switches)
+
         if all_params:
-            self.show_all_parameters(all_params)
+             # Dedup
+             unique_params = sorted(list(set(all_params)), key=len) # Sort by length as heuristic
+             self.show_all_parameters(unique_params)
 
         # Detailed Params Button (Always show if we have nested data OR params)
         if (nested_data and nested_data.get("nested_executables")) or all_params:
@@ -1389,6 +1408,22 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
                      log(f"\nSUCCESS! App ID: {app_id}")
 
+                     # Assignments
+                     groups = SwitchCraftConfig.get_value("IntuneTestGroups", [])
+                     if groups:
+                         log("\n--- Assigning to Groups ---")
+                         for grp in groups:
+                             gid = grp.get("id")
+                             gname = grp.get("name")
+                             if gid:
+                                 try:
+                                     self.intune_service.assign_to_group(token, app_id, gid)
+                                     log(f"Assigned to: {gname} ({gid})")
+                                 except Exception as e:
+                                     log(f"Failed to assign {gname}: {e}")
+                             else:
+                                 log(f"Skipping group with no ID: {gname}")
+
                      # Open Browser
                      url = f"https://intune.microsoft.com/#view/Microsoft_Intune_Apps/SettingsMenu/~/0/appId/{app_id}"
                      webbrowser.open(url)
@@ -1414,6 +1449,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.entry_intune_source.delete(0, "end")
         self.entry_intune_source.insert(0, str(path.parent))
 
+        self.entry_intune_output.delete(0, "end")
         self.entry_intune_output.insert(0, str(path.parent))
 
         # Check for .ps1 script
@@ -1433,20 +1469,51 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
              # User said: "Setup File" ... "refenziert ... auf die exe ... muss aber das PS Script sein"
              # If source folder is defining the package, setup file must be relative?
              # Let's put the NAME if it's in source dir.
-             if script_path.parent == path.parent:
-                  self.entry_intune_setup.delete(0, "end")
-                  self.entry_intune_setup.insert(0, script_path.name)
-             else:
-                  # If script is elsewhere, we need to copy it?
-                  # For now, just set what we found
-                  self.entry_intune_setup.delete(0, "end")
-                  self.entry_intune_setup.insert(0, str(script_path))
+             self.entry_intune_setup.delete(0, "end")
+             self.entry_intune_setup.insert(0, str(script_path))
+
+        # Prefer generated script if we just came from automation
+        if hasattr(self, 'last_generated_script') and self.last_generated_script and Path(self.last_generated_script).exists():
+            self.entry_intune_setup.delete(0, "end")
+            self.entry_intune_setup.insert(0, str(self.last_generated_script))
+            # Also update source folder if different
+            p_script = Path(self.last_generated_script)
+            self.entry_intune_source.delete(0, "end")
+            self.entry_intune_source.insert(0, str(p_script.parent))
+            self.entry_intune_output.delete(0, "end")
+            self.entry_intune_output.insert(0, str(p_script.parent))
+            self.entry_intune_output.insert(0, str(p_script.parent))
 
         # 2. Switch Tab
         self.tabview.set("Intune Utility")
 
         # 3. Notify user
         self.status_bar.configure(text="Pre-filled Intune Utility form. Please review and click Create.")
+
+    def _run_update_check(self, show_no_update=False):
+        """Callback for manual update check."""
+        try:
+            from switchcraft.utils.updater import UpdateChecker
+            channel = SwitchCraftConfig.get_update_channel()
+            checker = UpdateChecker(channel=channel)
+
+            # Run in thread to avoid blocking
+            def _check():
+               try:
+                   has_update, version, data = checker.check_for_updates()
+                   if has_update:
+                       self.after(0, lambda: self.show_update_dialog(checker))
+                   elif show_no_update:
+                       channel_display = channel.capitalize()
+                       self.after(0, lambda: messagebox.showinfo(i18n.get("check_updates"), f"{i18n.get('up_to_date')}\n\n{i18n.get('about_version')}: {__version__}\nChannel: {channel_display}"))
+               except Exception as e:
+                   logger.error(f"Update check failed: {e}")
+                   if show_no_update:
+                       self.after(0, lambda: messagebox.showerror(i18n.get("update_check_failed"), f"{i18n.get('could_not_check')}\n{e}"))
+
+            threading.Thread(target=_check, daemon=True).start()
+        except Exception as e:
+            logger.error(f"Failed to start update check: {e}")
 
 
 
@@ -1497,7 +1564,45 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Helper to add section
         def add_section(title, filename, type_str, params, is_main=False, raw_output=None):
+            if not params and not raw_output: return
+
             frame = ctk.CTkFrame(scroll, fg_color="#2B2B2B" if is_main else "#1F1F1F")
+            frame.pack(fill="x", pady=5)
+
+            # Header
+            head = ctk.CTkFrame(frame, fg_color="transparent")
+            head.pack(fill="x", padx=10, pady=5)
+            ctk.CTkLabel(head, text=title, font=ctk.CTkFont(size=13, weight="bold"), text_color="cyan" if is_main else "white").pack(side="left")
+            ctk.CTkLabel(head, text=f"({type_str})", text_color="gray").pack(side="left", padx=5)
+
+            # File Info
+            ctk.CTkLabel(frame, text=f"File: {filename}", font=("Consolas", 11), text_color="gray80").pack(anchor="w", padx=15)
+
+            # Params
+            if params:
+                p_text = " ".join(params)
+                ctk.CTkTextbox(frame, height=40, font=("Consolas", 11)).pack(fill="x", padx=10, pady=5).insert("0.0", p_text)
+
+            if raw_output:
+                exp = ctk.CTkExpander(frame, label_text="Raw Analysis Output") # Hypothetical widget or just a button
+                # Just use label + textbox
+                ctk.CTkLabel(frame, text="Raw Output:", font=ctk.CTkFont(size=10)).pack(anchor="w", padx=10)
+                out_box = ctk.CTkTextbox(frame, height=80, font=("Consolas", 10), text_color="gray70")
+                out_box.insert("0.0", raw_output[0:2000] + "..." if len(raw_output) > 2000 else raw_output)
+                out_box.configure(state="disabled")
+                out_box.pack(fill="x", padx=10, pady=5)
+
+
+        # Main File
+        add_section(i18n.get("main_file") or "Main Installer", Path(info.file_path).name, info.installer_type, info.install_switches, is_main=True)
+
+        # Nested Files
+        if nested_data and nested_data.get("nested_executables"):
+            ctk.CTkLabel(scroll, text=f"Nested Files (Extracted)", font=ctk.CTkFont(weight="bold")).pack(pady=10)
+            for nested in nested_data["nested_executables"]:
+                analysis = nested.get("analysis")
+                if analysis:
+                     add_section("Nested Executable", nested['name'], analysis.installer_type, analysis.install_switches, is_main=False)
             frame.pack(fill="x", pady=5, padx=5)
 
             # Header

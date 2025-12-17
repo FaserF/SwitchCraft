@@ -292,3 +292,31 @@ class IntuneService:
             logger.error(f"Upload process failed: {e}")
             # Try to cleanup?
             raise e
+
+    def assign_to_group(self, token, app_id, group_id, intent="required"):
+        """
+        Assigns the app to a specific Azure AD Group.
+        intent: required, available, uninstall
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        base_url = "https://graph.microsoft.com/beta/deviceAppManagement"
+
+        url = f"{base_url}/mobileApps/{app_id}/assignments"
+
+        payload = {
+            "target": {
+                "@odata.type": "#microsoft.graph.groupAssignmentTarget",
+                "groupId": group_id
+            },
+            "intent": intent,
+            "settings": None
+        }
+
+        try:
+            resp = requests.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            logger.info(f"Assigned App {app_id} to Group {group_id} ({intent})")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to assign group: {e}")
+            raise e

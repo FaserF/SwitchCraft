@@ -114,6 +114,9 @@ class SettingsView(ctk.CTkFrame):
         # Git / Path Settings
         self._setup_path_settings()
 
+        # External Tools (IntuneWinAppUtil)
+        self._setup_tool_settings()
+
 
         # Help & Documentation
         frame_docs = ctk.CTkFrame(self.settings_scroll)
@@ -255,6 +258,85 @@ class SettingsView(ctk.CTkFrame):
                 save_git()
 
         ctk.CTkButton(path_frame, text="Browse...", width=80, command=browse_git).pack(side="right", padx=5)
+
+    def _setup_tool_settings(self):
+        frame = ctk.CTkFrame(self.settings_scroll)
+        frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(frame, text="External Tools", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+
+        # IntuneWinAppUtil
+        lbl = i18n.get("intune_tool_path_custom") if "intune_tool_path_custom" in i18n.translations.get(i18n.language) else "IntuneWinAppUtil Path:"
+        ctk.CTkLabel(frame, text=lbl).pack(anchor="w", padx=10)
+
+        tool_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        tool_frame.pack(fill="x", padx=10)
+
+        self.tool_path_entry = ctk.CTkEntry(tool_frame)
+        self.tool_path_entry.pack(side="left", fill="x", expand=True, pady=2)
+        val = SwitchCraftConfig.get_value("IntuneToolPath", "")
+        if val: self.tool_path_entry.insert(0, val)
+
+        def save_tool(event=None):
+             SwitchCraftConfig.set_user_preference("IntuneToolPath", self.tool_path_entry.get())
+
+        self.tool_path_entry.bind("<FocusOut>", save_tool)
+
+        def browse_tool():
+            path = ctk.filedialog.askopenfilename(filetypes=[("Executable", "*.exe")])
+            if path:
+                self.tool_path_entry.delete(0, "end")
+                self.tool_path_entry.insert(0, path)
+                save_tool()
+
+        ctk.CTkButton(tool_frame, text="Browse...", width=80, command=browse_tool).pack(side="right", padx=5)
+
+        # Intune Groups
+        ctk.CTkLabel(frame, text="Intune Test Groups (Entra ID)", font=ctk.CTkFont(weight="bold")).pack(pady=(15,5))
+
+        grp_frame = ctk.CTkFrame(frame)
+        grp_frame.pack(fill="x", padx=10, pady=5)
+
+        self.group_scroll = ctk.CTkScrollableFrame(grp_frame, height=100)
+        self.group_scroll.pack(fill="x", padx=5, pady=5)
+
+        self.refresh_group_list()
+
+        input_frame = ctk.CTkFrame(grp_frame, fg_color="transparent")
+        input_frame.pack(fill="x", padx=5, pady=5)
+        self.ent_grp_name = ctk.CTkEntry(input_frame, placeholder_text="Name (e.g. Testers)")
+        self.ent_grp_name.pack(side="left", fill="x", expand=True, padx=(0,5))
+        self.ent_grp_id = ctk.CTkEntry(input_frame, placeholder_text="Object ID (GUID)")
+        self.ent_grp_id.pack(side="left", fill="x", expand=True, padx=(0,5))
+
+        def add_grp():
+            n = self.ent_grp_name.get().strip()
+            i = self.ent_grp_id.get().strip()
+            if n and i:
+                 current = SwitchCraftConfig.get_value("IntuneTestGroups", [])
+                 current.append({"name": n, "id": i})
+                 SwitchCraftConfig.set_user_preference("IntuneTestGroups", current)
+                 self.refresh_group_list()
+                 self.ent_grp_name.delete(0, "end")
+                 self.ent_grp_id.delete(0, "end")
+
+        ctk.CTkButton(input_frame, text="Add", width=50, command=add_grp).pack(side="right")
+
+    def refresh_group_list(self):
+        for widget in self.group_scroll.winfo_children():
+            widget.destroy()
+
+        groups = SwitchCraftConfig.get_value("IntuneTestGroups", [])
+        for idx, grp in enumerate(groups):
+            row = ctk.CTkFrame(self.group_scroll, fg_color="transparent")
+            row.pack(fill="x")
+            ctk.CTkLabel(row, text=f"{grp.get('name')} ({grp.get('id')})").pack(side="left")
+            def rem(x=idx):
+                current = SwitchCraftConfig.get_value("IntuneTestGroups", [])
+                if 0 <= x < len(current):
+                    current.pop(x)
+                    SwitchCraftConfig.set_user_preference("IntuneTestGroups", current)
+                    self.refresh_group_list()
+            ctk.CTkButton(row, text="X", width=30, fg_color="red", command=rem).pack(side="right")
 
     def _setup_debug_console(self):
         frame_debug = ctk.CTkFrame(self.settings_scroll)

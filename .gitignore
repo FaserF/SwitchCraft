@@ -1,25 +1,50 @@
+# General
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Distribution / Build
+build/
+dist/
+*.spec
+!switchcraft.spec
+*.egg-info/
+var/
+bin/
+
+# PyInstaller
+*.manifest
+
+# Installer / Binary
 *.exe
-/tests/__pycache__
-/src/switchcraft/gui/__pycache__
-/src/switchcraft/analyzers/__pycache__
-/.github/scripts/__pycache__
-/src/switchcraft/__pycache__
-/src/switchcraft/utils/__pycache__
-output.txt
+*.msi
+*.intunewin
+
+# Intune / Credentials
+*.pfx
+.env
+auth.json
+
+# IDEs
+.vscode/
+.idea/
+.vs/
+*.suo
+*.user
+
+# Local Tests
+ComSoft-Basic.exe
+test_output.txt
 out_debug.txt
 final_test_output.txt
 out_debug_nocolor.txt
 config_test_output.txt
 debug_suite.txt
-/src/switchcraft/generators/__pycache__
-/src/switchcraft/__pycache__
-/src/switchcraft/__pycache__
-/src/switchcraft/services/__pycache__
-/src/switchcraft/__pycache__
-test_output.txt
-debug_ai_i18n.py
-/src/switchcraft/__pycache__
-*.pyc
-/manifests
-/src/switchcraft/utils/__pycache__
-/tests/__pycache__
+
+# SwitchCraft tools
+tools/
+*.exe
