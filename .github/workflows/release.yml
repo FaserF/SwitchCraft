@@ -166,8 +166,16 @@ jobs:
 
     - name: Rename to Platform Name
       run: |
-        mv dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
+        cp dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
       shell: bash
+
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ needs.prepare_release.outputs.version }}
+        files: dist/${{ matrix.asset_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build Windows Installer
       if: matrix.os == 'windows-latest'
@@ -193,14 +201,6 @@ jobs:
         # Build installer
         iscc switchcraft.iss
       shell: pwsh
-
-    - name: Upload Release Asset
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: v${{ needs.prepare_release.outputs.version }}
-        files: dist/${{ matrix.asset_name }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload Windows Installer
       if: matrix.os == 'windows-latest'
