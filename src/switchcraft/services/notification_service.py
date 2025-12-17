@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 try:
     from plyer import notification
     _PLYER_AVAILABLE = True
-except ImportError:
-    logger.warning("plyer module not found. Notifications will be disabled.")
+except (ImportError, NotImplementedError):
+    logger.warning("plyer module not found or not supported. Notifications will be disabled.")
     _PLYER_AVAILABLE = False
 
 class NotificationService:
@@ -38,7 +38,7 @@ class NotificationService:
                     app_icon=NotificationService.APP_ICON,
                     timeout=timeout
                 )
-            except Exception as e:
+            except (NotImplementedError, Exception) as e:
                 logger.error(f"Failed to send notification: {e}")
 
         # Run in a separate thread to avoid blocking the GUI/Main thread

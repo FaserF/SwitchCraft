@@ -79,6 +79,24 @@ class SwitchCraftAI:
             r"(mac|macos|dmg|pkg)": "ai_rules_macos",
         }
 
+        # 3. Knowledge Base & Heuristics
+
+        # Rule: Simple /S detection might be valid, but warn about self-extractors
+        if "/S" in query.upper() and ("extract" in query.lower() or "7z" in query.lower()):
+             return i18n.get("ai_tip_extraction", lang="de" if is_de else "en")
+
+        rules = {
+            r"msi": "ai_rules_msi",
+            r"inno": "ai_rules_inno",
+            r"nsis": "ai_rules_nsis",
+            r"installshield": "ai_rules_installshield",
+            r"intune": "ai_rules_intune",
+            r"1603": "ai_rules_error1603",
+            r"1618": "ai_rules_error1618",
+            r"powershell": "ai_rules_powershell",
+            r"(mac|macos|dmg|pkg)": "ai_rules_macos",
+        }
+
         for pattern, key in rules.items():
             if re.search(pattern, q):
                 return i18n.get(key, lang="de" if is_de else "en")

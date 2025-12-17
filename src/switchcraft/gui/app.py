@@ -69,6 +69,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.setup_analyzer_tab()
         if self.show_ai_helper:
             self.setup_helper_tab()
+        self.setup_analyzer_tab()
+        if self.show_ai_helper:
+            self.setup_helper_tab()
+
+        # Intune Utility Tab
+        self.tab_intune = self.tabview.add("Intune Utility")
+        self.setup_intune_tab()
+
         self.setup_settings_tab()
 
         # Setup Beta/Dev banner if pre-release
@@ -82,6 +90,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Initialize AI
         self.ai_service = SwitchCraftAI()
+        self.intune_service = IntuneService()
 
 
 
@@ -176,10 +185,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             # Determine banner color and text based on version type
             if "dev" in version_lower:
                 bg_color = "#DC3545"  # Red for development
-                text = f"⚠️ DEVELOPMENT BUILD ({__version__}) - Unstable, for testing only"
+                text = i18n.get("beta_warning_dev", version=__version__)
             else:
                 bg_color = "#FFC107"  # Orange/Yellow for beta
-                text = f"⚠️ BETA VERSION ({__version__}) - Not for production use"
+                text = i18n.get("beta_warning_beta", version=__version__)
 
             # Create banner at the bottom of the window
             self.grid_rowconfigure(1, weight=0)
@@ -1001,7 +1010,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
              self.clipboard_append(value_text)
              self.update() # Keep clipboard content after window close usually requires update or mainloop
 
-        copy_btn = ctk.CTkButton(frame, text="Copy", width=60, fg_color="transparent", border_width=1,
+        copy_btn = ctk.CTkButton(frame, text=i18n.get("context_copy"), width=60, fg_color="transparent", border_width=1,
                                  command=copy_to_clipboard)
         copy_btn.pack(side="right")
 
@@ -1038,7 +1047,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.chat_frame = ctk.CTkTextbox(self.tab_helper, state="disabled")
         self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        self.append_chat("System", "Welcome to the AI Helper! (Mock Version)\nAsk me about silent switches or command line arguments.")
+        self.append_chat("System", i18n.get("ai_helper_welcome"))
 
         self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
@@ -1048,7 +1057,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         ctk.CTkLabel(
             disclaimer_frame,
-            text="🔒 Privacy Note: This AI is a local rule-based system. No data leaves your machine.",
+            text=f"🔒 {i18n.get('privacy_note')}",
             text_color="green",
             font=ctk.CTkFont(size=11, weight="bold")
         ).pack(anchor="w")
@@ -1085,9 +1094,15 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     # --- Settings Tab ---
     def setup_settings_tab(self):
         self.tab_settings.grid_columnconfigure(0, weight=1)
+        self.tab_settings.grid_rowconfigure(0, weight=1)
+
+        # Scrollable Container
+        self.settings_scroll = ctk.CTkScrollableFrame(self.tab_settings, fg_color="transparent")
+        self.settings_scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+        self.settings_scroll.grid_columnconfigure(0, weight=1)
 
         # Appearance
-        frame_app = ctk.CTkFrame(self.tab_settings)
+        frame_app = ctk.CTkFrame(self.settings_scroll)
         frame_app.pack(fill="x", padx=10, pady=10)
 
         lbl_theme = ctk.CTkLabel(frame_app, text=i18n.get("settings_theme"), font=ctk.CTkFont(weight="bold"))
@@ -1099,7 +1114,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.theme_opt.pack(pady=10)
 
         # Language
-        frame_lang = ctk.CTkFrame(self.tab_settings)
+        frame_lang = ctk.CTkFrame(self.settings_scroll)
         frame_lang.pack(fill="x", padx=10, pady=10)
 
         lbl_lang = ctk.CTkLabel(frame_lang, text=i18n.get("settings_lang"), font=ctk.CTkFont(weight="bold"))
@@ -1111,7 +1126,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.lang_opt.pack(pady=10)
 
         # Debug Mode Toggle
-        frame_debug = ctk.CTkFrame(self.tab_settings)
+        frame_debug = ctk.CTkFrame(self.settings_scroll)
         frame_debug.pack(fill="x", padx=10, pady=10)
 
         debug_label = i18n.get("settings_debug") if "settings_debug" in i18n.translations.get(i18n.language, {}) else "Debug Logging"
@@ -1120,7 +1135,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.debug_switch = ctk.CTkSwitch(
             frame_debug,
-            text="Enable verbose logging",
+            text=i18n.get("enable_verbose"),
             command=self.toggle_debug_mode,
             onvalue=1,
             offvalue=0
@@ -1132,14 +1147,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         debug_hint = ctk.CTkLabel(
             frame_debug,
-            text="Requires restart to take effect",
+            text=i18n.get("requires_restart"),
             text_color="gray",
             font=ctk.CTkFont(size=11)
         )
         debug_hint.pack(pady=2)
 
         # Update Channel Selection
-        frame_channel = ctk.CTkFrame(self.tab_settings)
+        frame_channel = ctk.CTkFrame(self.settings_scroll)
         frame_channel.pack(fill="x", padx=10, pady=10)
 
         channel_label = i18n.get("settings_channel") if "settings_channel" in i18n.translations.get(i18n.language, {}) else "Update Channel"
@@ -1152,14 +1167,21 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             command=self.change_update_channel
         )
         # Load current channel from registry
-        current_channel = self._get_registry_value("UpdateChannel", "stable")
+        current_channel = self._get_registry_value("UpdateChannel")
+        if not current_channel:
+            # Smart Detection: Default to Beta/Dev if running pre-release
+            v_low = __version__.lower()
+            if "dev" in v_low: current_channel = "dev"
+            elif "beta" in v_low: current_channel = "beta"
+            else: current_channel = "stable"
+
         channel_map = {"stable": "Stable", "beta": "Beta", "dev": "Dev"}
         self.channel_opt.set(channel_map.get(current_channel, "Stable"))
         self.channel_opt.pack(pady=5)
 
         channel_desc = ctk.CTkLabel(
             frame_channel,
-            text="Stable: Releases only | Beta: Pre-releases | Dev: Latest commits",
+            text=i18n.get("settings_channel_desc"),
             text_color="gray",
             font=ctk.CTkFont(size=11),
             wraplength=350
@@ -1167,14 +1189,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         channel_desc.pack(pady=2)
 
         # Template Selection
-        frame_tmpl = ctk.CTkFrame(self.tab_settings)
+        frame_tmpl = ctk.CTkFrame(self.settings_scroll)
         frame_tmpl.pack(fill="x", padx=10, pady=10)
 
-        lbl_tmpl = ctk.CTkLabel(frame_tmpl, text="PowerShell Template (Intune)", font=ctk.CTkFont(weight="bold"))
+        lbl_tmpl = ctk.CTkLabel(frame_tmpl, text=i18n.get("settings_tmpl_title"), font=ctk.CTkFont(weight="bold"))
         lbl_tmpl.pack(pady=5)
 
         current_tmpl = SwitchCraftConfig.get_value("CustomTemplatePath")
-        display_tmpl = current_tmpl if current_tmpl else "Default Internal Template"
+        display_tmpl = current_tmpl if current_tmpl else i18n.get("settings_tmpl_default")
 
         self.tmpl_path_label = ctk.CTkLabel(frame_tmpl, text=display_tmpl, text_color="gray", wraplength=300)
         self.tmpl_path_label.pack(pady=2)
@@ -1185,7 +1207,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 SwitchCraftConfig.set_user_preference("CustomTemplatePath", path)
                 self.tmpl_path_label.configure(text=path)
 
-        ctk.CTkButton(frame_tmpl, text="Select Custom Template", command=select_template).pack(pady=5)
+        ctk.CTkButton(frame_tmpl, text=i18n.get("settings_tmpl_select"), command=select_template).pack(pady=5)
 
         def reset_template():
             SwitchCraftConfig.set_user_preference("CustomTemplatePath", "")
@@ -1195,11 +1217,11 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             # Actually, let's implement a clean delete or set to empty.
             self.tmpl_path_label.configure(text="Default Internal Template")
 
-        ctk.CTkButton(frame_tmpl, text="Reset to Default", fg_color="transparent", border_width=1, command=reset_template).pack(pady=2)
+        ctk.CTkButton(frame_tmpl, text=i18n.get("settings_tmpl_reset"), fg_color="transparent", border_width=1, command=reset_template).pack(pady=2)
 
 
         # Help & Documentation
-        frame_docs = ctk.CTkFrame(self.tab_settings)
+        frame_docs = ctk.CTkFrame(self.settings_scroll)
         frame_docs.pack(fill="x", padx=10, pady=10)
 
         ctk.CTkLabel(frame_docs, text="Help & Support", font=ctk.CTkFont(weight="bold")).pack(pady=5)
@@ -1214,10 +1236,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Debug Console Toggle (Windows Only)
         if sys.platform == 'win32':
-             frame_debug = ctk.CTkFrame(self.tab_settings)
+             frame_debug = ctk.CTkFrame(self.settings_scroll)
              frame_debug.pack(fill="x", padx=10, pady=10)
 
-             ctk.CTkLabel(frame_debug, text="Debugging", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+             ctk.CTkLabel(frame_debug, text=i18n.get("settings_debug_title"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
              self.debug_console_var = ctk.BooleanVar(value=False)
 
@@ -1230,22 +1252,26 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                      sys.stderr = open("CONOUT$", "w")
                      print("SwitchCraft Debug Console [Enabled]")
                  else:
-                     # Detach/Hide is cleaner than FreeConsole which might close app?
-                     # FreeConsole closes the window, but we need to check if it kills process.
-                     # Typically safe if we claim it ourselves.
+                     try:
+                         sys.stdout.close()
+                         sys.stderr.close()
+                         # Restore std streams to avoid errors
+                         sys.stdout = sys.__stdout__
+                         sys.stderr = sys.__stderr__
+                     except: pass
                      kernel32.FreeConsole()
 
-             ctk.CTkSwitch(frame_debug, text="Show Live Debug Console", variable=self.debug_console_var, command=toggle_console).pack(pady=5)
+             ctk.CTkSwitch(frame_debug, text=i18n.get("settings_debug_console"), variable=self.debug_console_var, command=toggle_console).pack(pady=5)
 
 
 
         # Update Check Button
-        frame_upd = ctk.CTkFrame(self.tab_settings)
+        frame_upd = ctk.CTkFrame(self.settings_scroll)
         frame_upd.pack(fill="x", padx=10, pady=10)
         ctk.CTkButton(frame_upd, text=i18n.get("check_updates"), command=lambda: self._run_update_check(show_no_update=True)).pack(pady=10)
 
         # About
-        frame_about = ctk.CTkFrame(self.tab_settings, fg_color="transparent")
+        frame_about = ctk.CTkFrame(self.settings_scroll, fg_color="transparent")
         frame_about.pack(fill="x", padx=10, pady=20)
 
         ctk.CTkLabel(frame_about, text="SwitchCraft", font=ctk.CTkFont(size=24, weight="bold")).pack()
@@ -1257,7 +1283,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         link.pack(pady=5)
 
         # Footer
-        ctk.CTkLabel(self.tab_settings, text=i18n.get("brought_by"), text_color="gray").pack(side="bottom", pady=10)
+        ctk.CTkLabel(self.settings_scroll, text=i18n.get("brought_by"), text_color="gray").pack(side="bottom", pady=10)
 
     def _get_registry_value(self, name, default=None):
         """Read a value from the Windows registry."""
@@ -1362,36 +1388,229 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 messagebox.showerror("Error", "Failed to generate script template.")
 
     def create_intunewin_action(self, info):
-        """Builds the .intunewin package using the IntuneService."""
-        # Confirm source folder
+        """Switches to Intune Utility tab and pre-fills data."""
+        # 1. Pre-fill data
         path = Path(info.file_path)
-        source_folder = path.parent
-        setup_file = path.name
+        self.entry_intune_setup.delete(0, "end")
+        self.entry_intune_setup.insert(0, str(path))
 
-        # Ask for output folder
-        output_folder = ctk.filedialog.askdirectory(title="Select Output Folder form .intunewin")
-        if not output_folder:
+        self.entry_intune_source.delete(0, "end")
+        self.entry_intune_source.insert(0, str(path.parent))
+
+        self.entry_intune_output.delete(0, "end")
+        self.entry_intune_output.insert(0, str(path.parent))
+
+        # 2. Switch Tab
+        self.tabview.set("Intune Utility")
+
+        # 3. Notify user
+        self.status_bar.configure(text="Pre-filled Intune Utility form. Please review and click Create.")
+
+
+
+    def _show_detailed_parameters(self, info, nested_data):
+        """Show a detailed breakdown of all found parameters (Main + Nested)."""
+        top = ctk.CTkToplevel(self)
+        top.title(i18n.get("detailed_params_title") if "detailed_params_title" in i18n.translations.get(i18n.language) else "Detailed Parameters")
+        top.geometry("700x500")
+
+        # Lift window
+        top.lift()
+        top.focus_force()
+
+        # Content
+        scroll = ctk.CTkScrollableFrame(top)
+        scroll.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Helper to add section
+        def add_section(title, filename, type_str, params, is_main=False):
+            frame = ctk.CTkFrame(scroll, fg_color="#2B2B2B" if is_main else "#1F1F1F")
+            frame.pack(fill="x", pady=5, padx=5)
+
+            # Header
+            header_color = "cyan" if is_main else "gray"
+            ctk.CTkLabel(frame, text=f"{title} ({filename})", text_color=header_color, font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(5,0))
+            ctk.CTkLabel(frame, text=f"Type: {type_str}", font=ctk.CTkFont(size=11)).pack(anchor="w", padx=10)
+
+            # Params
+            if params:
+                param_text = " ".join(params) if isinstance(params, list) else str(params)
+
+                p_box = ctk.CTkTextbox(frame, height=40)
+                p_box.insert("0.0", param_text)
+                p_box.configure(state="disabled")
+                p_box.pack(fill="x", padx=10, pady=5)
+            else:
+                ctk.CTkLabel(frame, text="No confirmed parameters found.", text_color="orange").pack(anchor="w", padx=10, pady=5)
+
+        # 1. Main Installer
+        add_section("Main Installer", Path(info.file_path).name, info.installer_type, info.install_switches, is_main=True)
+
+        # 2. Nested
+        if nested_data and nested_data.get("nested_executables"):
+            ctk.CTkLabel(scroll, text="Nested Installers Found:", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", pady=(15, 5))
+
+            for item in nested_data.get("nested_executables", []):
+                an = item.get("analysis")
+                i_type = item.get("type", "Unknown")
+                switches = []
+                if an:
+                    i_type += f" / {an.installer_type}"
+                    switches = an.install_switches
+
+                # Check for brute force output specific to this item
+                if not switches and item.get("brute_force_output"):
+                    # Maybe parsing brute force output needed?
+                    # For now just show "See Log below" or similar?
+                    pass
+
+                add_section("Nested File", item["name"], i_type, switches)
+
+        ctk.CTkButton(top, text="Close", command=top.destroy).pack(pady=10)
+
+
+    def setup_intune_tab(self):
+        """Setup the dedicated Intune Utility tab."""
+        # Main Layout
+        self.tab_intune.grid_columnconfigure(0, weight=1)
+        self.tab_intune.grid_rowconfigure(3, weight=1) # Log area expands
+
+        # Header
+        header = ctk.CTkFrame(self.tab_intune, fg_color="transparent")
+        header.grid(row=0, column=0, sticky="ew", padx=10, pady=5)
+
+        ctk.CTkLabel(header, text="Intune Content Prep Utility", font=ctk.CTkFont(size=20, weight="bold")).pack(anchor="w")
+        ctk.CTkLabel(header, text="Create .intunewin packages for Microsoft Intune deployment.", text_color="gray").pack(anchor="w")
+
+        # Tool Status / Activation
+        self.intune_status_frame = ctk.CTkFrame(self.tab_intune)
+        self.intune_status_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
+        self._refresh_intune_status()
+
+    def _refresh_intune_status(self):
+        """Check if tool exists and show appropriate UI."""
+        for widget in self.intune_status_frame.winfo_children():
+            widget.destroy()
+
+        if self.intune_service.is_tool_available():
+            self._show_intune_form()
+        else:
+            self._show_intune_activation()
+
+    def _show_intune_activation(self):
+        ctk.CTkLabel(self.intune_status_frame, text=i18n.get("intune_util_missing")).pack(pady=(10, 5))
+        ctk.CTkButton(self.intune_status_frame, text=i18n.get("intune_download_activate"), command=self._activate_intune_tool).pack(pady=10)
+
+    def _activate_intune_tool(self):
+        self.status_bar.configure(text=i18n.get("intune_downloading"))
+        def _download():
+            if self.intune_service.download_tool():
+                self.after(0, lambda: messagebox.showinfo("Success", i18n.get("intune_success")))
+                self.after(0, self._refresh_intune_status)
+                self.after(0, lambda: self.status_bar.configure(text=i18n.get("intune_ready")))
+            else:
+                self.after(0, lambda: messagebox.showerror("Error", i18n.get("intune_failed")))
+                self.after(0, lambda: self.status_bar.configure(text=i18n.get("error")))
+        threading.Thread(target=_download, daemon=True).start()
+
+    def _show_intune_form(self):
+        # Tool Path
+        tool_frame = ctk.CTkFrame(self.intune_status_frame, fg_color="transparent")
+        tool_frame.pack(fill="x", padx=5, pady=5)
+        ctk.CTkLabel(tool_frame, text=i18n.get("intune_tool_path"), width=100, anchor="w").pack(side="left")
+
+        self.entry_intune_tool = ctk.CTkEntry(tool_frame)
+        self.entry_intune_tool.pack(side="left", fill="x", expand=True, padx=5)
+        self.entry_intune_tool.insert(0, str(self.intune_service.tool_path))
+
+        # Setup File
+        setup_frame = ctk.CTkFrame(self.intune_status_frame, fg_color="transparent")
+        setup_frame.pack(fill="x", padx=5, pady=5)
+        ctk.CTkLabel(setup_frame, text=i18n.get("intune_setup_file"), width=100, anchor="w").pack(side="left")
+
+        self.entry_intune_setup = ctk.CTkEntry(setup_frame)
+        self.entry_intune_setup.pack(side="left", fill="x", expand=True, padx=5)
+        ctk.CTkButton(setup_frame, text=i18n.get("browse"), width=60, command=self._browse_intune_setup).pack(side="right")
+
+        # Source Folder
+        src_frame = ctk.CTkFrame(self.intune_status_frame, fg_color="transparent")
+        src_frame.pack(fill="x", padx=5, pady=5)
+        ctk.CTkLabel(src_frame, text=i18n.get("intune_source_folder"), width=100, anchor="w").pack(side="left")
+
+        self.entry_intune_source = ctk.CTkEntry(src_frame)
+        self.entry_intune_source.pack(side="left", fill="x", expand=True, padx=5)
+        ctk.CTkButton(src_frame, text=i18n.get("browse"), width=60, command=lambda: self._browse_folder(self.entry_intune_source)).pack(side="right")
+
+        # Output Folder
+        out_frame = ctk.CTkFrame(self.intune_status_frame, fg_color="transparent")
+        out_frame.pack(fill="x", padx=5, pady=5)
+        ctk.CTkLabel(out_frame, text=i18n.get("intune_output_folder"), width=100, anchor="w").pack(side="left")
+
+        self.entry_intune_output = ctk.CTkEntry(out_frame)
+        self.entry_intune_output.pack(side="left", fill="x", expand=True, padx=5)
+        ctk.CTkButton(out_frame, text=i18n.get("browse"), width=60, command=lambda: self._browse_folder(self.entry_intune_output)).pack(side="right")
+
+        # Options
+        opt_frame = ctk.CTkFrame(self.intune_status_frame, fg_color="transparent")
+        opt_frame.pack(fill="x", padx=5, pady=5)
+
+        self.var_intune_quiet = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(opt_frame, text=i18n.get("intune_quiet"), variable=self.var_intune_quiet).pack(side="left", padx=10)
+
+        # Action
+        ctk.CTkButton(self.intune_status_frame, text=i18n.get("intune_create_btn"), fg_color="green", height=40, command=self._run_intune_creation).pack(fill="x", padx=20, pady=15)
+
+        # Log Output
+        ctk.CTkLabel(self.tab_intune, text=i18n.get("intune_log_label"), anchor="w").grid(row=2, column=0, sticky="w", padx=10)
+        self.txt_intune_log = ctk.CTkTextbox(self.tab_intune)
+        self.txt_intune_log.grid(row=3, column=0, sticky="nsew", padx=10, pady=(0, 10))
+
+    def _browse_intune_setup(self):
+        f = ctk.filedialog.askopenfilename()
+        if f:
+            self.entry_intune_setup.delete(0, "end")
+            self.entry_intune_setup.insert(0, f)
+            # Auto-fill source and output if empty
+            if not self.entry_intune_source.get():
+                self.entry_intune_source.insert(0, str(Path(f).parent))
+            if not self.entry_intune_output.get():
+                self.entry_intune_output.insert(0, str(Path(f).parent))
+
+    def _browse_folder(self, entry_widget):
+        d = ctk.filedialog.askdirectory()
+        if d:
+            entry_widget.delete(0, "end")
+            entry_widget.insert(0, d)
+
+    def _run_intune_creation(self):
+        s_setup = self.entry_intune_setup.get()
+        s_source = self.entry_intune_source.get()
+        s_output = self.entry_intune_output.get()
+        b_quiet = self.var_intune_quiet.get()
+
+        if not s_setup or not s_source or not s_output:
+            messagebox.showerror("Error", "Please fill in all required fields (Setup, Source, Output).")
             return
 
-        self.status_bar.configure(text="Creating .intunewin package... (This may take a moment)")
+        self.txt_intune_log.delete("0.0", "end")
+        self.txt_intune_log.insert("end", i18n.get("intune_start_creation") + "\n")
 
-        def _run():
+        def _process():
             try:
-                svc = IntuneService()
-                output = svc.create_intunewin(str(source_folder), setup_file, output_folder)
-
-                NotificationService.send_notification("Package Created", f"Intune package created in {output_folder}")
-                self.after(0, lambda: messagebox.showinfo("Success", f"Package created successfully!\n\nOutput:\n{output_folder}"))
-                self.after(0, lambda: self.status_bar.configure(text="Package created successfully."))
-                try: os.startfile(output_folder)
-                except: pass
+                out = self.intune_service.create_intunewin(
+                    source_folder=s_source,
+                    setup_file=s_setup,
+                    output_folder=s_output,
+                    quiet=b_quiet
+                )
+                self.after(0, lambda: self.txt_intune_log.insert("end", out + "\n\nDONE!"))
+                self.after(0, lambda: messagebox.showinfo("Success", i18n.get("intune_pkg_success", path=s_output)))
             except Exception as e:
-                logger.error(f"IntuneWin Error: {e}")
-                error_msg = str(e)
-                self.after(0, lambda: messagebox.showerror("Error", f"Failed to create package: {error_msg}"))
-                self.after(0, lambda: self.status_bar.configure(text="Package creation failed."))
+                self.after(0, lambda: self.txt_intune_log.insert("end", f"ERROR: {e}\n"))
+                self.after(0, lambda: messagebox.showerror("Failed", str(e)))
 
-        threading.Thread(target=_run, daemon=True).start()
+        threading.Thread(target=_process, daemon=True).start()
+
 
 def main():
     app = App()

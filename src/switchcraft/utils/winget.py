@@ -32,6 +32,10 @@ class WingetHelper:
         if not self.local_repo or not product_name:
             return None
 
+        # Special Case for SwitchCraft (Self-detection)
+        if "switchcraft" in product_name.lower():
+            return "https://github.com/microsoft/winget-pkgs/tree/master/manifests/s/FaserF/SwitchCraft"
+
         import difflib
 
         # Strategy:

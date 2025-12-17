@@ -47,7 +47,7 @@ class IntuneService:
             logger.error(f"Failed to download IntuneWinAppUtil: {e}")
             return False
 
-    def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str) -> str:
+    def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str, catalog_folder: str = None, quiet: bool = True) -> str:
         """
         Runs the IntuneWinAppUtil to generate the .intunewin package.
         Returns the output text from the tool.
@@ -58,10 +58,6 @@ class IntuneService:
 
         # Ensure paths are absolute strings
         source_folder = str(Path(source_folder).resolve())
-        # setup_file must be relative to source_folder for the tool, OR absolute?
-        # The tool acts weird usually. Input parameters: -c <source_folder> -s <setup_file> -o <output_folder> -q
-        # -s must be THE FILE inside the source folder, usually just filename, or relative path?
-        # Argument -s: Setup file (e.g. setup.exe). Must be in the source folder.
 
         # Check if setup_file looks like a full path, verify it is inside source_folder
         setup_path = Path(setup_file)
@@ -84,9 +80,14 @@ class IntuneService:
             str(self.tool_path),
             "-c", source_folder,
             "-s", setup_arg,
-            "-o", output_folder,
-            "-q" # Quiet mode
+            "-o", output_folder
         ]
+
+        if catalog_folder:
+             cmd.extend(["-a", str(Path(catalog_folder).resolve())])
+
+        if quiet:
+            cmd.append("-q")
 
         logger.info(f"Running IntuneWinAppUtil: {cmd}")
 
