@@ -1606,8 +1606,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 self.after(0, lambda: self.txt_intune_log.insert("end", out + "\n\nDONE!"))
                 self.after(0, lambda: messagebox.showinfo("Success", i18n.get("intune_pkg_success", path=s_output)))
             except Exception as e:
-                self.after(0, lambda: self.txt_intune_log.insert("end", f"ERROR: {e}\n"))
-                self.after(0, lambda: messagebox.showerror("Failed", str(e)))
+                err_msg = str(e)
+                self.after(0, lambda: self.txt_intune_log.insert("end", f"ERROR: {err_msg}\n"))
+                self.after(0, lambda: messagebox.showerror("Failed", err_msg))
 
         threading.Thread(target=_process, daemon=True).start()
 
