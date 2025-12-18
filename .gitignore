@@ -60,3 +60,25 @@ test_addons_result.txt
 test_out.txt
 test_phase_result.txt
 final_rep_123.result
+
+# Unit Test / Coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Virtual Env
+venv/
+env/
+.venv/
+
+# SwitchCraft - Specific Runtime
+debug.log
+error.log
+*.tmp

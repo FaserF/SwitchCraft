@@ -1,4 +1,0 @@
-switchcraft
-switchcraft_advanced
-switchcraft_ai
-switchcraft_debug
