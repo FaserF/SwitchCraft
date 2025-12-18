@@ -67,7 +67,7 @@ class SettingsView(ctk.CTkFrame):
         # Winget
         frame_gen = ctk.CTkFrame(parent)
         frame_gen.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(frame_gen, text="Integrations", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        ctk.CTkLabel(frame_gen, text=i18n.get("settings_hdr_integrations"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
         self.winget_var = ctk.BooleanVar(value=SwitchCraftConfig.get_value("EnableWinget", True))
         def toggle_winget():
@@ -163,12 +163,12 @@ class SettingsView(ctk.CTkFrame):
         # Documentation
         frame_docs = ctk.CTkFrame(parent)
         frame_docs.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(frame_docs, text="Help & Support", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        ctk.CTkLabel(frame_docs, text=i18n.get("settings_hdr_help"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
-        ctk.CTkButton(frame_docs, text="Open Documentation (README)",
+        ctk.CTkButton(frame_docs, text=i18n.get("settings_btn_open_docs"),
                                 command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/blob/main/README.md")).pack(pady=5, fill="x")
 
-        ctk.CTkButton(frame_docs, text="Get Help (GitHub Issues)", fg_color="transparent", border_width=1,
+        ctk.CTkButton(frame_docs, text=i18n.get("settings_btn_get_help"), fg_color="transparent", border_width=1,
                                 command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/issues")).pack(pady=5, fill="x")
 
         # Debug Console
@@ -176,7 +176,7 @@ class SettingsView(ctk.CTkFrame):
              self._setup_debug_console(parent)
 
         # Link to View Templates (moved from main list)
-        ctk.CTkButton(parent, text="View Templates on GitHub", fg_color="transparent", text_color="#3B8ED0", hover=False,
+        ctk.CTkButton(parent, text=i18n.get("settings_btn_view_tmpl"), fg_color="transparent", text_color="#3B8ED0", hover=False,
                          command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/tree/main/src/switchcraft/assets/templates")).pack(pady=5)
 
         # About
@@ -196,31 +196,109 @@ class SettingsView(ctk.CTkFrame):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
 
-        ctk.CTkLabel(frame, text="PowerShell Signing", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        ctk.CTkLabel(frame, text=i18n.get("settings_hdr_signing"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
         self.sign_var = ctk.BooleanVar(value=SwitchCraftConfig.get_value("SignScripts", False))
 
+        def _get_signing_certs():
+            import subprocess
+            try:
+                # Get CodeSigning certs from CurrentUser\My
+                cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                       "Get-ChildItem Cert:\\CurrentUser\\My -CodeSigningCert | Select-Object Subject, Thumbprint | ConvertTo-Json"]
+                # Use startupinfo to hide window
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+                res = subprocess.run(cmd, capture_output=True, text=True, startupinfo=startupinfo)
+                if not res.stdout.strip(): return []
+
+                try:
+                    data = json.loads(res.stdout)
+                except: return []
+
+                if isinstance(data, dict): return [data]
+                return data
+            except Exception as e:
+                logger.error(f"Cert Scan Error: {e}")
+                return []
+
         def toggle_sign():
-            SwitchCraftConfig.set_user_preference("SignScripts", self.sign_var.get())
-            if self.sign_var.get():
+            enabled = self.sign_var.get()
+            SwitchCraftConfig.set_user_preference("SignScripts", enabled)
+
+            if enabled:
                 self.cert_frame.pack(fill="x", padx=10, pady=5)
+
+                # Check if we already have a valid config (Path OR Thumbprint)
+                curr_path = SwitchCraftConfig.get_value("CertPath", "")
+                curr_thumb = SwitchCraftConfig.get_value("CertThumbprint", "")
+
+                # If nothing configured, try auto-detect
+                if not curr_path and not curr_thumb:
+                    certs = _get_signing_certs()
+                    if len(certs) == 1:
+                        # Auto-Select Single Cert
+                        cert = certs[0]
+                        thumb = cert.get("Thumbprint")
+                        subj = cert.get("Subject")
+                        SwitchCraftConfig.set_user_preference("CertThumbprint", thumb)
+                        self.cert_path_entry.delete(0, "end")
+                        self.cert_path_entry.insert(0, f"Auto-Cert: {subj} [{thumb}]")
+                        self.cert_path_entry.configure(state="disabled") # Lock it to show it's managed
+                        messagebox.showinfo("Certificate Found", f"Auto-selected signing certificate:\n{subj}")
+
+                    elif len(certs) > 1:
+                        # Multiple Certs - Ask User
+                        # Simple Input Dialog for simplicity or custom dialog.
+                        # For now, let's list them in a message box and ask to manual browse or we could implementation a selection window.
+                        # Given constraints, let's just pick the first one but warn, OR fallback to manual mode where they can browse file.
+                        # Better: Show a selection dialog.
+
+                        cert_list = "\n".join([f"{i+1}. {c.get('Subject')}" for i, c in enumerate(certs)])
+                        choice = ctk.CTkInputDialog(text=f"Multiple Certificates Found:\n{cert_list}\n\nEnter number to select:", title="Select Certificate").get_input()
+
+                        if choice and choice.isdigit():
+                            idx = int(choice) - 1
+                            if 0 <= idx < len(certs):
+                                cert = certs[idx]
+                                thumb = cert.get("Thumbprint")
+                                subj = cert.get("Subject")
+                                SwitchCraftConfig.set_user_preference("CertThumbprint", thumb)
+                                self.cert_path_entry.delete(0, "end")
+                                self.cert_path_entry.insert(0, f"Store-Cert: {subj}")
+                                self.cert_path_entry.configure(state="disabled")
+                    else:
+                         # 0 found, keep manual mode
+                         pass
             else:
                 self.cert_frame.pack_forget()
 
-        ctk.CTkSwitch(frame, text="Enable Script Signing", variable=self.sign_var, command=toggle_sign).pack(pady=5)
+        ctk.CTkSwitch(frame, text=i18n.get("settings_enable_signing"), variable=self.sign_var, command=toggle_sign).pack(pady=5)
 
         self.cert_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        if self.sign_var.get():
-            self.cert_frame.pack(fill="x", padx=10, pady=5)
 
-        # Cert Path
-        ctk.CTkLabel(self.cert_frame, text="Certificate Path (.pfx):").pack(anchor="w")
+        # Cert Path or Thumbprint Display
+        ctk.CTkLabel(self.cert_frame, text=i18n.get("settings_lbl_cert_path")).pack(anchor="w")
         self.cert_path_entry = ctk.CTkEntry(self.cert_frame)
         self.cert_path_entry.pack(fill="x", pady=2)
-        self.cert_path_entry.insert(0, SwitchCraftConfig.get_value("CertPath", ""))
+
+        # Init Entry Value
+        c_thumb = SwitchCraftConfig.get_value("CertThumbprint", "")
+        c_path = SwitchCraftConfig.get_value("CertPath", "")
+
+        if c_thumb:
+             self.cert_path_entry.insert(0, f"Store-Cert: {c_thumb}")
+             self.cert_path_entry.configure(state="disabled")
+        elif c_path:
+             self.cert_path_entry.insert(0, c_path)
 
         def save_cert_path(event=None):
-            SwitchCraftConfig.set_user_preference("CertPath", self.cert_path_entry.get())
+            # Only save if enabled (search mode not active)
+            if self.cert_path_entry.cget("state") != "disabled":
+                 SwitchCraftConfig.set_user_preference("CertPath", self.cert_path_entry.get())
+                 # Clear thumbprint if manually editing path
+                 SwitchCraftConfig.set_user_preference("CertThumbprint", "")
 
         self.cert_path_entry.bind("<FocusOut>", save_cert_path)
 
@@ -228,19 +306,34 @@ class SettingsView(ctk.CTkFrame):
         btn_frame.pack(fill="x", pady=5)
 
         def browse_cert():
+            # Reset to manual mode
+            self.cert_path_entry.configure(state="normal")
             path = ctk.filedialog.askopenfilename(filetypes=[("PFX Certificate", "*.pfx")])
             if path:
                 self.cert_path_entry.delete(0, "end")
                 self.cert_path_entry.insert(0, path)
-                save_cert_path()
+                SwitchCraftConfig.set_user_preference("CertPath", path)
+                SwitchCraftConfig.set_user_preference("CertThumbprint", "") # Clear thumbprint
 
-        ctk.CTkButton(btn_frame, text="Browse...", width=100, command=browse_cert).pack(side="left", padx=5)
+        ctk.CTkButton(btn_frame, text=i18n.get("settings_btn_browse"), width=100, command=browse_cert).pack(side="left", padx=5)
+
+        # Clear / Reset Button
+        def clear_cert():
+            self.cert_path_entry.configure(state="normal")
+            self.cert_path_entry.delete(0, "end")
+            SwitchCraftConfig.set_user_preference("CertPath", "")
+            SwitchCraftConfig.set_user_preference("CertThumbprint", "")
+
+        ctk.CTkButton(btn_frame, text="Reset", width=60, fg_color="transparent", border_width=1, command=clear_cert).pack(side="left", padx=5)
+
+        if self.sign_var.get():
+             self.cert_frame.pack(fill="x", padx=10, pady=5)
 
 
     def _setup_intune_settings(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(frame, text="Intune / Graph API", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        ctk.CTkLabel(frame, text=i18n.get("settings_hdr_intune_auth"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
         link_doc = ctk.CTkButton(frame, text="Documentation (GitHub)", fg_color="transparent", text_color="#3B8ED0", hover=False, height=20,
                                  command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/blob/main/docs/SECURITY.md"))
@@ -254,7 +347,7 @@ class SettingsView(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
         btn_frame.pack(fill="x", pady=10)
 
-        self.btn_verify = ctk.CTkButton(btn_frame, text="Verify & Save Credentials", fg_color="green", command=self._verify_and_save_intune)
+        self.btn_verify = ctk.CTkButton(btn_frame, text=i18n.get("settings_btn_verify_save"), fg_color="green", command=self._verify_and_save_intune)
         self.btn_verify.pack(pady=5, fill="x")
 
         self.lbl_verify_status = ctk.CTkLabel(frame, text="", text_color="gray")
@@ -320,12 +413,12 @@ class SettingsView(ctk.CTkFrame):
         threading.Thread(target=_verify_thread, daemon=True).start()
 
     def _on_verify_success(self):
-        self.btn_verify.configure(state="normal", text="Verify & Save Credentials")
+        self.btn_verify.configure(state="normal", text=i18n.get("settings_btn_verify_save"))
         self.lbl_verify_status.configure(text=i18n.get("settings_verify_success"), text_color="green")
         messagebox.showinfo(i18n.get("settings_verify_success_title"), i18n.get("settings_verify_success_msg"))
 
     def _on_verify_fail(self, error_msg):
-        self.btn_verify.configure(state="normal", text="Verify & Save Credentials")
+        self.btn_verify.configure(state="normal", text=i18n.get("settings_btn_verify_save"))
         self.lbl_verify_status.configure(text=i18n.get("settings_verify_fail"), text_color="red")
         messagebox.showerror(i18n.get("settings_verify_fail"), i18n.get("settings_verify_fail_msg", error=error_msg))
 
@@ -333,9 +426,9 @@ class SettingsView(ctk.CTkFrame):
     def _setup_path_settings(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(frame, text="Directories", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        ctk.CTkLabel(frame, text=i18n.get("settings_hdr_directories"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
-        ctk.CTkLabel(frame, text="Standard Git Repo Path:").pack(anchor="w", padx=10)
+        ctk.CTkLabel(frame, text=i18n.get("settings_lbl_git_path")).pack(anchor="w", padx=10)
 
         path_frame = ctk.CTkFrame(frame, fg_color="transparent")
         path_frame.pack(fill="x", padx=10)
@@ -357,15 +450,15 @@ class SettingsView(ctk.CTkFrame):
                 self.git_path_entry.insert(0, path)
                 save_git()
 
-        ctk.CTkButton(path_frame, text="Browse...", width=80, command=browse_git).pack(side="right", padx=5)
+        ctk.CTkButton(path_frame, text=i18n.get("settings_btn_browse"), width=80, command=browse_git).pack(side="right", padx=5)
 
     def _setup_tool_settings(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(frame, text="External Tools", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        ctk.CTkLabel(frame, text=i18n.get("settings_hdr_tools"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
         # IntuneWinAppUtil
-        lbl = i18n.get("intune_tool_path_custom") if "intune_tool_path_custom" in i18n.translations.get(i18n.language) else "IntuneWinAppUtil Path:"
+        lbl = i18n.get("settings_lbl_tool_custom")
         ctk.CTkLabel(frame, text=lbl).pack(anchor="w", padx=10)
 
         tool_frame = ctk.CTkFrame(frame, fg_color="transparent")
@@ -393,10 +486,10 @@ class SettingsView(ctk.CTkFrame):
                 self.tool_path_entry.insert(0, path)
                 save_tool()
 
-        ctk.CTkButton(tool_frame, text="Browse...", width=80, command=browse_tool).pack(side="right", padx=5)
+        ctk.CTkButton(tool_frame, text=i18n.get("settings_btn_browse"), width=80, command=browse_tool).pack(side="right", padx=5)
 
         # Intune Groups
-        ctk.CTkLabel(frame, text="Intune Test Groups (Entra ID)", font=ctk.CTkFont(weight="bold")).pack(pady=(15,5))
+        ctk.CTkLabel(frame, text=i18n.get("settings_hdr_intune_groups"), font=ctk.CTkFont(weight="bold")).pack(pady=(15,5))
 
         grp_frame = ctk.CTkFrame(frame)
         grp_frame.pack(fill="x", padx=10, pady=5)
@@ -439,7 +532,7 @@ class SettingsView(ctk.CTkFrame):
                  self.ent_grp_name.delete(0, "end")
                  self.ent_grp_id.delete(0, "end")
 
-        ctk.CTkButton(input_frame, text="Add", width=50, command=add_grp).pack(side="right")
+        ctk.CTkButton(input_frame, text=i18n.get("settings_btn_add"), width=50, command=add_grp).pack(side="right")
 
     def refresh_group_list(self):
         for widget in self.group_scroll.winfo_children():
@@ -507,7 +600,7 @@ class SettingsView(ctk.CTkFrame):
         self.ai_model_entry.pack(fill="x")
 
         # Save Button
-        ctk.CTkButton(frame, text="Save AI Settings", command=self._save_ai_settings).pack(pady=10)
+        ctk.CTkButton(frame, text=i18n.get("settings_btn_save_ai"), command=self._save_ai_settings).pack(pady=10)
 
         # Initial State
         self._on_ai_provider_change(self.ai_provider_var.get())

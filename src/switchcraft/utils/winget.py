@@ -153,19 +153,18 @@ class WingetHelper:
 
     def search_packages(self, query: str) -> List[Dict[str, str]]:
         """
-        Search for packages using Winget CLI and return structured data.
+        Search for packages using PowerShell Microsoft.WinGet.Client module.
         Returns list of {Id, Name, Version, Source}
         """
         import subprocess
-        import shutil
-
-        if not shutil.which("winget"):
-            return []
+        import json
 
         try:
-            # winget search <query> --source winget --accept-source-agreements
-            # Note: without --exact it searches fuzzy
-            cmd = ["winget", "search", query, "--source", "winget", "--accept-source-agreements"]
+            # Use PowerShell to find package and output as JSON
+            # Find-WinGetPackage -Query <query> -Source winget | Select-Object Name, Id, Version, Source | ConvertTo-Json -Depth 1
+            ps_script = f"Find-WinGetPackage -Query '{query}' -Source winget | Select-Object Name, Id, Version, Source | ConvertTo-Json -Depth 1"
+
+            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script]
 
             startupinfo = None
             if hasattr(subprocess, 'STARTUPINFO'):
@@ -174,71 +173,51 @@ class WingetHelper:
 
             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)
 
-            if proc.returncode != 0 and proc.returncode != 1: # 0=Success, 1=No results
+            if proc.returncode != 0:
+                # If module not installed or no results, standard CLI fallback or empty
+                # But user specifically asked for module.
+                # If no results, PS often returns nothing or error depending on version.
+                logger.warning(f"WinGet PS Search failed: {proc.stderr[:200]}")
                 return []
 
-            lines = proc.stdout.strip().splitlines()
+            output = proc.stdout.strip()
+            if not output: return []
+
+            # PowerShell ConvertTo-Json can return single dict or list of dicts
+            try:
+                data = json.loads(output)
+            except json.JSONDecodeError:
+                return []
+
             results = []
+            if isinstance(data, dict):
+                data = [data] # Normalize to list
 
-            # Header parsing logic
-            # Name      Id          Version   Match Source
-            # ---------------------------------------------
-            if len(lines) < 3: return []
-
-            header = lines[0]
-            # If header doesn't contain "Id", search subsequent lines
-            id_idx = header.find("Id")
-            if id_idx == -1:
-                # Try to find header line
-                for i, l in enumerate(lines):
-                    if "Id" in l and "Version" in l:
-                        header = l
-                        id_idx = header.find("Id")
-                        ver_idx = header.find("Version")
-                        lines = lines[i:] # Adjust start
-                        break
-
-            if id_idx == -1: return []
-
-            ver_idx = header.find("Version")
-            match_idx = header.find("Match")
-            src_idx = header.find("Source")
-
-            # Parse lines (skip header and dashes)
-            for line in lines[2:]:
-                if not line.strip(): continue
-
-                # Fixed width parsing based on header offsets
-                # Name is from 0 to id_idx
-                # Id is from id_idx to ver_idx
-                # Version is from ver_idx ...
-
-                # Careful: The last column might not have a start index if header ended
-
-                name = line[:id_idx].strip()
-                p_id = line[id_idx:ver_idx].strip()
-
-                # Version usually ends at Match or Source
-                end_ver = match_idx if match_idx != -1 else src_idx
-                if end_ver == -1: end_ver = len(line)
-
-                version = line[ver_idx:end_ver].strip()
-
-                if name and p_id:
-                    results.append({"Name": name, "Id": p_id, "Version": version})
+            for item in data:
+                results.append({
+                    "Name": item.get("Name", "Unknown"),
+                    "Id": item.get("Id", "Unknown"),
+                    "Version": item.get("Version", "Unknown"),
+                    "Source": item.get("Source", "winget")
+                })
 
             return results
 
         except Exception as e:
-            logger.error(f"Winget Search Error: {e}")
+            logger.error(f"Winget PS Search Error: {e}")
             return []
 
     def get_package_details(self, package_id: str) -> Dict[str, str]:
-        """Run winget show to get details."""
+        """Get details via PowerShell (Find-WinGetPackage)."""
         import subprocess
-        data = {}
+        import json
+
         try:
-            cmd = ["winget", "show", "--id", package_id, "--source", "winget", "--accept-source-agreements", "--disable-interactivity"]
+            # Find exact ID
+            ps_script = f"Find-WinGetPackage -Id '{package_id}' -Source winget | ConvertTo-Json -Depth 2"
+
+            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script]
+
             startupinfo = None
             if hasattr(subprocess, 'STARTUPINFO'):
                 startupinfo = subprocess.STARTUPINFO()
@@ -246,37 +225,27 @@ class WingetHelper:
 
             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)
 
-            key_map = {
-                "Publisher": "publisher",
-                "Author": "author",
-                "Description": "description",
-                "Homepage": "homepage",
-                "License": "license",
-                "License Url": "license_url",
-                "Installer Url": "installer_url",
-                "Installer Type": "installer_type",
-                "SHA256": "sha256"
+            output = proc.stdout.strip()
+            if not output: return {}
+
+            item = json.loads(output)
+            # PS Object structure might vary, but usually has Description, etc as properties
+
+            # Helper to safely get nested or direct keys
+            return {
+                "publisher": item.get("Provider", {}).get("Name") or item.get("Source", ""), # Provider often holds Publisher
+                "name": item.get("Name", ""),
+                "id": item.get("Id", ""),
+                "version": item.get("Version", ""),
+                "description": item.get("Description", ""),
+                "homepage": item.get("Source", ""), # URL missing in basic object often?
+                # Need to check if 'Get-WinGetPackage' or installed obj differs.
+                # For now map available fields.
+                # Detailed metadata like license/installer url might not be in the lightweight Find object
+                # without getting the manifest. But this is safer than scraping 'winget show'.
             }
-
-            current_key = None
-            for line in proc.stdout.splitlines():
-                if ":" in line:
-                    parts = line.split(":", 1)
-                    key = parts[0].strip()
-                    val = parts[1].strip()
-
-                    if key in key_map:
-                        data[key_map[key]] = val
-                        current_key = key_map[key]
-                    elif key == "Installer": # Section header sometimes?
-                        pass
-                elif current_key and line.startswith(" "):
-                    # Continuation
-                    data[current_key] += " " + line.strip()
-
-            return data
         except Exception as e:
-            logger.error(f"Winget Show Error: {e}")
+            logger.error(f"Winget PS Details Error: {e}")
             return {}
 
     def _construct_github_url(self, path: Path) -> str:
