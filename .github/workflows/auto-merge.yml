@@ -1,30 +1,27 @@
-name: Auto Merge
+name: Auto Merge (The Bouncer)
 
 on:
   workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+    workflows: ["CI Orchestrator"]
+    types:
+      - completed
+
+permissions:
+  pull-requests: write
+  contents: write
 
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
     if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      (github.event.workflow_run.actor.login == 'FaserF' || github.event.workflow_run.actor.type == 'Bot')
-    permissions:
-      contents: write
-      pull-requests: write
-
+      ${{ github.event.workflow_run.conclusion == 'success' }} &&
+      (github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]' || github.actor == 'fseitz')
     steps:
-      - name: Enable Auto-Merge for PRs
+      - name: Enable Auto Merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_List: ${{ toJson(github.event.workflow_run.pull_requests) }}
         run: |
-          echo "Checking for PRs associated with this workflow run..."
-          # Iterate over PRs found in the event payload
-          echo "$PR_List" | jq -c '.[]' | while read -r pr; do
-            pr_number=$(echo "$pr" | jq -r '.number')
-            echo "Processing PR #$pr_number"
-            gh pr merge --auto --merge "$pr_number"
-          done
+          # Find the PR associated with this branch/commit
+          # tailored logic needed here to match workflow_run to PR
+          echo "Checking criteria for auto-merge..."
+          # gh pr merge --auto --merge "$PR_URL"

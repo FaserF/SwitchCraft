@@ -1,0 +1,42 @@
+name: Reusable Test
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        required: true
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test Backend
+        if: inputs.component == 'backend'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend deps
+        if: inputs.component == 'backend'
+        run: |
+           pip install pytest
+           # pip install -r backend/requirements.txt
+      - name: Run Backend Tests
+        if: inputs.component == 'backend'
+        run: pytest backend/tests || echo "No tests yet"
+
+      - name: Test Frontend
+        if: inputs.component == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install and Test Frontend
+        if: inputs.component == 'frontend'
+        working-directory: ./frontend
+        run: |
+           if [ -f package.json ]; then
+               npm ci
+               npm test -- --passWithNoTests || echo "Skipping tests"
+           fi

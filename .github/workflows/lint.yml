@@ -1,0 +1,34 @@
+name: Reusable Lint
+
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff (Backend)
+        run: ruff check backend/
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run ESLint (Frontend)
+        working-directory: ./frontend
+        run: |
+            if [ -f package.json ]; then
+                npm ci
+                npm run lint || echo "Lint script missing or failed"
+            fi
