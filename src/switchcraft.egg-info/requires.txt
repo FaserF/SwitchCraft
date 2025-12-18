@@ -12,3 +12,5 @@ plyer
 keyring
 openai
 google-generativeai
+defusedxml
+PyJWT
