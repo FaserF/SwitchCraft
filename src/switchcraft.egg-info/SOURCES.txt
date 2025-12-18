@@ -34,6 +34,7 @@ src/switchcraft/services/ai_service.py
 src/switchcraft/services/intune_service.py
 src/switchcraft/services/notification_service.py
 src/switchcraft/services/signing_service.py
+src/switchcraft/utils/__init__.py
 src/switchcraft/utils/config.py
 src/switchcraft/utils/i18n.py
 src/switchcraft/utils/security.py

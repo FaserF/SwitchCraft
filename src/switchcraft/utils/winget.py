@@ -55,6 +55,7 @@ class WingetHelper:
             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)
 
             if proc.returncode != 0:
+
                 logger.warning(f"WinGet PS Search failed: {proc.stderr[:200]}")
                 return []
 

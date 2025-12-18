@@ -380,7 +380,7 @@ class SettingsView(ctk.CTkFrame):
     def _setup_template_settings(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(frame, text=i18n.get("settings_tmpl_title"), font=ctk.CTkFont(weight="bold")).pack(anchor="w")
+        ctk.CTkLabel(frame, text=i18n.get("settings_hdr_template") or "Templates", font=ctk.CTkFont(weight="bold")).pack(anchor="w")
         # Template logic...
 
     def _setup_debug_console(self, parent):

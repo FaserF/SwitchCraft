@@ -80,6 +80,23 @@ switchcraft --install-addons=advanced,winget
 - **Winget Toggle**: Easily enable/disable store integration to suit your workflow.
 - **Enhanced AI**: Support for local AI, Gemini (Free tier), and OpenAI.
 
+## 🛠️ Building from Source
+SwitchCraft includes helper scripts to easily build release executables for your platform.
+
+### Windows
+Run the PowerShell script to install dependencies and build the EXE:
+```powershell
+.\scripts\build_release.ps1
+```
+The executable will be placed in your `Downloads` folder.
+
+### Linux / macOS
+Run the shell script:
+```bash
+./scripts/build_release.sh
+```
+The binary will be placed in your `Downloads` folder.
+
 ## 🤝 Contributing
 Open Source under the **MIT License**. PRs are welcome!
 

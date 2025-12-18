@@ -4,6 +4,10 @@ import os
 import subprocess
 import requests
 from pathlib import Path
+import xml.etree.ElementTree as ET
+import zipfile
+import base64
+import json
 from switchcraft.utils.i18n import i18n
 from defusedxml import ElementTree as DefusedET
 import jwt
@@ -142,8 +146,22 @@ class IntuneService:
     def verify_graph_permissions(self, token):
         """Verifies Graph API permissions from JWT token."""
         try:
+<<<<<<< HEAD
             # Simple JWT decoding using PyJWT without signature verification (done by Graph)
             payload = jwt.decode(token, options={"verify_signature": False})
+=======
+            # Simple JWT decode without library dependency (we trust the source)
+            parts = token.split('.')
+            if len(parts) != 3:
+                return False, "Invalid Token Format"
+
+            # Padding for base64
+            payload_part = parts[1]
+            padded = payload_part + '=' * (4 - len(payload_part) % 4)
+            payload_bytes = base64.urlsafe_b64decode(padded)
+            payload = json.loads(payload_bytes)
+
+>>>>>>> main
             roles = payload.get("roles", [])
 
             mandatory = ["DeviceManagementApps.ReadWrite.All"]
@@ -168,6 +186,7 @@ class IntuneService:
         Uploads a .intunewin package to Intune.
         app_info: dict with keys: displayName, description, publisher, installCommandLine, uninstallCommandLine
         """
+<<<<<<< HEAD
         import zipfile
         import base64
 
@@ -175,6 +194,8 @@ class IntuneService:
         base_url = "https://graph.microsoft.com/beta/deviceAppManagement" # Use beta for win32LobApp usually
 
         intunewin_path = Path(intunewin_path)
+=======
+>>>>>>> main
         if not intunewin_path.exists():
             raise FileNotFoundError(f"File not found: {intunewin_path}")
 
