@@ -284,5 +284,9 @@
     "lbl_resources": "Resources",
     "lbl_readme": "README",
     "lbl_issues": "Issues",
-    "lbl_project": "Project"
+    "lbl_project": "Project",
+    "github_permissions_title": "GitHub Permissions",
+    "github_permissions_explanation": "SwitchCraft requests the following GitHub permissions:\n\n• gist - Create and edit private Gists to store your settings\n• read:user - Read your GitHub username for display\n\nYour settings are stored as a PRIVATE Gist in your GitHub account.\nNo other data is accessed or stored.",
+    "github_permissions_docs_hint": "Learn more:",
+    "btn_continue": "Continue"
 }

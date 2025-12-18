@@ -17,7 +17,8 @@ ctk_path, ctk_name = get_package_data(customtkinter)
 tkdnd_path, tkdnd_name = get_package_data(tkinterdnd2)
 
 # MANUAL COLLECTION to ensure robustness
-hidden_imports = ['PIL._tkinter_finder', 'tkinterdnd2', 'plyer.platforms.win.notification', 'defusedxml']
+hidden_imports = ['PIL._tkinter_finder', 'tkinterdnd2', 'plyer.platforms.win.notification', 'defusedxml', 'winotify', 'switchcraft.services.addon_service']
+hidden_imports += collect_submodules('switchcraft')
 
 # Manually walk src/switchcraft to find all modules
 src_root = os.path.abspath('src')
@@ -43,7 +44,7 @@ for root, dirs, files in os.walk(pkg_path):
              module_name = rel_path.replace(os.sep, '.')
              hidden_imports.append(module_name)
 
-print(f"DEBUG: Collected {len(hidden_imports)} hidden imports.")
+print(f"DEBUG: Collected {len(hidden_imports)} hidden imports. List: {hidden_imports}")
 
 datas = [
     (ctk_path, ctk_name),
@@ -58,7 +59,7 @@ a = Analysis(
     binaries=[],
     datas=datas,
     hiddenimports=hidden_imports,
-    hookspath=[],
+    hookspath=[os.path.abspath('hooks')],
     hooksconfig={},
     runtime_hooks=[],
     # Exclude sensitive modules to avoid Virus False Positives

@@ -180,9 +180,57 @@ class SettingsView(ctk.CTkFrame):
                               command=do_sync_down).pack(side="left", padx=5)
             else:
                 ctk.CTkButton(self.sync_status_frame, text=i18n.get("btn_login_github"),
-                              fg_color="#24292e", command=lambda: self._start_github_login(update_sync_ui)).pack(pady=5)
+                              fg_color="#24292e", command=lambda: self._show_permission_dialog(update_sync_ui)).pack(pady=5)
 
         update_sync_ui()
+
+    def _show_permission_dialog(self, callback):
+        """Show permission explanation dialog before GitHub login."""
+        import webbrowser
+
+        dialog = ctk.CTkToplevel(self)
+        dialog.title(i18n.get("github_permissions_title") or "GitHub Permissions")
+        dialog.geometry("500x350")
+        dialog.transient(self.winfo_toplevel())
+        dialog.grab_set()
+
+        # Header
+        ctk.CTkLabel(dialog, text="🔐 " + (i18n.get("github_permissions_title") or "GitHub Permissions"),
+                     font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(20, 10))
+
+        # Explanation
+        explanation = i18n.get("github_permissions_explanation") or (
+            "SwitchCraft requests the following GitHub permissions:\n\n"
+            "• gist - Create and edit private Gists to store your settings\n"
+            "• read:user - Read your GitHub username for display\n\n"
+            "Your settings are stored as a PRIVATE Gist in your GitHub account.\n"
+            "No other data is accessed or stored."
+        )
+        ctk.CTkLabel(dialog, text=explanation, justify="left", wraplength=450).pack(pady=10, padx=20)
+
+        # Link to documentation
+        link_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        link_frame.pack(pady=10)
+
+        ctk.CTkLabel(link_frame, text=i18n.get("github_permissions_docs_hint") or "Learn more:").pack(side="left", padx=5)
+        link_label = ctk.CTkLabel(link_frame, text="GitHub Documentation",
+                                   text_color="blue", cursor="hand2")
+        link_label.pack(side="left")
+        link_label.bind("<Button-1>", lambda e: webbrowser.open(
+            "https://github.com/FaserF/SwitchCraft/blob/main/docs/CLOUDSYNC.md"))
+
+        # Buttons
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack(pady=20)
+
+        def proceed():
+            dialog.destroy()
+            self._start_github_login(callback)
+
+        ctk.CTkButton(btn_frame, text=i18n.get("btn_continue") or "Continue",
+                      fg_color="#24292e", command=proceed).pack(side="left", padx=10)
+        ctk.CTkButton(btn_frame, text=i18n.get("btn_cancel") or "Cancel",
+                      fg_color="gray", command=dialog.destroy).pack(side="left", padx=10)
 
     def _start_github_login(self, callback):
         """Initiate GitHub OAuth device flow."""
@@ -903,12 +951,13 @@ class SettingsView(ctk.CTkFrame):
             return False
 
         if AddonService.install_addon_from_zip(path):
-            if not initial_id: # Only show success if explicit upload
-                messagebox.showinfo("Success", "Custom addon installed successfully! Please restart.")
+            success_msg = i18n.get("status_installed_restart") or "Addon installed successfully! Please restart."
+            messagebox.showinfo(i18n.get("restart_required"), success_msg)
             return True
         else:
-            if not initial_id:
-                messagebox.showerror("Error", "Failed to verify or install addon from zip.\nEnsure it contains a valid 'switchcraft_*' package.")
+            # Always show error so user knows what happened
+            error_msg = i18n.get("addon_detect_failed") or "Could not auto-detect a valid SwitchCraft addon in the zip file."
+            messagebox.showerror(i18n.get("installation_failed"), error_msg)
             return False
 
     def _save_manual_config(self, key, value):

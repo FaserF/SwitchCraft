@@ -305,5 +305,9 @@
     "lbl_resources": "Ressourcen",
     "lbl_readme": "Dokumentation",
     "lbl_issues": "Probleme melden",
-    "lbl_project": "Projekt"
+    "lbl_project": "Projekt",
+    "github_permissions_title": "GitHub Berechtigungen",
+    "github_permissions_explanation": "SwitchCraft benötigt folgende GitHub-Berechtigungen:\n\n• gist - Private Gists erstellen/bearbeiten für Einstellungen\n• read:user - GitHub-Benutzernamen zur Anzeige lesen\n\nDeine Einstellungen werden als PRIVATER Gist gespeichert.\nKeine anderen Daten werden abgerufen oder gespeichert.",
+    "github_permissions_docs_hint": "Mehr erfahren:",
+    "btn_continue": "Fortfahren"
 }

@@ -31,7 +31,8 @@ dependencies = [
     "openai",
     "google-generativeai",
     "defusedxml",
-    "PyJWT"
+    "PyJWT",
+    "winotify"
 ]
 requires-python = ">=3.9"
 

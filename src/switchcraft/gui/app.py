@@ -66,6 +66,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Initialize Services early
         AddonService.register_addons()
 
+        # Register this window for notification click-to-focus
+        NotificationService.set_app_window(self)
+
         # 1. AI Addon
         self.ai_service = None
         try:
@@ -162,8 +165,16 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         if is_dev and missing_any:
             logger.info("Dev build detected with missing addons. Auto-installing silently...")
-            # Run in thread to not block UI
-            threading.Thread(target=lambda: AddonService.install_addon("all"), daemon=True).start()
+            # Run in thread to not block UI, then show restart prompt
+            def auto_install_all():
+                success = AddonService.install_all_missing()
+                if success:
+                    logger.info("All addons installed successfully. Prompting for restart...")
+                    self.after(0, self._show_restart_countdown)
+                else:
+                    logger.error("Some addons failed to install.")
+
+            threading.Thread(target=auto_install_all, daemon=True).start()
             return
 
         if not AddonService.is_addon_installed("advanced"):
@@ -326,18 +337,18 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 pil_image = Image.open(logo_path)
                 self.logo_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(80, 80))
 
-                # Set Window Icon (Taskbar/Titlebar)
-                # Use iconphoto for PNG support
-                from PIL import ImageTk
-                icon_photo = ImageTk.PhotoImage(pil_image)
-                self.iconphoto(True, icon_photo) # True applies to all future toplevels too
-
-                # Fix Taskbar Grouping
+                # Fix Taskbar Grouping (MUST BE DONE BEFORE SETTING ICON)
                 myappid = f"switchcraft.app.{__version__}"
                 try:
                     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
                 except Exception:
                     pass
+
+                # Set Window Icon (Taskbar/Titlebar)
+                # Use iconphoto for PNG support
+                from PIL import ImageTk
+                icon_photo = ImageTk.PhotoImage(pil_image)
+                self.iconphoto(True, icon_photo) # True applies to all future toplevels too
             else:
                 logger.warning(f"Logo not found at {logo_path}")
         except Exception as e:
@@ -736,8 +747,21 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
 
 def main():
-    app = App()
-    app.mainloop()
+    try:
+        app = App()
+        app.mainloop()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        try:
+            from tkinter import messagebox, Tk
+            # Attempt to create a root for messagebox if app failed
+            root = Tk()
+            root.withdraw()
+            messagebox.showerror("Fatal Error", f"SwitchCraft crashed on startup:\n{e}\n\nSee console log for details.")
+        except Exception:
+            pass
+        raise
 
 
 if __name__ == "__main__":

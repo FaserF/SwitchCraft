@@ -248,25 +248,59 @@ class UniversalAnalyzer:
 
         # Inno Setup patterns
         if "/verysilent" in lower_text or "inno setup" in lower_text:
-            switches = ["/VERYSILENT"]
-            if "/suppressmsgboxes" in lower_text:
-                switches.append("/SUPPRESSMSGBOXES")
-            if "/norestart" in lower_text:
-                switches.append("/NORESTART")
-            return "Inno Setup", switches
+            return "Inno Setup", ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
 
-        # NSIS patterns
-        if ("/s" in lower_text and "nullsoft" in lower_text) or "nsis" in lower_text:
-            return "NSIS", ["/S"]
+        # Nullsoft (NSIS) patterns
+        if "/s" in lower_text and "/ncij" not in lower_text: # avoid false positive with some weird installers
+            # NSIS usually supports /S (case sensitive sometimes)
+            if "nsis" in lower_text or "nullsoft" in lower_text:
+                 return "NSIS", ["/S"]
 
-        # WiX Burn patterns
-        if "/quiet" in lower_text and ("/norestart" in lower_text or "/passive" in lower_text):
-            if "bundle" in lower_text or "burn" in lower_text or "wix" in lower_text:
-                return "WiX Burn Bundle", ["/quiet", "/norestart"]
+        # Wise Installer
+        if "/s" in lower_text and "wise" in lower_text:
+            return "Wise Installer", ["/s"]
+
+        # TeamViewer (Common in DE)
+        if "teamviewer" in lower_text or "/s" in lower_text and "apitoken" in lower_text:
+            return "TeamViewer", ["/S"]
+
+        # SAP GUI / SAP FrontEnd (Common in DE)
+        if "sap" in lower_text and ("nwbc" in lower_text or "/silent" in lower_text):
+             # SAP often uses specific switches
+             return "SAP Installer", ["/Silent", "/NoDlg"]
+
+        # Datev (Common in DE)
+        if "datev" in lower_text or "dvd" in lower_text:
+             # Datev often wraps MSI or uses proprietary switches
+             return "Datev Installer", ["/Silent", "/Quiet"]
+
+        # Matrix42 (Common in DE)
+        if "matrix42" in lower_text or "empirum" in lower_text:
+             return "Matrix42/Empirum", ["/S2"]
+
+        # Abacus (Common in CH/DE)
+        if "abacus" in lower_text:
+             return "Abacus Installer", ["/SILENT"]
+
+        # Sage (Common in DE)
+        if "sage" in lower_text:
+             return "Sage Installer", ["/silent", "/quiet"]
+
+        # Wix Toolset (Burns)
+        if "wix" in lower_text or "burn" in lower_text:
+            return "Wix Bundle", ["/quiet", "/norestart"]
+
+        # Squirrel (Discord, Slack, etc)
+        if "squirrel" in lower_text or "update.exe" in lower_text:
+             return "Squirrel", ["--silent"]
 
         # Advanced Installer
         if "advanced installer" in lower_text or "/exenoui" in lower_text:
             return "Advanced Installer", ["/exenoui", "/qn"]
+
+        # Generic /S detection if nothing else matched but /S is present
+        if ("/s" in lower_text and "silent" in lower_text) or re.search(r"/\s", lower_text):
+             return "Generic (Silent supported)", ["/S", "/silent", "/quiet"]
 
         # Generic silent/quiet detection
         if "/silent" in lower_text or "--silent" in lower_text:

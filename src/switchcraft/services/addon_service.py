@@ -88,11 +88,7 @@ class AddonService:
             Types: 'ask_browser', 'ask_file', 'ask_manual_zip'
         """
         if addon_id == "all":
-            success = True
-            for aid in cls.ADDONS.keys():
-                if not cls.install_addon(aid, prompt_callback):
-                    success = False
-            return success
+            return cls.install_all_missing()
 
         pkg_name = cls.ADDONS.get(addon_id)
         if not pkg_name:
@@ -170,6 +166,57 @@ class AddonService:
         return False
 
     @classmethod
+    def install_all_missing(cls) -> bool:
+        """
+        Install all missing addons with a single download.
+        Downloads source once and extracts all addon packages.
+        """
+        # 0. Dev/Source Check
+        if not getattr(sys, 'frozen', False):
+            logger.info("Running from source, addons should be present locally.")
+            return True
+
+        # Find which addons are missing
+        missing = []
+        for addon_id, pkg_name in cls.ADDONS.items():
+            if not cls.is_addon_installed(addon_id):
+                missing.append((addon_id, pkg_name))
+
+        if not missing:
+            logger.info("All addons already installed.")
+            return True
+
+        logger.info(f"Installing {len(missing)} missing addons in batch: {[m[0] for m in missing]}")
+
+        # Download source once
+        main_zip_url = "https://github.com/FaserF/SwitchCraft/archive/refs/heads/main.zip"
+        try:
+            logger.info("Downloading source archive (single download for all addons)...")
+            r = requests.get(main_zip_url, stream=True, timeout=120)
+            if r.status_code != 200:
+                logger.error(f"Failed to download source: HTTP {r.status_code}")
+                return False
+
+            zip_content = r.content
+            installed_count = 0
+
+            # Extract each missing addon from the same zip
+            for addon_id, pkg_name in missing:
+                logger.info(f"Extracting {pkg_name} from cached source...")
+                if cls._extract_and_install_zip(zip_content, pkg_name, is_source=True):
+                    installed_count += 1
+                else:
+                    logger.error(f"Failed to extract {pkg_name}")
+
+            logger.info(f"Batch install complete: {installed_count}/{len(missing)} addons installed.")
+            return installed_count == len(missing)
+
+        except Exception as e:
+            logger.error(f"Batch addon installation failed: {e}")
+            return False
+
+
+    @classmethod
     def install_addon_from_zip(cls, zip_path_or_bytes):
         """Install addon from a local zip file or bytes."""
         try:
@@ -216,29 +263,40 @@ class AddonService:
                 if not detected_pkg_name:
                     logger.error("Could not auto-detect valid switchcraft addon in zip.")
                     return False
+
             elif is_source:
-                 # Standard logic for source zips (SwitchCraft-main/src/...)
-                 # The addon packages are in src/ folder, e.g., SwitchCraft-main/src/switchcraft_advanced/__init__.py
-                 # We need to find any path containing src/{pkg_name}/__init__.py
+                # Standard logic for source zips (SwitchCraft-main/src/...)
+                # The addon packages are in src/ folder, e.g., SwitchCraft-main/src/switchcraft_advanced/__init__.py
+                # We need to find any path containing src/{pkg_name}/__init__.py
 
-                 # Log first few entries for debugging
-                 filenames = z.namelist()
-                 logger.debug(f"Zip contains {len(filenames)} files. First 10: {filenames[:10]}")
+                filenames = z.namelist()
+                for fname in filenames:
+                    # Look for pattern: */src/{pkg_name}/__init__.py or src/{pkg_name}/__init__.py
+                    if f"/src/{pkg_name}/__init__.py" in fname or fname == f"src/{pkg_name}/__init__.py":
+                        # Found it! Calculate prefix (everything before pkg_name/)
+                        idx = fname.rfind(f"{pkg_name}/__init__.py")
+                        source_prefix = fname[:idx]
+                        logger.debug(f"Found source package at: {fname}, prefix: '{source_prefix}'")
+                        break
+                    # Also try flat structure (no src/)
+                    elif fname.endswith(f"{pkg_name}/__init__.py") and "/src/" not in fname:
+                        idx = fname.rfind(f"{pkg_name}/__init__.py")
+                        source_prefix = fname[:idx]
+                        logger.debug(f"Found flat package at: {fname}, prefix: '{source_prefix}'")
+                        break
 
-                 for fname in filenames:
-                     # Look for pattern: */src/{pkg_name}/__init__.py or src/{pkg_name}/__init__.py
-                     if f"/src/{pkg_name}/__init__.py" in fname or fname == f"src/{pkg_name}/__init__.py":
-                         # Found it! Calculate prefix (everything before pkg_name/)
-                         idx = fname.rfind(f"{pkg_name}/__init__.py")
-                         source_prefix = fname[:idx]
-                         logger.debug(f"Found source package at: {fname}, prefix: '{source_prefix}'")
-                         break
-                     # Also try flat structure (no src/)
-                     elif fname.endswith(f"{pkg_name}/__init__.py") and "/src/" not in fname:
-                         idx = fname.rfind(f"{pkg_name}/__init__.py")
-                         source_prefix = fname[:idx]
-                         logger.debug(f"Found flat package at: {fname}, prefix: '{source_prefix}'")
-                         break
+                if source_prefix is None:
+                    # Fallback: Check for folder existence even without init
+                    for fname in filenames:
+                         if f"/{pkg_name}/" in fname and not fname.startswith("__MACOSX") and not fname.endswith(".zip"):
+                              idx = fname.find(f"/{pkg_name}/") + 1
+                              source_prefix = fname[:idx]
+                              logger.warning(f"Fallback detection: Found {pkg_name} folder at '{fname}' without explicit init check. Prefix: '{source_prefix}'")
+                              break
+
+                if source_prefix is None:
+                    logger.error(f"Could not find {pkg_name} in zip. Searched for variant of 'src/{pkg_name}/__init__.py'.")
+                    logger.error(f"Zip Content Sample (First 20): {filenames[:20]}")
 
             # If not source and not auto-detect (e.g. release asset), we assume root is package content?
             # Actually release assets are usually just the folder zipped?
@@ -261,24 +319,42 @@ class AddonService:
 
             logger.info(f"Extracting {detected_pkg_name} from prefix '{source_prefix}'")
 
-            # Cleanup existing if any
-            target_dir = addon_root / detected_pkg_name
-            if target_dir.exists():
-                shutil.rmtree(target_dir)
+            # Cleanup existing
+            package_dir = addon_root / detected_pkg_name
+            if package_dir.exists():
+                shutil.rmtree(package_dir)
 
+            extracted_any = False
             for member in z.infolist():
                 if member.filename.startswith(source_prefix):
-                    rel_path = member.filename[len(source_prefix):]
-                    if not rel_path or rel_path.startswith("__MACOSX"): continue # Skip junk
+                    rel_path = member.filename[len(source_prefix):] # e.g. switchcraft_advanced/mod.py
 
-                    # Ensure we are extracting into package folder
-                    full_target = target_dir / rel_path
+                    if not rel_path or rel_path.startswith("__MACOSX"): continue
+
+                    # Security check: rel_path should start with pkg_name
+                    if not rel_path.startswith(detected_pkg_name):
+                        continue
+
+                    # Extract to addon_root / rel_path -> addon_root / switchcraft_advanced / mod.py
+                    full_target = addon_root / rel_path
+
                     if member.is_dir():
                         full_target.mkdir(parents=True, exist_ok=True)
                     else:
                         full_target.parent.mkdir(parents=True, exist_ok=True)
                         with z.open(member) as s, open(full_target, "wb") as t:
                             shutil.copyfileobj(s, t)
+                        extracted_any = True
+
+            if not extracted_any:
+                logger.error(f"No files extracted for {detected_pkg_name}. Check prefix logic.")
+                return False
+
+            # Create missing init if needed (Handle unpushed repo state)
+            init_file = package_dir / "__init__.py"
+            if not init_file.exists():
+                logger.warning(f"__init__.py missing for {detected_pkg_name}. Creating dummy init.")
+                init_file.touch()
 
             logger.info(f"Installed {detected_pkg_name}")
             return True
