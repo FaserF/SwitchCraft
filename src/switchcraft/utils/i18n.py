@@ -58,10 +58,18 @@ class I18n:
         """Load translations from JSON files in assets/lang."""
         try:
             # Use pathlib for better cross-platform handling
+            import sys
+            import os
             from pathlib import Path
-            base_path = Path(__file__).parent
-            # src/switchcraft/utils/../assets/lang -> src/switchcraft/assets/lang
-            lang_dir = base_path.parent / "assets" / "lang"
+
+            if getattr(sys, 'frozen', False):
+                # PyInstaller: Assets are at root/assets
+                base_path = Path(sys._MEIPASS)
+                lang_dir = base_path / "assets" / "lang"
+            else:
+                # Dev: src/switchcraft/utils/../assets/lang -> src/switchcraft/assets/lang
+                base_path = Path(__file__).parent
+                lang_dir = base_path.parent / "assets" / "lang"
 
             logger.debug(f"Loading translations from: {lang_dir.resolve()}")
 

@@ -146,3 +146,54 @@ class SwitchCraftConfig:
             keyring.set_password("SwitchCraft", key_name, value)
         except Exception as e:
             logger.error(f"Failed to set secret '{key_name}': {e}")
+
+    @classmethod
+    def delete_secret(cls, key_name: str):
+        """Remove a secret from the system keyring."""
+        try:
+            import keyring
+            keyring.delete_password("SwitchCraft", key_name)
+        except Exception as e:
+            logger.error(f"Failed to delete secret '{key_name}': {e}")
+
+    @classmethod
+    def export_preferences(cls) -> dict:
+        """
+        Exports all User Preference values (HKCU) to a dictionary.
+        This is used for CloudSync.
+        """
+        if sys.platform != 'win32':
+            return {}
+
+        prefs = {}
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH, 0, winreg.KEY_READ) as key:
+                i = 0
+                while True:
+                    try:
+                        name, value, _ = winreg.EnumValue(key, i)
+                        prefs[name] = value
+                        i += 1
+                    except OSError:
+                        break
+        except Exception as e:
+            logger.error(f"Failed to export preferences: {e}")
+
+        return prefs
+
+    @classmethod
+    def import_preferences(cls, data: dict):
+        """
+        Imports preferences from a dictionary to the User Preference registry key (HKCU).
+        Overwrites existing values if they exist.
+        """
+        if not data or sys.platform != 'win32':
+            return
+
+        try:
+            for key, value in data.items():
+                cls.set_user_preference(key, value)
+            logger.info("Preferences imported successfully.")
+        except Exception as e:
+            logger.error(f"Failed to import preferences: {e}")

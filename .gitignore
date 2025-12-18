@@ -82,3 +82,7 @@ env/
 debug.log
 error.log
 *.tmp
+debug_pyinstaller.py
+run_log.txt
+debug_collection.py
+run_log_init.txt

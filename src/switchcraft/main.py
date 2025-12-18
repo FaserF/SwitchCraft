@@ -1,7 +1,15 @@
 import click
 import logging
 import sys
+import os
 from pathlib import Path
+
+# Ensure 'src' is in sys.path to prioritize local source over installed package
+# This prevents "Shadowing" issues where an old installed version is imported instead of the local code.
+if __name__ == "__main__":
+    # If running as script, add project root (src) to path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from rich import print
 from rich.panel import Panel
 from rich.table import Table
@@ -12,6 +20,11 @@ from switchcraft.analyzers.exe import ExeAnalyzer
 from switchcraft.analyzers.macos import MacOSAnalyzer
 from switchcraft.utils.winget import WingetHelper
 from switchcraft.utils.config import SwitchCraftConfig
+
+# PyInstaller Static Analysis Hint
+if False:
+    import switchcraft.gui.app
+
 
 
 
@@ -54,7 +67,38 @@ def cli(filepath, output_json):
             gui_main()
             return
         except ImportError as e:
-            print(f"[bold red]GUI dependencies not found. Please install 'customtkinter' and 'tkinterdnd2'. Error: {e}[/bold red]")
+            print(f"[bold red]GUI dependencies not found or failed to load.[/bold red]")
+            print(f"[red]Detailed Error: {e}[/red]")
+            # Diagnositc info
+            print(f"Sys Path: {sys.path}")
+
+            # List contents of switchcraft package if possible
+            try:
+                import switchcraft
+                print(f"SwitchCraft Module: {switchcraft}")
+                if hasattr(switchcraft, '__path__'):
+                    print(f"SwitchCraft Path: {switchcraft.__path__}")
+                    # Recursively walk to see ALL files
+                    for p in switchcraft.__path__:
+                        for root, dirs, files in os.walk(p):
+                            print(f"Content of {root}: {files}")
+
+                        # Read the init file if it exists
+                        init_file = os.path.join(p, '__init__.py')
+                        if os.path.exists(init_file):
+                            print(f"--- CONTENT OF {init_file} ---")
+                            try:
+                                with open(init_file, 'r') as f:
+                                    print(f.read())
+                            except:
+                                print("Could not read file.")
+                            print("--- END CONTENT ---")
+            except Exception as ex:
+                print(f"Could not list package contents: {ex}")
+
+            import traceback
+            traceback.print_exc()
+            input("\nPress Enter to close...")
             return
 
     path = Path(filepath)

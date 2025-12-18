@@ -21,7 +21,16 @@
 - [**GPO / Policies**](docs/PolicyDefinitions/README.md): ADMX Templates.
 - [**🔐 Security Guide**](docs/SECURITY.md): Details on Encryption, ASR, and Safe Usage.
 
+## 🧩 Addons & Extensions
+
+SwitchCraft uses a modular addon system for advanced features like **Intune Integration** and **AI Analysis**. This ensures the core tool remains lightweight and less prone to false-positive antivirus detections.
+
+- **Automatic Install**: The app will prompt you to download missing features when needed.
+- **Manual Install**: You can upload custom addons in Settings.
+- 👉 [**Read the Addon Guide**](docs/ADDONS.md) for more details.
+
 ## 🚀 Installation
+
 
 ### Pre-built Binaries
 Download from the [Releases](https://github.com/FaserF/SwitchCraft/releases) page:

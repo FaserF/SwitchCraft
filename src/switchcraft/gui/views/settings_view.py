@@ -669,15 +669,56 @@ class SettingsView(ctk.CTkFrame):
                  ctk.CTkButton(row, text=i18n.get("btn_download"), width=80,
                                command=lambda id=addon["id"]: self._install_addon(id)).pack(side="right", padx=5)
 
+        # Custom Addon Upload
+        ctk.CTkButton(frame, text="Upload Custom Addon (.zip)", fg_color="gray", command=self._upload_custom_addon).pack(pady=10)
+
     def _install_addon(self, addon_id):
         from switchcraft.services.addon_service import AddonService
-        # In a real app, this would show progress. For MVP, we simulate or open link if failing.
-        messagebox.showinfo("Download", f"Downloading addon {addon_id}...\n(This will happen in background in final version)")
-        # Trigger service
-        if AddonService.install_addon(addon_id):
+
+        def prompt_handler(action_type, **kwargs):
+            if action_type == "ask_browser":
+                url = kwargs.get("url")
+                return messagebox.askyesno(
+                    "Download Failed",
+                    f"Automated download failed.\n\nOpen release page in browser to download manually?\n({url})"
+                ) and webbrowser.open(url)
+
+            if action_type == "ask_manual_zip":
+                return self._upload_custom_addon(initial_id=kwargs.get("addon_id"))
+
+            return False
+
+        messagebox.showinfo("Download", f"Attempting to install addon {addon_id}...\nPlease wait.")
+
+        # execution in thread to not freeze UI, but Tkinter messagebox must be main thread...
+        # For simplicity in this codebase structure, we run slightly blocking or we need a proper worker.
+        # Given prompt_handler needs UI interaction, we might need to run main logic in thread and invoke prompt on main.
+        # But for now, let's keep it simple as requests are synchronous. Updates might freeze UI briefly.
+
+        if AddonService.install_addon(addon_id, prompt_callback=prompt_handler):
              messagebox.showinfo("Success", f"Addon {addon_id} installed! Please restart.")
         else:
-             webbrowser.open("https://github.com/FaserF/SwitchCraft/releases/latest")
+             messagebox.showerror("Error", f"Failed to install addon {addon_id}.")
+
+    def _upload_custom_addon(self, initial_id=None):
+        from switchcraft.services.addon_service import AddonService
+
+        if not initial_id:
+            if not messagebox.askyesno("Warning", "Installing custom addons can execute arbitrary code.\nOnly install addons from trusted sources.\n\nContinue?"):
+                return False
+
+        path = ctk.filedialog.askopenfilename(filetypes=[("Zip Archive", "*.zip")])
+        if not path:
+            return False
+
+        if AddonService.install_addon_from_zip(path):
+            if not initial_id: # Only show success if explicit upload
+                messagebox.showinfo("Success", "Custom addon installed successfully! Please restart.")
+            return True
+        else:
+            if not initial_id:
+                messagebox.showerror("Error", "Failed to verify or install addon from zip.\nEnsure it contains a valid 'switchcraft_*' package.")
+            return False
 
     def _save_manual_config(self, key, value):
         SwitchCraftConfig.set_user_preference(key, value)

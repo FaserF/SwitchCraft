@@ -1,7 +1,5 @@
 import customtkinter as ctk
-import time
 from switchcraft.utils.i18n import i18n
-import threading
 
 class CountdownDialog(ctk.CTkToplevel):
     """

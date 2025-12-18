@@ -109,6 +109,7 @@
     "settings_tmpl_select": "Eigenes Template wählen",
     "settings_tmpl_reset": "Auf Standard zurücksetzen",
     "settings_debug_title": "Debugging",
+    "settings_hdr_debug_console": "Debug-Konsole",
     "settings_debug_console": "Live Debug-Konsole anzeigen",
     "ai_tip_extraction": "⚠️ Tipp: Installer mit '/S' sind oft selbstentpackende Archive (7-Zip SFX). Falls die Installation fehlschlägt, versuche die Datei zuerst mit 7-Zip zu entpacken!",
     "view_detailed_params": "🔍 Rekursive Parameter anzeigen",

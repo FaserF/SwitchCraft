@@ -109,6 +109,7 @@
     "settings_tmpl_select": "Select Custom Template",
     "settings_tmpl_reset": "Reset to Default",
     "settings_debug_title": "Debugging",
+    "settings_hdr_debug_console": "Debug Console",
     "settings_debug_console": "Show Live Debug Console",
     "ai_tip_extraction": "⚠️ Tip: Installers using '/S' might be self-extracting archives (7-Zip SFX). If silent install fails, try extracting it first using 7-Zip!",
     "view_detailed_params": "🔍 View Recursive Parameters",

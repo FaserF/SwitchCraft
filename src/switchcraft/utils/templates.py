@@ -8,7 +8,13 @@ logger = logging.getLogger(__name__)
 class TemplateGenerator:
     """Generates PowerShell scripts from templates."""
 
-    DEFAULT_TEMPLATE_PATH = Path(__file__).parent.parent / "assets" / "templates" / "DefaultIntuneTemplate.ps1"
+    import sys
+    import os
+    if getattr(sys, 'frozen', False):
+         # PyInstaller: assets/templates
+         DEFAULT_TEMPLATE_PATH = Path(sys._MEIPASS) / "assets" / "templates" / "DefaultIntuneTemplate.ps1"
+    else:
+         DEFAULT_TEMPLATE_PATH = Path(__file__).parent.parent / "assets" / "templates" / "DefaultIntuneTemplate.ps1"
 
     def __init__(self, custom_template_path: str = None):
         from switchcraft.utils.config import SwitchCraftConfig

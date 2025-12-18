@@ -88,7 +88,8 @@ class AnalyzerView(ctk.CTkFrame):
         self.progress_bar.grid_remove()
 
     def _create_addon_warning(self, row):
-        from switchcraft.services.addon_service import AddonService
+        # from switchcraft.services.addon_service import AddonService  # Avoid Circular Import if not needed
+
         warning_frame = ctk.CTkFrame(self, fg_color="#5e1b1b") # Dark red bg
         warning_frame.grid(row=row, column=0, sticky="ew", padx=10, pady=(10,0))
         warning_frame.grid_columnconfigure(1, weight=1)

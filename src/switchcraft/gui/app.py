@@ -194,11 +194,26 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         def do_restart():
             import sys
             import subprocess
+            import os
             logger.info("Restarting application...")
-            # Simple restart: Run executable again and exit
+
+            # Ensure we have the full path to executable
+            executable = sys.executable
+            args = sys.argv[:]
+
+            # If we are running as a script (e.g. "python app.py"), executable is python.
+            # If frozen, executable is the app exe.
+
             try:
-                subprocess.Popen([sys.executable] + sys.argv)
-                sys.exit(0)
+                # Use Popen with DETACHED_PROCESS flag on Windows to ensure it survives parent death
+                if sys.platform == 'win32':
+                    CREATE_NEW_CONSOLE = 0x00000010
+                    subprocess.Popen([executable] + args, creationflags=CREATE_NEW_CONSOLE, close_fds=True)
+                else:
+                    subprocess.Popen([executable] + args, close_fds=True)
+
+                self.quit()  # Stop mainloop
+                os._exit(0)  # Force exit
             except Exception as e:
                 logger.error(f"Restart failed: {e}")
                 messagebox.showerror("Error", "Could not restart automatically. Please restart manually.")
