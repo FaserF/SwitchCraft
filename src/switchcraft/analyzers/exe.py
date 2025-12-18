@@ -493,14 +493,30 @@ class ExeAnalyzer(BaseAnalyzer):
     def _check_dell_installer(self, file_path: Path) -> bool:
         """Check for Dell Update Package signature."""
         try:
+            # Check filename patterns first (fast check)
+            name_lower = file_path.name.lower()
+            dell_filename_patterns = [
+                "dell-command",
+                "dellcommand",
+                "dell_command",
+                "dell-update",
+                "dellupdate",
+            ]
+            for pattern in dell_filename_patterns:
+                if pattern in name_lower:
+                    return True
+
             with open(file_path, 'rb') as f:
-                data = f.read(1024 * 1024)
+                # Read more data for Dell installers which may have markers deeper
+                data = f.read(1024 * 1024 * 2)  # 2MB
                 markers = [
                     b"Dell Inc.",
                     b"Dell Update Package",
                     b"DUP Framework",
                     b"Dell Command",
                     b"Dell Technologies",
+                    b"Dell\\x00Inc",  # Wide char variant
+                    b"D\x00e\x00l\x00l",  # UTF-16 "Dell"
                 ]
                 for marker in markers:
                     if marker in data:

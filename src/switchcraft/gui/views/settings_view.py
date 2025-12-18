@@ -30,7 +30,7 @@ class SettingsView(ctk.CTkFrame):
         self.tabview.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
         # Tabs
-        self.tab_general = self.tabview.add(i18n.get("settings_title") or "General")
+        self.tab_general = self.tabview.add(i18n.get("settings_general") or "General")
         self.tab_updates = self.tabview.add(i18n.get("settings_hdr_update") or "Updates")
         self.tab_deploy = self.tabview.add(i18n.get("deployment_title") or "Deployment")
         self.tab_help = self.tabview.add(i18n.get("help_title") or "Help") # Fixed key
@@ -69,7 +69,9 @@ class SettingsView(ctk.CTkFrame):
         frame_lang.pack(fill="x", padx=10, pady=5)
         ctk.CTkLabel(frame_lang, text=i18n.get("settings_language")).pack(side="left", padx=5)
 
-        lang_var = ctk.StringVar(value=SwitchCraftConfig.get_value("Language", "en"))
+        # Use i18n detected language as default if not explicitly saved in config
+        saved_lang = SwitchCraftConfig.get_value("Language", None)
+        lang_var = ctk.StringVar(value=saved_lang if saved_lang else i18n.language)
         def change_lang(val):
             SwitchCraftConfig.set_user_preference("Language", val)
             messagebox.showinfo(i18n.get("restart_required"), i18n.get("restart_required_msg"))
@@ -90,6 +92,191 @@ class SettingsView(ctk.CTkFrame):
 
         # AI Configuration
         self._setup_ai_config(scroll)
+
+        # CloudSync Section
+        self._setup_cloudsync(scroll)
+
+        # Export/Import Section
+        self._setup_export_import(scroll)
+
+    def _setup_cloudsync(self, parent):
+        """Setup GitHub CloudSync section."""
+        from switchcraft.services.auth_service import AuthService
+        from switchcraft.services.sync_service import SyncService
+        import threading
+
+        frame = ctk.CTkFrame(parent)
+        frame.pack(fill="x", padx=10, pady=10)
+
+        ctk.CTkLabel(frame, text=i18n.get("cloudsync_title") or "Cloud Sync",
+                     font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=5)
+
+        self.sync_status_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        self.sync_status_frame.pack(fill="x", padx=10, pady=5)
+
+        def update_sync_ui():
+            # Clear existing widgets
+            for w in self.sync_status_frame.winfo_children():
+                w.destroy()
+
+            if AuthService.is_authenticated():
+                user_info = AuthService.get_user_info()
+                username = user_info.get("login", "Unknown") if user_info else "Unknown"
+
+                row = ctk.CTkFrame(self.sync_status_frame, fg_color="transparent")
+                row.pack(fill="x")
+
+                ctk.CTkLabel(row, text=f"{i18n.get('logged_in_as')}: {username}",
+                             text_color="green").pack(side="left", padx=5)
+                ctk.CTkButton(row, text=i18n.get("btn_logout"), width=80, fg_color="gray",
+                              command=lambda: [AuthService.logout(), update_sync_ui()]).pack(side="right", padx=5)
+
+                # Sync buttons
+                btn_row = ctk.CTkFrame(self.sync_status_frame, fg_color="transparent")
+                btn_row.pack(fill="x", pady=5)
+
+                def do_sync_up():
+                    def _run():
+                        success = SyncService.sync_up()
+                        self.after(0, lambda: messagebox.showinfo("Sync",
+                            i18n.get("sync_success_up") if success else i18n.get("sync_failed")))
+                    threading.Thread(target=_run, daemon=True).start()
+
+                def do_sync_down():
+                    def _run():
+                        # Check for conflicts first
+                        gist_id = SyncService.find_sync_gist()
+                        if gist_id:
+                            remote = SyncService.get_remote_settings(gist_id)
+                            local = SwitchCraftConfig.export_preferences()
+
+                            if remote and remote != local:
+                                # Show conflict dialog
+                                def show_conflict():
+                                    result = messagebox.askyesnocancel(
+                                        i18n.get("sync_conflict_title"),
+                                        i18n.get("sync_conflict_msg") + "\n\nYes = Cloud, No = Local, Cancel = Abort"
+                                    )
+                                    if result is True:  # Use cloud
+                                        SwitchCraftConfig.import_preferences(remote)
+                                        messagebox.showinfo("Sync", i18n.get("sync_success_down"))
+                                    elif result is False:  # Keep local, upload
+                                        SyncService.sync_up()
+                                        messagebox.showinfo("Sync", i18n.get("sync_success_up"))
+                                    # Cancel = do nothing
+                                self.after(0, show_conflict)
+                            else:
+                                # No conflict, just apply
+                                success = SyncService.sync_down()
+                                self.after(0, lambda: messagebox.showinfo("Sync",
+                                    i18n.get("sync_success_down") if success else i18n.get("sync_failed")))
+                        else:
+                            self.after(0, lambda: messagebox.showwarning("Sync", i18n.get("sync_failed")))
+                    threading.Thread(target=_run, daemon=True).start()
+
+                ctk.CTkButton(btn_row, text=i18n.get("btn_sync_up"), width=150,
+                              command=do_sync_up).pack(side="left", padx=5)
+                ctk.CTkButton(btn_row, text=i18n.get("btn_sync_down"), width=150,
+                              command=do_sync_down).pack(side="left", padx=5)
+            else:
+                ctk.CTkButton(self.sync_status_frame, text=i18n.get("btn_login_github"),
+                              fg_color="#24292e", command=lambda: self._start_github_login(update_sync_ui)).pack(pady=5)
+
+        update_sync_ui()
+
+    def _start_github_login(self, callback):
+        """Initiate GitHub OAuth device flow."""
+        from switchcraft.services.auth_service import AuthService
+        import threading
+
+        def _login():
+            flow = AuthService.initiate_device_flow()
+            if not flow:
+                self.after(0, lambda: messagebox.showerror("Error", "Failed to start login flow."))
+                return
+
+            user_code = flow.get("user_code")
+            verification_uri = flow.get("verification_uri")
+            device_code = flow.get("device_code")
+            interval = flow.get("interval", 5)
+            expires_in = flow.get("expires_in", 900)
+
+            # Show dialog with code
+            def show_code_dialog():
+                dialog = ctk.CTkToplevel(self)
+                dialog.title(i18n.get("github_auth_title"))
+                dialog.geometry("400x200")
+                dialog.transient(self.winfo_toplevel())
+                dialog.grab_set()
+
+                ctk.CTkLabel(dialog, text=i18n.get("github_auth_msg")).pack(pady=10)
+                ctk.CTkLabel(dialog, text=verification_uri, text_color="blue",
+                             cursor="hand2").pack(pady=5)
+                ctk.CTkLabel(dialog, text=user_code, font=ctk.CTkFont(size=24, weight="bold"),
+                             text_color="green").pack(pady=10)
+
+                def copy_and_open():
+                    self.clipboard_clear()
+                    self.clipboard_append(user_code)
+                    import webbrowser
+                    webbrowser.open(verification_uri)
+
+                ctk.CTkButton(dialog, text=i18n.get("btn_copy") + " & Open", command=copy_and_open).pack(pady=10)
+
+                # Poll in background
+                def poll():
+                    token = AuthService.poll_for_token(device_code, interval, expires_in)
+                    if token:
+                        AuthService.save_token(token)
+                        self.after(0, dialog.destroy)
+                        self.after(0, callback)
+                    else:
+                        self.after(0, dialog.destroy)
+
+                threading.Thread(target=poll, daemon=True).start()
+
+            self.after(0, show_code_dialog)
+
+        threading.Thread(target=_login, daemon=True).start()
+
+    def _setup_export_import(self, parent):
+        """Setup Export/Import settings section."""
+        frame = ctk.CTkFrame(parent)
+        frame.pack(fill="x", padx=10, pady=10)
+
+        ctk.CTkLabel(frame, text=i18n.get("btn_export_settings").replace(" exportieren", "") or "Settings Backup",
+                     font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=5)
+
+        btn_row = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_row.pack(fill="x", padx=10, pady=5)
+
+        def export_settings():
+            path = ctk.filedialog.asksaveasfilename(
+                defaultextension=".json",
+                filetypes=[("JSON", "*.json")],
+                initialfile="switchcraft_settings.json"
+            )
+            if path:
+                prefs = SwitchCraftConfig.export_preferences()
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(prefs, f, indent=4)
+                messagebox.showinfo("Export", f"{i18n.get('export_success')}\n{path}")
+
+        def import_settings():
+            path = ctk.filedialog.askopenfilename(filetypes=[("JSON", "*.json")])
+            if path:
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    SwitchCraftConfig.import_preferences(data)
+                    messagebox.showinfo("Import", i18n.get("import_success"))
+                except Exception as e:
+                    messagebox.showerror("Import", f"{i18n.get('import_failed')}\n{e}")
+
+        ctk.CTkButton(btn_row, text=i18n.get("btn_export_settings"), width=150,
+                      command=export_settings).pack(side="left", padx=5)
+        ctk.CTkButton(btn_row, text=i18n.get("btn_import_settings"), width=150,
+                      command=import_settings).pack(side="left", padx=5)
 
     def _setup_tab_updates(self, parent):
         scroll = ctk.CTkScrollableFrame(parent)
@@ -488,8 +675,8 @@ class SettingsView(ctk.CTkFrame):
 
         from switchcraft.services.addon_service import AddonService
         if not AddonService.is_addon_installed("advanced"):
-            ctk.CTkLabel(frame, text=i18n.get("addon_advanced_required") or "Requires 'Advanced Features' Addon", text_color="orange").pack(pady=5)
-            ctk.CTkButton(frame, text="Go to Addon Manager", command=lambda: self.tabview.set(i18n.get("help_title") or "Help")).pack(pady=5)
+            ctk.CTkLabel(frame, text=i18n.get("addon_advanced_required"), text_color="orange").pack(pady=5)
+            ctk.CTkButton(frame, text=i18n.get("btn_goto_addon_manager"), command=lambda: self.tabview.set(i18n.get("help_title") or "Help")).pack(pady=5)
             # Disable the rest
             return
 
@@ -547,7 +734,7 @@ class SettingsView(ctk.CTkFrame):
         if current_tpl:
             self.template_entry.insert(0, current_tpl)
         else:
-            self.template_entry.insert(0, "(Default)")
+            self.template_entry.insert(0, i18n.get("template_default"))
         self.template_entry.configure(state="disabled")
 
         def browse_template():
@@ -631,8 +818,8 @@ class SettingsView(ctk.CTkFrame):
         self.console_textbox.configure(state="disabled")
 
     def _get_registry_value(self, key):
-        # Mock or real usage
-        return "stable"
+        """Get value from config, with version-based fallback."""
+        return SwitchCraftConfig.get_value(key, None)
 
     def change_update_channel(self, value):
         # ...
@@ -660,17 +847,21 @@ class SettingsView(ctk.CTkFrame):
 
             is_installed = AddonService.is_addon_installed(addon["id"])
             status_color = "green" if is_installed else "orange"
-            status_text = "Installed" if is_installed else "Not Installed"
+            status_text = i18n.get("status_installed") if is_installed else i18n.get("status_not_installed")
 
             ctk.CTkLabel(row, text=addon["name"], font=ctk.CTkFont(weight="bold")).pack(side="left", padx=5)
             ctk.CTkLabel(row, text=status_text, text_color=status_color).pack(side="right", padx=10)
+
+            # Manual upload button (always available for official addons)
+            ctk.CTkButton(row, text=i18n.get("btn_manual_upload"), width=70, fg_color="gray",
+                          command=lambda id=addon["id"]: self._upload_custom_addon(initial_id=id)).pack(side="right", padx=2)
 
             if not is_installed:
                  ctk.CTkButton(row, text=i18n.get("btn_download"), width=80,
                                command=lambda id=addon["id"]: self._install_addon(id)).pack(side="right", padx=5)
 
         # Custom Addon Upload
-        ctk.CTkButton(frame, text="Upload Custom Addon (.zip)", fg_color="gray", command=self._upload_custom_addon).pack(pady=10)
+        ctk.CTkButton(frame, text=i18n.get("btn_upload_custom_addon"), fg_color="gray", command=self._upload_custom_addon).pack(pady=10)
 
     def _install_addon(self, addon_id):
         from switchcraft.services.addon_service import AddonService
@@ -704,7 +895,7 @@ class SettingsView(ctk.CTkFrame):
         from switchcraft.services.addon_service import AddonService
 
         if not initial_id:
-            if not messagebox.askyesno("Warning", "Installing custom addons can execute arbitrary code.\nOnly install addons from trusted sources.\n\nContinue?"):
+            if not messagebox.askyesno(i18n.get("addon_custom_warning_title"), i18n.get("addon_custom_warning_msg")):
                 return False
 
         path = ctk.filedialog.askopenfilename(filetypes=[("Zip Archive", "*.zip")])

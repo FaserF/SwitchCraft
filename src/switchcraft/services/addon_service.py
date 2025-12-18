@@ -217,13 +217,28 @@ class AddonService:
                     logger.error("Could not auto-detect valid switchcraft addon in zip.")
                     return False
             elif is_source:
-                 # Standard logic for source zips (SwitchCraft-main/...)
-                 init_file = f"{pkg_name}/__init__.py"
-                 for fname in z.namelist():
-                    if fname.endswith(init_file):
-                        suffix_len = len(init_file)
-                        source_prefix = fname[:-suffix_len]
-                        break
+                 # Standard logic for source zips (SwitchCraft-main/src/...)
+                 # The addon packages are in src/ folder, e.g., SwitchCraft-main/src/switchcraft_advanced/__init__.py
+                 # We need to find any path containing src/{pkg_name}/__init__.py
+
+                 # Log first few entries for debugging
+                 filenames = z.namelist()
+                 logger.debug(f"Zip contains {len(filenames)} files. First 10: {filenames[:10]}")
+
+                 for fname in filenames:
+                     # Look for pattern: */src/{pkg_name}/__init__.py or src/{pkg_name}/__init__.py
+                     if f"/src/{pkg_name}/__init__.py" in fname or fname == f"src/{pkg_name}/__init__.py":
+                         # Found it! Calculate prefix (everything before pkg_name/)
+                         idx = fname.rfind(f"{pkg_name}/__init__.py")
+                         source_prefix = fname[:idx]
+                         logger.debug(f"Found source package at: {fname}, prefix: '{source_prefix}'")
+                         break
+                     # Also try flat structure (no src/)
+                     elif fname.endswith(f"{pkg_name}/__init__.py") and "/src/" not in fname:
+                         idx = fname.rfind(f"{pkg_name}/__init__.py")
+                         source_prefix = fname[:idx]
+                         logger.debug(f"Found flat package at: {fname}, prefix: '{source_prefix}'")
+                         break
 
             # If not source and not auto-detect (e.g. release asset), we assume root is package content?
             # Actually release assets are usually just the folder zipped?
@@ -231,13 +246,14 @@ class AddonService:
             # Standard SwitchCraft release asset: switchcraft_winget.zip -> contains switchcraft_winget/ folder?
             # Let's handle both.
 
-            if not source_prefix:
+            if source_prefix is None and not auto_detect:
                 # Maybe it is at root
                 if f"{detected_pkg_name}/__init__.py" in z.namelist():
                     source_prefix = ""
+                    logger.debug(f"Found package at root level")
                 else:
-                    # Try to see if it is just flat files? (Unlikely for python pkg)
-                    pass
+                    # Log what we have for debugging
+                    logger.debug(f"Could not find {detected_pkg_name}/__init__.py in zip. Available paths: {z.namelist()[:20]}")
 
             if source_prefix is None:
                 logger.error(f"Structure mismatch in zip for {detected_pkg_name}")

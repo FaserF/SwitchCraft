@@ -33,14 +33,12 @@ class AnalyzerView(ctk.CTkFrame):
         self.queue = []
         self._is_analyzing = False
 
-        # Grid layout
+        # Grid layout - column expands, rows configured in setup_ui
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
 
         self.setup_ui()
 
     def setup_ui(self):
-        # Drop Zone
         # Drop Zone
         row_offset = 0
 
@@ -50,40 +48,42 @@ class AnalyzerView(ctk.CTkFrame):
             self._create_addon_warning(row_offset)
             row_offset += 1
 
+        # Drop zone - fixed height, no expansion
         self.drop_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.drop_frame.grid(row=row_offset, column=0, sticky="ew", padx=10, pady=10)
+        self.drop_frame.grid(row=row_offset, column=0, sticky="ew", padx=10, pady=(10, 5))
 
         btn_text = i18n.get("drag_drop")
         image = getattr(self.app, 'logo_image', None)
 
         self.drop_label = ctk.CTkButton(self.drop_frame, text=btn_text,
                                         image=image,
-                                        compound="top",
-                                        height=120, corner_radius=15,
+                                        compound="left",
+                                        height=50, corner_radius=10,
                                         fg_color=("#3B8ED0", "#4A235A"),
                                         hover_color=("#36719F", "#5B2C6F"),
-                                        font=ctk.CTkFont(size=18, weight="bold"),
+                                        font=ctk.CTkFont(size=14, weight="bold"),
                                         command=self._on_browse)
-        self.drop_label.pack(fill="x", expand=True)
+        self.drop_label.pack(fill="x")
 
         self.drop_label.drop_target_register(DND_FILES)
         self.drop_label.dnd_bind('<<Drop>>', self._on_drop)
 
-        # Result Area
-        # Result Area
+        # Result Area - this row should expand
+        result_row = row_offset + 1
         self.result_frame = ctk.CTkScrollableFrame(self, label_text=i18n.get("analysis_complete"))
-        self.result_frame.grid(row=row_offset+1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        self.result_frame.grid(row=result_row, column=0, sticky="nsew", padx=10, pady=(0, 5))
         self.result_frame.grid_columnconfigure(0, weight=1)
+
+        # Configure grid: only result row expands
+        self.grid_rowconfigure(result_row, weight=1)
 
         # Status Bar
         self.status_bar = ctk.CTkLabel(self, text="Ready", anchor="w", text_color="gray")
-        # Status Bar
-        self.status_bar = ctk.CTkLabel(self, text="Ready", anchor="w", text_color="gray")
-        self.status_bar.grid(row=row_offset+2, column=0, sticky="ew", padx=10, pady=(5, 0))
+        self.status_bar.grid(row=result_row+1, column=0, sticky="ew", padx=10, pady=(5, 0))
 
         # Progress Bar
         self.progress_bar = ctk.CTkProgressBar(self)
-        self.progress_bar.grid(row=row_offset+3, column=0, sticky="ew", padx=10, pady=(0, 5))
+        self.progress_bar.grid(row=result_row+2, column=0, sticky="ew", padx=10, pady=(0, 5))
         self.progress_bar.set(0)
         self.progress_bar.grid_remove()
 
@@ -392,13 +392,26 @@ class AnalyzerView(ctk.CTkFrame):
 
         if info.install_switches:
             self._add_separator()
-            ctk.CTkButton(self.result_frame,
+
+            # All-in-One button with docs link
+            aio_frame = ctk.CTkFrame(self.result_frame, fg_color="transparent")
+            aio_frame.pack(fill="x", pady=10)
+
+            ctk.CTkButton(aio_frame,
                           text=i18n.get("auto_deploy_btn"),
                           fg_color=("#E04F5F", "#C0392B"),
                           height=40,
                           font=ctk.CTkFont(size=14, weight="bold"),
                           command=lambda: self._run_all_in_one_flow(info)
-                          ).pack(pady=10, fill="x")
+                          ).pack(side="left", fill="x", expand=True, padx=(0,5))
+
+            ctk.CTkButton(aio_frame,
+                          text="ℹ️",
+                          width=40,
+                          height=40,
+                          fg_color="gray",
+                          command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/blob/main/docs/ALL_IN_ONE.md")
+                          ).pack(side="right")
 
         if info.install_switches:
             params = " ".join(info.install_switches)
@@ -680,6 +693,8 @@ class AnalyzerView(ctk.CTkFrame):
         top = ctk.CTkToplevel(self)
         top.title(i18n.get("detailed_params_title") if "detailed_params_title" in i18n.translations.get(i18n.language) else "Detailed Parameters")
         top.geometry("700x500")
+        top.transient(self.winfo_toplevel())  # Set parent window
+        top.grab_set()  # Modal - keep focus
         top.lift()
         top.focus_force()
         scroll = ctk.CTkScrollableFrame(top)

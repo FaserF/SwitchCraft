@@ -1,0 +1,1 @@
+# SwitchCraft AI - GUI submodule
