@@ -32,7 +32,7 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     # Exclude sensitive modules to avoid Virus False Positives
-    excludes=['py7zr', 'switchcraft_advanced', 'switchcraft.analyzers.universal', 'switchcraft.services.intune_service'],
+    excludes=['py7zr', 'switchcraft_advanced', 'switchcraft.analyzers.universal'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
