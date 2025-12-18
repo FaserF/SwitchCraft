@@ -2,7 +2,6 @@ import customtkinter as ctk
 from tkinter import messagebox
 import threading
 import logging
-import os
 import shutil
 import tempfile
 import webbrowser
@@ -79,9 +78,11 @@ class WingetView(ctk.CTkFrame):
 
     def _perform_search(self):
         query = self.search_entry.get().strip()
-        if not query: return
+        if not query:
+            return
 
-        for w in self.results_scroll.winfo_children(): w.destroy()
+        for w in self.results_scroll.winfo_children():
+            w.destroy()
 
         loader = ctk.CTkLabel(self.results_scroll, text=i18n.get("winget_searching"), text_color="gray")
         loader.pack(pady=20)
@@ -100,7 +101,8 @@ class WingetView(ctk.CTkFrame):
         threading.Thread(target=_search_thread, daemon=True).start()
 
     def _display_results(self, results, error=None):
-        for w in self.results_scroll.winfo_children(): w.destroy()
+        for w in self.results_scroll.winfo_children():
+            w.destroy()
 
         if error:
             err_label = ctk.CTkLabel(self.results_scroll, text=f"Error: {error}", text_color="red", wraplength=250)
@@ -120,7 +122,8 @@ class WingetView(ctk.CTkFrame):
             b.pack(fill="x", pady=2)
 
     def _load_details(self, app_info):
-        for w in self.details_content.winfo_children(): w.destroy()
+        for w in self.details_content.winfo_children():
+            w.destroy()
         self.lbl_details_title.configure(text=app_info["Name"])
 
         loader = ctk.CTkLabel(self.details_content, text=i18n.get("winget_loading"), text_color="gray")
@@ -134,10 +137,12 @@ class WingetView(ctk.CTkFrame):
         threading.Thread(target=_fetch, daemon=True).start()
 
     def _show_full_details(self, info):
-        for w in self.details_content.winfo_children(): w.destroy()
+        for w in self.details_content.winfo_children():
+            w.destroy()
 
         def add_row(lbl, val, link=False):
-            if not val: return
+            if not val:
+                return
             f = ctk.CTkFrame(self.details_content, fg_color="transparent")
             f.pack(fill="x", pady=2)
             ctk.CTkLabel(f, text=lbl + ":", font=ctk.CTkFont(weight="bold"), width=100, anchor="w").pack(side="left")

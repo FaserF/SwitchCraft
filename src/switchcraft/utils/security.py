@@ -1,8 +1,7 @@
 import importlib.metadata
 import requests
 import logging
-import json
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +100,6 @@ class SecurityChecker:
                                  vuln_id = cves[0]
 
                         # Determine severity (simplified)
-                        severity = "UNKNOWN"
                         if vuln.get("severity"): # CVSSv3 vector usually
                              # Very basic check, parsing vector is complex without library
                              # Just checking if any severity field exists

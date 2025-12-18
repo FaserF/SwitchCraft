@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 from pathlib import Path
 from switchcraft.models import InstallerInfo
 

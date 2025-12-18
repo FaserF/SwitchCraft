@@ -6,7 +6,7 @@ import shutil
 import plistlib
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 
 from switchcraft.analyzers.base import BaseAnalyzer
 from switchcraft.models import InstallerInfo
@@ -29,7 +29,7 @@ class MacOSAnalyzer(BaseAnalyzer):
                     for name in z.namelist():
                         if name.endswith('.app/') or name.endswith('Info.plist'):
                             return True
-            except:
+            except Exception:
                 pass
 
         return False
@@ -129,7 +129,7 @@ class MacOSAnalyzer(BaseAnalyzer):
                              info.confidence = 1.0
                              if info.bundle_id:
                                  break
-                     except:
+                     except Exception:
                          continue
 
     def _analyze_app_dir(self, file_path: Path, info: InstallerInfo):
@@ -166,7 +166,8 @@ class MacOSAnalyzer(BaseAnalyzer):
     def _find_7z(self) -> Optional[str]:
         # Check PATH
         path = shutil.which("7z")
-        if path: return path
+        if path:
+            return path
 
         # Check common Windows paths
         common_paths = [

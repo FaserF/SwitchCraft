@@ -6,7 +6,6 @@ import webbrowser
 import logging
 from tkinter import messagebox
 import os
-import uuid
 import shutil
 import ctypes
 import time
@@ -20,9 +19,7 @@ from switchcraft.utils.i18n import i18n
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.services.notification_service import NotificationService
 from switchcraft.services.signing_service import SigningService
-from switchcraft.generators.macos import generate_intune_script as generate_mac_script, generate_mobileconfig
 from switchcraft.utils.templates import TemplateGenerator
-from switchcraft.gui.views.intune_view import IntuneView
 
 logger = logging.getLogger(__name__)
 
@@ -432,8 +429,10 @@ class AnalyzerView(ctk.CTkFrame):
 
                  app_id = ctk.CTkInputDialog(text=i18n.get("winget_script_id_prompt"), title=i18n.get("winget_script_title")).get_input()
                  if not app_id:
-                     if default_id: app_id = default_id
-                     else: return
+                     if default_id:
+                         app_id = default_id
+                     else:
+                         return
 
                  self._generate_winget_install_script(app_id, info)
 
@@ -599,8 +598,10 @@ class AnalyzerView(ctk.CTkFrame):
         unknown_params = []
         for param in params:
             explanation = i18n.get_param_explanation(param)
-            if explanation: known_params.append((param, explanation))
-            else: unknown_params.append(param)
+            if explanation:
+                known_params.append((param, explanation))
+            else:
+                unknown_params.append(param)
         if known_params:
             known_frame = ctk.CTkFrame(self.result_frame, fg_color=("gray90", "gray25"), corner_radius=5)
             known_frame.pack(fill="x", pady=5, padx=10)
@@ -627,7 +628,8 @@ class AnalyzerView(ctk.CTkFrame):
         scroll = ctk.CTkScrollableFrame(top)
         scroll.pack(fill="both", expand=True, padx=10, pady=10)
         def add_section(title, filename, type_str, params, is_main=False, raw_output=None):
-            if not params and not raw_output: return
+            if not params and not raw_output:
+                return
             frame = ctk.CTkFrame(scroll, fg_color="#2B2B2B" if is_main else "#1F1F1F")
             frame.pack(fill="x", pady=5)
             head = ctk.CTkFrame(frame, fg_color="transparent")
@@ -654,7 +656,8 @@ class AnalyzerView(ctk.CTkFrame):
                     add_section(f"Nested: {nested['name']}", nested['relative_path'], analysis.installer_type, analysis.install_switches, raw_output=nested.get("raw_output"))
 
     def _run_local_test_action(self, file_path, switches, uninstall=False):
-        if not messagebox.askyesno("Test Confirmation", f"Do you want to run the {'UNINSTALL' if uninstall else 'INSTALL'} test locally?\n\nFile: {Path(file_path).name}\n\nWARNING: This will execute the file on YOUR system with Admin rights."): return
+        if not messagebox.askyesno("Test Confirmation", f"Do you want to run the {'UNINSTALL' if uninstall else 'INSTALL'} test locally?\n\nFile: {Path(file_path).name}\n\nWARNING: This will execute the file on YOUR system with Admin rights."):
+            return
         path_obj = Path(file_path)
         params_str = " ".join(switches) if switches else ""
         cmd_exec = str(path_obj)
@@ -664,13 +667,15 @@ class AnalyzerView(ctk.CTkFrame):
             cmd_params = f"{'/x' if uninstall else '/i'} \"{path_obj}\" {params_str}"
         try:
             ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", cmd_exec, cmd_params, str(path_obj.parent), 1)
-            if int(ret) <= 32: messagebox.showerror("Execution Failed", f"Failed to start process (Code {ret})")
+            if int(ret) <= 32:
+                messagebox.showerror("Execution Failed", f"Failed to start process (Code {ret})")
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
     def _generate_intune_script_with_info(self, info):
         if not info.install_switches:
-            if not messagebox.askyesno("Warning", i18n.get("no_switches_intune_warn") if "no_switches_intune_warn" in i18n.translations.get(i18n.language) else "No silent switches detected. The script might require manual editing. Continue?"): return
+            if not messagebox.askyesno("Warning", i18n.get("no_switches_intune_warn") if "no_switches_intune_warn" in i18n.translations.get(i18n.language) else "No silent switches detected. The script might require manual editing. Continue?"):
+                return
         default_filename = f"Install-{info.product_name or 'App'}.ps1"
         default_filename = "".join(x for x in default_filename if x.isalnum() or x in "-_.")
         git_repo = SwitchCraftConfig.get_value("GitRepoPath")
@@ -679,26 +684,36 @@ class AnalyzerView(ctk.CTkFrame):
             app_name_safe = "".join(x for x in (info.product_name or "UnknownApp") if x.isalnum() or x in "-_.")
             suggested_path = Path(git_repo) / "Apps" / app_name_safe
             if not suggested_path.exists():
-                try: suggested_path.mkdir(parents=True, exist_ok=True)
-                except BaseException: pass
-            if suggested_path.exists(): initial_dir = str(suggested_path)
+                try:
+                    suggested_path.mkdir(parents=True, exist_ok=True)
+                except BaseException:
+                    pass
+            if suggested_path.exists():
+                initial_dir = str(suggested_path)
         save_path = ctk.filedialog.asksaveasfilename(defaultextension=".ps1", filetypes=[("PowerShell Script", "*.ps1")], initialfile=default_filename, initialdir=initial_dir, title="Save Intune Script")
         if save_path:
             context_data = {"INSTALLER_FILE": Path(info.file_path).name, "INSTALL_ARGS": " ".join(info.install_switches) if info.install_switches else "/S", "APP_NAME": info.product_name or "Application", "PUBLISHER": info.manufacturer or "Unknown"}
             custom_template = SwitchCraftConfig.get_value("CustomTemplatePath")
             generator = TemplateGenerator(custom_template)
             if generator.generate(context_data, save_path):
-                if SigningService.sign_script(save_path): logger.info(f"Script signed: {save_path}")
-                else: logger.warning("Script verification/signing failed or skipped.")
+                if SigningService.sign_script(save_path):
+                    logger.info(f"Script signed: {save_path}")
+                else:
+                    logger.warning("Script verification/signing failed or skipped.")
                 self.status_bar.configure(text=f"Script generated: {save_path}")
-                try: os.startfile(save_path)
-                except BaseException: pass
-            else: messagebox.showerror("Error", "Failed to generate script template.")
+                try:
+                    os.startfile(save_path)
+                except BaseException:
+                    pass
+            else:
+                messagebox.showerror("Error", "Failed to generate script template.")
 
     def _run_all_in_one_flow(self, info):
-        if not messagebox.askyesno(i18n.get("confirm_automation"), i18n.get("confirm_automation_msg")): return
+        if not messagebox.askyesno(i18n.get("confirm_automation"), i18n.get("confirm_automation_msg")):
+            return
         if not (SwitchCraftConfig.get_value("IntuneTenantID") and SwitchCraftConfig.get_value("IntuneClientId")):
-            if not messagebox.askyesno(i18n.get("config_warning"), i18n.get("config_warning_msg")): return
+            if not messagebox.askyesno(i18n.get("config_warning"), i18n.get("config_warning_msg")):
+                return
         progress_win = ctk.CTkToplevel(self)
         progress_win.title(i18n.get("deployment_title"))
         progress_win.geometry("600x400")
@@ -727,10 +742,13 @@ class AnalyzerView(ctk.CTkFrame):
                 context = {"INSTALLER_FILE": Path(info.file_path).name, "INSTALL_ARGS": " ".join(info.install_switches) if info.install_switches else "/S", "APP_NAME": info.product_name or "Application", "PUBLISHER": info.manufacturer or "Unknown"}
                 tmpl_path = SwitchCraftConfig.get_value("CustomTemplatePath")
                 gen = TemplateGenerator(tmpl_path)
-                if not gen.generate(context, str(script_path)): raise RuntimeError("Script generation failed")
+                if not gen.generate(context, str(script_path)):
+                    raise RuntimeError("Script generation failed")
                 log(f"Script created: {script_path}")
-                if SigningService.sign_script(str(script_path)): log("Script signed successfully.")
-                else: log("Signing skipped or failed (check settings).")
+                if SigningService.sign_script(str(script_path)):
+                    log("Script signed successfully.")
+                else:
+                    log("Signing skipped or failed (check settings).")
                 log("\n--- Step 2: Local Test ---")
                 if messagebox.askyesno("Test", "Run local installation test now? (Admin rights required)"):
                     params = f'-NoProfile -ExecutionPolicy Bypass -File "{script_path}"'
@@ -738,7 +756,8 @@ class AnalyzerView(ctk.CTkFrame):
                     ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "powershell.exe", params, str(base_dir), 1)
                     if int(ret) <= 32:
                         log(f"Failed to elevate/run: Code {ret}")
-                        if not messagebox.askyesno("Test Failed?", "Process failed to start. Continue anyway?"): return
+                        if not messagebox.askyesno("Test Failed?", "Process failed to start. Continue anyway?"):
+                            return
                     else:
                         if not messagebox.askyesno("Test Verification", "Did the installation complete successfully?"):
                             log("User reported test failure.")
@@ -752,12 +771,15 @@ class AnalyzerView(ctk.CTkFrame):
                 log(f"Tool Output:\n{out_log}")
                 log("Package created.")
                 pkg_name = script_path.name.replace(".ps1", ".intunewin")
-                if not (intunewin_output / pkg_name).exists(): pkg_name = Path(info.file_path).name + ".intunewin"
+                if not (intunewin_output / pkg_name).exists():
+                    pkg_name = Path(info.file_path).name + ".intunewin"
                 pkg_path = intunewin_output / pkg_name
                 if not pkg_path.exists():
                      candidates = list(intunewin_output.glob("*.intunewin"))
-                     if candidates: pkg_path = candidates[0]
-                     else: raise FileNotFoundError("Created .intunewin not found.")
+                     if candidates:
+                         pkg_path = candidates[0]
+                     else:
+                         raise FileNotFoundError("Created .intunewin not found.")
                 log(f"Package: {pkg_path}")
                 if SwitchCraftConfig.get_value("IntuneTenantID"):
                     log("\n--- Step 4: Uploading to Intune ---")
@@ -778,8 +800,10 @@ class AnalyzerView(ctk.CTkFrame):
                                 try:
                                     self.intune_service.assign_to_group(token, app_id, gid)
                                     log(f"Assigned to: {gname} ({gid})")
-                                except Exception as e: log(f"Failed to assign {gname}: {e}")
-                            else: log(f"Skipping group with no ID: {gname}")
+                                except Exception as e:
+                                    log(f"Failed to assign {gname}: {e}")
+                            else:
+                                log(f"Skipping group with no ID: {gname}")
                     url = f"https://intune.microsoft.com/#view/Microsoft_Intune_Apps/SettingsMenu/~/0/appId/{app_id}"
                     webbrowser.open(url)
                     log("Opened Intune portal.")
@@ -797,12 +821,15 @@ class AnalyzerView(ctk.CTkFrame):
         script_path = path.with_suffix(".ps1")
         if not script_path.exists():
             candidates = list(path.parent.glob("*.ps1"))
-            if candidates: script_path = candidates[0]
+            if candidates:
+                script_path = candidates[0]
         setup_file = script_path if script_path.exists() else path
         if hasattr(self.app, 'intune_view'):
             self.app.intune_view.prefill_form(setup_file)
-            if hasattr(self.app, 'tabview'): self.app.tabview.set("Intune Utility")
-        else: logger.error("IntuneView not found on App")
+            if hasattr(self.app, 'tabview'):
+                self.app.tabview.set("Intune Utility")
+        else:
+            logger.error("IntuneView not found on App")
 
     def _generate_winget_install_script(self, app_id, info):
         """Generates a small Winget install script."""

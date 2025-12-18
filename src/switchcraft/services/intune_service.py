@@ -6,10 +6,7 @@ import subprocess
 import requests
 from pathlib import Path
 import zipfile
-import base64
-import json
 from typing import Optional, Callable
-from switchcraft.utils.i18n import i18n
 from defusedxml import ElementTree as DefusedET
 import jwt
 
@@ -267,7 +264,8 @@ class IntuneService:
         app_id = create_resp.json().get("id")
         logger.info(f"App created with ID: {app_id}")
 
-        if progress_callback: progress_callback(0.2, "App entity created.")
+        if progress_callback:
+            progress_callback(0.2, "App entity created.")
 
         try:
             cv_resp = requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions", headers=headers, json={}, timeout=60)
@@ -293,7 +291,8 @@ class IntuneService:
             file_id = file_data.get("id")
             upload_url = file_data.get("uploadUrl")
 
-            if progress_callback: progress_callback(0.4, "Ready to upload.")
+            if progress_callback:
+                progress_callback(0.4, "Ready to upload.")
 
             # 5. Upload Blob
             logger.info(f"Uploading {file_size} bytes to {upload_url[:50]}...")
@@ -309,7 +308,8 @@ class IntuneService:
                 put_resp.raise_for_status()
 
             logger.info("Upload complete.")
-            if progress_callback: progress_callback(0.8, "Upload complete. Committing...")
+            if progress_callback:
+                progress_callback(0.8, "Upload complete. Committing...")
 
             # 6. Commit File
             logger.info("Committing file...")
@@ -328,7 +328,8 @@ class IntuneService:
             requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/commit", headers=headers, json={}, timeout=60).raise_for_status()
 
             logger.info("App successfully published to Intune.")
-            if progress_callback: progress_callback(1.0, "Published successfully!")
+            if progress_callback:
+                progress_callback(1.0, "Published successfully!")
 
             return app_id
 

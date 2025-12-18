@@ -1,7 +1,5 @@
 import subprocess
 import logging
-import os
-import shutil
 from pathlib import Path
 from switchcraft.utils.config import SwitchCraftConfig
 

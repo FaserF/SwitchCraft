@@ -1,7 +1,6 @@
 import customtkinter as ctk
 from datetime import datetime
 from pathlib import Path
-from switchcraft.utils.i18n import i18n
 
 class HistoryView(ctk.CTkFrame):
     def __init__(self, parent, history_service, app):
@@ -93,7 +92,7 @@ class HistoryView(ctk.CTkFrame):
         try:
             dt = datetime.fromisoformat(ts_str)
             date_display = dt.strftime("%Y-%m-%d %H:%M")
-        except:
+        except Exception:
             date_display = ts_str
 
         # Info

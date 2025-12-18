@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 import pefile
-from typing import Optional, List, Tuple
+from typing import List
 from switchcraft.analyzers.base import BaseAnalyzer
 from switchcraft.models import InstallerInfo
 
@@ -477,14 +477,7 @@ class ExeAnalyzer(BaseAnalyzer):
         try:
             with open(file_path, 'rb') as f:
                 data = f.read(1024 * 1024)
-                markers = [
-                    b"HP SoftPaq",
-                    b"SoftPaq",
-                    b"Hewlett-Packard",
-                    b"HP Inc.",
-                    b"HPQFlash",
-                    b"sp",  # HP SoftPaq naming convention spXXXXXX.exe
-                ]
+
                 # Check for HP specific markers
                 if b"Hewlett-Packard" in data or b"HP Inc." in data:
                     if b"SoftPaq" in data or b"Setup" in data:

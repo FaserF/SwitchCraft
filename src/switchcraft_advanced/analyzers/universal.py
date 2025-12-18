@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 from typing import Optional, List, Dict, Tuple
 import py7zr
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -127,12 +126,13 @@ class UniversalAnalyzer:
         # Many CLIs basically dump help if you send ANY invalid or help arg.
         # Sending multiple might trigger help immediately or error-help.
         # We skip params that trigger installation (/silent, /s) for safety here.
-        safe_all_args = ["/?", "--help", "-h", "/h"]
+
         try:
              # Just try a few common ones concatenated? No, usually executables take one mode.
              # But we can try to RUN once with a safe help argument and see if it dumps EVERYTHING.
              pass
-        except: pass
+        except Exception:
+            pass
 
         # Actually, the user requirement is: "Try all brute force parameters AT ONCE".
         # This implies running: `setup.exe /? --help -h /help ...`
@@ -360,7 +360,8 @@ class UniversalAnalyzer:
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-            if progress_callback: progress_callback(10, f"Listing archive content ({file_path.name})...")
+            if progress_callback:
+                progress_callback(10, f"Listing archive content ({file_path.name})...")
 
             list_proc = subprocess.run(
                 [seven_zip, "l", str(file_path)],
@@ -388,7 +389,8 @@ class UniversalAnalyzer:
                 result["archive_type"] = "Unknown Archive"
 
             # Extract to temp directory
-            if progress_callback: progress_callback(20, f"Extracting {file_path.name}...")
+            if progress_callback:
+                progress_callback(20, f"Extracting {file_path.name}...")
             extract_proc = subprocess.run(
                 [seven_zip, "x", "-y", f"-o{temp_dir}", str(file_path)],
                 capture_output=True,
@@ -416,7 +418,8 @@ class UniversalAnalyzer:
                 for i, file in enumerate(files):
                     # Progress calculation: 30% to 90%
                     pct = 30 + (int((i / total_files) * 60) if total_files > 0 else 0)
-                    if progress_callback: progress_callback(pct, f"Analyzing nested file: {file}")
+                    if progress_callback:
+                        progress_callback(pct, f"Analyzing nested file: {file}")
 
                     ext = os.path.splitext(file)[1].lower()
                     if ext in ['.exe', '.msi']:

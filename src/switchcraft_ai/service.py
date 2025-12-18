@@ -1,7 +1,6 @@
 import re
 import json
 import logging
-from typing import Optional, List, Dict, Any
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 
@@ -81,7 +80,7 @@ class SwitchCraftAI:
                 else:
                     logger.warning("Gemini Provider selected but NO API KEY found.")
 
-        except Exception as e:
+        except Exception:
             logger.exception(f"Failed to init AI client ({self.provider})")
 
     def update_context(self, data: dict):

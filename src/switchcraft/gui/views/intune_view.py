@@ -213,8 +213,10 @@ class IntuneView(ctk.CTkFrame):
                      self.after(0, lambda: self.btn_toggle_log.configure(text="Show Terminal Output"))
 
                 # Open Explorer
-                try: os.startfile(s_output)
-                except: pass
+                try:
+                    os.startfile(s_output)
+                except Exception:
+                    pass
             except Exception as e:
                 err_msg = str(e)
                 self.after(0, lambda: self.txt_intune_log.insert("end", f"ERROR: {err_msg}\n"))
@@ -275,12 +277,18 @@ class IntuneView(ctk.CTkFrame):
                 # Apply Context Metadata if available
                 if hasattr(self, 'current_metadata') and self.current_metadata:
                     meta = self.current_metadata
-                    if meta.get("Name"): app_info["displayName"] = meta.get("Name")
-                    if meta.get("description"): app_info["description"] = meta.get("description")
-                    if meta.get("publisher"): app_info["publisher"] = meta.get("publisher")
-                    if meta.get("author"): app_info["developer"] = meta.get("author")
-                    if meta.get("homepage"): app_info["informationUrl"] = meta.get("homepage")
-                    if meta.get("license_url"): app_info["notes"] += f"\nLicense: {meta.get('license_url')}"
+                    if meta.get("Name"):
+                        app_info["displayName"] = meta.get("Name")
+                    if meta.get("description"):
+                        app_info["description"] = meta.get("description")
+                    if meta.get("publisher"):
+                        app_info["publisher"] = meta.get("publisher")
+                    if meta.get("author"):
+                        app_info["developer"] = meta.get("author")
+                    if meta.get("homepage"):
+                        app_info["informationUrl"] = meta.get("homepage")
+                    if meta.get("license_url"):
+                        app_info["notes"] += f"\nLicense: {meta.get('license_url')}"
 
                     # Detect Command Line if Script
                     if str(possible_intunewin).lower().endswith(".ps1.intunewin") or str(setup_name).lower().endswith(".ps1"):

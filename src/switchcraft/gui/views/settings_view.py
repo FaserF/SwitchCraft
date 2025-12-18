@@ -1,15 +1,13 @@
 import customtkinter as ctk
 import webbrowser
-import sys
 import logging
 import json
-import re
-import os
 from tkinter import messagebox
 from switchcraft.utils.i18n import i18n
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.updater import UpdateChecker
 from switchcraft import __version__
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -116,9 +114,12 @@ class SettingsView(ctk.CTkFrame):
         current_channel = self._get_registry_value("UpdateChannel")
         if not current_channel:
             v_low = __version__.lower()
-            if "dev" in v_low: current_channel = "dev"
-            elif "beta" in v_low: current_channel = "beta"
-            else: current_channel = "stable"
+            if "dev" in v_low:
+                current_channel = "dev"
+            elif "beta" in v_low:
+                current_channel = "beta"
+            else:
+                current_channel = "stable"
 
         channel_map = {"stable": "Stable", "beta": "Beta", "dev": "Dev"}
         self.channel_opt.set(channel_map.get(current_channel, "Stable"))
@@ -172,7 +173,8 @@ class SettingsView(ctk.CTkFrame):
 
                 self.after(0, lambda: self._update_changelog_ui(full_text))
             except Exception as e:
-                self.after(0, lambda: self._update_changelog_ui(f"Failed to load changelog: {e}"))
+                err_msg = f"Failed to load changelog: {e}"
+                self.after(0, lambda: self._update_changelog_ui(err_msg))
 
         threading.Thread(target=fetch, daemon=True).start()
 
@@ -365,8 +367,10 @@ class SettingsView(ctk.CTkFrame):
             proc = subprocess.run(cmd, capture_output=True, text=True, startupinfo=startupinfo)
             if proc.returncode == 0 and proc.stdout.strip():
                 data = json.loads(proc.stdout)
-                if isinstance(data, dict): return [data]
-                if isinstance(data, list): return data
+                if isinstance(data, dict):
+                    return [data]
+                if isinstance(data, list):
+                    return data
             return []
         except Exception as e:
             logger.error(f"Cert Scan failed: {e}")

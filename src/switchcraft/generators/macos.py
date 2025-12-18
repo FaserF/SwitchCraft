@@ -1,7 +1,6 @@
 import textwrap
 import uuid
-import datetime
-from typing import Optional, List, Dict
+from typing import Optional, Dict
 from switchcraft.models import InstallerInfo
 
 def generate_intune_script(
@@ -128,7 +127,7 @@ def generate_mobileconfig(
     # We will assume user wants a skeleton or specific payloads.
 
     # Check if payload_content is provided, otherwise generic example
-    content_xml = ""
+
     if payload_content:
         # Convert dict to simple plist key-values
         # This is a very basic converter, might need proper plistlib dump if complex

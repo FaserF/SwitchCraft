@@ -60,7 +60,8 @@ class AIView(ctk.CTkFrame):
 
     def handle_chat(self, event=None):
         msg = self.chat_entry.get()
-        if not msg: return
+        if not msg:
+            return
         self.append_chat("You", msg)
         self.chat_entry.delete(0, "end")
 

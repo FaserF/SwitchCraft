@@ -2,7 +2,6 @@ import requests
 import logging
 from packaging import version
 from switchcraft import __version__
-import webbrowser
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -112,7 +111,6 @@ class UpdateChecker:
         try:
             # Parse versions - handle dev/beta suffixes
             current_base = self.current_version.split("-")[0]
-            latest_base = tag_name.split("-")[0]
 
             # If on beta channel, accept pre-releases as updates
             if self.channel == self.CHANNEL_BETA:

@@ -1,7 +1,6 @@
 import click
 import logging
 import sys
-import os
 from pathlib import Path
 from rich import print
 from rich.panel import Panel

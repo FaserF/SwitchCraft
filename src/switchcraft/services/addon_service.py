@@ -6,7 +6,6 @@ import requests
 import zipfile
 import io
 from pathlib import Path
-from typing import Optional, List
 from switchcraft.utils.config import SwitchCraftConfig
 
 logger = logging.getLogger(__name__)
@@ -42,7 +41,8 @@ class AddonService:
     def is_addon_installed(cls, addon_id: str) -> bool:
         """Check if a specific addon is installed."""
         package_name = cls.ADDONS.get(addon_id)
-        if not package_name: return False
+        if not package_name:
+            return False
 
         addon_path = cls.get_addon_dir() / package_name
 
@@ -67,7 +67,8 @@ class AddonService:
             return None
 
         package_root = cls.ADDONS.get(addon_id)
-        if not package_root: return None
+        if not package_root:
+            return None
 
         cls.register_addons()
         full_name = f"{package_root}.{module_name}" if module_name else package_root
@@ -89,11 +90,13 @@ class AddonService:
         if addon_id == "all":
             success = True
             for aid in cls.ADDONS.keys():
-                if not cls.install_addon(aid): success = False
+                if not cls.install_addon(aid):
+                    success = False
             return success
 
         pkg_name = cls.ADDONS.get(addon_id)
-        if not pkg_name: return False
+        if not pkg_name:
+            return False
 
         logger.info(f"Installing addon: {addon_id} ({pkg_name})...")
 
@@ -176,7 +179,8 @@ class AddonService:
                         found_any = True
                         # relative path inside package
                         rel_path = member.filename[len(source_prefix):]
-                        if not rel_path: continue # Folder itself
+                        if not rel_path:
+                            continue # Folder itself
 
                         target_path = addon_root / pkg_name / rel_path
 
@@ -209,7 +213,8 @@ class AddonService:
     def uninstall_addon(cls, addon_id: str) -> bool:
         """Uninstall (remove) the specified addon."""
         pkg_name = cls.ADDONS.get(addon_id)
-        if not pkg_name: return False
+        if not pkg_name:
+            return False
 
         addon_path = cls.get_addon_dir() / pkg_name
 

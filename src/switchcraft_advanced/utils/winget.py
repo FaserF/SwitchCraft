@@ -1,6 +1,4 @@
 import logging
-import json
-import yaml
 from pathlib import Path
 from typing import Optional, List, Dict
 
@@ -32,7 +30,8 @@ class WingetHelper:
 
     def _search_cli(self, query: str) -> Optional[str]:
         """Run winget search and parse ID."""
-        if not query: return None
+        if not query:
+            return None
         import subprocess
         import shutil
 
@@ -67,7 +66,8 @@ class WingetHelper:
 
             # Parse Header: Name Id Version Match Source
             lines = proc.stdout.strip().splitlines()
-            if len(lines) < 3: return None
+            if len(lines) < 3:
+                return None
 
             header_idx = -1
             for i, line in enumerate(lines):
@@ -83,7 +83,8 @@ class WingetHelper:
             id_start = header.find("Id")
             version_start = header.find("Version")
 
-            if id_start == -1 or version_start == -1: return None
+            if id_start == -1 or version_start == -1:
+                return None
 
             app_id = first_row[id_start:version_start].strip()
 
@@ -135,22 +136,24 @@ class WingetHelper:
             results = []
 
             # Header parsing logic
-            if len(lines) < 3: return []
+            if len(lines) < 3:
+                return []
 
             header = lines[0]
             # If header doesn't contain "Id", search subsequent lines
             id_idx = header.find("Id")
             if id_idx == -1:
                 # Try to find header line
-                for i, l in enumerate(lines):
-                    if "Id" in l and "Version" in l:
-                        header = l
+                for i, line_content in enumerate(lines):
+                    if "Id" in line_content and "Version" in line_content:
+                        header = line_content
                         id_idx = header.find("Id")
                         ver_idx = header.find("Version")
                         lines = lines[i:] # Adjust start
                         break
 
-            if id_idx == -1: return []
+            if id_idx == -1:
+                return []
 
             ver_idx = header.find("Version")
             match_idx = header.find("Match")
@@ -158,16 +161,19 @@ class WingetHelper:
 
             # Parse lines (skip header and dashes)
             for line in lines[2:]:
-                if not line.strip(): continue
+                if not line.strip():
+                    continue
 
                 # Stop if we hit footer or progress
-                if line.startswith("---") or "package found" in line: continue
+                if line.startswith("---") or "package found" in line:
+                    continue
 
                 name = line[:id_idx].strip()
                 p_id = line[id_idx:ver_idx].strip()
 
                 end_ver = match_idx if match_idx != -1 else src_idx
-                if end_ver == -1: end_ver = len(line)
+                if end_ver == -1:
+                    end_ver = len(line)
 
                 version = line[ver_idx:end_ver].strip()
 
@@ -233,5 +239,5 @@ class WingetHelper:
         try:
             rel_path = path.relative_to(self.local_repo)
             return f"{GITHUB_WINGET_URL}/{rel_path.as_posix()}"
-        except:
+        except Exception:
             return ""

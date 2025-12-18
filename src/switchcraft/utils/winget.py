@@ -1,7 +1,5 @@
 import logging
 import json
-import yaml
-from pathlib import Path
 from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
@@ -38,7 +36,6 @@ class WingetHelper:
         Returns list of {Id, Name, Version, Source}
         """
         import subprocess
-        import json
 
         try:
             # Use PowerShell to find package and output as JSON
@@ -68,7 +65,8 @@ class WingetHelper:
                 return []
 
             output = proc.stdout.strip()
-            if not output: return []
+            if not output:
+                return []
 
             # PowerShell ConvertTo-Json can return single dict or list of dicts
             try:
@@ -97,7 +95,6 @@ class WingetHelper:
     def get_package_details(self, package_id: str) -> Dict[str, str]:
         """Get details via PowerShell (Find-WinGetPackage)."""
         import subprocess
-        import json
 
         try:
             # Find exact ID
@@ -113,7 +110,8 @@ class WingetHelper:
             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)
 
             output = proc.stdout.strip()
-            if not output: return {}
+            if not output:
+                return {}
 
             item = json.loads(output)
 
@@ -153,7 +151,8 @@ class WingetHelper:
                  return []
 
              lines = proc.stdout.strip().splitlines()
-             if len(lines) < 3: return [] # Header + separator + data
+             if len(lines) < 3:
+                 return [] # Header + separator + data
 
              # Locate specific columns implies fixed width or at least order.
              # Name, Id, Version, Source (sometimes Match etc)
@@ -170,7 +169,8 @@ class WingetHelper:
                      break
 
              for line in lines[start_idx:]:
-                 if not line.strip(): continue
+                 if not line.strip():
+                     continue
                  # Split by 2+ spaces
                  parts = re.split(r'\s{2,}', line.strip())
                  if len(parts) >= 3:
@@ -180,7 +180,8 @@ class WingetHelper:
                      pid = parts[1]
                      ver = parts[2]
                      src = "winget"
-                     if len(parts) > 3: src = parts[-1] # Source is usually last
+                     if len(parts) > 3:
+                         src = parts[-1] # Source is usually last
 
                      results.append({
                          "Name": name,
