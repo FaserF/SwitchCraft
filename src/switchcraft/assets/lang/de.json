@@ -202,5 +202,20 @@
     "winget_dl_complete_msg": "Installer geladen nach:\n{path}\n\nJetzt analysieren?",
     "winget_dl_failed_title": "Download fehlgeschlagen",
     "winget_dl_error_title": "Fehler",
-    "winget_dl_error_no_file": "Download beendet, aber keinen Installer im Paket gefunden."
+    "winget_dl_error_no_file": "Download beendet, aber keinen Installer im Paket gefunden.",
+    "settings_hdr_integrations": "Integrationen",
+    "settings_hdr_directories": "Verzeichnisse",
+    "settings_hdr_tools": "Externe Tools",
+    "settings_hdr_signing": "PowerShell Signierung",
+    "settings_hdr_update": "Update Einstellungen",
+    "settings_hdr_ai": "KI Konfiguration",
+    "btn_add": "Hinzufügen",
+    "btn_cancel": "Abbrechen",
+    "btn_save": "Speichern",
+    "btn_browse": "Durchsuchen...",
+    "btn_verify_save": "Verifizieren & Speichern",
+    "lbl_cert_path": "Zertifikatspfad (.pfx):",
+    "lbl_git_path": "Git Repository Pfad:",
+    "lbl_intune_tool_path": "Pfad zu IntuneWinAppUtil:",
+    "settings_saved": "Einstellungen erfolgreich gespeichert."
 }
