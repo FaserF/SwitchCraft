@@ -124,16 +124,8 @@ class SettingsView(ctk.CTkFrame):
                                  command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/tree/main/src/switchcraft/assets/templates"))
         link_tmpl.pack(pady=2)
 
-        # --- NEW SETTINGS ---
-
-        # Signing Settings
-        self._setup_signing_settings()
-
-        # Intune / Graph Settings
-        self._setup_intune_settings()
-
-        # Git / Path Settings
-        self._setup_path_settings()
+        # Addon Manager
+        self._setup_addon_manager()
 
         # External Tools (IntuneWinAppUtil)
         self._setup_tool_settings()
@@ -551,33 +543,87 @@ class SettingsView(ctk.CTkFrame):
 
         messagebox.showinfo("Saved", "AI Settings Saved. Please restart to apply changes.")
 
+    def _setup_addon_manager(self):
+        """Show Addon Management Section."""
+        from switchcraft.services.addon_service import AddonService
+
+        frame = ctk.CTkFrame(self.settings_scroll)
+        frame.pack(fill="x", padx=10, pady=10)
+
+        ctk.CTkLabel(frame, text=i18n.get("settings_addons_title", default="Addon Manager"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        ctk.CTkLabel(frame, text=i18n.get("settings_addons_desc", default="Enhance SwitchCraft with optional features."), text_color="gray", font=ctk.CTkFont(size=11)).pack(pady=(0, 10))
+
+        # Addon list
+        addon_info = [
+            {"id": "advanced", "name": "Advanced Analysis & Intune", "desc": "Brute-force switches & Intune upload. (Highly Recommended)", "recommended": True},
+            {"id": "winget", "name": "Winget Store Integration", "desc": "Search and package from official Winget repo. (Recommended)", "recommended": True},
+            {"id": "ai", "name": "AI Assistant (External)", "desc": "OpenAI/Gemini support for packaging advice.", "recommended": False},
+            {"id": "debug", "name": "Developer & Debug Tools", "desc": "Enable internal logs and console.", "recommended": False}
+        ]
+
+        self.addon_rows = []
+        for addon in addon_info:
+            row = ctk.CTkFrame(frame, fg_color="transparent")
+            row.pack(fill="x", pady=5, padx=10)
+
+            lbl_name = ctk.CTkLabel(row, text=addon["name"], font=ctk.CTkFont(weight="bold"))
+            lbl_name.pack(side="left")
+
+            if addon["recommended"]:
+                ctk.CTkLabel(row, text="[Recommended]", text_color="green", font=ctk.CTkFont(size=10)).pack(side="left", padx=5)
+
+            installed = AddonService.is_addon_installed(addon["id"])
+
+            if installed:
+                btn_un = ctk.CTkButton(row, text="Uninstall", width=80, fg_color="#C0392B", hover_color="#922B21",
+                                      command=lambda aid=addon["id"]: self._uninstall_addon(aid))
+                btn_un.pack(side="right")
+                ctk.CTkLabel(row, text="Installed", text_color="gray").pack(side="right", padx=10)
+            else:
+                btn_in = ctk.CTkButton(row, text="Install", width=80, fg_color="#27AE60", hover_color="#1E8449",
+                                      command=lambda aid=addon["id"]: self._install_addon(aid))
+                btn_in.pack(side="right")
+
+            ctk.CTkLabel(frame, text=addon["desc"], text_color="gray", font=ctk.CTkFont(size=10), anchor="w").pack(fill="x", padx=15)
+
+    def _install_addon(self, addon_id):
+        from switchcraft.services.addon_service import AddonService
+        if AddonService.install_addon(addon_id):
+            messagebox.showinfo("Success", f"Addon {addon_id} installed. Please restart SwitchCraft.")
+            # We could refresh UI but restart is safer for sys.path
+        else:
+            messagebox.showerror("Error", f"Failed to install addon {addon_id}.")
+
+    def _uninstall_addon(self, addon_id):
+        from switchcraft.services.addon_service import AddonService
+        if messagebox.askyesno("Uninstall", f"Are you sure you want to uninstall {addon_id}?"):
+            if AddonService.uninstall_addon(addon_id):
+                messagebox.showinfo("Success", "Addon removed. Please restart SwitchCraft.")
+            else:
+                messagebox.showerror("Error", "Failed to remove addon.")
+
     def _setup_debug_console(self):
         """Setup debug console toggle."""
         frame_debug = ctk.CTkFrame(self.settings_scroll)
         frame_debug.pack(fill="x", padx=10, pady=10)
-
-
         ctk.CTkLabel(frame_debug, text=i18n.get("settings_debug_title"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
+
+        # Check if addon is present
+        from switchcraft.services.addon_service import AddonService
+        has_addon = AddonService.is_addon_installed("debug")
+
+        if not has_addon:
+            ctk.CTkLabel(frame_debug, text="Debug Addon not installed.", text_color="gray").pack(pady=5)
+            return
 
         self.debug_console_var = ctk.BooleanVar(value=False)
 
         def toggle_console():
-             import ctypes
-             kernel32 = ctypes.windll.kernel32
-             if self.debug_console_var.get():
-                 kernel32.AllocConsole()
-                 sys.stdout = open("CONOUT$", "w")
-                 sys.stderr = open("CONOUT$", "w")
-                 print("SwitchCraft Debug Console [Enabled]")
+             mod = AddonService.import_addon_module("debug", "console")
+             if mod:
+                 mod.DebugConsole.toggle(self.debug_console_var.get())
              else:
-                 try:
-                     sys.stdout.close()
-                     sys.stderr.close()
-                     # Restore std streams to avoid errors
-                     sys.stdout = sys.__stdout__
-                     sys.stderr = sys.__stderr__
-                 except: pass
-                 kernel32.FreeConsole()
+                 messagebox.showerror("Error", "Debug addon module missing.")
 
         ctk.CTkSwitch(frame_debug, text=i18n.get("settings_debug_console"), variable=self.debug_console_var, command=toggle_console).pack(pady=5)
 

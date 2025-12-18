@@ -6,12 +6,12 @@ from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
 
-WINGET_PKGS_PATH = Path("c:/Users/fseitz/GitHub/winget-pkgs/manifests") # Local optimization
+# WINGET_PKGS_PATH removed (deprecated)
 GITHUB_WINGET_URL = "https://github.com/microsoft/winget-pkgs/tree/master/manifests"
 
 class WingetHelper:
     def __init__(self):
-        self.local_repo = None # Deprecated local path
+        self.local_repo = None # Local repo support removed
 
     def search_by_product_code(self, product_code: str) -> Optional[str]:
         return None
@@ -128,9 +128,8 @@ class WingetHelper:
 
             if proc.returncode != 0 and proc.returncode != 1: # 0=Success, 1=No results
                 logger.error(f"Winget CLI error {proc.returncode}: {proc.stderr or proc.stdout}")
-                # We can return an error dict, but type hint says List
-                # Or we raise an exception to be caught by UI
-                raise RuntimeError(f"Winget Error {proc.returncode}: {proc.stdout}")
+                msg = f"Winget Error {proc.returncode}: {proc.stdout}"
+                raise RuntimeError(msg)
 
             lines = proc.stdout.strip().splitlines()
             results = []
@@ -177,6 +176,8 @@ class WingetHelper:
 
             return results
 
+        except RuntimeError as e:
+            raise e
         except Exception as e:
             logger.error(f"Winget Search Error: {e}")
             return []

@@ -210,9 +210,16 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ needs.prepare_release.outputs.version }}
-        files: |
-          dist/${{ matrix.asset_name }}
-          dist/switchcraft_addon.zip
+        files: dist/${{ matrix.asset_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Addon Package
+      if: matrix.os == 'windows-latest'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ needs.prepare_release.outputs.version }}
+        files: dist/switchcraft_addon.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

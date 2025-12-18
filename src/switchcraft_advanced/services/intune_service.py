@@ -34,7 +34,7 @@ class IntuneService:
             self.tools_dir.mkdir(parents=True, exist_ok=True)
             logger.info(f"Downloading IntuneWinAppUtil from {self.TOOL_URL}...")
 
-            response = requests.get(self.TOOL_URL, stream=True)
+            response = requests.get(self.TOOL_URL, stream=True, timeout=30)
             response.raise_for_status()
 
             with open(self.tool_path, 'wb') as f:
@@ -44,7 +44,7 @@ class IntuneService:
             logger.info("IntuneWinAppUtil downloaded successfully.")
             return True
         except Exception as e:
-            logger.error(f"Failed to download IntuneWinAppUtil: {e}")
+            logger.exception(f"Failed to download IntuneWinAppUtil: {e}")
             return False
 
     def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str, catalog_folder: str = None, quiet: bool = True) -> str:
@@ -115,9 +115,6 @@ class IntuneService:
         except Exception as e:
             logger.error(f"Error running IntuneWinAppUtil: {e}")
             raise e
-        except Exception as e:
-            logger.error(f"Error running IntuneWinAppUtil: {e}")
-            raise e
 
     # --- Graph API Integration ---
 
@@ -131,13 +128,13 @@ class IntuneService:
             "grant_type": "client_credentials"
         }
         try:
-            resp = requests.post(url, data=data)
+            resp = requests.post(url, data=data, timeout=30)
             resp.raise_for_status()
             token = resp.json().get("access_token")
             logger.info("Successfully authenticated with Graph API.")
             return token
         except Exception as e:
-            logger.error(f"Authentication failed: {e}")
+            logger.exception(f"Authentication failed: {e}")
             raise RuntimeError(f"Authentication failed: {e}")
 
     def verify_graph_permissions(self, token):
@@ -256,7 +253,7 @@ class IntuneService:
             "fileName": intunewin_path.name
         }
 
-        create_resp = requests.post(f"{base_url}/mobileApps", headers=headers, json=app_payload)
+        create_resp = requests.post(f"{base_url}/mobileApps", headers=headers, json=app_payload, timeout=60)
         create_resp.raise_for_status()
         app_id = create_resp.json().get("id")
         logger.info(f"App created with ID: {app_id}")
@@ -264,9 +261,7 @@ class IntuneService:
         if progress_callback: progress_callback(0.2, "App entity created.")
 
         try:
-            # 3. Create Content Version
-            logger.info("Creating Content Version...")
-            cv_resp = requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions", headers=headers, json={})
+            cv_resp = requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions", headers=headers, json={}, timeout=60)
             cv_resp.raise_for_status()
             cv_id = cv_resp.json().get("id")
 
@@ -283,7 +278,7 @@ class IntuneService:
                 "isDependency": False
             }
 
-            file_resp = requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/files", headers=headers, json=file_payload)
+            file_resp = requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/files", headers=headers, json=file_payload, timeout=60)
             file_resp.raise_for_status()
             file_data = file_resp.json()
             file_id = file_data.get("id")
@@ -301,7 +296,7 @@ class IntuneService:
                 blob_headers = {"x-ms-blob-type": "BlockBlob"}
 
                 # Ideally split into blocks (Intune requirement usually), but for single PUT:
-                put_resp = requests.put(upload_url, headers=blob_headers, data=f)
+                put_resp = requests.put(upload_url, headers=blob_headers, data=f, timeout=300) # Large file upload
                 put_resp.raise_for_status()
 
             logger.info("Upload complete.")
@@ -312,7 +307,7 @@ class IntuneService:
             commit_file_payload = {
                 "fileEncryptionInfo": encryption_info
             }
-            requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/files/{file_id}/commit", headers=headers, json=commit_file_payload).raise_for_status()
+            requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/files/{file_id}/commit", headers=headers, json=commit_file_payload, timeout=60).raise_for_status()
 
             # 7. Commit Content Version
             logger.info("Committing content version...")
@@ -321,7 +316,7 @@ class IntuneService:
             # We might need to check file status first?
             # Assuming immediate consistency for this example.
 
-            requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/commit", headers=headers, json={}).raise_for_status()
+            requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/commit", headers=headers, json={}, timeout=60).raise_for_status()
 
             logger.info("App successfully published to Intune.")
             if progress_callback: progress_callback(1.0, "Published successfully!")
@@ -353,7 +348,7 @@ class IntuneService:
         }
 
         try:
-            resp = requests.post(url, headers=headers, json=payload)
+            resp = requests.post(url, headers=headers, json=payload, timeout=60)
             resp.raise_for_status()
             logger.info(f"Assigned App {app_id} to Group {group_id} ({intent})")
             return True

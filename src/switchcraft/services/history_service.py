@@ -27,8 +27,8 @@ class HistoryService:
             with open(self.history_file, 'r', encoding='utf-8') as f:
                  data = json.load(f)
                  return sorted(data, key=lambda x: x.get('timestamp', ''), reverse=True)
-        except Exception as e:
-            logger.error(f"Failed to load history: {e}")
+        except Exception:
+            logger.exception("Failed to load history")
             return []
 
     def add_entry(self, entry):
@@ -56,5 +56,5 @@ class HistoryService:
         try:
             with open(self.history_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
-        except Exception as e:
-            logger.error(f"Failed to save history: {e}")
+        except Exception:
+            logger.exception("Failed to save history")

@@ -258,13 +258,6 @@ class AnalyzerView(ctk.CTkFrame):
     def _show_results(self, info, winget_url, brute_force_data=None, nested_data=None, silent_disabled=None):
         self._is_analyzing = False
 
-        # Check Queue logic
-        if self.queue:
-            remaining = len(self.queue)
-            self.status_bar.configure(text=f"Batch Processing... ({remaining} remaining)")
-            self.after(500, self._process_queue)
-            return
-
         self.status_bar.configure(text=i18n.get("analysis_complete"))
         self.progress_bar.grid_remove()
         self._clear_results()
@@ -434,8 +427,13 @@ class AnalyzerView(ctk.CTkFrame):
             self._show_all_parameters(unique_params)
 
         if (nested_data and nested_data.get("nested_executables")) or all_params:
-            self._add_separator()
             ctk.CTkButton(self.result_frame, text=i18n.get("view_full_params"), fg_color="#555555", command=lambda: self._show_detailed_parameters(info, nested_data)).pack(pady=10, fill="x")
+
+        # Batch Queue handling
+        if self.queue:
+            remaining = len(self.queue)
+            self.status_bar.configure(text=f"Batch Processing... ({remaining} remaining)")
+            self.after(1500, self._process_queue)
 
     def _show_nested_executables(self, nested_data, parent_info):
         """Display nested executables found inside an extracted archive."""

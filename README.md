@@ -54,14 +54,31 @@ switchcraft
 ```
 Then **Drag & Drop** your installer into the window or click to browse.
 
-### CLI Mode
-```bash
-# Basic analysis
-switchcraft analyze setup.exe
+### Global CLI Flags
+- **`--json`**: Output analysis results in JSON format.
+- **`--install-addons=<list>`**: Install specific addons (e.g., `ai,winget` or `all`).
+- **`--debug`**: Enable the debug console on startup (if addon is installed).
 
-# JSON output for scripting
-switchcraft analyze setup.exe --json
+## 🧩 Addon System (Modular Features)
+
+SwitchCraft now supports a modular addon system to keep the core application lightweight and minimize antivirus false positives.
+
+- **Advanced Analysis & Intune**: Deep inspection of wrappers and direct Intune publication.
+- **Winget Store Integration**: Search and deploy from the official Microsoft repository.
+- **AI Helper**: Dynamic chat assistant for packaging guidance (Requires Gemini/OpenAI API Key).
+- **Debug Console**: Real-time logging console for troubleshooting.
+
+Manage addons via **Settings > Addon Manager** or CLI:
+```bash
+# Install all recommended addons
+switchcraft --install-addons=advanced,winget
 ```
+
+## ✨ Recently Added Features
+- **Batch Processing**: Drag & Drop multiple files to analyze them sequentially.
+- **Analysis History**: Keep track of your last 100 analyzed installers.
+- **Winget Toggle**: Easily enable/disable store integration to suit your workflow.
+- **Enhanced AI**: Support for local AI, Gemini (Free tier), and OpenAI.
 
 ## 🤝 Contributing
 Open Source under the **MIT License**. PRs are welcome!

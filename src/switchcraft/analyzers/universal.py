@@ -4,7 +4,7 @@ from switchcraft.services.addon_service import AddonService
 logger = logging.getLogger(__name__)
 
 # Try to import the real analyzer from the addon
-_real_module = AddonService.import_advanced_module("switchcraft_advanced.analyzers.universal")
+_real_module = AddonService.import_addon_module("advanced", "analyzers.universal")
 
 if _real_module:
     UniversalAnalyzer = _real_module.UniversalAnalyzer

@@ -29,8 +29,6 @@ from switchcraft.gui.views.analyzer_view import AnalyzerView
 from switchcraft.gui.views.winget_view import WingetView # Winget View depends on helper, verify usage
 from switchcraft.gui.views.history_view import HistoryView
 from switchcraft.services.history_service import HistoryService
-from switchcraft.services.history_service import HistoryService
-# from switchcraft.utils.winget import WingetHelper # Moved to Addon
 from switchcraft import __version__
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -636,14 +634,28 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     # --- Helper Tab ---
 
     def setup_helper_tab(self):
-        self.ai_view = AIView(self.tab_helper, self.ai_service)
-        self.ai_view.pack(fill="both", expand=True)
+        try:
+            ai_view_mod = AddonService.import_addon_module("ai", "gui.view")
+            if ai_view_mod:
+                # Dynamic import check: AIView class must be accessible
+                AIView = ai_view_mod.AIView
+                self.ai_view = AIView(self.tab_helper, self.ai_service)
+                self.ai_view.pack(fill="both", expand=True)
+            else:
+                logger.error("AI View module missing in addon.")
+        except Exception as e:
+            logger.error(f"Failed to setup AI Helper tab: {e}")
 
     # --- Settings Tab ---
 
     def setup_settings_tab(self):
         """Setup the Settings tab."""
-        self.settings_view = SettingsView(self.tab_settings, self._run_update_check, self.intune_service)
+        self.settings_view = SettingsView(
+            self.tab_settings,
+            self._run_update_check,
+            self.intune_service,
+            on_winget_toggle=self._toggle_winget_tab
+        )
         self.settings_view.pack(fill="both", expand=True)
 
 
