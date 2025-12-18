@@ -229,7 +229,6 @@
     "restart_required": "Neustart erforderlich",
     "restart_required_msg": "Bitte starte SwitchCraft neu, damit die Änderungen wirksam werden.",
     "settings_language": "Sprache",
-    "settings_ai_provider": "KI Anbieter",
     "configure_app_reg": "App Registrierung in Einstellungen konfigurieren, um Uploads zu aktivieren.",
     "btn_upload_intune": "☁️ Nach Intune hochladen (Graph API)",
     "toggle_log_show": "Terminal-Ausgabe anzeigen",
@@ -253,5 +252,8 @@
     "winget_addon_desc": "Die Winget-Integration ermöglicht das Suchen und Erstellen von Skripten für Tausende von Apps.",
     "ai_addon_desc": "Der KI Assistent hilft dir, Silent-Switches zu finden und Installer-Technologien zu verstehen.",
     "ai_privacy_cloud": "⚠️ Datenschutz-Warnung: Daten werden an externe Cloud-Server gesendet.",
-    "ai_privacy_local": "✅ Datenschutz-Sicher: Daten werden lokal auf deinem Gerät verarbeitet."
+    "ai_privacy_local": "✅ Datenschutz-Sicher: Daten werden lokal auf deinem Gerät verarbeitet.",
+    "analyzer_addon_warning": "⚠️ Erweitertes Addon fehlt! Erkennungsgenauigkeit ist reduziert.",
+    "analyzer_addon_install": "Erweitertes Addon installieren",
+    "help_addons_explanation": "Warum Addons?\nEinige Funktionen (Intune Upload, Tiefenanalyse) sind als separate Addons verpackt, um Falschmeldungen von Antivirenprogrammen zu vermeiden. Dies hält die Kernanwendung sauber und vertrauenswürdig."
 }

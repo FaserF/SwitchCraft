@@ -55,23 +55,6 @@ jobs:
     with:
       component: backend
 
-  test-frontend:
-    needs: lint
-    uses: ./.github/workflows/test.yml
-    with:
-      component: frontend
-
   build:
-    needs: [test-backend, test-frontend]
+    needs: [test-backend]
     uses: ./.github/workflows/build.yml
-
-  e2e:
-    needs: build
-    if: needs.decision.outputs.run_e2e == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Run Playwright
-        run: echo "Running Playwright E2E tests..."
-        # In scaffolding, we just echo. Real impl would start containers and run pytest/playwright

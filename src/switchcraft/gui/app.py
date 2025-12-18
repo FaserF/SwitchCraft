@@ -179,10 +179,37 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                    "Download 'Advanced Features Addon' now?")
 
             if messagebox.askyesno(i18n.get("addon_missing_title") or "Advanced Features Missing", msg):
-                # Auto-install instead of opening browser if possible?
-                # User asked for auto-download fallback.
-                # Let's try auto-install first.
-                 threading.Thread(target=lambda: AddonService.install_addon("advanced"), daemon=True).start()
+                # Auto-install with restart countdown
+                def run_install():
+                    if AddonService.install_addon("advanced"):
+                        self.after(0, self._show_restart_countdown)
+                    else:
+                        self.after(0, lambda: messagebox.showerror("Error", i18n.get("addon_install_failed_manual")))
+
+                threading.Thread(target=run_install, daemon=True).start()
+
+    def _show_restart_countdown(self):
+        from switchcraft.gui.components.countdown_dialog import CountdownDialog
+
+        def do_restart():
+            import sys
+            import subprocess
+            logger.info("Restarting application...")
+            # Simple restart: Run executable again and exit
+            try:
+                subprocess.Popen([sys.executable] + sys.argv)
+                sys.exit(0)
+            except Exception as e:
+                logger.error(f"Restart failed: {e}")
+                messagebox.showerror("Error", "Could not restart automatically. Please restart manually.")
+
+        CountdownDialog(
+            self,
+            "Restart Required",
+            "Addon installed. Restarting automatically in:",
+            timeout_seconds=5,
+            on_timeout=do_restart
+        )
 
     def _toggle_winget_tab(self, enabled):
         """Show or hide the Winget tab based on settings."""

@@ -81,7 +81,16 @@ class SwitchCraftConfig:
 
         # 3. Registry (reading policy first)
         val = cls.get_value("DebugMode")
-        return val == 1
+        if val is not None:
+             return val == 1
+
+        # 4. Default for Nightly/Dev builds
+        from switchcraft import __version__
+        v_low = __version__.lower()
+        if "dev" in v_low or "nightly" in v_low:
+            return True
+
+        return False
 
     @classmethod
     def get_update_channel(cls) -> str:

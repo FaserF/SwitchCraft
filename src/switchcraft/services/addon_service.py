@@ -151,9 +151,34 @@ class AddonService:
             addon_root.mkdir(parents=True, exist_ok=True)
 
             if is_source_zip:
-                # Zip structure: SwitchCraft-main/src/switchcraft_advanced/...
-                root_folder = z.namelist()[0].split('/')[0]
-                source_prefix = f"{root_folder}/src/{pkg_name}/"
+                # Dynamic search for the source folder in the zip
+                # e.g., SwitchCraft-main/src/switchcraft_advanced/
+
+                source_prefix = None
+                # Normalize pkg_name for matching
+                search_target = f"src/{pkg_name}/"
+
+                all_files = z.namelist()
+                for fname in all_files:
+                    if search_target in fname and fname.endswith(search_target):
+                         # Found the directory entry (e.g., 'SwitchCraft-main/src/switchcraft_winget/')
+                         source_prefix = fname
+                         break
+
+                # If directory entry not found explicitly, search for files containing the path
+                if not source_prefix:
+                    for fname in all_files:
+                        if f"/src/{pkg_name}/" in fname or fname.startswith(f"src/{pkg_name}/"):
+                             # Reconstruct prefix
+                             parts = fname.split(f"/src/{pkg_name}/")
+                             source_prefix = f"{parts[0]}/src/{pkg_name}/"
+                             break
+
+                if not source_prefix:
+                    logger.error(f"Could not find '/src/{pkg_name}/' in zip. Available paths: {all_files[:5]}...")
+                    return False
+
+                logger.info(f"Extracting addon from: {source_prefix}")
 
                 found_any = False
                 for member in z.infolist():
@@ -171,8 +196,14 @@ class AddonService:
                             with z.open(member) as source, open(target_path, "wb") as target:
                                 shutil.copyfileobj(source, target)
 
+                # Verify installation immediately
+                if (addon_root / pkg_name / "__init__.py").exists():
+                     logger.info(f"Verified installation of {pkg_name} at {addon_root / pkg_name}")
+                else:
+                     logger.warning(f"Installation of {pkg_name} might have failed. __init__.py not found at {addon_root / pkg_name}")
+
                 if not found_any:
-                    logger.error(f"Could not find {pkg_name} in source zip.")
+                    logger.error(f"Could not find {pkg_name} in source zip (Prefix: {source_prefix}).")
                     return False
             else:
                 z.extractall(addon_root)

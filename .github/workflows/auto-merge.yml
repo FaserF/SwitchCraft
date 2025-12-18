@@ -14,6 +14,7 @@ jobs:
   auto-merge:
     runs-on: ubuntu-latest
     if: >
+      github.event.workflow_run.event == 'pull_request' &&
       ${{ github.event.workflow_run.conclusion == 'success' }} &&
       (github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]' || github.actor == 'fseitz')
     steps:

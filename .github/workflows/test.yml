@@ -17,7 +17,7 @@ jobs:
         if: inputs.component == 'backend'
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Install backend deps
         if: inputs.component == 'backend'
         run: |
@@ -29,17 +29,3 @@ jobs:
         run: |
            export PYTHONPATH=$PYTHONPATH:$(pwd)/src
            pytest tests || echo "No tests yet"
-
-      - name: Test Frontend
-        if: inputs.component == 'frontend'
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - name: Install and Test Frontend
-        if: inputs.component == 'frontend'
-        working-directory: ./frontend
-        run: |
-           if [ -f package.json ]; then
-               npm ci
-               npm test -- --passWithNoTests || echo "Skipping tests"
-           fi

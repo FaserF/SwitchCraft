@@ -207,7 +207,6 @@
     "restart_required": "Restart Required",
     "restart_required_msg": "Please restart SwitchCraft for changes to take effect.",
     "settings_language": "Language",
-    "settings_ai_provider": "AI Provider",
     "configure_app_reg": "Configure App Registration in Settings to enable upload.",
     "btn_upload_intune": "☁️ Upload to Intune (Graph API)",
     "toggle_log_show": "Show Terminal Output",
@@ -231,5 +230,8 @@
     "winget_addon_desc": "Winget integration allows searching and creating install scripts for thousands of apps.",
     "ai_addon_desc": "The AI Assistant helps you find silent switches and explain installer technologies.",
     "ai_privacy_cloud": "⚠️ Privacy Warning: Data is sent to external cloud servers.",
-    "ai_privacy_local": "✅ Privacy Safe: Data is processed locally on your device."
+    "ai_privacy_local": "✅ Privacy Safe: Data is processed locally on your device.",
+    "analyzer_addon_warning": "⚠️ Advanced Addon Missing! Detection accuracy is reduced.",
+    "analyzer_addon_install": "Install Advanced Addon",
+    "help_addons_explanation": "Why Addons?\nSome features (Intune upload, deep analysis) are packaged as separate addons to prevent false-positive virus detections by antivirus software. This keeps the core application clean and trusted."
 }

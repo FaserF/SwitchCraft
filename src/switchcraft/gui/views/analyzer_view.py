@@ -41,8 +41,17 @@ class AnalyzerView(ctk.CTkFrame):
 
     def setup_ui(self):
         # Drop Zone
+        # Drop Zone
+        row_offset = 0
+
+        # Check for Advanced Addon
+        from switchcraft.services.addon_service import AddonService
+        if not AddonService.is_addon_installed("advanced"):
+            self._create_addon_warning(row_offset)
+            row_offset += 1
+
         self.drop_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.drop_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
+        self.drop_frame.grid(row=row_offset, column=0, sticky="ew", padx=10, pady=10)
 
         btn_text = i18n.get("drag_drop")
         image = getattr(self.app, 'logo_image', None)
@@ -61,19 +70,42 @@ class AnalyzerView(ctk.CTkFrame):
         self.drop_label.dnd_bind('<<Drop>>', self._on_drop)
 
         # Result Area
+        # Result Area
         self.result_frame = ctk.CTkScrollableFrame(self, label_text=i18n.get("analysis_complete"))
-        self.result_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        self.result_frame.grid(row=row_offset+1, column=0, sticky="nsew", padx=10, pady=(0, 10))
         self.result_frame.grid_columnconfigure(0, weight=1)
 
         # Status Bar
         self.status_bar = ctk.CTkLabel(self, text="Ready", anchor="w", text_color="gray")
-        self.status_bar.grid(row=2, column=0, sticky="ew", padx=10, pady=(5, 0))
+        # Status Bar
+        self.status_bar = ctk.CTkLabel(self, text="Ready", anchor="w", text_color="gray")
+        self.status_bar.grid(row=row_offset+2, column=0, sticky="ew", padx=10, pady=(5, 0))
 
         # Progress Bar
         self.progress_bar = ctk.CTkProgressBar(self)
-        self.progress_bar.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 5))
+        self.progress_bar.grid(row=row_offset+3, column=0, sticky="ew", padx=10, pady=(0, 5))
         self.progress_bar.set(0)
         self.progress_bar.grid_remove()
+
+    def _create_addon_warning(self, row):
+        from switchcraft.services.addon_service import AddonService
+        warning_frame = ctk.CTkFrame(self, fg_color="#5e1b1b") # Dark red bg
+        warning_frame.grid(row=row, column=0, sticky="ew", padx=10, pady=(10,0))
+        warning_frame.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(warning_frame, text="⚠️", font=ctk.CTkFont(size=24)).grid(row=0, column=0, padx=10, pady=5)
+
+        ctk.CTkLabel(warning_frame,
+                     text=i18n.get("analyzer_addon_warning"),
+                     text_color="white",
+                     font=ctk.CTkFont(weight="bold")).grid(row=0, column=1, sticky="w", pady=5)
+
+        ctk.CTkButton(warning_frame,
+                      text=i18n.get("analyzer_addon_install"),
+                      fg_color="#cf3a3a", hover_color="#a12d2d", text_color="white",
+                      width=150,
+                      command=lambda: threading.Thread(target=lambda: AddonService.install_addon("advanced"), daemon=True).start()
+                      ).grid(row=0, column=2, padx=10, pady=10)
 
     def _on_drop(self, event):
         data = event.data

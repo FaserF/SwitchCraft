@@ -486,6 +486,13 @@ class SettingsView(ctk.CTkFrame):
         auth_grid.pack(fill="x", pady=5)
         auth_grid.grid_columnconfigure(1, weight=1)
 
+        from switchcraft.services.addon_service import AddonService
+        if not AddonService.is_addon_installed("advanced"):
+            ctk.CTkLabel(frame, text=i18n.get("addon_advanced_required") or "Requires 'Advanced Features' Addon", text_color="orange").pack(pady=5)
+            ctk.CTkButton(frame, text="Go to Addon Manager", command=lambda: self.tabview.set(i18n.get("help_title") or "Help")).pack(pady=5)
+            # Disable the rest
+            return
+
         def create_auth_field(row, label, key, show=""):
             ctk.CTkLabel(auth_grid, text=label).grid(row=row, column=0, sticky="w", padx=5, pady=2)
             entry = ctk.CTkEntry(auth_grid, show=show)
@@ -568,7 +575,60 @@ class SettingsView(ctk.CTkFrame):
     def _setup_debug_console(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
-        # Debug console switch...
+
+        # Header with Switch
+        header_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        header_frame.pack(fill="x", padx=5, pady=5)
+
+        ctk.CTkLabel(header_frame, text=i18n.get("settings_hdr_debug_console") or "Debug Console", font=ctk.CTkFont(weight="bold")).pack(side="left")
+
+        self.console_textbox = ctk.CTkTextbox(frame, height=200, font=ctk.CTkFont(family="Consolas", size=10))
+        # Hidden by default
+
+        self.show_console_var = ctk.BooleanVar(value=False)
+        def toggle_console():
+            if self.show_console_var.get():
+                self.console_textbox.pack(fill="x", padx=10, pady=5)
+            else:
+                self.console_textbox.pack_forget()
+
+        ctk.CTkSwitch(header_frame, text=i18n.get("show") or "Show", variable=self.show_console_var, command=toggle_console).pack(side="right")
+
+        # Color tags
+        self.console_textbox.tag_config("INFO", foreground="white")
+        self.console_textbox.tag_config("WARNING", foreground="yellow")
+        self.console_textbox.tag_config("ERROR", foreground="red")
+        self.console_textbox.tag_config("CRITICAL", foreground="red", background="white")
+
+        # Define Handler Class
+        class GuiLogHandler(logging.Handler):
+            def __init__(self, text_widget):
+                super().__init__()
+                self.text_widget = text_widget
+
+            def emit(self, record):
+                msg = self.format(record)
+                def append():
+                    try:
+                        self.text_widget.configure(state="normal")
+                        self.text_widget.insert("end", msg + "\n", (record.levelname,))
+                        self.text_widget.configure(state="disabled")
+                        self.text_widget.see("end")
+                    except Exception:
+                        pass
+
+                try:
+                    self.text_widget.after(0, append)
+                except Exception:
+                    pass
+
+        # Attach
+        h = GuiLogHandler(self.console_textbox)
+        h.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        logging.getLogger().addHandler(h)
+
+        self.console_textbox.insert("0.0", "--- Debug Console Started ---\n")
+        self.console_textbox.configure(state="disabled")
 
     def _get_registry_value(self, key):
         # Mock or real usage
@@ -621,3 +681,7 @@ class SettingsView(ctk.CTkFrame):
 
     def _save_manual_config(self, key, value):
         SwitchCraftConfig.set_user_preference(key, value)
+
+    def _setup_help_section(self, parent):
+         # Addon Explanation
+        ctk.CTkLabel(parent, text="ℹ️ " + i18n.get("help_addons_explanation"), justify="left", wraplength=400).pack(anchor="w", padx=10, pady=(10, 20))
