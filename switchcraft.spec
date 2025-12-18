@@ -31,7 +31,8 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # Exclude sensitive modules to avoid Virus False Positives
+    excludes=['py7zr', 'switchcraft_advanced', 'switchcraft.analyzers.universal', 'switchcraft.services.intune_service'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

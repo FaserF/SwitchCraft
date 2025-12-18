@@ -134,10 +134,24 @@ class IntuneView(ctk.CTkFrame):
 
 
 
-        # Log Output
-        self.txt_intune_log = ctk.CTkTextbox(self.frame_intune, height=150)
-        self.txt_intune_log.grid(row=6, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        # Log Toggle and Area
+        self.frame_log_container = ctk.CTkFrame(self.frame_intune, fg_color="transparent")
+        self.frame_log_container.grid(row=6, column=0, padx=20, pady=(0, 20), sticky="nsew")
         self.frame_intune.grid_rowconfigure(6, weight=1)
+
+        self.btn_toggle_log = ctk.CTkButton(self.frame_log_container, text="Show Terminal Output", width=150, fg_color="gray", command=self._toggle_log)
+        self.btn_toggle_log.pack(anchor="w", pady=(0, 5))
+
+        self.txt_intune_log = ctk.CTkTextbox(self.frame_log_container, height=150)
+        # Hidden by default - we don't pack it yet.
+
+    def _toggle_log(self):
+        if self.txt_intune_log.winfo_ismapped():
+            self.txt_intune_log.pack_forget()
+            self.btn_toggle_log.configure(text="Show Terminal Output")
+        else:
+            self.txt_intune_log.pack(fill="both", expand=True)
+            self.btn_toggle_log.configure(text="Hide Terminal Output")
 
     def _browse_intune_setup(self):
         f = ctk.filedialog.askopenfilename(title=i18n.get("intune_browse_setup_title"))
@@ -166,20 +180,38 @@ class IntuneView(ctk.CTkFrame):
             messagebox.showerror("Error", i18n.get("intune_err_missing"))
             return
 
+        # Prepare Log
+        if not self.txt_intune_log.winfo_ismapped():
+            # Optional: Auto-show on run? User said "Standardmäßig versteckt".
+            # Let's keep it hidden unless user opens it, but status updates help.
+            self.btn_toggle_log.configure(text="Show Terminal Output (Running...)")
+
         self.txt_intune_log.delete("0.0", "end")
         self.txt_intune_log.insert("end", i18n.get("intune_start_creation") + "\n")
 
+        def _log_callback(line):
+            self.after(0, lambda: self.txt_intune_log.insert("end", line))
+            # Auto-scroll
+            self.after(0, lambda: self.txt_intune_log.see("end"))
+
         def _process():
             try:
-                out = self.intune_service.create_intunewin(
+                # Pass callback for streaming
+                self.intune_service.create_intunewin(
                     source_folder=s_source,
                     setup_file=s_setup,
                     output_folder=s_output,
-                    quiet=b_quiet
+                    quiet=b_quiet,
+                    progress_callback=_log_callback
                 )
-                self.after(0, lambda: self.txt_intune_log.insert("end", out + "\n\nDONE!"))
+                self.after(0, lambda: self.txt_intune_log.insert("end", "\nDONE!"))
                 self.after(0, lambda: messagebox.showinfo("Success", i18n.get("intune_pkg_success", path=s_output)))
                 self.notification_service.send_notification("Package Created", f"Created .intunewin package in {s_output}")
+
+                # Reset button text if hidden
+                if not self.txt_intune_log.winfo_ismapped():
+                     self.after(0, lambda: self.btn_toggle_log.configure(text="Show Terminal Output"))
+
                 # Open Explorer
                 try: os.startfile(s_output)
                 except: pass

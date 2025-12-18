@@ -164,6 +164,12 @@ jobs:
       run: |
         pyinstaller switchcraft.spec
 
+    - name: Create Addon Package
+      if: matrix.os == 'windows-latest'
+      run: |
+        Compress-Archive -Path src/switchcraft_advanced -DestinationPath dist/switchcraft_addon.zip
+      shell: pwsh
+
     - name: Rename to Platform Name
       run: |
         cp dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
@@ -205,6 +211,15 @@ jobs:
       with:
         tag_name: v${{ needs.prepare_release.outputs.version }}
         files: dist/${{ matrix.asset_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Addon Package
+      if: matrix.os == 'windows-latest'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ needs.prepare_release.outputs.version }}
+        files: dist/switchcraft_addon.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

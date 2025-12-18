@@ -3,8 +3,22 @@ name: CI
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -32,6 +46,7 @@ jobs:
 
     - name: Run Tests
       run: |
+        export PYTHONPATH=$PYTHONPATH:$(pwd)/src:$(pwd)/src/switchcraft:$(pwd)/src/switchcraft_advanced:$(pwd)/src/switchcraft_ai:$(pwd)/src/switchcraft_winget:$(pwd)/src/switchcraft_debug
         python -m pytest tests
       shell: bash
 

@@ -1,14 +1,9 @@
 
-import stat
 import logging
 import os
 import subprocess
 import requests
 from pathlib import Path
-import zipfile
-import base64
-import json
-from typing import Optional, Callable
 from switchcraft.utils.i18n import i18n
 from defusedxml import ElementTree as DefusedET
 import jwt
@@ -48,17 +43,13 @@ class IntuneService:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-            # Grant execution permissions (for CI/Linux runners)
-            st = os.stat(self.tool_path)
-            os.chmod(self.tool_path, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-
             logger.info("IntuneWinAppUtil downloaded successfully.")
             return True
-        except Exception:
-            logger.exception("Failed to download IntuneWinAppUtil")
+        except Exception as e:
+            logger.exception(f"Failed to download IntuneWinAppUtil: {e}")
             return False
 
-    def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str, catalog_folder: str = None, quiet: bool = True, progress_callback: Optional[Callable[[str], None]] = None) -> str:
+    def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str, catalog_folder: str = None, quiet: bool = True) -> str:
         """
         Runs the IntuneWinAppUtil to generate the .intunewin package.
         Returns the output text from the tool.
@@ -108,37 +99,20 @@ class IntuneService:
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
         try:
-            process = subprocess.Popen(
+            process = subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+                capture_output=True,
                 text=True,
                 encoding='cp1252', # Windows tool output encoding
-                startupinfo=startupinfo,
-                bufsize=1,
-                universal_newlines=True
+                startupinfo=startupinfo
             )
-
-            full_output = []
-
-            # Stream output
-            for line in process.stdout:
-                line_str = line
-                full_output.append(line_str)
-                # If a callback is provided (e.g. for UI)
-                if progress_callback:
-                    progress_callback(line_str)
-
-            process.wait()
-
-            output_str = "".join(full_output)
 
             if process.returncode == 0:
                 logger.info("IntuneWin package created successfully.")
-                return output_str
+                return process.stdout
             else:
-                logger.error(f"IntuneWin creation failed: {output_str}")
-                raise RuntimeError(f"Tool exited with code {process.returncode}: {output_str}")
+                logger.error(f"IntuneWin creation failed: {process.stderr}")
+                raise RuntimeError(f"Tool exited with code {process.returncode}: {process.stdout}")
 
         except Exception as e:
             logger.error(f"Error running IntuneWinAppUtil: {e}")
@@ -161,16 +135,15 @@ class IntuneService:
             token = resp.json().get("access_token")
             logger.info("Successfully authenticated with Graph API.")
             return token
-        except Exception:
-            logger.exception("Authentication failed")
-            raise RuntimeError("Authentication failed")
+        except Exception as e:
+            logger.exception(f"Authentication failed: {e}")
+            raise RuntimeError(f"Authentication failed: {e}")
 
     def verify_graph_permissions(self, token):
         """Verifies Graph API permissions from JWT token."""
         try:
             # Simple JWT decoding using PyJWT without signature verification (done by Graph)
             payload = jwt.decode(token, options={"verify_signature": False})
-
             roles = payload.get("roles", [])
 
             mandatory = ["DeviceManagementApps.ReadWrite.All"]
@@ -195,6 +168,9 @@ class IntuneService:
         Uploads a .intunewin package to Intune.
         app_info: dict with keys: displayName, description, publisher, installCommandLine, uninstallCommandLine
         """
+        import zipfile
+        import base64
+
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         base_url = "https://graph.microsoft.com/beta/deviceAppManagement" # Use beta for win32LobApp usually
 

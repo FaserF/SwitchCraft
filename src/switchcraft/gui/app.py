@@ -17,16 +17,18 @@ from switchcraft.utils.i18n import i18n
 from switchcraft.utils.updater import UpdateChecker
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.security import SecurityChecker
-from switchcraft.services.ai_service import SwitchCraftAI
 from switchcraft.services.notification_service import NotificationService
+from switchcraft.services.addon_service import AddonService
 
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.gui.views.intune_view import IntuneView
 from switchcraft.gui.views.settings_view import SettingsView
-from switchcraft.gui.views.ai_view import AIView
+# AIView imported dynamically if needed, or we keep it if it is just a view class (but moved to addon)
+# Actually, AIView is in addon now, so we cannot import it unless we use AddonService or try/except
 from switchcraft.gui.views.analyzer_view import AnalyzerView
-from switchcraft.gui.views.winget_view import WingetView
-from switchcraft.utils.winget import WingetHelper
+from switchcraft.gui.views.winget_view import WingetView # Winget View depends on helper, verify usage
+from switchcraft.gui.views.history_view import HistoryView
+from switchcraft.services.history_service import HistoryService
 from switchcraft import __version__
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,6 +39,16 @@ ctk.set_default_color_theme("dark-blue")
 
 
 class App(ctk.CTk, TkinterDnD.DnDWrapper):
+    def on_closing(self):
+        self.destroy()
+
+    def run(self):
+        # CLI Argument Handling for Addons
+        # CLI flag triggers addon check/prompt on startup
+        if "--install-addons" in sys.argv:
+            self.after(2000, self._check_addon_status)
+
+        self.mainloop()
     def __init__(self):
         super().__init__()
         self.TkdndVersion = TkinterDnD._require(self)
@@ -52,9 +64,32 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.load_assets()
 
         # Initialize Services early
-        self.ai_service = SwitchCraftAI()
+        AddonService.register_addons()
+
+        # 1. AI Addon
+        self.ai_service = None
+        try:
+            ai_mod = AddonService.import_addon_module("ai", "service")
+            if ai_mod:
+                self.ai_service = ai_mod.SwitchCraftAI()
+        except Exception as e:
+            logger.info(f"AI Addon not loaded: {e}")
+
+        # 2. Intune Service (Core or Addon? Currently Core/Universal stub, but let's keep as is)
         self.intune_service = IntuneService()
-        self.winget_helper = WingetHelper()
+        self.history_service = HistoryService()
+
+        # 3. Winget Addon
+        self.winget_helper = None
+        try:
+            winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+            if winget_mod:
+                self.winget_helper = winget_mod.WingetHelper()
+        except Exception as e:
+            logger.info(f"Winget Addon not loaded: {e}")
+
+        # 4. Debug Addon (Just check presence, logic used in Settings)
+        self.has_debug_addon = AddonService.is_addon_installed("debug")
 
         # Grid Layout
         self.grid_columnconfigure(0, weight=1)
@@ -66,41 +101,42 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.tab_analyzer = self.tabview.add(i18n.get("tab_analyzer"))
 
-        # AI Helper tab - only show for debug mode, beta, or dev versions
-        self.show_ai_helper = self._should_show_ai_helper()
-        if self.show_ai_helper:
+        # AI Helper tab
+        if self.ai_service:
             self.tab_helper = self.tabview.add(i18n.get("tab_helper"))
 
         self.tab_settings = self.tabview.add(i18n.get("tab_settings"))
 
         # Initialize Tabs
         self.setup_analyzer_tab()
-        if self.show_ai_helper:
+        if self.ai_service:
             self.setup_helper_tab()
 
         # Intune Utility Tab
         self.tab_intune = self.tabview.add("Intune Utility")
         self.setup_intune_tab()
 
-        self.tab_winget = self.tabview.add("Winget Store")
-        self.setup_winget_tab()
+        if self.winget_helper and SwitchCraftConfig.get_value("EnableWinget", True):
+            self.tab_winget = self.tabview.add("Winget Store")
+            self.setup_winget_tab()
+
+        self.tab_history = self.tabview.add("History")
+        self.setup_history_tab()
 
         self.setup_settings_tab()
 
         # Setup Beta/Dev banner if pre-release
         self.setup_version_banner()
 
-        # Auto-Check Updates
-        self.after(2000, self.check_updates_silently)
-
-        # Security Check
-        self.after(3000, self.check_security_silently)
 
         # Handle window close for "Update Later" feature
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
         # Demo / First Start Logic
         self.after(1000, self._run_demo_init)
+
+        # Check for Addon (Virus Mitigation)
+        self.after(4000, self._check_addon_status)
 
     def _run_demo_init(self):
         """Check if first run/demo mode is needed."""
@@ -113,6 +149,37 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 if messagebox.askyesno("SwitchCraft Demo", msg):
                     # Locate own installer or download
                     self.after(500, self._start_demo_analysis)
+
+    def _check_addon_status(self):
+        """Check if Advanced Features Addon is installed."""
+        if not AddonService.is_addon_installed("advanced"):
+            # Only ask once per session or use config to remember "Don't ask again"
+            if SwitchCraftConfig.get_value("AddonPromptShown", False):
+                return
+
+            SwitchCraftConfig.set_user_preference("AddonPromptShown", True)
+
+            msg = (i18n.get("addon_missing_msg") or
+                   "Advanced Features (Intune, Brute Force) are not installed.\n\n"
+                   "These are packaged separately to avoid false-positive virus detection.\n\n"
+                   "Download 'Advanced Features Addon' now?")
+
+            if messagebox.askyesno(i18n.get("addon_missing_title") or "Advanced Features Missing", msg):
+                # Open release page for now
+                webbrowser.open("https://github.com/FaserF/SwitchCraft/releases/latest")
+
+    def _toggle_winget_tab(self, enabled):
+        """Show or hide the Winget tab based on settings."""
+        if enabled:
+            if "Winget Store" not in self.tabview._tab_dict:
+                # Re-add tab at the correct position (hard to force position, adds to end)
+                # To keep order, we might need to recreate all... or just add it.
+                # Adding to end is fine for now.
+                self.tab_winget = self.tabview.add("Winget Store")
+                self.setup_winget_tab()
+        else:
+            if "Winget Store" in self.tabview._tab_dict:
+                self.tabview.delete("Winget Store")
 
     def _start_demo_analysis(self):
         """Download or locate a sample installer for demo."""
@@ -270,7 +337,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                     is_startup = not show_no_update
                     self.after(0, lambda: self.show_update_dialog(checker, is_startup=is_startup))
                 elif show_no_update:
-                    self.after(0, lambda: messagebox.showinfo(i18n.get("update_available_title"), i18n.get("no_update_found") or "No updates available."))
+                    self.after(0, lambda: messagebox.showinfo(i18n.get("update_check_title"), i18n.get("no_update_found") or "No updates available."))
             except Exception as e:
                 logger.error(f"Update check failed: {e}")
                 error_msg = str(e)
@@ -553,14 +620,28 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     # --- Helper Tab ---
 
     def setup_helper_tab(self):
-        self.ai_view = AIView(self.tab_helper, self.ai_service)
-        self.ai_view.pack(fill="both", expand=True)
+        try:
+            ai_view_mod = AddonService.import_addon_module("ai", "gui.view")
+            if ai_view_mod:
+                # Dynamic import check: AIView class must be accessible
+                AIView = ai_view_mod.AIView
+                self.ai_view = AIView(self.tab_helper, self.ai_service)
+                self.ai_view.pack(fill="both", expand=True)
+            else:
+                logger.error("AI View module missing in addon.")
+        except Exception:
+            logger.exception("Failed to setup AI Helper tab")
 
     # --- Settings Tab ---
 
     def setup_settings_tab(self):
         """Setup the Settings tab."""
-        self.settings_view = SettingsView(self.tab_settings, self._run_update_check, self.intune_service)
+        self.settings_view = SettingsView(
+            self.tab_settings,
+            self._run_update_check,
+            self.intune_service,
+            on_winget_toggle=self._toggle_winget_tab
+        )
         self.settings_view.pack(fill="both", expand=True)
 
 
@@ -574,6 +655,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def setup_winget_tab(self):
         self.winget_view = WingetView(self.tab_winget, self.winget_helper, self.intune_service, NotificationService())
         self.winget_view.pack(fill="both", expand=True)
+
+    def setup_history_tab(self):
+        self.history_view = HistoryView(self.tab_history, self.history_service, self)
+        self.history_view.pack(fill="both", expand=True)
 
     def start_analysis_tab(self, file_path):
         self.start_analysis(file_path)

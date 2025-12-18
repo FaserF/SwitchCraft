@@ -11,22 +11,29 @@ class TestIntuneService(unittest.TestCase):
     def test_switchcraft_winget_fix(self):
         """Test that searching for 'SwitchCraft' returns the fixed URL."""
         from switchcraft.utils.winget import WingetHelper
-        helper = WingetHelper()
-        # Mocking local repo existence to pass initial check
-        with patch('pathlib.Path.exists', return_value=True):
-            helper.local_repo = Path("mock")
+
+        # Fake return value for search_packages
+        fake_result = [{"Id": "FaserF.SwitchCraft", "Name": "SwitchCraft", "Source": "winget"}]
+
+        with patch.object(WingetHelper, 'search_packages', return_value=fake_result):
+            helper = WingetHelper()
             url = helper.search_by_name("SwitchCraft")
-            self.assertEqual(url, "https://github.com/microsoft/winget-pkgs/tree/master/manifests/s/FaserF/SwitchCraft")
+            # New URL format from refactor
+            self.assertEqual(url, "https://winget.run/pkg/FaserF/SwitchCraft")
 
-            # Case insensitive check
             url_lower = helper.search_by_name("switchcraft")
-            self.assertEqual(url_lower, "https://github.com/microsoft/winget-pkgs/tree/master/manifests/s/FaserF/SwitchCraft")
+            self.assertEqual(url_lower, "https://winget.run/pkg/FaserF/SwitchCraft")
 
-    @patch('switchcraft.services.intune_service.subprocess.run')
-    def test_create_intunewin_args(self, mock_run):
+    @patch('switchcraft.services.intune_service.subprocess.Popen')
+    def test_create_intunewin_args(self, mock_popen):
         """Test that create_intunewin constructs the correct command line."""
-        mock_run.return_value.returncode = 0
-        mock_run.return_value.stdout = "Done"
+        # Mock Popen instance
+        process_mock = MagicMock()
+        process_mock.stdout = ["Line 1\n", "Line 2\n"] # Iterable
+        process_mock.returncode = 0
+        process_mock.wait.return_value = None
+
+        mock_popen.return_value = process_mock
 
         with patch.object(IntuneService, 'is_tool_available', return_value=True), \
              patch.object(IntuneService, 'download_tool', return_value=True):
@@ -44,7 +51,7 @@ class TestIntuneService(unittest.TestCase):
                     )
 
         # Verify args passed to subprocess
-        args, kwargs = mock_run.call_args
+        args, _ = mock_popen.call_args
         cmd = args[0]
 
         # We look for flags

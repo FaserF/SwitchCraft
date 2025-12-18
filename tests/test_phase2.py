@@ -13,7 +13,8 @@ from switchcraft.analyzers.universal import UniversalAnalyzer
 class TestPhase2Features(unittest.TestCase):
 
     def setUp(self):
-        self.ai = SwitchCraftAI()
+        with patch("switchcraft.utils.config.SwitchCraftConfig.get_value", return_value="local"):
+            self.ai = SwitchCraftAI()
 
     # --- AI Service Tests ---
     def test_ai_language_fallback(self):
@@ -51,7 +52,7 @@ class TestPhase2Features(unittest.TestCase):
         self.assertIn("/VERYSILENT", response)
 
     # --- Brute Force Tests ---
-    @patch("switchcraft.analyzers.universal.subprocess.run")
+    @patch("switchcraft_advanced.analyzers.universal.subprocess.run")
     def test_brute_force_try_all(self, mock_run):
         """Test that the new 'Try All' strategy is attempted."""
         uni = UniversalAnalyzer()

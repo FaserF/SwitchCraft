@@ -27,7 +27,7 @@ class TestPhase4Features(unittest.TestCase):
         except Exception as e:
             self.fail(f"NotificationService raised exception: {e}")
 
-    @patch('requests.get')
+    @patch('switchcraft.services.intune_service.requests.get')
     def test_intune_download(self, mock_get):
         """Test downloading the Intune tool."""
         mock_response = MagicMock()
@@ -47,8 +47,8 @@ class TestPhase4Features(unittest.TestCase):
         with open(self.intune_service.tool_path, 'rb') as f:
             self.assertEqual(f.read(), b"fake_exe_content")
 
-    @patch('subprocess.run')
-    def test_create_intunewin(self, mock_run):
+    @patch('switchcraft.services.intune_service.subprocess.Popen')
+    def test_create_intunewin(self, mock_popen):
         """Test creating .intunewin package."""
         # Create dummy setup file
         setup_file = Path(self.test_dir) / "setup.exe"
@@ -57,11 +57,12 @@ class TestPhase4Features(unittest.TestCase):
         # Create dummy tool
         (Path(self.test_dir) / "IntuneWinAppUtil.exe").touch()
 
-        # Mock subprocess success
+        # Mock Popen return value (process)
         mock_proc = MagicMock()
         mock_proc.returncode = 0
-        mock_proc.stdout = "Package created"
-        mock_run.return_value = mock_proc
+        mock_proc.stdout = ["Package created\n"] # Iterable
+        mock_proc.wait.return_value = None
+        mock_popen.return_value = mock_proc
 
         output_dir = Path(self.test_dir) / "output"
 
@@ -72,4 +73,4 @@ class TestPhase4Features(unittest.TestCase):
         )
 
         self.assertIn("Package created", result)
-        mock_run.assert_called_once()
+        mock_popen.assert_called_once()
