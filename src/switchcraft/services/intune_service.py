@@ -4,6 +4,10 @@ import os
 import subprocess
 import requests
 from pathlib import Path
+import xml.etree.ElementTree as ET
+import zipfile
+import base64
+import json
 from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
@@ -155,8 +159,6 @@ class IntuneService:
             # Padding for base64
             payload_part = parts[1]
             padded = payload_part + '=' * (4 - len(payload_part) % 4)
-            import base64
-            import json
             payload_bytes = base64.urlsafe_b64decode(padded)
             payload = json.loads(payload_bytes)
 
@@ -185,14 +187,6 @@ class IntuneService:
         Uploads a .intunewin package to Intune.
         app_info: dict with keys: displayName, description, publisher, installCommandLine, uninstallCommandLine
         """
-        import zipfile
-        import xml.etree.ElementTree as ET
-        import base64
-
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-        base_url = "https://graph.microsoft.com/beta/deviceAppManagement" # Use beta for win32LobApp usually
-
-        intunewin_path = Path(intunewin_path)
         if not intunewin_path.exists():
             raise FileNotFoundError(f"File not found: {intunewin_path}")
 

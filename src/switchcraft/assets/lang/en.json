@@ -17,6 +17,7 @@
     "view_winget": "View on Winget GitHub",
     "settings_theme": "Theme",
     "settings_lang": "Language",
+    "settings_saved": "Settings saved.",
     "settings_debug": "Debug Logging",
     "settings_channel": "Update Channel",
     "settings_dark": "Dark",

@@ -26,75 +26,116 @@ class SettingsView(ctk.CTkFrame):
         self.setup_ui()
 
     def setup_ui(self):
-        """Setup the Settings tab."""
-        self.settings_scroll = ctk.CTkScrollableFrame(self)
-        self.settings_scroll.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        self.settings_scroll.grid_columnconfigure(0, weight=1)
+        """Setup the Settings tab with TabView layout."""
+        # Main Layout: TabView instead of single ScrollableFrame
+        self.tab_view = ctk.CTkTabview(self)
+        self.tab_view.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.tab_view.grid_columnconfigure(0, weight=1)
 
-        # Header
-        ctk.CTkLabel(self.settings_scroll, text=i18n.get("settings_title"), font=ctk.CTkFont(size=20, weight="bold")).pack(pady=10)
+        # Create Tabs
+        self.tab_general = self.tab_view.add("General")
+        self.tab_updates = self.tab_view.add("Updates")
+        self.tab_deploy = self.tab_view.add("Deployment")
+        self.tab_help = self.tab_view.add("Help")
 
-        # Debug Hint
-        debug_hint = ctk.CTkLabel(
-            self.settings_scroll,
-            text=i18n.get("settings_debug_hint"),
-            text_color="gray",
-            font=ctk.CTkFont(size=11)
-        )
-        debug_hint.pack(pady=2)
+        # Configure Grids for Tabs
+        for tab in [self.tab_general, self.tab_updates, self.tab_deploy, self.tab_help]:
+            tab.grid_columnconfigure(0, weight=1)
+            tab.grid_rowconfigure(0, weight=1)
 
-        # General Settings (Winget)
-        frame_general = ctk.CTkFrame(self.settings_scroll)
-        frame_general.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(frame_general, text="General", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        # Create Scrollable Frames for each tab (Fixes cutoff issues)
+        self.scroll_general = ctk.CTkScrollableFrame(self.tab_general, fg_color="transparent")
+        self.scroll_general.pack(fill="both", expand=True)
+
+        self.scroll_updates = ctk.CTkScrollableFrame(self.tab_updates, fg_color="transparent")
+        self.scroll_updates.pack(fill="both", expand=True)
+
+        self.scroll_deploy = ctk.CTkScrollableFrame(self.tab_deploy, fg_color="transparent")
+        self.scroll_deploy.pack(fill="both", expand=True)
+
+        self.scroll_help = ctk.CTkScrollableFrame(self.tab_help, fg_color="transparent")
+        self.scroll_help.pack(fill="both", expand=True)
+
+        # Populate Tabs
+        self._setup_tab_general(self.scroll_general)
+        self._setup_tab_updates(self.scroll_updates)
+        self._setup_tab_deployment(self.scroll_deploy)
+        self._setup_tab_help(self.scroll_help)
+
+    def _setup_tab_general(self, parent):
+        """General Settings: Winget, Paths, AI."""
+        # Winget
+        frame_gen = ctk.CTkFrame(parent)
+        frame_gen.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(frame_gen, text="Integrations", font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
         self.winget_var = ctk.BooleanVar(value=SwitchCraftConfig.get_value("EnableWinget", True))
         def toggle_winget():
             SwitchCraftConfig.set_user_preference("EnableWinget", self.winget_var.get())
+        ctk.CTkSwitch(frame_gen, text=i18n.get("settings_enable_winget", default="Enable Winget Integration"), variable=self.winget_var, command=toggle_winget).pack(pady=5)
 
-        ctk.CTkSwitch(frame_general, text=i18n.get("settings_enable_winget", default="Enable Winget Integration"), variable=self.winget_var, command=toggle_winget).pack(pady=5)
+        # Directories
+        self._setup_path_settings(parent)
 
-        # Update Channel Selection
-        frame_channel = ctk.CTkFrame(self.settings_scroll)
-        frame_channel.pack(fill="x", padx=10, pady=10)
+        # External Tools
+        self._setup_tool_settings(parent)
 
-        channel_label = i18n.get("settings_channel") if "settings_channel" in i18n.translations.get(i18n.language, {}) else "Update Channel"
-        lbl_channel = ctk.CTkLabel(frame_channel, text=channel_label, font=ctk.CTkFont(weight="bold"))
-        lbl_channel.pack(pady=5)
+        # AI Config
+        self._setup_ai_config(parent)
+
+
+    def _setup_tab_updates(self, parent):
+        """Update Settings: Channel, Check Button."""
+        frame_upd = ctk.CTkFrame(parent)
+        frame_upd.pack(fill="x", padx=10, pady=10)
+
+        ctk.CTkLabel(frame_upd, text=i18n.get("settings_channel") or "Update Channel", font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
         self.channel_opt = ctk.CTkSegmentedButton(
-            frame_channel,
+            frame_upd,
             values=["Stable", "Beta", "Dev"],
             command=self.change_update_channel
         )
-        # Load current channel from registry
+        # Load current channel
         current_channel = self._get_registry_value("UpdateChannel")
         if not current_channel:
-            # Smart Detection
-            v_low = __version__.lower()
-            if "dev" in v_low: current_channel = "dev"
-            elif "beta" in v_low: current_channel = "beta"
+            start_ver = __version__.lower()
+            if "dev" in start_ver: current_channel = "dev"
+            elif "beta" in start_ver: current_channel = "beta"
             else: current_channel = "stable"
 
         channel_map = {"stable": "Stable", "beta": "Beta", "dev": "Dev"}
         self.channel_opt.set(channel_map.get(current_channel, "Stable"))
         self.channel_opt.pack(pady=5)
 
-        channel_desc = ctk.CTkLabel(
-            frame_channel,
+        ctk.CTkLabel(
+            frame_upd,
             text=i18n.get("settings_channel_desc"),
             text_color="gray",
             font=ctk.CTkFont(size=11),
             wraplength=350
-        )
-        channel_desc.pack(pady=2)
+        ).pack(pady=5)
 
-        # Template Selection
-        frame_tmpl = ctk.CTkFrame(self.settings_scroll)
+        # divider/spacing
+        ctk.CTkFrame(frame_upd, height=2, fg_color="gray").pack(fill="x", padx=20, pady=10)
+
+        # Check Button
+        ctk.CTkButton(frame_upd, text=i18n.get("check_updates"), command=lambda: self.show_update_callback(show_no_update=True)).pack(pady=10)
+
+
+    def _setup_tab_deployment(self, parent):
+        """Deployment: Intune, Signing, Templates."""
+        # Intune
+        self._setup_intune_settings(parent)
+
+        # Signing
+        self._setup_signing_settings(parent)
+
+        # Templates
+        frame_tmpl = ctk.CTkFrame(parent)
         frame_tmpl.pack(fill="x", padx=10, pady=10)
 
-        lbl_tmpl = ctk.CTkLabel(frame_tmpl, text=i18n.get("settings_tmpl_title"), font=ctk.CTkFont(weight="bold"))
-        lbl_tmpl.pack(pady=5)
+        ctk.CTkLabel(frame_tmpl, text=i18n.get("settings_tmpl_title"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
         current_tmpl = SwitchCraftConfig.get_value("CustomTemplatePath")
         display_tmpl = current_tmpl if current_tmpl else i18n.get("settings_tmpl_default")
@@ -116,65 +157,43 @@ class SettingsView(ctk.CTkFrame):
 
         ctk.CTkButton(frame_tmpl, text=i18n.get("settings_tmpl_reset"), fg_color="transparent", border_width=1, command=reset_template).pack(pady=2)
 
-        link_tmpl = ctk.CTkButton(frame_tmpl, text="View Templates on GitHub", fg_color="transparent", text_color="#3B8ED0", hover=False,
-                                 command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/tree/main/src/switchcraft/assets/templates"))
-        link_tmpl.pack(pady=2)
 
-        # --- NEW SETTINGS ---
-
-        # Signing Settings
-        self._setup_signing_settings()
-
-        # Intune / Graph Settings
-        self._setup_intune_settings()
-
-        # Git / Path Settings
-        self._setup_path_settings()
-
-        # External Tools (IntuneWinAppUtil)
-        self._setup_tool_settings()
-
-
-        # Help & Documentation
-        frame_docs = ctk.CTkFrame(self.settings_scroll)
+    def _setup_tab_help(self, parent):
+        """Help & About."""
+        # Documentation
+        frame_docs = ctk.CTkFrame(parent)
         frame_docs.pack(fill="x", padx=10, pady=10)
-
         ctk.CTkLabel(frame_docs, text="Help & Support", font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
-        btn_docs = ctk.CTkButton(frame_docs, text="Open Documentation (README)",
-                               command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/blob/main/README.md"))
-        btn_docs.pack(pady=5, fill="x")
+        ctk.CTkButton(frame_docs, text="Open Documentation (README)",
+                                command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/blob/main/README.md")).pack(pady=5, fill="x")
 
-        btn_help = ctk.CTkButton(frame_docs, text="Get Help (GitHub Issues)", fg_color="transparent", border_width=1,
-                               command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/issues"))
-        btn_help.pack(pady=5, fill="x")
+        ctk.CTkButton(frame_docs, text="Get Help (GitHub Issues)", fg_color="transparent", border_width=1,
+                                command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/issues")).pack(pady=5, fill="x")
 
-        # Debug Console Toggle (Windows Only)
+        # Debug Console
         if sys.platform == 'win32':
-             self._setup_debug_console()
+             self._setup_debug_console(parent)
 
-        # Update Check Button
-        frame_upd = ctk.CTkFrame(self.settings_scroll)
-        frame_upd.pack(fill="x", padx=10, pady=10)
-        ctk.CTkButton(frame_upd, text=i18n.get("check_updates"), command=lambda: self.show_update_callback(show_no_update=True)).pack(pady=10)
+        # Link to View Templates (moved from main list)
+        ctk.CTkButton(parent, text="View Templates on GitHub", fg_color="transparent", text_color="#3B8ED0", hover=False,
+                         command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft/tree/main/src/switchcraft/assets/templates")).pack(pady=5)
 
         # About
-        frame_about = ctk.CTkFrame(self.settings_scroll, fg_color="transparent")
+        frame_about = ctk.CTkFrame(parent, fg_color="transparent")
         frame_about.pack(fill="x", padx=10, pady=20)
 
         ctk.CTkLabel(frame_about, text="SwitchCraft", font=ctk.CTkFont(size=24, weight="bold")).pack()
         ctk.CTkLabel(frame_about, text=f"{i18n.get('about_version')}: {__version__}").pack()
         ctk.CTkLabel(frame_about, text=f"{i18n.get('about_dev')}: FaserF").pack()
 
-        link = ctk.CTkButton(frame_about, text="GitHub: FaserF/SwitchCraft", fg_color="transparent", text_color="cyan", hover=False,
-                             command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft"))
-        link.pack(pady=5)
+        ctk.CTkButton(frame_about, text="GitHub: FaserF/SwitchCraft", fg_color="transparent", text_color="cyan", hover=False,
+                              command=lambda: webbrowser.open("https://github.com/FaserF/SwitchCraft")).pack(pady=5)
 
-        # Footer
-        ctk.CTkLabel(self.settings_scroll, text=i18n.get("brought_by"), text_color="gray").pack(side="bottom", pady=10)
+        ctk.CTkLabel(parent, text=i18n.get("brought_by"), text_color="gray").pack(side="bottom", pady=10)
 
-    def _setup_signing_settings(self):
-        frame = ctk.CTkFrame(self.settings_scroll)
+    def _setup_signing_settings(self, parent):
+        frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
 
         ctk.CTkLabel(frame, text="PowerShell Signing", font=ctk.CTkFont(weight="bold")).pack(pady=5)
@@ -218,8 +237,8 @@ class SettingsView(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="Browse...", width=100, command=browse_cert).pack(side="left", padx=5)
 
 
-    def _setup_intune_settings(self):
-        frame = ctk.CTkFrame(self.settings_scroll)
+    def _setup_intune_settings(self, parent):
+        frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(frame, text="Intune / Graph API", font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
@@ -311,8 +330,8 @@ class SettingsView(ctk.CTkFrame):
         messagebox.showerror(i18n.get("settings_verify_fail"), i18n.get("settings_verify_fail_msg", error=error_msg))
 
 
-    def _setup_path_settings(self):
-        frame = ctk.CTkFrame(self.settings_scroll)
+    def _setup_path_settings(self, parent):
+        frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(frame, text="Directories", font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
@@ -340,8 +359,8 @@ class SettingsView(ctk.CTkFrame):
 
         ctk.CTkButton(path_frame, text="Browse...", width=80, command=browse_git).pack(side="right", padx=5)
 
-    def _setup_tool_settings(self):
-        frame = ctk.CTkFrame(self.settings_scroll)
+    def _setup_tool_settings(self, parent):
+        frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(frame, text="External Tools", font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
@@ -451,12 +470,11 @@ class SettingsView(ctk.CTkFrame):
 
             ctk.CTkButton(row, text="X", width=30, fg_color="red", command=rem).pack(side="right")
 
-        self._setup_ai_config()
-        self._setup_debug_console()
 
-    def _setup_ai_config(self):
+
+    def _setup_ai_config(self, parent):
         """AI Assistant Configuration."""
-        frame = ctk.CTkFrame(self.settings_scroll)
+        frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
 
         ctk.CTkLabel(frame, text=i18n.get("settings_ai_title"), font=ctk.CTkFont(weight="bold")).pack(pady=5)
@@ -520,9 +538,9 @@ class SettingsView(ctk.CTkFrame):
 
         messagebox.showinfo("Saved", "AI Settings Saved. Please restart to apply changes.")
 
-    def _setup_debug_console(self):
+    def _setup_debug_console(self, parent):
         """Setup debug console toggle."""
-        frame_debug = ctk.CTkFrame(self.settings_scroll)
+        frame_debug = ctk.CTkFrame(parent)
         frame_debug.pack(fill="x", padx=10, pady=10)
 
 
