@@ -53,7 +53,7 @@ class IntuneService:
             logger.exception(f"Failed to download IntuneWinAppUtil: {e}")
             return False
 
-    def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str, catalog_folder: str = None, quiet: bool = True) -> str:
+    def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str, catalog_folder: str = None, quiet: bool = True, progress_callback=None) -> str:
         """
         Runs the IntuneWinAppUtil to generate the .intunewin package.
         Returns the output text from the tool.
@@ -103,20 +103,37 @@ class IntuneService:
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
         try:
-            process = subprocess.run(
+            process = subprocess.Popen(
                 cmd,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True,
                 encoding='cp1252', # Windows tool output encoding
-                startupinfo=startupinfo
+                startupinfo=startupinfo,
+                bufsize=1,
+                universal_newlines=True
             )
+
+            full_output = []
+
+            # Stream output
+            for line in process.stdout:
+                line_str = line
+                full_output.append(line_str)
+                # If a callback is provided (e.g. for UI)
+                if progress_callback:
+                    progress_callback(line_str)
+
+            process.wait()
+
+            output_str = "".join(full_output)
 
             if process.returncode == 0:
                 logger.info("IntuneWin package created successfully.")
-                return process.stdout
+                return output_str
             else:
-                logger.error(f"IntuneWin creation failed: {process.stderr}")
-                raise RuntimeError(f"Tool exited with code {process.returncode}: {process.stdout}")
+                logger.error(f"IntuneWin creation failed: {output_str}")
+                raise RuntimeError(f"Tool exited with code {process.returncode}: {output_str}")
 
         except Exception as e:
             logger.error(f"Error running IntuneWinAppUtil: {e}")
