@@ -1,4 +1,5 @@
 
+import stat
 import logging
 import os
 import subprocess
@@ -46,6 +47,10 @@ class IntuneService:
             with open(self.tool_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
+
+            # Grant execution permissions (for CI/Linux runners)
+            st = os.stat(self.tool_path)
+            os.chmod(self.tool_path, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
             logger.info("IntuneWinAppUtil downloaded successfully.")
             return True
