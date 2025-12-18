@@ -28,8 +28,19 @@ $RepoRoot = Resolve-Path "$PSScriptRoot\.."
 Set-Location $RepoRoot
 Write-Host "Project Root: $RepoRoot" -ForegroundColor Gray
 
+# 0. Cleanup Running Processes
+Write-Host "`n[0/5] Checking for running instances..." -ForegroundColor Yellow
+$ProcessName = "SwitchCraft"
+$RunningProcesses = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
+if ($RunningProcesses) {
+    Write-Host "Found running instance(s) of $ProcessName. Terminating..." -ForegroundColor Magenta
+    $RunningProcesses | Stop-Process -Force
+    Start-Sleep -Seconds 2 # Wait for file unlock
+    Write-Host "Terminated." -ForegroundColor Gray
+}
+
 # 1. Install Dependencies
-Write-Host "`n[1/4] Installing/Updating Deployment Dependencies..." -ForegroundColor Yellow
+Write-Host "`n[1/5] Installing/Updating Deployment Dependencies..." -ForegroundColor Yellow
 try {
     # Install PyInstaller explicitly
     python -m pip install --upgrade pyinstaller
@@ -43,7 +54,7 @@ catch {
 }
 
 # 2. Build with PyInstaller
-Write-Host "`n[2/4] Building Executable..." -ForegroundColor Yellow
+Write-Host "`n[2/5] Building Executable..." -ForegroundColor Yellow
 if (-not (Test-Path "$RepoRoot\switchcraft.spec")) {
     Write-Error "switchcraft.spec not found in project root!"
     exit 1
@@ -66,7 +77,7 @@ if (-not (Test-Path $BuiltExe)) {
 }
 
 # 4. Move to Downloads
-Write-Host "`n[3/4] Moving Artifact..." -ForegroundColor Yellow
+Write-Host "`n[4/5] Moving Artifact..." -ForegroundColor Yellow
 $DownloadsDir = [System.Environment]::GetFolderPath("UserProfile") + "\Downloads"
 $TargetExe = Join-Path $DownloadsDir "SwitchCraft.exe"
 
@@ -79,6 +90,10 @@ catch {
     exit 1
 }
 
-Write-Host "`n[4/4] Done!" -ForegroundColor Cyan
+Write-Host "`n[5/5] Done!" -ForegroundColor Cyan
 Write-Host "You can now run SwitchCraft from your Downloads folder." -ForegroundColor Green
 Write-Host "Path: $TargetExe"
+
+# 5. Launch
+Write-Host "`n[Auto-Launch] Starting $ProcessName..." -ForegroundColor Green
+Start-Process -FilePath $TargetExe
