@@ -197,5 +197,13 @@
     "lbl_intune_tool_path": "IntuneWinAppUtil Path:",
     "settings_saved": "Settings saved successfully.",
     "addon_missing_title": "Advanced Addon Missing",
-    "addon_missing_msg": "The advanced service could not be loaded.\nSome features (Intune upload, advanced AI) are disabled."
+    "addon_missing_msg": "The advanced service could not be loaded.\nSome features (Intune upload, advanced AI) are disabled.",
+    "settings_hdr_template": "Templates",
+    "help_title": "Help & Resources",
+    "addon_manager_title": "Addon Manager",
+    "btn_download": "Download",
+    "restart_required": "Restart Required",
+    "restart_required_msg": "Please restart SwitchCraft for changes to take effect.",
+    "settings_language": "Language",
+    "settings_ai_provider": "AI Provider"
 }

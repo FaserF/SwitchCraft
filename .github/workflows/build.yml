@@ -1,0 +1,31 @@
+name: Reusable Build
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    name: Build Installer
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest] # Build primarily on Windows for .exe
+        # os: [ubuntu-latest, windows-latest] # If we wanted cross-platform checks
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install .
+        pip install pyinstaller customtkinter tkinterdnd2 pillow
+
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller switchcraft.spec

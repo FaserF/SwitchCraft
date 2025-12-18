@@ -219,5 +219,13 @@
     "lbl_intune_tool_path": "Pfad zu IntuneWinAppUtil:",
     "settings_saved": "Einstellungen erfolgreich gespeichert.",
     "addon_missing_title": "Erweitertes Addon fehlt",
-    "addon_missing_msg": "Der erweiterte Service konnte nicht geladen werden.\nEinige Funktionen (Intune Upload, erweiterte KI) sind deaktiviert."
+    "addon_missing_msg": "Der erweiterte Service konnte nicht geladen werden.\nEinige Funktionen (Intune Upload, erweiterte KI) sind deaktiviert.",
+    "settings_hdr_template": "Vorlagen",
+    "help_title": "Hilfe & Ressourcen",
+    "addon_manager_title": "Addon Manager",
+    "btn_download": "Laden",
+    "restart_required": "Neustart erforderlich",
+    "restart_required_msg": "Bitte starte SwitchCraft neu, damit die Änderungen wirksam werden.",
+    "settings_language": "Sprache",
+    "settings_ai_provider": "KI Anbieter"
 }

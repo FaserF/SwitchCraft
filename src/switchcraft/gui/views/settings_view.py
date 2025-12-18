@@ -35,7 +35,7 @@ class SettingsView(ctk.CTkFrame):
         self.tab_general = self.tabview.add(i18n.get("settings_title") or "General")
         self.tab_updates = self.tabview.add(i18n.get("settings_hdr_update") or "Updates")
         self.tab_deploy = self.tabview.add(i18n.get("deployment_title") or "Deployment")
-        self.tab_help = self.tabview.add("Help")
+        self.tab_help = self.tabview.add(i18n.get("help_title") or "Help") # Fixed key
 
         for tab in [self.tab_general, self.tab_updates, self.tab_deploy, self.tab_help]:
             tab.grid_columnconfigure(0, weight=1)
@@ -65,6 +65,30 @@ class SettingsView(ctk.CTkFrame):
                 self.on_winget_toggle(val)
 
         ctk.CTkSwitch(frame_winget, text=i18n.get("settings_enable_winget"), variable=self.winget_var, command=toggle_winget).pack(pady=10, padx=10)
+
+        # Language Selector
+        frame_lang = ctk.CTkFrame(scroll)
+        frame_lang.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(frame_lang, text=i18n.get("settings_language")).pack(side="left", padx=5)
+
+        lang_var = ctk.StringVar(value=SwitchCraftConfig.get_value("Language", "en"))
+        def change_lang(val):
+            SwitchCraftConfig.set_user_preference("Language", val)
+            messagebox.showinfo(i18n.get("restart_required"), i18n.get("restart_required_msg"))
+
+        ctk.CTkOptionMenu(frame_lang, values=["en", "de"], command=change_lang, variable=lang_var).pack(side="right", padx=5)
+
+        # Theme Selector
+        frame_theme = ctk.CTkFrame(scroll)
+        frame_theme.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(frame_theme, text=i18n.get("settings_theme")).pack(side="left", padx=5)
+
+        theme_var = ctk.StringVar(value=SwitchCraftConfig.get_value("Theme", "System"))
+        def change_theme(val):
+            SwitchCraftConfig.set_user_preference("Theme", val)
+            ctk.set_appearance_mode(val)
+
+        ctk.CTkOptionMenu(frame_theme, values=["System", "Dark", "Light"], command=change_theme, variable=theme_var).pack(side="right", padx=5)
 
         # AI Configuration
         self._setup_ai_config(scroll)
@@ -137,15 +161,23 @@ class SettingsView(ctk.CTkFrame):
         scroll.grid(row=0, column=0, sticky="nsew")
         scroll.grid_columnconfigure(0, weight=1)
 
-        # Addon Download Button
-        frame_addon = ctk.CTkFrame(scroll)
-        frame_addon.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(frame_addon, text="Advanced Addons", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        # Help Links
+        frame_links = ctk.CTkFrame(scroll)
+        frame_links.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(frame_links, text="Resources", font=ctk.CTkFont(weight="bold")).pack(pady=5)
 
-        def download_addons():
-            webbrowser.open("https://github.com/FaserF/SwitchCraft/releases/latest")
+        def open_url(url):
+            webbrowser.open(url)
 
-        ctk.CTkButton(frame_addon, text="Download Addons", command=download_addons).pack(pady=5)
+        btn_grid = ctk.CTkFrame(frame_links, fg_color="transparent")
+        btn_grid.pack(fill="x", pady=5)
+
+        ctk.CTkButton(btn_grid, text="README", command=lambda: open_url("https://github.com/FaserF/SwitchCraft/blob/main/README.md")).pack(side="left", padx=5, expand=True)
+        ctk.CTkButton(btn_grid, text="Issues", command=lambda: open_url("https://github.com/FaserF/SwitchCraft/issues")).pack(side="left", padx=5, expand=True)
+        ctk.CTkButton(btn_grid, text="Project", command=lambda: open_url("https://github.com/FaserF/SwitchCraft")).pack(side="left", padx=5, expand=True)
+
+        # Addon Manager
+        self._setup_addon_manager(scroll)
 
         # Debug Console
         self._setup_debug_console(scroll)
@@ -241,8 +273,21 @@ class SettingsView(ctk.CTkFrame):
         if saved_thumb:
             self.cert_path_entry.insert(0, f"Store-Cert: {saved_thumb}")
             self.cert_path_entry.configure(state="disabled")
+            # Try to fetch subject name for better display if possible
+            self.cert_info_lbl = ctk.CTkLabel(frame, text=f"Active: {saved_thumb}", text_color="green", font=ctk.CTkFont(size=11))
+            self.cert_info_lbl.grid(row=3, column=0, sticky="w", padx=20)
         elif saved_cert:
             self.cert_path_entry.insert(0, saved_cert)
+            self.cert_info_lbl = ctk.CTkLabel(
+                frame,
+                text=f"Active File: {Path(saved_cert).name}",
+                text_color="green",
+                font=ctk.CTkFont(size=11)
+            )
+            self.cert_info_lbl.grid(row=3, column=0, sticky="w", padx=20)
+        else:
+            self.cert_info_lbl = ctk.CTkLabel(frame, text="", font=ctk.CTkFont(size=11))
+            self.cert_info_lbl.grid(row=3, column=0, sticky="w", padx=20)
 
         if not self.sign_var.get():
             self._toggle_cert_entry(False)
@@ -431,6 +476,47 @@ class SettingsView(ctk.CTkFrame):
     def change_update_channel(self, value):
         # ...
         pass
+
+    def _setup_addon_manager(self, parent):
+        frame = ctk.CTkFrame(parent)
+        frame.pack(fill="x", padx=10, pady=10)
+
+        ctk.CTkLabel(frame, text=i18n.get("addon_manager_title") or "Addon Manager", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=5)
+
+        # List of Addons
+        addons = [
+            {"id": "advanced", "name": "Advanced Features (Intune, Brute Force)", "desc": "Adds deep analysis and Intune integration."},
+            {"id": "winget", "name": "Winget Integration", "desc": "adds Winget search capabilities."},
+            {"id": "ai", "name": "AI Assistant", "desc": "Adds AI chat and analysis assistance."}
+        ]
+
+        # Use AddonService to check status
+        from switchcraft.services.addon_service import AddonService
+
+        for addon in addons:
+            row = ctk.CTkFrame(frame)
+            row.pack(fill="x", padx=5, pady=2)
+
+            is_installed = AddonService.is_addon_installed(addon["id"])
+            status_color = "green" if is_installed else "orange"
+            status_text = "Installed" if is_installed else "Not Installed"
+
+            ctk.CTkLabel(row, text=addon["name"], font=ctk.CTkFont(weight="bold")).pack(side="left", padx=5)
+            ctk.CTkLabel(row, text=status_text, text_color=status_color).pack(side="right", padx=10)
+
+            if not is_installed:
+                 ctk.CTkButton(row, text=i18n.get("btn_download"), width=80,
+                               command=lambda id=addon["id"]: self._install_addon(id)).pack(side="right", padx=5)
+
+    def _install_addon(self, addon_id):
+        from switchcraft.services.addon_service import AddonService
+        # In a real app, this would show progress. For MVP, we simulate or open link if failing.
+        messagebox.showinfo("Download", f"Downloading addon {addon_id}...\n(This will happen in background in final version)")
+        # Trigger service
+        if AddonService.install_addon(addon_id):
+             messagebox.showinfo("Success", f"Addon {addon_id} installed! Please restart.")
+        else:
+             webbrowser.open("https://github.com/FaserF/SwitchCraft/releases/latest")
 
     def _save_manual_config(self, key, value):
         SwitchCraftConfig.set_user_preference(key, value)
