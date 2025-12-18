@@ -26,9 +26,11 @@ jobs:
           node-version: 20
 
       - name: Run ESLint (Frontend)
-        working-directory: ./frontend
         run: |
-            if [ -f package.json ]; then
+            if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
+                cd frontend
                 npm ci
                 npm run lint || echo "Lint script missing or failed"
+            else
+                echo "No frontend package.json found, skipping ESLint."
             fi

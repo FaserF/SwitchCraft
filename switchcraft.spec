@@ -51,10 +51,10 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True, # GUI mode (Debug: True to see errors)
+    # Console visible locally (Debug), hidden in CI/Release builds
+    console=os.environ.get('GITHUB_ACTIONS', 'false').lower() != 'true',
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
