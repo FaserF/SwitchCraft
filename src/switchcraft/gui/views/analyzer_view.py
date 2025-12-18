@@ -100,12 +100,36 @@ class AnalyzerView(ctk.CTkFrame):
                      text_color="white",
                      font=ctk.CTkFont(weight="bold")).grid(row=0, column=1, sticky="w", pady=5)
 
-        ctk.CTkButton(warning_frame,
+        self.btn_install_advanced = ctk.CTkButton(warning_frame,
                       text=i18n.get("analyzer_addon_install"),
                       fg_color="#cf3a3a", hover_color="#a12d2d", text_color="white",
                       width=150,
-                      command=lambda: threading.Thread(target=lambda: AddonService.install_addon("advanced"), daemon=True).start()
-                      ).grid(row=0, column=2, padx=10, pady=10)
+                      command=self._install_advanced_with_feedback
+                      )
+        self.btn_install_advanced.grid(row=0, column=2, padx=10, pady=10)
+
+    def _install_advanced_with_feedback(self):
+        self.btn_install_advanced.configure(state="disabled", text=i18n.get("status_downloading") or "Downloading...")
+        from switchcraft.services.addon_service import AddonService
+
+        def _run():
+            success = AddonService.install_addon("advanced")
+            def _done():
+                self.btn_install_advanced.configure(state="normal", text=i18n.get("analyzer_addon_install"))
+                if success:
+                    # Use the app's restart logic if available
+                    if hasattr(self.app, '_show_restart_countdown'):
+                        self.app._show_restart_countdown()
+                    else:
+                        from tkinter import messagebox
+                        messagebox.showinfo("Success", "Addon installed. Please restart.")
+                else:
+                    from tkinter import messagebox
+                    messagebox.showerror("Error", "Installation failed. Check logs.")
+
+            self.after(0, _done)
+
+        threading.Thread(target=_run, daemon=True).start()
 
     def _on_drop(self, event):
         data = event.data
