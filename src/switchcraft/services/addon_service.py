@@ -116,17 +116,6 @@ class AddonService:
             if not is_dev_build:
                 try:
                     logger.debug(f"Fetching release info for v{__version__}...")
-                    # Note: Using 'latest' might be wrong if we are on an older version,
-                    # but for now we assume we want the corresponding version or latest?
-                    # User request implies "Release workflow". usually we want assets from *this* release.
-                    # But if we can't find tag, maybe latest?
-                    # Let's try specific tag first if possible, else latest.
-
-                    # For simplicity and robustness (as per previous code), we looked at 'latest'.
-                    # But correct behavior is matching tag.
-                    # However, if API fails or rate limit, we might have issues.
-                    # Let's stick to 'latest' for standard release, but check if asset exists.
-
                     api_url = "https://api.github.com/repos/FaserF/SwitchCraft/releases/latest"
                     resp = requests.get(api_url, timeout=10)
                     if resp.status_code == 200:
@@ -141,9 +130,9 @@ class AddonService:
                     logger.warning(f"Failed to fetch release info: {e}")
 
             # Strategy 2: Main Branch Source (Fallback or Explicit Dev)
-            # User said: "Dev builds soll bitte immer aus dem main branch ... herausladen"
-            if is_dev_build or not download_url:
-                logger.info("Dev build detected or asset not found. Falling back to main branch source.")
+            # Implemented fallback: If not found in releases, or if we are dev build
+            if not download_url:
+                logger.info("Dev build or asset missing. Falling back to main branch source.")
                 download_url = "https://github.com/FaserF/SwitchCraft/archive/refs/heads/main.zip"
                 is_source_zip = True
 
@@ -162,14 +151,7 @@ class AddonService:
             addon_root.mkdir(parents=True, exist_ok=True)
 
             if is_source_zip:
-                # We downloaded the whole repo source (SwitchCraft-main.zip)
-                # We need to find 'SwitchCraft-main/src/{pkg_name}' and extract it to 'addon_root/{pkg_name}'
                 # Zip structure: SwitchCraft-main/src/switchcraft_advanced/...
-
-                # We loop through files, if they start with SwitchCraft-main/src/{pkg_name}, we extract them.
-                # But we need to strip the prefix.
-
-                # Finding the prefix (usually SwitchCraft-main)
                 root_folder = z.namelist()[0].split('/')[0]
                 source_prefix = f"{root_folder}/src/{pkg_name}/"
 
@@ -177,13 +159,11 @@ class AddonService:
                 for member in z.infolist():
                     if member.filename.startswith(source_prefix):
                         found_any = True
-                        # relative path inside package
                         rel_path = member.filename[len(source_prefix):]
                         if not rel_path:
-                            continue # Folder itself
+                            continue
 
                         target_path = addon_root / pkg_name / rel_path
-
                         if member.is_dir():
                             target_path.mkdir(parents=True, exist_ok=True)
                         else:
@@ -195,11 +175,6 @@ class AddonService:
                     logger.error(f"Could not find {pkg_name} in source zip.")
                     return False
             else:
-                # Release Asset: It is just '{pkg_name}.zip' containing the package folder directly (or contents?)
-                # Our workflow does: Compress-Archive -Path "src/$addon"
-                # This usually includes the folder "$addon" at root of zip?
-                # PowerShell Compress-Archive includes the folder if Path is a folder.
-                # So Zip structure: switchcraft_advanced/...
                 z.extractall(addon_root)
 
             logger.info(f"Successfully installed {addon_id}")

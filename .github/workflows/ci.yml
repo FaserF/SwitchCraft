@@ -1,20 +1,20 @@
 name: CI
 
 on:
-  # push:
-  #   branches: [ main ]
-  #   paths-ignore:
-  #     - '**.md'
-  #     - 'docs/**'
-  #     - 'LICENSE'
-  #     - '.github/ISSUE_TEMPLATE/**'
-  # pull_request:
-  #   branches: [ main ]
-  #   paths-ignore:
-  #     - '**.md'
-  #     - 'docs/**'
-  #     - 'LICENSE'
-  #     - '.github/ISSUE_TEMPLATE/**'
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -121,7 +121,7 @@ class IntuneView(ctk.CTkFrame):
 
         self.btn_upload = ctk.CTkButton(
             upload_frame,
-            text="☁️ Upload to Intune (Graph API)",
+            text=i18n.get("btn_upload_intune"),
             fg_color=btn_color,
             state=btn_state,
             height=35,
@@ -130,7 +130,7 @@ class IntuneView(ctk.CTkFrame):
         self.btn_upload.pack(fill="x")
 
         if not is_configured:
-            ctk.CTkLabel(upload_frame, text="Configure App Registration in Settings to enable upload.", text_color="gray", font=ctk.CTkFont(size=10)).pack(pady=2)
+            ctk.CTkLabel(upload_frame, text=i18n.get("configure_app_reg"), text_color="gray", font=ctk.CTkFont(size=10)).pack(pady=2)
 
 
 
@@ -139,7 +139,12 @@ class IntuneView(ctk.CTkFrame):
         self.frame_log_container.grid(row=6, column=0, padx=20, pady=(0, 20), sticky="nsew")
         self.frame_intune.grid_rowconfigure(6, weight=1)
 
-        self.btn_toggle_log = ctk.CTkButton(self.frame_log_container, text="Show Terminal Output", width=150, fg_color="gray", command=self._toggle_log)
+        # Log Toggle and Area
+        self.frame_log_container = ctk.CTkFrame(self.frame_intune, fg_color="transparent")
+        self.frame_log_container.grid(row=6, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        self.frame_intune.grid_rowconfigure(6, weight=1)
+
+        self.btn_toggle_log = ctk.CTkButton(self.frame_log_container, text=i18n.get("toggle_log_show"), width=150, fg_color="gray", command=self._toggle_log)
         self.btn_toggle_log.pack(anchor="w", pady=(0, 5))
 
         self.txt_intune_log = ctk.CTkTextbox(self.frame_log_container, height=150)
@@ -148,10 +153,10 @@ class IntuneView(ctk.CTkFrame):
     def _toggle_log(self):
         if self.txt_intune_log.winfo_ismapped():
             self.txt_intune_log.pack_forget()
-            self.btn_toggle_log.configure(text="Show Terminal Output")
+            self.btn_toggle_log.configure(text=i18n.get("toggle_log_show"))
         else:
             self.txt_intune_log.pack(fill="both", expand=True)
-            self.btn_toggle_log.configure(text="Hide Terminal Output")
+            self.btn_toggle_log.configure(text=i18n.get("toggle_log_hide"))
 
     def _browse_intune_setup(self):
         f = ctk.filedialog.askopenfilename(title=i18n.get("intune_browse_setup_title"))
@@ -184,7 +189,7 @@ class IntuneView(ctk.CTkFrame):
         if not self.txt_intune_log.winfo_ismapped():
             # Optional: Auto-show on run? User said "Standardmäßig versteckt".
             # Let's keep it hidden unless user opens it, but status updates help.
-            self.btn_toggle_log.configure(text="Show Terminal Output (Running...)")
+            self.btn_toggle_log.configure(text=f"{i18n.get('toggle_log_show')} (Running...)")
 
         self.txt_intune_log.delete("0.0", "end")
         self.txt_intune_log.insert("end", i18n.get("intune_start_creation") + "\n")
@@ -210,7 +215,7 @@ class IntuneView(ctk.CTkFrame):
 
                 # Reset button text if hidden
                 if not self.txt_intune_log.winfo_ismapped():
-                     self.after(0, lambda: self.btn_toggle_log.configure(text="Show Terminal Output"))
+                     self.after(0, lambda: self.btn_toggle_log.configure(text=i18n.get("toggle_log_show")))
 
                 # Open Explorer
                 try:
@@ -229,7 +234,7 @@ class IntuneView(ctk.CTkFrame):
         s_output = self.entry_intune_output.get()
 
         if not s_output:
-            messagebox.showerror("Error", "Please select output folder first (where .intunewin is/will be).")
+            messagebox.showerror("Error", i18n.get("err_intune_output"))
             return
 
         # Find .intunewin
@@ -246,7 +251,7 @@ class IntuneView(ctk.CTkFrame):
             possible_intunewin = Path(s_output) / (Path(s_setup).stem + ".intunewin")
 
         if not possible_intunewin.exists():
-             messagebox.showerror("Error", f"Could not find .intunewin file in {s_output}. Please create it first.")
+             messagebox.showerror("Error", i18n.get("err_intune_file_missing", path=s_output))
              return
 
         self.txt_intune_log.delete("0.0", "end")

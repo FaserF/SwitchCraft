@@ -300,7 +300,7 @@ class SettingsView(ctk.CTkFrame):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
 
-        ctk.CTkLabel(frame, text=i18n.get("settings_hdr_signing") or "Signing", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=5)
+        ctk.CTkLabel(frame, text=i18n.get("signing_title"), font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=5)
 
         self.sign_var = ctk.BooleanVar(value=SwitchCraftConfig.get_value("SignScripts", False))
         self.sign_switch = ctk.CTkSwitch(
@@ -402,7 +402,7 @@ class SettingsView(ctk.CTkFrame):
                      # For now, just enable the field and let them browse or maybe show a dialog in future
                      # Or we can show a input dialog asking for number
                      titles = [f"{i+1}: {c.get('Subject').split(',')[0]}" for i,c in enumerate(certs)]
-                     selection = ctk.CTkInputDialog(text="Multiple Certificates Found:\n" + "\n".join(titles) + "\n\nEnter Number:", title="Select Certificate").get_input()
+                     selection = ctk.CTkInputDialog(text=i18n.get("select_cert_msg", certs="\n".join(titles)), title=i18n.get("select_cert_title")).get_input()
                      if selection and selection.isdigit():
                          idx = int(selection) - 1
                          if 0 <= idx < len(certs):
@@ -525,12 +525,15 @@ class SettingsView(ctk.CTkFrame):
         frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(frame, text=i18n.get("settings_hdr_template") or "Templates", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=5)
 
-        ctk.CTkLabel(frame, text=i18n.get("lbl_custom_template") or "Custom Intune Template (.ps1):").pack(anchor="w", padx=5, pady=(5,0))
+        template_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        template_frame.pack(fill="x", padx=5, pady=(5,0))
 
-        row = ctk.CTkFrame(frame, fg_color="transparent")
-        row.pack(fill="x", padx=5, pady=5)
+        ctk.CTkLabel(template_frame, text=i18n.get("lbl_custom_template"), anchor="w").pack(fill="x", padx=5, pady=2)
 
-        self.template_entry = ctk.CTkEntry(row, width=300)
+        row_tmpl = ctk.CTkFrame(template_frame, fg_color="transparent")
+        row_tmpl.pack(fill="x", padx=5, pady=5)
+
+        self.template_entry = ctk.CTkEntry(row_tmpl, width=300)
         self.template_entry.pack(side="left", fill="x", expand=True, padx=5)
 
         current_tpl = SwitchCraftConfig.get_value("CustomTemplatePath", "")
@@ -556,8 +559,8 @@ class SettingsView(ctk.CTkFrame):
              self.template_entry.insert(0, "(Default)")
              self.template_entry.configure(state="disabled")
 
-        ctk.CTkButton(row, text=i18n.get("btn_browse"), width=80, command=browse_template).pack(side="left", padx=5)
-        ctk.CTkButton(row, text="Reset", width=60, fg_color="red", command=reset_template).pack(side="left", padx=5)
+        ctk.CTkButton(row_tmpl, text=i18n.get("btn_browse"), width=80, command=browse_template).pack(side="left", padx=5)
+        ctk.CTkButton(row_tmpl, text=i18n.get("btn_reset"), width=60, fg_color="red", command=reset_template).pack(side="left", padx=5)
 
         ctk.CTkLabel(frame, text=i18n.get("template_help") or "Select a custom .ps1 template to use for Intune wrapping. Leave empty for default.",
                      text_color="gray", font=ctk.CTkFont(size=11)).pack(anchor="w", padx=10)

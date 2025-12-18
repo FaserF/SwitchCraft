@@ -19,6 +19,19 @@ on:
         - Full
 
 jobs:
+  # Label PRs based on changed files
+  label-pr:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          sync-labels: true
+
   # Determine if we should run expensive tests
   decision:
     runs-on: ubuntu-latest
