@@ -1,21 +1,30 @@
 name: Auto Merge
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
 
 jobs:
-  enable-auto-merge:
+  auto-merge:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.user.login == 'FaserF' || github.event.pull_request.user.type == 'Bot'
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.actor.login == 'FaserF' || github.event.workflow_run.actor.type == 'Bot')
     permissions:
       contents: write
       pull-requests: write
 
     steps:
-      - name: Enable Auto-Merge
+      - name: Enable Auto-Merge for PRs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_List: ${{ toJson(github.event.workflow_run.pull_requests) }}
         run: |
-          gh pr merge --auto --merge "$PR_URL"
+          echo "Checking for PRs associated with this workflow run..."
+          # Iterate over PRs found in the event payload
+          echo "$PR_List" | jq -c '.[]' | while read -r pr; do
+            pr_number=$(echo "$pr" | jq -r '.number')
+            echo "Processing PR #$pr_number"
+            gh pr merge --auto --merge "$pr_number"
+          done
