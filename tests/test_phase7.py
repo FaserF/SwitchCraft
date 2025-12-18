@@ -51,7 +51,7 @@ class TestIntuneService(unittest.TestCase):
                     )
 
         # Verify args passed to subprocess
-        args, kwargs = mock_popen.call_args
+        args, _ = mock_popen.call_args
         cmd = args[0]
 
         # We look for flags

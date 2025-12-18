@@ -197,7 +197,7 @@ class IntuneView(ctk.CTkFrame):
         def _process():
             try:
                 # Pass callback for streaming
-                out = self.intune_service.create_intunewin(
+                self.intune_service.create_intunewin(
                     source_folder=s_source,
                     setup_file=s_setup,
                     output_folder=s_output,

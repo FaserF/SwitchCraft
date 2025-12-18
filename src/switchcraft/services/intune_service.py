@@ -5,10 +5,10 @@ import os
 import subprocess
 import requests
 from pathlib import Path
-import xml.etree.ElementTree as ET
 import zipfile
 import base64
 import json
+from typing import Optional, Callable
 from switchcraft.utils.i18n import i18n
 from defusedxml import ElementTree as DefusedET
 import jwt
@@ -54,11 +54,11 @@ class IntuneService:
 
             logger.info("IntuneWinAppUtil downloaded successfully.")
             return True
-        except Exception as e:
-            logger.exception(f"Failed to download IntuneWinAppUtil: {e}")
+        except Exception:
+            logger.exception("Failed to download IntuneWinAppUtil")
             return False
 
-    def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str, catalog_folder: str = None, quiet: bool = True, progress_callback=None) -> str:
+    def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str, catalog_folder: str = None, quiet: bool = True, progress_callback: Optional[Callable[[str], None]] = None) -> str:
         """
         Runs the IntuneWinAppUtil to generate the .intunewin package.
         Returns the output text from the tool.
@@ -161,9 +161,9 @@ class IntuneService:
             token = resp.json().get("access_token")
             logger.info("Successfully authenticated with Graph API.")
             return token
-        except Exception as e:
-            logger.exception(f"Authentication failed: {e}")
-            raise RuntimeError(f"Authentication failed: {e}")
+        except Exception:
+            logger.exception("Authentication failed")
+            raise RuntimeError("Authentication failed")
 
     def verify_graph_permissions(self, token):
         """Verifies Graph API permissions from JWT token."""
@@ -195,9 +195,6 @@ class IntuneService:
         Uploads a .intunewin package to Intune.
         app_info: dict with keys: displayName, description, publisher, installCommandLine, uninstallCommandLine
         """
-        import zipfile
-        import base64
-
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         base_url = "https://graph.microsoft.com/beta/deviceAppManagement" # Use beta for win32LobApp usually
 
