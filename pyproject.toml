@@ -22,11 +22,7 @@ dependencies = [
     "click",
     "rich",
     "py7zr",
-    "customtkinter",
-    "tkinterdnd2",
-    "pillow",
     "PyYAML",
-    "plyer",
     "keyring",
     "openai",
     "google-generativeai",
@@ -36,8 +32,17 @@ dependencies = [
 ]
 requires-python = ">=3.9"
 
+[project.optional-dependencies]
+gui = [
+    "customtkinter",
+    "tkinterdnd2",
+    "pillow",
+    "plyer"
+]
+
+
 [project.scripts]
-switchcraft = "switchcraft.main:cli"
+switchcraft = "switchcraft.main:main"
 
 [project.urls]
 Homepage = "https://github.com/FaserF/SwitchCraft"

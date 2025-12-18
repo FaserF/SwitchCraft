@@ -14,7 +14,10 @@
 > **Active development is for Windows only.** Linux and macOS builds are untested but available. Bug reports for other platforms are welcome!
 
 ## 📚 Documentation
+## 📚 Documentation
 - [**✨ Features & Analysis**](docs/FEATURES.md): Detailed breakdown of supported installers and analysis capabilities.
+- [**🤖 CLI Reference**](docs/CLI_Reference.md): Command-line usage, JSON output, and headless operation.
+- [**🏗️ CI Architecture**](docs/CI_Architecture.md): Build process, pip structure, and testing guide.
 - [**📦 Winget Store & Integration**](docs/WINGET.md): Using the Winget Store and Auto-Update deployment.
 - [**☁️ Enterprise & Intune**](docs/INTUNE.md): Guide to Automation, Intune Uploads, Group Assignments, and Script Signing.
 - [**Registry Reference**](docs/Registry.md): Configuration via Registry.

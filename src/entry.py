@@ -12,7 +12,7 @@ if getattr(sys, 'frozen', False):
     #    shadowing 'switchcraft' folder that might exist in _MEIPASS.
     print("DEBUG: Pre-Importing addon_service explicitly...")
     try:
-        import switchcraft.services.addon_service
+        import switchcraft.services.addon_service  # noqa: F401
         print("DEBUG: SUCCESS importing switchcraft.services.addon_service")
     except ImportError as e:
         print(f"DEBUG: FAILURE importing switchcraft.services.addon_service: {e}")
@@ -21,7 +21,6 @@ if getattr(sys, 'frozen', False):
             print(f"DEBUG: sys.path in frozen mode: {sys.path}")
 
     print("DEBUG: Attempting to import switchcraft.gui.app...")
-    import switchcraft.gui.app
     print("DEBUG: Import GUI SUCCESS.")
 
 # Ensure local source is found (Dev mode)

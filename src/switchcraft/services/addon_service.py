@@ -308,7 +308,7 @@ class AddonService:
                 # Maybe it is at root
                 if f"{detected_pkg_name}/__init__.py" in z.namelist():
                     source_prefix = ""
-                    logger.debug(f"Found package at root level")
+                    logger.debug("Found package at root level")
                 else:
                     # Log what we have for debugging
                     logger.debug(f"Could not find {detected_pkg_name}/__init__.py in zip. Available paths: {z.namelist()[:20]}")
@@ -329,7 +329,8 @@ class AddonService:
                 if member.filename.startswith(source_prefix):
                     rel_path = member.filename[len(source_prefix):] # e.g. switchcraft_advanced/mod.py
 
-                    if not rel_path or rel_path.startswith("__MACOSX"): continue
+                    if not rel_path or rel_path.startswith("__MACOSX"):
+                        continue
 
                     # Security check: rel_path should start with pkg_name
                     if not rel_path.startswith(detected_pkg_name):

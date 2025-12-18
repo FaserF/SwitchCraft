@@ -12,6 +12,7 @@ build/
 dist/
 *.spec
 !switchcraft.spec
+!switchcraft_cli.spec
 *.egg-info/
 var/
 bin/

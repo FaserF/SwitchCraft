@@ -59,7 +59,6 @@ class I18n:
         try:
             # Use pathlib for better cross-platform handling
             import sys
-            import os
             from pathlib import Path
 
             if getattr(sys, 'frozen', False):

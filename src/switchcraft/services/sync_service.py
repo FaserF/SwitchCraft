@@ -2,7 +2,6 @@ import json
 import logging
 import requests
 from typing import Optional, Dict, Any
-from datetime import datetime
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.services.auth_service import AuthService
 
