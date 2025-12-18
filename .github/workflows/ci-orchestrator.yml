@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Run Playwright
         run: echo "Running Playwright E2E tests..."
         # In scaffolding, we just echo. Real impl would start containers and run pytest/playwright
