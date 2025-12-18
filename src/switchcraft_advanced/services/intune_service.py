@@ -169,7 +169,6 @@ class IntuneService:
         app_info: dict with keys: displayName, description, publisher, installCommandLine, uninstallCommandLine
         """
         import zipfile
-        import xml.etree.ElementTree as ET
         import base64
 
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}

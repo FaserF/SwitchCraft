@@ -51,25 +51,38 @@ class SwitchCraftAI:
 
     def _init_client(self):
         try:
+            # Implement sliding window for history to prevent unbounded growth
+            if len(self.messages) > 20:
+                 # Keep system prompt (index 0) and last 10 messages
+                 self.messages = [self.messages[0]] + self.messages[-10:]
+
             if self.provider == "openai":
                 api_key = SwitchCraftConfig.get_secret("OPENAI_API_KEY")
                 if api_key:
                     from openai import OpenAI
                     self.client = OpenAI(api_key=api_key)
-                    if not self.model: self.model = "gpt-4o"
-                    self.messages = [{"role": "system", "content": "You are SwitchCraft AI, an expert packaging assistant. Help the user with installers (MSI, EXE, Intune). You have access to the current installer analysis context. Use tools when requested. Be concise."}]
+                    if not self.model:
+                        self.model = "gpt-4o"
+
+                    if not self.messages:
+                        self.messages = [{"role": "system", "content": "You are SwitchCraft AI, an expert packaging assistant. Help the user with installers (MSI, EXE, Intune). You have access to the current installer analysis context. Use tools when requested. Be concise."}]
+                else:
+                    logger.warning("OpenAI Provider selected but NO API KEY found.")
 
             elif self.provider == "gemini":
                 api_key = SwitchCraftConfig.get_secret("GEMINI_API_KEY")
                 if api_key:
                     import google.generativeai as genai
                     genai.configure(api_key=api_key)
-                    if not self.model: self.model = "gemini-pro"
+                    if not self.model:
+                        self.model = "gemini-1.5-flash"
                     self.client = genai.GenerativeModel(self.model)
                     # Gemini has different history structure, handled in _ask_gemini
+                else:
+                    logger.warning("Gemini Provider selected but NO API KEY found.")
 
         except Exception as e:
-            logger.error(f"Failed to init AI client ({self.provider}): {e}")
+            logger.exception(f"Failed to init AI client ({self.provider})")
 
     def update_context(self, data: dict):
         self.context = data
@@ -107,7 +120,11 @@ class SwitchCraftAI:
 
                 for tool_call in msg.tool_calls:
                     function_name = tool_call.function.name
-                    args = json.loads(tool_call.function.arguments)
+                    try:
+                        args = json.loads(tool_call.function.arguments)
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logger.warning(f"Failed to parse tool arguments for {function_name}: {e}. Using empty dict.")
+                        args = {}
 
                     # Execute Tool
                     result_content = self._execute_tool(function_name, args)
@@ -133,6 +150,7 @@ class SwitchCraftAI:
                 self.messages.append({"role": "assistant", "content": answer})
                 return answer
         except Exception as e:
+            logger.exception("OpenAI Error")
             return f"OpenAI Error: {e}"
 
     def _ask_gemini(self, user_query: str) -> str:

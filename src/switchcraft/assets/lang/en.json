@@ -183,5 +183,20 @@
     "winget_dl_complete_msg": "Installer downloaded into:\n{path}\n\nAnalyze now?",
     "winget_dl_failed_title": "Download Failed",
     "winget_dl_error_title": "Error",
-    "winget_dl_error_no_file": "Download finished but no installer found."
+    "winget_dl_error_no_file": "Download finished but no installer found.",
+    "settings_hdr_integrations": "Integrations",
+    "settings_hdr_directories": "Directories",
+    "settings_hdr_tools": "External Tools",
+    "settings_hdr_signing": "PowerShell Signing",
+    "settings_hdr_update": "Update Settings",
+    "settings_hdr_ai": "AI Configuration",
+    "btn_add": "Add",
+    "btn_cancel": "Cancel",
+    "btn_save": "Save",
+    "btn_browse": "Browse...",
+    "btn_verify_save": "Verify & Save Cred",
+    "lbl_cert_path": "Certificate Path (.pfx):",
+    "lbl_git_path": "Git Repository Path:",
+    "lbl_intune_tool_path": "IntuneWinAppUtil Path:",
+    "settings_saved": "Settings saved successfully."
 }
