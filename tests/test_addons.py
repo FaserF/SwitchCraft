@@ -11,7 +11,7 @@ class TestAddonService:
     @pytest.fixture(autouse=True)
     def setup_method(self, tmp_path):
         # Mock the addon directory to a temporary one
-        with patch.object(AddonService, 'get_addon_dir', return_value=str(tmp_path)):
+        with patch.object(AddonService, 'get_addon_dir', return_value=tmp_path):
             # Create a dummy addon
             self.addon_id = "test_addon"
             self.addon_pkg = "switchcraft_test_addon"
@@ -50,7 +50,7 @@ class TestAddonService:
 
     def test_install_addon_mock(self):
         # Current implementation is a mock that just returns True
-        assert AddonService.install_addon("any") is True
+        assert AddonService.install_addon(self.addon_id) is True
 
     def test_uninstall_addon(self):
         # Addon exists
@@ -59,10 +59,7 @@ class TestAddonService:
         # Uninstall (it should NOT delete if in dev mode, but we can mock dev mode check)
         # Actually, let's just test that it attempts to remove it if we bypass the dev check
         # For simplicity, we just test that it returns True if directory exists
-        assert AddonService.uninstall_addon(self.addon_id) is True
-
-        # If we weren't in dev mode, it would be gone.
-        # But wait, AddonService has:
-        # if os.path.exists(os.path.join(cls.get_addon_dir(), "..", ".git")): return True
-        # Since tmp_path doesn't have .git, it SHOULD delete it.
-        assert not (self.addon_path).exists()
+        # Mock frozen=True to allow deletion
+        with patch.object(sys, 'frozen', True, create=True):
+            assert AddonService.uninstall_addon(self.addon_id) is True
+            assert not (self.addon_path).exists()

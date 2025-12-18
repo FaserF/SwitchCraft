@@ -11,14 +11,16 @@ class TestIntuneService(unittest.TestCase):
     def test_switchcraft_winget_fix(self):
         """Test that searching for 'SwitchCraft' returns the fixed URL."""
         from switchcraft.utils.winget import WingetHelper
-        helper = WingetHelper()
-        # Mocking local repo existence to pass initial check
-        with patch('pathlib.Path.exists', return_value=True):
-            helper.local_repo = Path("mock")
+
+        # Fake return value for search_packages
+        fake_result = [{"Id": "FaserF.SwitchCraft", "Name": "SwitchCraft", "Source": "winget"}]
+
+        with patch.object(WingetHelper, 'search_packages', return_value=fake_result):
+            helper = WingetHelper()
             url = helper.search_by_name("SwitchCraft")
+            # New URL format from refactor
             self.assertEqual(url, "https://github.com/microsoft/winget-pkgs/tree/master/manifests/s/FaserF/SwitchCraft")
 
-            # Case insensitive check
             url_lower = helper.search_by_name("switchcraft")
             self.assertEqual(url_lower, "https://github.com/microsoft/winget-pkgs/tree/master/manifests/s/FaserF/SwitchCraft")
 
