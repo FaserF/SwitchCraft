@@ -116,7 +116,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.tab_intune = self.tabview.add("Intune Utility")
         self.setup_intune_tab()
 
-        if self.winget_helper and SwitchCraftConfig.get_value("EnableWinget", True):
+        if SwitchCraftConfig.get_value("EnableWinget", True):
             self.tab_winget = self.tabview.add("Winget Store")
             self.setup_winget_tab()
 

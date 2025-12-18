@@ -28,26 +28,22 @@ class SettingsView(ctk.CTkFrame):
 
     def setup_ui(self):
         """Setup the Settings view with Tabs."""
-
-        # Create Tabview
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
         # Tabs
-        self.tab_general = self.tabview.add(i18n.get("settings_hdr_update") or "General") # "General" / "Update Settings"
-        self.tab_updates = self.tabview.add("Updates") # Kept simple or could be merged
+        self.tab_general = self.tabview.add(i18n.get("settings_title") or "General")
+        self.tab_updates = self.tabview.add(i18n.get("settings_hdr_update") or "Updates")
         self.tab_deploy = self.tabview.add(i18n.get("deployment_title") or "Deployment")
         self.tab_help = self.tabview.add("Help")
 
-        # Configure Grids for Tabs
         for tab in [self.tab_general, self.tab_updates, self.tab_deploy, self.tab_help]:
             tab.grid_columnconfigure(0, weight=1)
             tab.grid_rowconfigure(0, weight=1)
 
-        # Setup Content
         self._setup_tab_general(self.tab_general)
         self._setup_tab_updates(self.tab_updates)
-        self._setup_tab_deploy(self.tab_deploy) # Intune, Signing, Paths
+        self._setup_tab_deploy(self.tab_deploy)
         self._setup_tab_help(self.tab_help)
 
     def _setup_tab_general(self, parent):
@@ -55,7 +51,6 @@ class SettingsView(ctk.CTkFrame):
         scroll.grid(row=0, column=0, sticky="nsew")
         scroll.grid_columnconfigure(0, weight=1)
 
-        # Header
         ctk.CTkLabel(scroll, text=i18n.get("settings_title"), font=ctk.CTkFont(size=20, weight="bold")).pack(pady=10)
 
         # Winget Toggle
@@ -78,6 +73,8 @@ class SettingsView(ctk.CTkFrame):
         scroll = ctk.CTkScrollableFrame(parent)
         scroll.grid(row=0, column=0, sticky="nsew")
         scroll.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(scroll, text=i18n.get("settings_hdr_update"), font=ctk.CTkFont(size=20, weight="bold")).pack(pady=10)
 
         # Update Channel
         frame_channel = ctk.CTkFrame(scroll)
@@ -139,6 +136,16 @@ class SettingsView(ctk.CTkFrame):
         scroll = ctk.CTkScrollableFrame(parent)
         scroll.grid(row=0, column=0, sticky="nsew")
         scroll.grid_columnconfigure(0, weight=1)
+
+        # Addon Download Button
+        frame_addon = ctk.CTkFrame(scroll)
+        frame_addon.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(frame_addon, text="Advanced Addons", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+
+        def download_addons():
+            webbrowser.open("https://github.com/FaserF/SwitchCraft/releases/latest")
+
+        ctk.CTkButton(frame_addon, text="Download Addons", command=download_addons).pack(pady=5)
 
         # Debug Console
         self._setup_debug_console(scroll)
@@ -365,13 +372,42 @@ class SettingsView(ctk.CTkFrame):
     def _setup_intune_settings(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(frame, text=i18n.get("settings_hdr_integrations") or "Integrations (Full)", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=5)
-        # Placeholder for complex Intune settings (Tenant, ID, Secret)
-        # Kept brief for this snippet as strict requirements were mostly about structure & signing.
-        ctk.CTkLabel(frame, text="Intune / Graph API Credentials (Check main config)").pack(pady=5)
+        ctk.CTkLabel(frame, text=i18n.get("settings_hdr_integrations") or "Integrations", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=5)
 
-        # Verify Button
-        ctk.CTkButton(frame, text=i18n.get("btn_verify_save"), command=self._verify_save_intune).pack(pady=5)
+        # Grid for inputs
+        auth_grid = ctk.CTkFrame(frame, fg_color="transparent")
+        auth_grid.pack(fill="x", pady=5)
+        auth_grid.grid_columnconfigure(1, weight=1)
+
+        def create_auth_field(row, label, key, show=""):
+            ctk.CTkLabel(auth_grid, text=label).grid(row=row, column=0, sticky="w", padx=5, pady=2)
+            entry = ctk.CTkEntry(auth_grid, show=show)
+            entry.grid(row=row, column=1, sticky="ew", padx=5, pady=2)
+            entry.insert(0, SwitchCraftConfig.get_value(key, ""))
+            # Save on focus out or save button? Let's do Save Button.
+            return entry
+
+        self.entry_tenant = create_auth_field(0, "Tenant ID:", "GraphTenantId")
+        self.entry_client = create_auth_field(1, "Client ID:", "GraphClientId")
+        self.entry_secret = create_auth_field(2, "Client Secret:", "GraphClientSecret", show="*")
+
+        # Save Button
+        def save_auth():
+            t = self.entry_tenant.get().strip()
+            c = self.entry_client.get().strip()
+            s = self.entry_secret.get().strip()
+
+            SwitchCraftConfig.set_user_preference("GraphTenantId", t)
+            SwitchCraftConfig.set_user_preference("GraphClientId", c)
+            SwitchCraftConfig.set_user_preference("GraphClientSecret", s)
+
+            messagebox.showinfo(i18n.get("settings_verify_success_title"), i18n.get("settings_saved"))
+
+        btn_box = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_box.pack(fill="x", pady=5)
+
+        ctk.CTkButton(btn_box, text=i18n.get("btn_save"), command=save_auth).pack(side="left", padx=5)
+        ctk.CTkButton(btn_box, text=i18n.get("btn_verify_save"), command=self._verify_save_intune).pack(side="left", padx=5)
 
     def _verify_save_intune(self):
         # Implementation of verification logic

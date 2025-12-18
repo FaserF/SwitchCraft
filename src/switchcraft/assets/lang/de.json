@@ -17,7 +17,6 @@
     "view_winget": "Auf Winget GitHub ansehen",
     "settings_theme": "Design",
     "settings_lang": "Sprache",
-    "settings_saved": "Einstellungen gespeichert.",
     "settings_debug": "Debug-Protokollierung",
     "settings_channel": "Update-Kanal",
     "settings_dark": "Dunkel",
@@ -218,5 +217,7 @@
     "lbl_cert_path": "Zertifikatspfad (.pfx):",
     "lbl_git_path": "Git Repository Pfad:",
     "lbl_intune_tool_path": "Pfad zu IntuneWinAppUtil:",
-    "settings_saved": "Einstellungen erfolgreich gespeichert."
+    "settings_saved": "Einstellungen erfolgreich gespeichert.",
+    "addon_missing_title": "Erweitertes Addon fehlt",
+    "addon_missing_msg": "Der erweiterte Service konnte nicht geladen werden.\nEinige Funktionen (Intune Upload, erweiterte KI) sind deaktiviert."
 }

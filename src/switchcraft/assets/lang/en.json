@@ -195,5 +195,7 @@
     "lbl_cert_path": "Certificate Path (.pfx):",
     "lbl_git_path": "Git Repository Path:",
     "lbl_intune_tool_path": "IntuneWinAppUtil Path:",
-    "settings_saved": "Settings saved successfully."
+    "settings_saved": "Settings saved successfully.",
+    "addon_missing_title": "Advanced Addon Missing",
+    "addon_missing_msg": "The advanced service could not be loaded.\nSome features (Intune upload, advanced AI) are disabled."
 }

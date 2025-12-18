@@ -71,6 +71,12 @@ class WingetView(ctk.CTkFrame):
         self.lbl_empty_state = ctk.CTkLabel(self.details_content, text=i18n.get("winget_search_placeholder"))
         self.lbl_empty_state.pack(pady=20)
 
+        if not self.winget_helper:
+            err_bg = ctk.CTkFrame(self.panes, fg_color="#DC3545", height=30)
+            err_bg.grid(row=1, column=0, columnspan=2, sticky="ew", pady=5)
+            ctk.CTkLabel(err_bg, text="Winget Addon not loaded. Please reinstall addons.", text_color="white").pack()
+            self.search_entry.configure(state="disabled")
+
     def _perform_search(self):
         query = self.search_entry.get().strip()
         if not query: return
