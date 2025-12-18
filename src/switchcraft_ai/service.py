@@ -82,14 +82,12 @@ class SwitchCraftAI:
         if self.provider == "openai":
             if self.client:
                 return self._ask_openai(query)
-            else:
-                return "Error: OpenAI Provider configured but not initialized. Please check your API Key in Settings."
+            # Fallback to local regex if OpenAI key is missing
 
         elif self.provider == "gemini":
             if self.client:
                 return self._ask_gemini(query)
-            else:
-                return "Error: Gemini Provider configured but not initialized. Please check your API Key in Settings."
+            # Fallback to local regex if Gemini key is missing
 
         # Fallback / Local
         return self._ask_smart_regex(query)

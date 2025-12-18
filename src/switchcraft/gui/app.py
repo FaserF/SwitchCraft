@@ -44,23 +44,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def run(self):
         # CLI Argument Handling for Addons
+        # CLI flag triggers addon check/prompt on startup
         if "--install-addons" in sys.argv:
-            print("Installing Addons via CLI...")
-            # We need a headless way to install or just trigger the GUI flow?
-            # User request: "CLI Parameter bei der Installation von SwitchCraft mit installiert werden können"
-            # Since this is a GUI app, we can just trigger the service.
-            if AddonService.is_addon_installed():
-                 print("Addons already installed.")
-            else:
-                 # In a real scenario, this might download silently.
-                 # For now, we rely on the GUI verify method or a new silent install method.
-                 # Let's try to download silently if possible or show the dialog immediately.
-                 print("Triggering Addon Download...")
-                 # Ideally AddonService should have a silent install method.
-                 # For MVP, we will just ensure the GUI prompts immediately on start if this flag is present,
-                 # OR if we want true headless, we would need to implement it in AddonService.
-                 # Let's assume the user opens the app with this flag to auto-trigger the prompt.
-                 self.after(2000, self._check_addon_status)
+            self.after(2000, self._check_addon_status)
 
         self.mainloop()
     def __init__(self):
@@ -166,7 +152,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def _check_addon_status(self):
         """Check if Advanced Features Addon is installed."""
-        if not AddonService.is_addon_installed():
+        if not AddonService.is_addon_installed("advanced"):
             # Only ask once per session or use config to remember "Don't ask again"
             if SwitchCraftConfig.get_value("AddonPromptShown", False):
                 return
@@ -643,8 +629,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 self.ai_view.pack(fill="both", expand=True)
             else:
                 logger.error("AI View module missing in addon.")
-        except Exception as e:
-            logger.error(f"Failed to setup AI Helper tab: {e}")
+        except Exception:
+            logger.exception("Failed to setup AI Helper tab")
 
     # --- Settings Tab ---
 

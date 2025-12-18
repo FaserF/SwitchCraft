@@ -38,8 +38,8 @@ class DebugConsole:
                     sys.stdout = cls._stdout
                 if cls._stderr:
                     sys.stderr = cls._stderr
-            except Exception as e:
-                logger.error(f"Error closing console: {e}")
+            except Exception:
+                logger.exception("Error closing console")
 
             kernel32.FreeConsole()
             cls._is_enabled = False

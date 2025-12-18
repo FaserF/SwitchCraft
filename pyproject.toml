@@ -29,7 +29,9 @@ dependencies = [
     "plyer",
     "keyring",
     "openai",
-    "google-generativeai"
+    "google-generativeai",
+    "defusedxml",
+    "PyJWT"
 ]
 requires-python = ">=3.9"
 

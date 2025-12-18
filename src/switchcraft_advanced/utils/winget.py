@@ -176,9 +176,9 @@ class WingetHelper:
 
             return results
 
-        except RuntimeError as e:
-            raise e
         except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
             logger.error(f"Winget Search Error: {e}")
             return []
 

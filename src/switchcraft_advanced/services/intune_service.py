@@ -5,6 +5,8 @@ import subprocess
 import requests
 from pathlib import Path
 from switchcraft.utils.i18n import i18n
+from defusedxml import ElementTree as DefusedET
+import jwt
 
 logger = logging.getLogger(__name__)
 
@@ -138,30 +140,15 @@ class IntuneService:
             raise RuntimeError(f"Authentication failed: {e}")
 
     def verify_graph_permissions(self, token):
-        """
-        Decodes the JWT token to verify if proper roles are assigned.
-        Checks for 'DeviceManagementApps.ReadWrite.All'.
-        Returns (True, "OK") or (False, "Missing Permission: ...")
-        """
+        """Verifies Graph API permissions from JWT token."""
         try:
-            # Simple JWT decode without library dependency (we trust the source)
-            parts = token.split('.')
-            if len(parts) != 3:
-                return False, "Invalid Token Format"
-
-            # Padding for base64
-            payload_part = parts[1]
-            padded = payload_part + '=' * (4 - len(payload_part) % 4)
-            import base64
-            import json
-            payload_bytes = base64.urlsafe_b64decode(padded)
-            payload = json.loads(payload_bytes)
-
+            # Simple JWT decoding using PyJWT without signature verification (done by Graph)
+            payload = jwt.decode(token, options={"verify_signature": False})
             roles = payload.get("roles", [])
-            mandatory = ["DeviceManagementApps.ReadWrite.All"]
 
-            # Check mandatory
+            mandatory = ["DeviceManagementApps.ReadWrite.All"]
             missing = [r for r in mandatory if r not in roles]
+
             if missing:
                 return False, f"Missing Mandatory Role: {', '.join(missing)}"
 
@@ -174,8 +161,7 @@ class IntuneService:
 
             return True, "OK"
         except Exception as e:
-            logger.error(f"Permission verification error: {e}")
-            return False, f"Verification Error: {e}"
+            return False, f"Token decode failed: {e}"
 
     def upload_win32_app(self, token, intunewin_path, app_info, progress_callback=None):
         """
@@ -207,7 +193,7 @@ class IntuneService:
                     raise ValueError("Detection.xml not found in .intunewin package")
 
                 with z.open(det_xml) as f:
-                    tree = ET.parse(f)
+                    tree = DefusedET.parse(f)
                     root = tree.getroot()
                     # Parse EncryptionInfo
                     # Expected structure via analysis of IntuneWinAppUtil output

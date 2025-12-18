@@ -93,16 +93,18 @@ class AnalyzerView(ctk.CTkFrame):
             if path:
                 files.append(path)
 
-        if not files: return
+        if not files:
+            return
 
         self.queue.extend(files)
         self._process_queue()
 
     def _process_queue(self):
-        if self._is_analyzing: return
+        if self._is_analyzing:
+            return
 
         if not self.queue:
-            return # Done
+            return  # Done
 
         next_file = self.queue.pop(0)
         self._start_analysis(next_file)
@@ -237,7 +239,8 @@ class AnalyzerView(ctk.CTkFrame):
                         "product": info.product_name or "Unknown",
                         "type": info.installer_type
                     })
-                except Exception as e: logger.error(f"Failed to save history: {e}")
+                except Exception:
+                    logger.exception("Failed to save history")
 
             self._update_progress(1.0, "Analysis Complete")
             self.after(0, lambda i=info, w=winget_url, bf=brute_force_data, nd=nested_data, sd=silent_disabled:
