@@ -164,10 +164,18 @@ jobs:
       run: |
         pyinstaller switchcraft.spec
 
-    - name: Create Addon Package
+    - name: Create Addon Packages
       if: matrix.os == 'windows-latest'
       run: |
-        Compress-Archive -Path src/switchcraft_advanced -DestinationPath dist/switchcraft_addon.zip
+        $addons = @("switchcraft_advanced", "switchcraft_ai", "switchcraft_winget")
+        foreach ($addon in $addons) {
+            if (Test-Path "src/$addon") {
+                Write-Host "Zipping $addon..."
+                Compress-Archive -Path "src/$addon" -DestinationPath "dist/$addon.zip" -Force
+            } else {
+                Write-Warning "Addon source src/$addon not found!"
+            }
+        }
       shell: pwsh
 
     - name: Rename to Platform Name
@@ -214,12 +222,15 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload Addon Package
+    - name: Upload Addon Packages
       if: matrix.os == 'windows-latest'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ needs.prepare_release.outputs.version }}
-        files: dist/switchcraft_addon.zip
+        files: |
+            dist/switchcraft_advanced.zip
+            dist/switchcraft_ai.zip
+            dist/switchcraft_winget.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

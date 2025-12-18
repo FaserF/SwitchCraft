@@ -55,8 +55,16 @@ class WingetHelper:
             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)
 
             if proc.returncode != 0:
-
-                logger.warning(f"WinGet PS Search failed: {proc.stderr[:200]}")
+                # Try CLI fallback if module is missing
+                err_msg = proc.stderr.strip()
+                if "Find-WinGetPackage" in err_msg:
+                    logger.info("Winget PowerShell module not found. Attempting Winget CLI fallback...")
+                    cli_results = self._search_via_cli(query)
+                    if not cli_results:
+                         logger.info("Winget integration disabled (CLI also failed or returned no results).")
+                    return cli_results
+                else:
+                    logger.warning(f"WinGet PS Search failed: {err_msg[:200]}")
                 return []
 
             output = proc.stdout.strip()
@@ -125,3 +133,63 @@ class WingetHelper:
         except Exception as e:
             logger.error(f"Winget PS Details Error: {e}")
             return {}
+    def _search_via_cli(self, query: str) -> List[Dict[str, str]]:
+        """Fallback search using winget CLI."""
+        import subprocess
+        import re
+        try:
+             # cmd: winget search --name <query> --source winget --accept-source-agreements
+             # output is table.
+             cmd = ["winget", "search", "--name", query, "--source", "winget", "--accept-source-agreements"]
+
+             # Hide window
+             startupinfo = None
+             if hasattr(subprocess, 'STARTUPINFO'):
+                 startupinfo = subprocess.STARTUPINFO()
+                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)
+             if proc.returncode != 0:
+                 return []
+
+             lines = proc.stdout.strip().splitlines()
+             if len(lines) < 3: return [] # Header + separator + data
+
+             # Locate specific columns implies fixed width or at least order.
+             # Name, Id, Version, Source (sometimes Match etc)
+             # Basic regex for Name (any), Id (no spaces), Version (no spaces?)
+             # Actually Name can have spaces. Id usually doesn't.
+             # Heuristic: Split by multiple spaces.
+
+             results = []
+             # Skip header/dashes
+             start_idx = 0
+             for i, line in enumerate(lines):
+                 if hasattr(line, "startswith") and line.startswith("---"):
+                     start_idx = i + 1
+                     break
+
+             for line in lines[start_idx:]:
+                 if not line.strip(): continue
+                 # Split by 2+ spaces
+                 parts = re.split(r'\s{2,}', line.strip())
+                 if len(parts) >= 3:
+                     # Usually: Name, Id, Version, (Match), Source
+                     # We map loosely
+                     name = parts[0]
+                     pid = parts[1]
+                     ver = parts[2]
+                     src = "winget"
+                     if len(parts) > 3: src = parts[-1] # Source is usually last
+
+                     results.append({
+                         "Name": name,
+                         "Id": pid,
+                         "Version": ver,
+                         "Source": src
+                     })
+             return results
+
+        except Exception as e:
+            logger.debug(f"Winget CLI fallback failed: {e}")
+            return []

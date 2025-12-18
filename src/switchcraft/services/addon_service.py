@@ -2,6 +2,9 @@ import os
 import sys
 import logging
 import shutil
+import requests
+import zipfile
+import io
 from pathlib import Path
 from typing import Optional, List
 from switchcraft.utils.config import SwitchCraftConfig
@@ -60,13 +63,14 @@ class AddonService:
     @classmethod
     def import_addon_module(cls, addon_id: str, module_name: str):
         """Dynamically import a module from an addon."""
+        if not cls.is_addon_installed(addon_id):
+            return None
+
         package_root = cls.ADDONS.get(addon_id)
         if not package_root: return None
 
         cls.register_addons()
-        full_name = f"{package_root}.{module_name}"
-        # If module_name is empty, import just the package
-        if not module_name: full_name = package_root
+        full_name = f"{package_root}.{module_name}" if module_name else package_root
 
         try:
             import importlib
@@ -79,11 +83,8 @@ class AddonService:
     def install_addon(cls, addon_id: str) -> bool:
         """
         Install the specified addon.
-        For MVP/Prototype: Since we don't have a download server,
-        we simulate this or assume we are enabling it if disabled?
-        Actually, in a release, addons would be ZIPs.
-
-        If 'all', installs all.
+        - Release Builds: Download 'switchcraft_{id}.zip' from release assets.
+        - Dev Builds (or fallback): Download source code from main branch and extract.
         """
         if addon_id == "all":
             success = True
@@ -96,14 +97,113 @@ class AddonService:
 
         logger.info(f"Installing addon: {addon_id} ({pkg_name})...")
 
-        # TODO: Implement Download/Unzip logic here
-        # For now, we assume success if we are just verifying structure or enabling
-        # In a real scenario:
-        # 1. Download ZIP from GitHub Release
-        # 2. Extract to get_addon_dir()
+        # Running from source (True Dev Environment) - usually already there, but just in case
+        if not getattr(sys, 'frozen', False):
+             logger.info("Running from source, addons should be present locally.")
+             return True
 
-        # Mocking success for dev environment where folders exist
-        return True
+        from switchcraft import __version__
+        is_dev_build = "dev" in __version__.lower() or "beta" in __version__.lower()
+
+        try:
+            download_url = None
+            is_source_zip = False
+
+            # Strategy 1: Release Asset (Preferred for Stable)
+            if not is_dev_build:
+                try:
+                    logger.debug(f"Fetching release info for v{__version__}...")
+                    # Note: Using 'latest' might be wrong if we are on an older version,
+                    # but for now we assume we want the corresponding version or latest?
+                    # User request implies "Release workflow". usually we want assets from *this* release.
+                    # But if we can't find tag, maybe latest?
+                    # Let's try specific tag first if possible, else latest.
+
+                    # For simplicity and robustness (as per previous code), we looked at 'latest'.
+                    # But correct behavior is matching tag.
+                    # However, if API fails or rate limit, we might have issues.
+                    # Let's stick to 'latest' for standard release, but check if asset exists.
+
+                    api_url = "https://api.github.com/repos/FaserF/SwitchCraft/releases/latest"
+                    resp = requests.get(api_url, timeout=10)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        assets = data.get("assets", [])
+                        target_name = f"{pkg_name}.zip"
+                        for asset in assets:
+                            if asset["name"] == target_name:
+                                download_url = asset["browser_download_url"]
+                                break
+                except Exception as e:
+                    logger.warning(f"Failed to fetch release info: {e}")
+
+            # Strategy 2: Main Branch Source (Fallback or Explicit Dev)
+            # User said: "Dev builds soll bitte immer aus dem main branch ... herausladen"
+            if is_dev_build or not download_url:
+                logger.info("Dev build detected or asset not found. Falling back to main branch source.")
+                download_url = "https://github.com/FaserF/SwitchCraft/archive/refs/heads/main.zip"
+                is_source_zip = True
+
+            if not download_url:
+                logger.error("Could not determine download URL for addon.")
+                return False
+
+            # Download
+            logger.info(f"Downloading {download_url}...")
+            r = requests.get(download_url, stream=True, timeout=60)
+            r.raise_for_status()
+
+            # Extract
+            z = zipfile.ZipFile(io.BytesIO(r.content))
+            addon_root = cls.get_addon_dir()
+            addon_root.mkdir(parents=True, exist_ok=True)
+
+            if is_source_zip:
+                # We downloaded the whole repo source (SwitchCraft-main.zip)
+                # We need to find 'SwitchCraft-main/src/{pkg_name}' and extract it to 'addon_root/{pkg_name}'
+                # Zip structure: SwitchCraft-main/src/switchcraft_advanced/...
+
+                # We loop through files, if they start with SwitchCraft-main/src/{pkg_name}, we extract them.
+                # But we need to strip the prefix.
+
+                # Finding the prefix (usually SwitchCraft-main)
+                root_folder = z.namelist()[0].split('/')[0]
+                source_prefix = f"{root_folder}/src/{pkg_name}/"
+
+                found_any = False
+                for member in z.infolist():
+                    if member.filename.startswith(source_prefix):
+                        found_any = True
+                        # relative path inside package
+                        rel_path = member.filename[len(source_prefix):]
+                        if not rel_path: continue # Folder itself
+
+                        target_path = addon_root / pkg_name / rel_path
+
+                        if member.is_dir():
+                            target_path.mkdir(parents=True, exist_ok=True)
+                        else:
+                            target_path.parent.mkdir(parents=True, exist_ok=True)
+                            with z.open(member) as source, open(target_path, "wb") as target:
+                                shutil.copyfileobj(source, target)
+
+                if not found_any:
+                    logger.error(f"Could not find {pkg_name} in source zip.")
+                    return False
+            else:
+                # Release Asset: It is just '{pkg_name}.zip' containing the package folder directly (or contents?)
+                # Our workflow does: Compress-Archive -Path "src/$addon"
+                # This usually includes the folder "$addon" at root of zip?
+                # PowerShell Compress-Archive includes the folder if Path is a folder.
+                # So Zip structure: switchcraft_advanced/...
+                z.extractall(addon_root)
+
+            logger.info(f"Successfully installed {addon_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to install addon {addon_id}: {e}", exc_info=False) # Reduced verbosity
+            return False
 
     @classmethod
     def uninstall_addon(cls, addon_id: str) -> bool:

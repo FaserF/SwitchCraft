@@ -9,6 +9,7 @@ import os
 import uuid
 import shutil
 import ctypes
+import time
 
 from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.exe import ExeAnalyzer
@@ -131,13 +132,27 @@ class AnalyzerView(ctk.CTkFrame):
         for widget in self.result_frame.winfo_children():
             widget.destroy()
 
-    def _update_progress(self, val, msg=None):
-        self.after(0, lambda: self._update_progress_ui(val, msg))
+    def _update_progress(self, val, msg=None, eta_seconds=None):
+        current_time = time.time()
+        # Throttle updates to ~20FPS unless critical (0 or 1.0 or explicit message change)
+        if hasattr(self, '_last_update_time'):
+             if val not in [0, 1.0] and (current_time - self._last_update_time < 0.05):
+                 return
 
-    def _update_progress_ui(self, val, msg):
+        self._last_update_time = current_time
+        self.after(0, lambda: self._update_progress_ui(val, msg, eta_seconds))
+
+    def _update_progress_ui(self, val, msg, eta_seconds=None):
         self.progress_bar.set(val)
         if msg:
-            self.status_bar.configure(text=msg)
+            eta_str = ""
+            if eta_seconds is not None:
+                if eta_seconds > 60:
+                   eta_str = f" (ETA: {int(eta_seconds // 60)}m {int(eta_seconds % 60)}s)"
+                else:
+                   eta_str = f" (ETA: {int(eta_seconds)}s)"
+
+            self.status_bar.configure(text=f"{msg}{eta_str}")
 
     def _show_error(self, message):
         self.status_bar.configure(text=i18n.get("error"))
@@ -156,6 +171,26 @@ class AnalyzerView(ctk.CTkFrame):
             analyzers = [MsiAnalyzer(), ExeAnalyzer(), MacOSAnalyzer()]
             info = None
             total_analyzers = len(analyzers)
+
+            start_time = time.time()
+
+            def progress_handler(pct, message, _=None):
+                 # Map 0-100 from sub-task to global progress range [0.5, 0.9]
+                 # We are in deep analysis phase
+                 global_pct = 0.5 + (pct / 100 * 0.4)
+
+                 # ETA Calculation
+                 elapsed = time.time() - start_time
+                 # Heuristic: If we are at global_pct, expected total time = elapsed / global_pct
+                 # But global_pct is rough.
+                 # Let's use simple logic:
+                 eta = 0
+                 if global_pct > 0.1:
+                     total_est = elapsed / global_pct
+                     eta = total_est - elapsed
+
+                 self._update_progress(global_pct, message, eta)
+
             for idx, analyzer in enumerate(analyzers):
                 self._update_progress(0.1 + (0.3 * (idx / total_analyzers)), f"Running {analyzer.__class__.__name__}...")
                 if analyzer.can_analyze(path):
@@ -204,13 +239,15 @@ class AnalyzerView(ctk.CTkFrame):
                 info = InstallerInfo(file_path=str(path), installer_type="Unknown")
 
             if not info.install_switches and path.suffix.lower() == '.exe':
-                self._update_progress(0, "Extracting ecosystem for nested analysis... (This may take a while)")
-                self.progress_bar.configure(mode="indeterminate")
-                self.progress_bar.start()
-                nested_data = uni.extract_and_analyze_nested(path)
-                self.progress_bar.stop()
+                self._update_progress(0.5, "Extracting ecosystem for nested analysis... (This may take a while)", eta_seconds=15)
+                # progress_bar to determinate mode if it was indeterminate
                 self.progress_bar.configure(mode="determinate")
-                self._update_progress(0.8, "Deep Analysis Complete")
+
+                # Use callback
+                nested_data = uni.extract_and_analyze_nested(path, progress_callback=progress_handler)
+
+                self.progress_bar.configure(mode="determinate")
+                self._update_progress(0.9, "Deep Analysis Complete")
 
             self._update_progress(0.9, "Searching Winget...")
             winget_url = None
@@ -600,7 +637,9 @@ class AnalyzerView(ctk.CTkFrame):
             ctk.CTkLabel(frame, text=f"File: {filename}", font=("Consolas", 11), text_color="gray80").pack(anchor="w", padx=15)
             if params:
                 p_text = " ".join(params)
-                ctk.CTkTextbox(frame, height=40, font=("Consolas", 11)).pack(fill="x", padx=10, pady=5).insert("0.0", p_text)
+                tb = ctk.CTkTextbox(frame, height=40, font=("Consolas", 11))
+                tb.pack(fill="x", padx=10, pady=5)
+                tb.insert("0.0", p_text)
             if raw_output:
                 ctk.CTkLabel(frame, text="Raw Output:", font=ctk.CTkFont(size=10)).pack(anchor="w", padx=10)
                 out_box = ctk.CTkTextbox(frame, height=80, font=("Consolas", 10), text_color="gray70")

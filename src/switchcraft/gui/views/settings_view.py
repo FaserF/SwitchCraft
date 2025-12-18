@@ -134,7 +134,53 @@ class SettingsView(ctk.CTkFrame):
         channel_desc.pack(pady=2)
 
         # Check Updates Button
-        ctk.CTkButton(scroll, text=i18n.get("check_updates"), command=self.show_update_callback).pack(pady=20)
+        # Changelog Display
+        frame_log = ctk.CTkFrame(scroll)
+        frame_log.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(frame_log, text=i18n.get("changelog") or "Changelog (Installed)", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=5, pady=2)
+
+        self.changelog_box = ctk.CTkTextbox(frame_log, height=150)
+        self.changelog_box.pack(fill="x", padx=5, pady=5)
+        self.changelog_box.insert("0.0", "Loading...")
+        self.changelog_box.configure(state="disabled")
+
+        # Check Updates Button
+        ctk.CTkButton(scroll, text=i18n.get("check_updates"), command=self.show_update_callback).pack(pady=10)
+
+        # Async fetch changelog
+        self.after(100, self._fetch_changelog)
+
+    def _fetch_changelog(self):
+        import threading
+        def fetch():
+            try:
+                # Use current channel
+                channel = self._get_registry_value("UpdateChannel") or "stable"
+                checker = UpdateChecker(channel=channel)
+                # This fetches latest info
+                checker.check_for_updates()
+
+                note = checker.release_notes or i18n.get("no_changelog")
+
+                # Check version mismatch logic
+                header = f"Version: {checker.latest_version}\n"
+                if checker.latest_version != __version__:
+                     header += f"(NOTE: You are running {__version__}, showing changelog for latest {checker.channel} release)\n"
+
+                header += "-" * 40 + "\n\n"
+                full_text = header + note
+
+                self.after(0, lambda: self._update_changelog_ui(full_text))
+            except Exception as e:
+                self.after(0, lambda: self._update_changelog_ui(f"Failed to load changelog: {e}"))
+
+        threading.Thread(target=fetch, daemon=True).start()
+
+    def _update_changelog_ui(self, text):
+        self.changelog_box.configure(state="normal")
+        self.changelog_box.delete("0.0", "end")
+        self.changelog_box.insert("0.0", text)
+        self.changelog_box.configure(state="disabled")
 
     def _setup_tab_deploy(self, parent):
         scroll = ctk.CTkScrollableFrame(parent)
@@ -215,7 +261,7 @@ class SettingsView(ctk.CTkFrame):
         self.ai_provider = ctk.CTkOptionMenu(
             row1,
             values=["local", "openai", "gemini"],
-            command=lambda v: self._save_manual_config("AIProvider", v)
+            command=self._on_ai_provider_change
         )
         self.ai_provider.set(SwitchCraftConfig.get_value("AIProvider", "local"))
         self.ai_provider.pack(side="right")
@@ -233,7 +279,19 @@ class SettingsView(ctk.CTkFrame):
         # Save Button specifically for AI? Or global?
         # For now rely on manual edits or global save if we add one.
 
-        ctk.CTkLabel(frame, text=i18n.get("privacy_note_local"), font=ctk.CTkFont(size=10), text_color="gray").pack(pady=5)
+        self.privacy_lbl = ctk.CTkLabel(frame, text="", font=ctk.CTkFont(size=10), text_color="gray")
+        self.privacy_lbl.pack(pady=5)
+        self._update_privacy_text(SwitchCraftConfig.get_value("AIProvider", "local"))
+
+    def _update_privacy_text(self, provider):
+        if provider == "local":
+            self.privacy_lbl.configure(text=i18n.get("privacy_note_local"))
+        else:
+            self.privacy_lbl.configure(text=i18n.get("privacy_note_cloud", provider=provider))
+
+    def _on_ai_provider_change(self, value):
+        self._save_manual_config("AIProvider", value)
+        self._update_privacy_text(value)
 
 
     def _setup_signing_settings(self, parent):
@@ -461,8 +519,44 @@ class SettingsView(ctk.CTkFrame):
     def _setup_template_settings(self, parent):
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(frame, text=i18n.get("settings_hdr_template") or "Templates", font=ctk.CTkFont(weight="bold")).pack(anchor="w")
-        # Template logic...
+        ctk.CTkLabel(frame, text=i18n.get("settings_hdr_template") or "Templates", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=5)
+
+        ctk.CTkLabel(frame, text=i18n.get("lbl_custom_template") or "Custom Intune Template (.ps1):").pack(anchor="w", padx=5, pady=(5,0))
+
+        row = ctk.CTkFrame(frame, fg_color="transparent")
+        row.pack(fill="x", padx=5, pady=5)
+
+        self.template_entry = ctk.CTkEntry(row, width=300)
+        self.template_entry.pack(side="left", fill="x", expand=True, padx=5)
+
+        current_tpl = SwitchCraftConfig.get_value("CustomTemplatePath", "")
+        if current_tpl:
+            self.template_entry.insert(0, current_tpl)
+        else:
+            self.template_entry.insert(0, "(Default)")
+        self.template_entry.configure(state="disabled")
+
+        def browse_template():
+             path = ctk.filedialog.askopenfilename(filetypes=[("PowerShell Script", "*.ps1")])
+             if path:
+                 SwitchCraftConfig.set_user_preference("CustomTemplatePath", path)
+                 self.template_entry.configure(state="normal")
+                 self.template_entry.delete(0, "end")
+                 self.template_entry.insert(0, path)
+                 self.template_entry.configure(state="disabled")
+
+        def reset_template():
+             SwitchCraftConfig.set_user_preference("CustomTemplatePath", "")
+             self.template_entry.configure(state="normal")
+             self.template_entry.delete(0, "end")
+             self.template_entry.insert(0, "(Default)")
+             self.template_entry.configure(state="disabled")
+
+        ctk.CTkButton(row, text=i18n.get("btn_browse"), width=80, command=browse_template).pack(side="left", padx=5)
+        ctk.CTkButton(row, text="Reset", width=60, fg_color="red", command=reset_template).pack(side="left", padx=5)
+
+        ctk.CTkLabel(frame, text=i18n.get("template_help") or "Select a custom .ps1 template to use for Intune wrapping. Leave empty for default.",
+                     text_color="gray", font=ctk.CTkFont(size=11)).pack(anchor="w", padx=10)
 
     def _setup_debug_console(self, parent):
         frame = ctk.CTkFrame(parent)

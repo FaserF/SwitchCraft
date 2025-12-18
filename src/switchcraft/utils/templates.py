@@ -14,13 +14,25 @@ class TemplateGenerator:
     DEFAULT_TEMPLATE_PATH = Path(__file__).parent.parent / "assets" / "templates" / "DefaultIntuneTemplate.ps1"
 
     def __init__(self, custom_template_path: str = None):
+        from switchcraft.utils.config import SwitchCraftConfig
         self.template_content = None
+
+        # 1. Argument override
         if custom_template_path and Path(custom_template_path).exists():
             self.template_path = Path(custom_template_path)
             self.is_custom = True
-        else:
-            self.template_path = self.DEFAULT_TEMPLATE_PATH
-            self.is_custom = False
+            return
+
+        # 2. Config override
+        config_path = SwitchCraftConfig.get_value("CustomTemplatePath")
+        if config_path and Path(config_path).exists():
+            self.template_path = Path(config_path)
+            self.is_custom = True
+            return
+
+        # 3. Default
+        self.template_path = self.DEFAULT_TEMPLATE_PATH
+        self.is_custom = False
 
     def generate(self, context: Dict[str, str], output_path: str) -> bool:
         """

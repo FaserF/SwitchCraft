@@ -56,12 +56,17 @@ class SigningService:
             # Auto-Detect from Store (CurrentUser mainly, then LocalMachine)
             ps_command = (
                 f'$cert = Get-ChildItem Cert:\\CurrentUser\\My -CodeSigningCert | Select-Object -First 1; '
-                f'if (-not $cert) {{ $cert = Get-ChildItem Cert:\\LocalMachine\\My -CodeSigningCert | Select-Object -First 1 }}; '
+                f'if ($cert) {{ Write-Output "Found cert in CurrentUser\\My: $($cert.Subject)" }} '
+                f'else {{ '
+                f'   Write-Output "No cert in CurrentUser, checking LocalMachine..."; '
+                f'   $cert = Get-ChildItem Cert:\\LocalMachine\\My -CodeSigningCert | Select-Object -First 1; '
+                f'   if ($cert) {{ Write-Output "Found cert in LocalMachine\\My: $($cert.Subject)" }} '
+                f'}} '
                 f'if ($cert) {{ '
                 f'   $sig = Set-AuthenticodeSignature -FilePath "{script_path_obj}" -Certificate $cert; '
                 f'   if ($sig.Status -eq "Valid") {{ Write-Output "Signed Successfully" }} else {{ Write-Error "Signing Failed: $($sig.StatusMessage)" }} '
                 f'}} '
-                f'else {{ Write-Error "No CodeSigning certificate found in User/Machine store." }}'
+                f'else {{ Write-Error "No CodeSigning certificate found in User or Machine store." }}'
             )
 
         try:

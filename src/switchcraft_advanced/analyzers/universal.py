@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from typing import Optional, List, Dict, Tuple
 import py7zr
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +308,7 @@ class UniversalAnalyzer:
 
         return switches[:5]  # Limit to 5 most relevant switches
 
-    def extract_and_analyze_nested(self, file_path: Path, depth: int = 1, max_depth: int = 2) -> Dict:
+    def extract_and_analyze_nested(self, file_path: Path, depth: int = 1, max_depth: int = 2, progress_callback=None) -> Dict:
         """
         Attempts to extract the archive (SFX or otherwise) and analyze nested executables.
         Uses 7-Zip command line for maximum compatibility.
@@ -359,6 +360,8 @@ class UniversalAnalyzer:
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
+            if progress_callback: progress_callback(10, f"Listing archive content ({file_path.name})...")
+
             list_proc = subprocess.run(
                 [seven_zip, "l", str(file_path)],
                 capture_output=True,
@@ -385,6 +388,7 @@ class UniversalAnalyzer:
                 result["archive_type"] = "Unknown Archive"
 
             # Extract to temp directory
+            if progress_callback: progress_callback(20, f"Extracting {file_path.name}...")
             extract_proc = subprocess.run(
                 [seven_zip, "x", "-y", f"-o{temp_dir}", str(file_path)],
                 capture_output=True,
@@ -407,7 +411,13 @@ class UniversalAnalyzer:
             msi_analyzer = MsiAnalyzer()
 
             for root, dirs, files in os.walk(temp_dir):
-                for file in files:
+                # Pre-count for progress
+                total_files = len(files)
+                for i, file in enumerate(files):
+                    # Progress calculation: 30% to 90%
+                    pct = 30 + (int((i / total_files) * 60) if total_files > 0 else 0)
+                    if progress_callback: progress_callback(pct, f"Analyzing nested file: {file}")
+
                     ext = os.path.splitext(file)[1].lower()
                     if ext in ['.exe', '.msi']:
                         full_path = Path(os.path.join(root, file))
@@ -448,7 +458,7 @@ class UniversalAnalyzer:
                                 logger.info(f"Detected nested wrapper: {file} ({is_wrapper}). Recursing...")
 
                                 # Recurse
-                                sub_result = self.extract_and_analyze_nested(full_path, depth=depth+1, max_depth=max_depth)
+                                sub_result = self.extract_and_analyze_nested(full_path, depth=depth+1, max_depth=max_depth, progress_callback=progress_callback)
 
                                 if sub_result["extractable"]:
                                     # Add children to our list, modifying path to show hierarchy
