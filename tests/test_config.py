@@ -118,6 +118,33 @@ class TestSwitchCraftConfig(unittest.TestCase):
             self.assertIsInstance(call_args[4], int)
 
     @patch('sys.platform', 'win32')
+    def test_set_user_preference_float_edge_cases(self):
+        """Test edge cases for float conversion."""
+        with patch.object(self.winreg_mock, 'CreateKey'), \
+             patch.object(self.winreg_mock, 'SetValueEx') as mock_set_value:
+
+            mock_key = MagicMock()
+            self.winreg_mock.OpenKey = MagicMock(return_value=mock_key)
+            mock_key.__enter__ = MagicMock(return_value=mock_key)
+            mock_key.__exit__ = MagicMock(return_value=False)
+
+            # Case 1: Negative float (Should RAISE ValueError now)
+            with self.assertRaises(ValueError):
+                 SwitchCraftConfig.set_user_preference("NegativeFloat", -123.45)
+
+            # Case 2: Precision loss (Rounding)
+            # 123.99 -> 124
+            SwitchCraftConfig.set_user_preference("PrecisionFloat", 123.99)
+            args = mock_set_value.call_args_list[-1][0]
+            self.assertEqual(args[4], 124) # Expect rounded up
+
+            # Case 3: Large float (Should RAISE ValueError if > 0xFFFFFFFF)
+            large_val = 5000000000.5 # > 2^32
+            with self.assertRaises(ValueError):
+                SwitchCraftConfig.set_user_preference("LargeFloat", large_val)
+
+
+    @patch('sys.platform', 'win32')
     def test_set_user_preference_bool(self):
         """Test that bool values are converted to 0/1 for REG_DWORD."""
         with patch.object(self.winreg_mock, 'CreateKey'):
@@ -129,6 +156,26 @@ class TestSwitchCraftConfig(unittest.TestCase):
             SwitchCraftConfig.set_user_preference("TestBool", True)
             call_args = self.winreg_mock.SetValueEx.call_args[0]
             self.assertEqual(call_args[4], 1)
+            self.assertEqual(call_args[3], self.winreg_mock.REG_DWORD)
+
+    @patch('sys.platform', 'win32')
+    def test_set_user_preference_bool_false(self):
+        """Test that False is converted to 0 for REG_DWORD."""
+        with patch.object(self.winreg_mock, 'CreateKey'), \
+             patch.object(self.winreg_mock, 'SetValueEx') as mock_set_value:
+
+            mock_key = MagicMock()
+            self.winreg_mock.OpenKey = MagicMock(return_value=mock_key)
+            mock_key.__enter__ = MagicMock(return_value=mock_key)
+            mock_key.__exit__ = MagicMock(return_value=False)
+
+            SwitchCraftConfig.set_user_preference("TestBoolFalse", False)
+            call_args = mock_set_value.call_args[0]
+            # Expect 0
+            self.assertEqual(call_args[4], 0)
+            # Expect REG_DWORD
+            self.assertEqual(call_args[3], self.winreg_mock.REG_DWORD)
+
 
 if __name__ == '__main__':
     unittest.main()

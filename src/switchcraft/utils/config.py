@@ -119,7 +119,12 @@ class SwitchCraftConfig:
                     value = 1 if value else 0
                 elif isinstance(value, float):
                     value_type = winreg.REG_DWORD
-                    value = int(value)
+                    # Round standardly
+                    val_int = int(round(value))
+                    # Validate range for REG_DWORD (unsigned 32-bit: 0 to 4294967295)
+                    if val_int < 0 or val_int > 0xFFFFFFFF:
+                        raise ValueError(f"Registry value '{value_name}' out of range for REG_DWORD: {val_int}")
+                    value = val_int
                 elif isinstance(value, int):
                     value_type = winreg.REG_DWORD
                 else:
@@ -132,6 +137,8 @@ class SwitchCraftConfig:
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH, 0, winreg.KEY_WRITE) as key:
                 winreg.SetValueEx(key, value_name, 0, value_type, value)
 
+        except ValueError:
+            raise  # Re-raise validation errors as requested
         except Exception as e:
             logger.error(f"Failed to set user preference '{value_name}': {e}")
 

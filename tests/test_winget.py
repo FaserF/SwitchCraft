@@ -3,9 +3,8 @@ from unittest.mock import MagicMock, patch
 from switchcraft_winget.utils.winget import WingetHelper
 
 class TestWinget(unittest.TestCase):
-    @patch('shutil.which', return_value="C:\\winget.exe")
     @patch('subprocess.run')
-    def test_search_by_name_cli_found(self, mock_run, mock_which):
+    def test_search_by_name_powershell_success(self, mock_run):
         # Mock successful winget search output
         mock_proc = MagicMock()
         mock_proc.returncode = 0
@@ -28,9 +27,9 @@ class TestWinget(unittest.TestCase):
         # Expect winget.run URL based on new logic
         self.assertEqual(url, "https://github.com/microsoft/winget-pkgs/tree/master/manifests/7/7zip/7zip")
 
-    @patch('shutil.which', return_value="C:\\winget.exe")
+
     @patch('subprocess.run')
-    def test_search_packages_found(self, mock_run, mock_which):
+    def test_search_packages_found(self, mock_run):
         mock_proc = MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = """

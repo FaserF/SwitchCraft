@@ -293,7 +293,7 @@
     "github_permissions_explanation": "SwitchCraft requests the following GitHub permissions:\n\n• gist - Create and edit private Gists to store your settings\n• read:user - Read your GitHub username for display\n\nYour settings are stored as a PRIVATE Gist in your GitHub account.\nNo other data is accessed or stored.",
     "github_permissions_docs_hint": "Learn more:",
     "btn_continue": "Continue",
-    "sfx_notice_title": "7-ZIP SFX DETECTED - NESTED INSTALLERS",
+    "sfx_notice_title": "7-Zip SFX Detected - Nested Installers",
     "sfx_notice_msg": "This is a self-extracting archive. If the main EXE parameters do not work, use one of the nested installers found inside.",
     "sfx_howto_7zip": "Instructions: Right-click the EXE -> 7-Zip -> 'Extract to...'"
 }

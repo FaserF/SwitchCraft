@@ -40,35 +40,42 @@ if src_root not in sys.path:
 import switchcraft
 pkg_path = os.path.dirname(switchcraft.__file__)
 
+import importlib
+
 def can_import(module_name):
     """Test if a module can actually be imported."""
     try:
-        import importlib
         importlib.import_module(module_name)
         return True
     except (ImportError, ModuleNotFoundError):
         return False
 
+# Use a set for faster lookups and automatic deduplication
+discovered_modules = set()
+
 for root, dirs, files in os.walk(pkg_path):
     for file in files:
         if file.endswith('.py') and not file == '__init__.py':
-            # Convert path to module name
             full_path = os.path.join(root, file)
             rel_path = os.path.relpath(full_path, src_root)
             module_name = rel_path.replace(os.sep, '.').replace('.py', '')
-            # Validate module exists before adding
-            if can_import(module_name) and module_name not in hidden_imports:
-                hidden_imports.append(module_name)
+            discovered_modules.add(module_name)
         elif file == '__init__.py':
              full_path = os.path.join(root, file)
              rel_path = os.path.relpath(root, src_root)
              module_name = rel_path.replace(os.sep, '.')
-             if can_import(module_name) and module_name not in hidden_imports:
-                 hidden_imports.append(module_name)
+             discovered_modules.add(module_name)
 
-# Remove duplicates
-hidden_imports = list(set(hidden_imports))
-print(f"DEBUG: Collected {len(hidden_imports)} hidden imports.")
+# Add discovered modules if they can be imported and aren't already explicit
+initial_hidden_count = len(hidden_imports)
+hidden_imports_set = set(hidden_imports)
+
+for module_name in discovered_modules:
+    if module_name not in hidden_imports_set and can_import(module_name):
+        hidden_imports.append(module_name)
+
+print(f"DEBUG: Collected {len(hidden_imports) - initial_hidden_count} additional hidden imports.")
+
 
 datas = [
     (ctk_path, ctk_name),

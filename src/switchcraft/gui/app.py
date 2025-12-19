@@ -846,31 +846,8 @@ def main(splash=None):
         # --- Auto-Enable Debug Console for Dev/Nightly Builds ---
         from switchcraft import __version__
         if "dev" in __version__.lower() or "nightly" in __version__.lower():
-            # If preference is missing (None) or True, ensure it is set to True.
-            # If user explicitly disabled it (False), we respect it (unless first run logic overrides, but simple is better).
-            # User request: "Start also if disabled in user settings... IF it is dev/nightly. If user manually turns off, keep off."
-            # To track "manually turned off", we rely on the config value being explicitly False.
-            # If it is None (default), we force True.
-            # Wait, user said: "Das soll auch hochkommen, selbst wenn in den User/Systemeinstellungen debugging aus ist." (Even if debug is off).
-            # "Wenn der User es dann nach dem Start manuell ausschaltet, soll es auch aus bleiben" (If user turns off AFTER start, keep off).
-            # This implies a runtime override: Always ON at startup for Dev, unless... "until man die anwendung neustartet"?
-            # "bis man die anwendung neustartet" -> "until one restarts application".
-            # Logic: Force ON at startup always for Dev?
-            # "Wenn der User es dann nach dem Start manuell ausschaltet, soll es auch aus bleiben, bis man die anwendung neustartet"
-            # --> If I turn it off, it stays off UNTIL restart. So restart -> ON again.
-            # So: ALWAYS ON at startup for Dev.
-            # But "bei beta und stable ... wie bisher".
-
-            # Simple Logic: For Dev/Nightly, Runtime Debug = True.
-            # switchcraft.services.addon_service or config needs to know.
-            # We can just set the config in memory? Or set the preference?
-            # If we set preference, it saves to file.
-            # If we just open the window...
-            # The Debug Console is likely opened by SettingsView checking config or App checking config.
-            # Let's override the in-memory config to True on startup. (But not save it if we don't want to mess up user pref?)
-            # SwitchCraftConfig is a singleton handling file I/O?
-            # Let's just set the user preference to True. Ideally we wouldn't persist it if user wants it "off by default" but we are forcing it "on by default" for dev.
-            # But "Always ON at startup" means we overwrite "Off".
+            # Force Debug Console ON for Dev/Nightly builds at startup for better troubleshooting.
+            # This overrides user preference for the session but respects if user manually closes/disables it later.
 
             SwitchCraftConfig.set_user_preference("ShowDebugConsole", True)
 
