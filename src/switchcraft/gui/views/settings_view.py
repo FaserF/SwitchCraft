@@ -179,9 +179,42 @@ class SettingsView(ctk.CTkFrame):
                               command=do_sync_up).pack(side="left", padx=5)
                 ctk.CTkButton(btn_row, text=i18n.get("btn_sync_down"), width=150,
                               command=do_sync_down).pack(side="left", padx=5)
+
             else:
+                def on_login_success():
+                    # Post-login check: Found backup?
+                    def _check():
+                        try:
+                            gist_id = SyncService.find_sync_gist()
+                            if gist_id:
+                                # Found backup
+                                if messagebox.askyesno("Cloud Sync", i18n.get("cloud_backup_found", default="Cloud backup found. Import settings now?")):
+                                    # Perform sync down (simplified, no conflict check needed on fresh login usually, but safer to use same logic)
+                                    # We can't easily call do_sync_down here because it's in the 'if authenticated' block scope which isn't active yet?
+                                    # Wait, we are in 'else', and 'update_sync_ui' will be called to refresh.
+                                    # Actually, we should call 'update_sync_ui' first to render buttons, THEN prompt?
+                                    # Or prompting first is fine.
+
+                                    # Logic: Import directly
+                                    if SyncService.sync_down():
+                                        self.after(0, lambda: messagebox.showinfo("Sync", i18n.get("sync_success_down")))
+                                else:
+                                    pass
+                            else:
+                                # No backup
+                                if messagebox.askyesno("Cloud Sync", i18n.get("cloud_backup_create", default="No cloud backup found. Create one now?")):
+                                     if SyncService.sync_up():
+                                         self.after(0, lambda: messagebox.showinfo("Sync", i18n.get("sync_success_up")))
+                        except Exception as e:
+                            logger.error(f"Login check failed: {e}")
+
+                        # Finally update UI
+                        self.after(0, update_sync_ui)
+
+                    threading.Thread(target=_check, daemon=True).start()
+
                 ctk.CTkButton(self.sync_status_frame, text=i18n.get("btn_login_github"),
-                              fg_color="#24292e", command=lambda: self._show_permission_dialog(update_sync_ui)).pack(pady=5)
+                              fg_color="#24292e", command=lambda: self._show_permission_dialog(on_login_success)).pack(pady=5)
 
         update_sync_ui()
 

@@ -19,10 +19,16 @@ class WingetHelper:
             first = results[0]
             pkg_id = first.get("Id")
             if pkg_id:
-                parts = pkg_id.split(".")
-                if len(parts) >= 2:
-                     return f"https://winget.run/pkg/{parts[0]}/{'.'.join(parts[1:])}"
-                return f"https://winget.run/pkg/{pkg_id}"
+                # Construct GitHub URL for microsoft/winget-pkgs
+                # Structure: manifests/{p_char}/{Publisher}/{Package}
+                parts = pkg_id.split(".", 1)
+                if len(parts) == 2:
+                    publisher, package = parts
+                    p_char = publisher[0].lower()
+                    return f"https://github.com/microsoft/winget-pkgs/tree/master/manifests/{p_char}/{publisher}/{package}"
+
+                # Fallback for simple IDs or weird structures
+                return f"https://github.com/microsoft/winget-pkgs/search?q={pkg_id}"
         return None
 
     def search_packages(self, query: str) -> List[Dict[str, str]]:

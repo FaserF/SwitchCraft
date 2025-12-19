@@ -6,8 +6,6 @@ import tkinterdnd2
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules
 
-block_cipher = None
-
 # Helper to find package data
 def get_package_data(package):
     path = os.path.dirname(package.__file__)
@@ -60,11 +58,10 @@ a = Analysis(
     excludes=['py7zr'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data)
 
 exe = EXE(
     pyz,

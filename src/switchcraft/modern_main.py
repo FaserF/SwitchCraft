@@ -1,9 +1,9 @@
 import flet as ft
 from switchcraft.gui_modern.app import ModernApp
 
-def main():
+def main(page: ft.Page):
     """Entry point for the Modern Flet GUI."""
-    ft.app(target=ModernApp)
+    ModernApp(page)
 
 if __name__ == "__main__":
-    main()
+    ft.app(target=main)

@@ -112,8 +112,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Initialize Tabs
         self.setup_analyzer_tab()
-        if self.ai_service:
-            self.setup_helper_tab()
+
 
         # Intune Utility Tab
         self.tab_intune = self.tabview.add("Intune Utility")
@@ -143,6 +142,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Check for Addon (Virus Mitigation)
         self.after(4000, self._check_addon_status)
 
+        # Cloud Backup Check (Weekly)
+        self.after(6000, self._check_cloud_backup_auto)
+
     def _run_demo_init(self):
         """Check if first run/demo mode is needed."""
         if SwitchCraftConfig.get_value("FirstRun", True):
@@ -154,6 +156,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 if messagebox.askyesno("SwitchCraft Demo", msg):
                     # Locate own installer or download
                     self.after(500, self._start_demo_analysis)
+
 
     def _check_addon_status(self):
         """Check status. Auto-install for Dev builds silently. Prompt for others."""
@@ -210,7 +213,6 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
             # Clean environment for PyInstaller restart
             # If we don't remove _MEIPASS, the new process might try to use the old temp dir
-            # causing FileNotFoundError: ... base_library.zip
             env = os.environ.copy()
             env.pop('_MEIPASS', None)
             env.pop('_MEIPASS2', None)
@@ -219,16 +221,17 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             executable = sys.executable
             args = sys.argv[:]
 
-            # If we are running as a script (e.g. "python app.py"), executable is python.
-            # If frozen, executable is the app exe.
+            # If frozen, executable is the full path to the .exe
+            # If script, it is python.exe. We want to start in the app root dir.
+            cwd = os.path.dirname(executable) if getattr(sys, 'frozen', False) else os.getcwd()
 
             try:
                 # Use Popen with DETACHED_PROCESS flag on Windows to ensure it survives parent death
                 if sys.platform == 'win32':
                     CREATE_NEW_CONSOLE = 0x00000010
-                    subprocess.Popen([executable] + args, creationflags=CREATE_NEW_CONSOLE, close_fds=True, env=env)
+                    subprocess.Popen([executable] + args, creationflags=CREATE_NEW_CONSOLE, close_fds=True, env=env, cwd=cwd)
                 else:
-                    subprocess.Popen([executable] + args, close_fds=True, env=env)
+                    subprocess.Popen([executable] + args, close_fds=True, env=env, cwd=cwd)
 
                 self.quit()  # Stop mainloop
                 os._exit(0)  # Force exit
@@ -243,6 +246,50 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             timeout_seconds=5,
             on_timeout=do_restart
         )
+
+    def _check_cloud_backup_auto(self):
+        """Perform weekly cloud backup if enabled."""
+        if not SwitchCraftConfig.get_value("CloudSyncAuto", True): # Default True as requested
+            return
+
+        from switchcraft.services.auth_service import AuthService
+        from switchcraft.services.sync_service import SyncService
+
+        # Must be authenticated
+        if not AuthService.is_authenticated():
+            return
+
+        import time
+        import json
+        import threading
+
+        last_backup = SwitchCraftConfig.get_value("LastCloudBackup", 0)
+        now = time.time()
+
+        # Weekly = 7 * 24 * 3600 = 604800 seconds
+        if (now - last_backup) > 604800:
+             logger.info("Weekly cloud backup check triggered.")
+             def _run():
+                 import hashlib
+                 # Hash current prefs to check against last known backup hash
+                 current_prefs = SwitchCraftConfig.export_preferences()
+                 current_hash = hashlib.md5(json.dumps(current_prefs, sort_keys=True).encode()).hexdigest()
+
+                 last_hash = SwitchCraftConfig.get_value("LastBackupHash", "")
+
+                 if current_hash != last_hash:
+                     logger.info("Changes detected since last backup. Performing auto-backup...")
+                     if SyncService.sync_up():
+                         logger.info("Auto-backup successful.")
+                         SwitchCraftConfig.set_user_preference("LastCloudBackup", now)
+                         SwitchCraftConfig.set_user_preference("LastBackupHash", current_hash)
+                 else:
+                     logger.info("No changes since last backup. Skipping.")
+                     # Update timestamp so we don't check every restart for another week
+                     SwitchCraftConfig.set_user_preference("LastCloudBackup", now)
+
+             threading.Thread(target=_run, daemon=True).start()
+
 
     def _toggle_winget_tab(self, enabled):
         """Show or hide the Winget tab based on settings."""
@@ -778,6 +825,37 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
 def main(splash=None):
     try:
+        # --- Auto-Enable Debug Console for Dev/Nightly Builds ---
+        from switchcraft import __version__
+        if "dev" in __version__.lower() or "nightly" in __version__.lower():
+            # If preference is missing (None) or True, ensure it is set to True.
+            # If user explicitly disabled it (False), we respect it (unless first run logic overrides, but simple is better).
+            # User request: "Start also if disabled in user settings... IF it is dev/nightly. If user manually turns off, keep off."
+            # To track "manually turned off", we rely on the config value being explicitly False.
+            # If it is None (default), we force True.
+            # Wait, user said: "Das soll auch hochkommen, selbst wenn in den User/Systemeinstellungen debugging aus ist." (Even if debug is off).
+            # "Wenn der User es dann nach dem Start manuell ausschaltet, soll es auch aus bleiben" (If user turns off AFTER start, keep off).
+            # This implies a runtime override: Always ON at startup for Dev, unless... "until man die anwendung neustartet"?
+            # "bis man die anwendung neustartet" -> "until one restarts application".
+            # Logic: Force ON at startup always for Dev?
+            # "Wenn der User es dann nach dem Start manuell ausschaltet, soll es auch aus bleiben, bis man die anwendung neustartet"
+            # --> If I turn it off, it stays off UNTIL restart. So restart -> ON again.
+            # So: ALWAYS ON at startup for Dev.
+            # But "bei beta und stable ... wie bisher".
+
+            # Simple Logic: For Dev/Nightly, Runtime Debug = True.
+            # switchcraft.services.addon_service or config needs to know.
+            # We can just set the config in memory? Or set the preference?
+            # If we set preference, it saves to file.
+            # If we just open the window...
+            # The Debug Console is likely opened by SettingsView checking config or App checking config.
+            # Let's override the in-memory config to True on startup. (But not save it if we don't want to mess up user pref?)
+            # SwitchCraftConfig is a singleton handling file I/O?
+            # Let's just set the user preference to True. Ideally we wouldn't persist it if user wants it "off by default" but we are forcing it "on by default" for dev.
+            # But "Always ON at startup" means we overwrite "Off".
+
+            SwitchCraftConfig.set_user_preference("ShowDebugConsole", True)
+
         app = App()
         if splash:
             try:
@@ -788,6 +866,11 @@ def main(splash=None):
     except Exception as e:
         import traceback
         traceback.print_exc()
+        try:
+             with open("crash.log", "w") as f:
+                 f.write(traceback.format_exc())
+        except: pass
+
         try:
             from tkinter import messagebox, Tk
             # Attempt to create a root for messagebox if app failed
