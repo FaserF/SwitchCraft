@@ -155,7 +155,7 @@ jobs:
         python-version: '3.14'
 
     # Caching PyInstaller Build
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       with:
         path: build
         key: ${{ matrix.os }}-pyinstaller-build-${{ hashFiles('**/pyproject.toml') }}
@@ -314,7 +314,7 @@ jobs:
       with:
         python-version: '3.14'
 
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       with:
         path: build
         key: windows-cli-pyinstaller-${{ hashFiles('**/pyproject.toml') }}
