@@ -112,8 +112,10 @@ class TestSwitchCraftConfig(unittest.TestCase):
             # Verify SetValueEx was called with int, not float
             self.winreg_mock.SetValueEx.assert_called_once()
             call_args = self.winreg_mock.SetValueEx.call_args[0]
-            self.assertEqual(call_args[2], self.winreg_mock.REG_DWORD)
-            self.assertIsInstance(call_args[3], int)
+            # SetValueEx(key, name, reserved, type, value)
+            # Index 3 is type, Index 4 is value
+            self.assertEqual(call_args[3], self.winreg_mock.REG_DWORD)
+            self.assertIsInstance(call_args[4], int)
 
     @patch('sys.platform', 'win32')
     def test_set_user_preference_bool(self):
@@ -126,7 +128,7 @@ class TestSwitchCraftConfig(unittest.TestCase):
 
             SwitchCraftConfig.set_user_preference("TestBool", True)
             call_args = self.winreg_mock.SetValueEx.call_args[0]
-            self.assertEqual(call_args[3], 1)
+            self.assertEqual(call_args[4], 1)
 
 if __name__ == '__main__':
     unittest.main()

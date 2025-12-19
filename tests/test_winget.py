@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from switchcraft_advanced.utils.winget import WingetHelper
+from switchcraft_winget.utils.winget import WingetHelper
 
 class TestWinget(unittest.TestCase):
     @patch('shutil.which', return_value="C:\\winget.exe")
@@ -10,9 +10,14 @@ class TestWinget(unittest.TestCase):
         mock_proc = MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = """
-Name      Id             Version  Match Source
----------------------------------------------
-7-Zip     7zip.7zip      24.08          winget
+[
+  {
+    "Name": "7-Zip",
+    "Id": "7zip.7zip",
+    "Version": "24.08",
+    "Source": "winget"
+  }
+]
 """
         mock_run.return_value = mock_proc
 
@@ -21,7 +26,7 @@ Name      Id             Version  Match Source
 
         self.assertIsNotNone(url)
         # Expect winget.run URL based on new logic
-        self.assertEqual(url, "https://winget.run/pkg/7zip/7zip")
+        self.assertEqual(url, "https://github.com/microsoft/winget-pkgs/tree/master/manifests/7/7zip/7zip")
 
     @patch('shutil.which', return_value="C:\\winget.exe")
     @patch('subprocess.run')
@@ -29,9 +34,14 @@ Name      Id             Version  Match Source
         mock_proc = MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = """
-Name      Id             Version  Match Source
----------------------------------------------
-Node.js   OpenJS.NodeJS  20.0.0         winget
+[
+  {
+    "Name": "Node.js",
+    "Id": "OpenJS.NodeJS",
+    "Version": "20.0.0",
+    "Source": "winget"
+  }
+]
 """
         mock_run.return_value = mock_proc
 

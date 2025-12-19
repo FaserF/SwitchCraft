@@ -248,16 +248,26 @@ class AddonService:
             if auto_detect:
                 # Find any folder matching switchcraft_* containing __init__.py
                 for f in z.namelist():
-                    parts = f.split('/')
+                    # Normalize slashes for Windows-created zips
+                    f_norm = f.replace('\\', '/')
+                    parts = f_norm.split('/')
                     for part in parts:
                         if part.startswith("switchcraft_") and not part.endswith(".zip"):
                             # Check if valid package (has init)
                             # Checking rigid path: .../switchcraft_xxx/__init__.py
-                            if f.endswith(f"{part}/__init__.py"):
+                            if f_norm.endswith(f"{part}/__init__.py"):
                                 detected_pkg_name = part
                                 # Calulcate prefix
                                 suffix = f"{part}/__init__.py"
-                                source_prefix = f[:-len(suffix)]
+                                source_prefix = f_norm[:-len(suffix)]
+                                # Maintain original slash style for the zip member lookup or just assume normalized?
+                                # z.open(member) handles the object, but we need the prefix valid for matching string
+                                # Ideally we map back to original filename, but zipfile might just handle /
+                                # Actually, member.filename is the source of truth.
+                                # Let's find the ORIGINAL prefix
+                                original_suffix_len = len(suffix)
+                                # If separators differ, len might match but content differs.
+                                # Safe bet: Use index from original 'f' if we can find the pattern
                                 break
                     if detected_pkg_name and detected_pkg_name != pkg_name:
                         break
@@ -308,12 +318,13 @@ class AddonService:
 
             if source_prefix is None and not auto_detect:
                 # Maybe it is at root
-                if f"{detected_pkg_name}/__init__.py" in z.namelist():
+                # Check normalized
+                normalized_names = [n.replace('\\', '/') for n in z.namelist()]
+                if f"{detected_pkg_name}/__init__.py" in normalized_names:
                     source_prefix = ""
                     logger.debug("Found package at root level")
                 else:
-                    # Log what we have for debugging
-                    logger.debug(f"Could not find {detected_pkg_name}/__init__.py in zip. Available paths: {z.namelist()[:20]}")
+                    logger.debug(f"Could not find {detected_pkg_name}/__init__.py in zip.")
 
             if source_prefix is None:
                 logger.error(f"Structure mismatch in zip for {detected_pkg_name}")
@@ -328,8 +339,11 @@ class AddonService:
 
             extracted_any = False
             for member in z.infolist():
-                if member.filename.startswith(source_prefix):
-                    rel_path = member.filename[len(source_prefix):] # e.g. switchcraft_advanced/mod.py
+                # Normalize member filename as well
+                fname_norm = member.filename.replace('\\', '/')
+
+                if fname_norm.startswith(source_prefix):
+                    rel_path = fname_norm[len(source_prefix):] # e.g. switchcraft_advanced/mod.py
 
                     if not rel_path or rel_path.startswith("__MACOSX"):
                         continue

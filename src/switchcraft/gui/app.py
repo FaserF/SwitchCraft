@@ -887,7 +887,8 @@ def main(splash=None):
         try:
              with open("crash.log", "w") as f:
                  f.write(traceback.format_exc())
-        except: pass
+        except Exception:
+            pass
 
         try:
             from tkinter import messagebox, Tk
