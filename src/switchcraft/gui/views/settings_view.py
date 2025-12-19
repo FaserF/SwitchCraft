@@ -145,34 +145,35 @@ class SettingsView(ctk.CTkFrame):
 
                 def do_sync_down():
                     def _run():
-                        # Check for conflicts first
-                        gist_id = SyncService.find_sync_gist()
-                        if gist_id:
-                            remote = SyncService.get_remote_settings(gist_id)
-                            local = SwitchCraftConfig.export_preferences()
+                        try:
+                            gist_id = SyncService.find_sync_gist()
+                            if gist_id:
+                                meta = SyncService.get_backup_metadata(gist_id)
+                                ts_str = "Unknown"
+                                if meta and "updated_at" in meta:
+                                    try:
+                                        from datetime import datetime
+                                        dt = datetime.fromisoformat(meta["updated_at"].replace("Z", "+00:00"))
+                                        ts_str = dt.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+                                    except Exception:
+                                        ts_str = meta["updated_at"]
 
-                            if remote and remote != local:
-                                # Show conflict dialog
-                                def show_conflict():
-                                    result = messagebox.askyesnocancel(
-                                        i18n.get("sync_conflict_title"),
-                                        i18n.get("sync_conflict_msg") + "\n\nYes = Cloud, No = Local, Cancel = Abort"
-                                    )
-                                    if result is True:  # Use cloud
-                                        SwitchCraftConfig.import_preferences(remote)
-                                        messagebox.showinfo("Sync", i18n.get("sync_success_down"))
-                                    elif result is False:  # Keep local, upload
-                                        SyncService.sync_up()
-                                        messagebox.showinfo("Sync", i18n.get("sync_success_up"))
-                                    # Cancel = do nothing
-                                self.after(0, show_conflict)
+                                def ask_import():
+                                    msg = f"{i18n.get('cloud_backup_found') or 'Cloud backup found.'}\n\nTime: {ts_str}\n\nImport now?"
+                                    if messagebox.askyesno("Cloud Sync", msg):
+                                        if SyncService.sync_down():
+                                            if hasattr(self.app, '_show_restart_countdown'):
+                                                self.app._show_restart_countdown()
+                                            else:
+                                                messagebox.showinfo("Sync", i18n.get("sync_success_down"))
+                                        else:
+                                            messagebox.showerror("Sync", i18n.get("sync_failed"))
+
+                                self.after(0, ask_import)
                             else:
-                                # No conflict, just apply
-                                success = SyncService.sync_down()
-                                self.after(0, lambda: messagebox.showinfo("Sync",
-                                    i18n.get("sync_success_down") if success else i18n.get("sync_failed")))
-                        else:
-                            self.after(0, lambda: messagebox.showwarning("Sync", i18n.get("sync_failed")))
+                                self.after(0, lambda: messagebox.showwarning("Sync", i18n.get("sync_failed") or "No backup found."))
+                        except Exception as e:
+                            logger.error(f"Sync failed: {e}")
                     threading.Thread(target=_run, daemon=True).start()
 
                 ctk.CTkButton(btn_row, text=i18n.get("btn_sync_up"), width=150,
@@ -188,23 +189,32 @@ class SettingsView(ctk.CTkFrame):
                             gist_id = SyncService.find_sync_gist()
                             if gist_id:
                                 # Found backup
-                                if messagebox.askyesno("Cloud Sync", i18n.get("cloud_backup_found", default="Cloud backup found. Import settings now?")):
-                                    # Perform sync down (simplified, no conflict check needed on fresh login usually, but safer to use same logic)
-                                    # We can't easily call do_sync_down here because it's in the 'if authenticated' block scope which isn't active yet?
-                                    # Wait, we are in 'else', and 'update_sync_ui' will be called to refresh.
-                                    # Actually, we should call 'update_sync_ui' first to render buttons, THEN prompt?
-                                    # Or prompting first is fine.
+                                meta = SyncService.get_backup_metadata(gist_id)
+                                ts_str = "Unknown"
+                                if meta and "updated_at" in meta:
+                                    try:
+                                        from datetime import datetime
+                                        dt = datetime.fromisoformat(meta["updated_at"].replace("Z", "+00:00"))
+                                        ts_str = dt.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+                                    except Exception:
+                                        ts_str = meta["updated_at"]
 
-                                    # Logic: Import directly
-                                    if SyncService.sync_down():
-                                        self.after(0, lambda: messagebox.showinfo("Sync", i18n.get("sync_success_down")))
-                                else:
-                                    pass
+                                def ask_import_login():
+                                    if messagebox.askyesno("Cloud Sync", f"Cloud backup found ({ts_str}). Import settings now?"):
+                                        if SyncService.sync_down():
+                                            if hasattr(self.app, '_show_restart_countdown'):
+                                                 self.app._show_restart_countdown()
+                                            else:
+                                                 messagebox.showinfo("Sync", i18n.get("sync_success_down"))
+
+                                self.after(0, ask_import_login)
                             else:
                                 # No backup
-                                if messagebox.askyesno("Cloud Sync", i18n.get("cloud_backup_create", default="No cloud backup found. Create one now?")):
-                                     if SyncService.sync_up():
-                                         self.after(0, lambda: messagebox.showinfo("Sync", i18n.get("sync_success_up")))
+                                def ask_create():
+                                    if messagebox.askyesno("Cloud Sync", i18n.get("cloud_backup_create", default="No cloud backup found. Create one now?")):
+                                         if SyncService.sync_up():
+                                             self.after(0, lambda: messagebox.showinfo("Sync", i18n.get("sync_success_up")))
+                                self.after(0, ask_create)
                         except Exception as e:
                             logger.error(f"Login check failed: {e}")
 
@@ -351,7 +361,10 @@ class SettingsView(ctk.CTkFrame):
                     with open(path, "r", encoding="utf-8") as f:
                         data = json.load(f)
                     SwitchCraftConfig.import_preferences(data)
-                    messagebox.showinfo("Import", i18n.get("import_success"))
+                    if hasattr(self.app, '_show_restart_countdown'):
+                        self.app._show_restart_countdown()
+                    else:
+                        messagebox.showinfo("Import", i18n.get("import_success"))
                 except Exception as e:
                     messagebox.showerror("Import", f"{i18n.get('import_failed')}\n{e}")
 

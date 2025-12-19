@@ -134,8 +134,28 @@ class SyncService:
                     return None
             return None
 
+            return None
+
         except requests.RequestException as e:
             logger.error(f"Failed to get remote settings: {e}")
+            return None
+
+    @classmethod
+    def get_backup_metadata(cls, gist_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves metadata about the Gist (e.g., updated_at).
+        """
+        headers = cls._get_headers()
+        if not headers:
+            return None
+
+        try:
+            url = f"{cls.GIST_API}/{gist_id}"
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as e:
+            logger.error(f"Failed to get gist metadata: {e}")
             return None
 
     @classmethod
