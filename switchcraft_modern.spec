@@ -46,7 +46,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='SwitchCraft', # The main executable name
+    name='SwitchCraft-new-Test', # Modern (Flet) test build
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

@@ -309,5 +309,8 @@
     "github_permissions_title": "GitHub Berechtigungen",
     "github_permissions_explanation": "SwitchCraft benötigt folgende GitHub-Berechtigungen:\n\n• gist - Private Gists erstellen/bearbeiten für Einstellungen\n• read:user - GitHub-Benutzernamen zur Anzeige lesen\n\nDeine Einstellungen werden als PRIVATER Gist gespeichert.\nKeine anderen Daten werden abgerufen oder gespeichert.",
     "github_permissions_docs_hint": "Mehr erfahren:",
-    "btn_continue": "Fortfahren"
+    "btn_continue": "Fortfahren",
+    "sfx_notice_title": "7-ZIP SFX ERKANNT - VERSCHACHTELTE INSTALLER",
+    "sfx_notice_msg": "Dies ist ein selbstentpackendes Archiv. Falls die oben genannten Parameter nicht funktionieren, befinden sich im Inneren weitere Installer.",
+    "sfx_howto_7zip": "Anleitung: Rechtsklick auf die EXE -> 7-Zip -> 'Entpacken nach...'"
 }

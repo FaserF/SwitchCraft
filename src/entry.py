@@ -41,7 +41,6 @@ if __name__ == '__main__':
             print(f"\nCRITICAL FAILURE: {e}")
             print("Abnormal termination.")
     finally:
-        print("\nSession ended.")
         if getattr(sys, 'frozen', False):
              # Only pause in frozen (EXE) mode, so we don't annoy dev usage
              try:

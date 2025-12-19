@@ -1,3 +1,2 @@
-from .winget import WingetHelper
 
-__all__ = ["WingetHelper"]
+__all__ = []

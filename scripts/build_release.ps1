@@ -39,6 +39,7 @@ param (
     [switch]$Legacy,
     [switch]$Cli,
     [switch]$Pip,
+    [switch]$Installer,
     [switch]$All
 )
 
@@ -49,12 +50,13 @@ if ($All) {
     $Modern = $true
     $Legacy = $true
     $Cli = $true
+    $Installer = $true
 }
 
 # Default behavior: If no specific target provided, build Modern (Standard)
-if (-not $Modern -and -not $Legacy -and -not $Cli -and -not $Pip) {
+if (-not $Modern -and -not $Legacy -and -not $Cli -and -not $Pip -and -not $Installer) {
     Write-Host "No specific target variables provided. Defaulting to Modern GUI." -ForegroundColor Cyan
-    Write-Host "TIP: Use '.\scripts\build_release.ps1 -All' to build Modern, Legacy, and CLI versions at once." -ForegroundColor Green
+    Write-Host "TIP: Use '.\scripts\build_release.ps1 -All' to build Modern, Legacy, CLI, and Installer at once." -ForegroundColor Green
     $Modern = $true
     $AutoLaunch = $true
 }
@@ -66,6 +68,7 @@ Write-Host "Modes Enabled:" -ForegroundColor Gray
 Write-Host "  MODERN (Flet)   : $Modern" -ForegroundColor Gray
 Write-Host "  LEGACY (Tkinter): $Legacy" -ForegroundColor Gray
 Write-Host "  CLI             : $Cli" -ForegroundColor Gray
+Write-Host "  INSTALLER       : $Installer" -ForegroundColor Gray
 Write-Host "  PIP             : $Pip" -ForegroundColor Gray
 
 # Check for Python
@@ -79,7 +82,7 @@ Set-Location $RepoRoot
 Write-Host "Project Root: $RepoRoot" -ForegroundColor Gray
 
 # 1. CLEANUP PROCESSES
-$ProcessNames = @("SwitchCraft", "SwitchCraft-Legacy", "SwitchCraft-CLI")
+$ProcessNames = @("SwitchCraft-new-Test", "SwitchCraft-windows", "SwitchCraft-CLI")
 foreach ($ProcessName in $ProcessNames) {
     try {
         $RunningProcesses = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
@@ -93,23 +96,63 @@ foreach ($ProcessName in $ProcessNames) {
 }
 Start-Sleep -Seconds 1 # Give OS time to release file handles
 
-# 1b. CLEANUP ARTIFACTS
-$Artifacts = @(
-    "$RepoRoot\dist\SwitchCraft.exe",
-    "$RepoRoot\dist\SwitchCraft-Legacy.exe",
-    "$RepoRoot\dist\SwitchCraft-CLI.exe"
-)
-foreach ($Art in $Artifacts) {
+# 1b. SELECTIVE CLEANUP & RENAMING
+$ArtifactMap = @{
+    "Modern" = "$RepoRoot\dist\SwitchCraft-new-Test.exe"
+    "Legacy" = "$RepoRoot\dist\SwitchCraft-windows.exe"
+    "Cli"    = "$RepoRoot\dist\SwitchCraft-CLI.exe"
+}
+
+foreach ($Key in $ArtifactMap.Keys) {
+    $Art = $ArtifactMap[$Key]
     if (Test-Path $Art) {
-        try {
-            Remove-Item $Art -Force -ErrorAction Stop
-        } catch {
-             Write-Error "CRITICAL: Cannot remove $Art. The file is locked by another process."
-             Write-Error "Please close SwitchCraft manually and try again."
-             exit 1
+        # Determine if this specific file is a target of the current build
+        $IsTarget = $false
+        if ($Key -eq "Modern" -and $Modern) { $IsTarget = $true }
+        if ($Key -eq "Legacy" -and $Legacy) { $IsTarget = $true }
+        if ($Key -eq "Cli"    -and $Cli)    { $IsTarget = $true }
+
+        if ($IsTarget) {
+            # Delete target before building
+            try {
+                Write-Host "Deleting target artifact for rebuild: $Art" -ForegroundColor Gray
+                Remove-Item $Art -Force -ErrorAction Stop
+            } catch {
+                 Write-Error "CRITICAL: Cannot remove $Art. The file is locked by another process."
+                 Write-Error "Please close SwitchCraft manually and try again."
+                 exit 1
+            }
+        } else {
+            # Rename existing non-targets to _old
+            $OldName = $Art -replace "\.exe$", "_old.exe"
+            try {
+                if (Test-Path $OldName) { Remove-Item $OldName -Force } # Remove previous _old
+                Move-Item $Art $OldName -Force
+                Write-Host "Archived existing $Key version to _old.exe." -ForegroundColor Gray
+            } catch {
+                Write-Warning "Could not rename $Art to $OldName. It might be in use."
+            }
         }
     }
 }
+
+# Helper Function for Notifications
+function Send-BuildNotification {
+    param([string]$Title, [string]$Message)
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        $notif = New-Object System.Windows.Forms.NotifyIcon
+        $notif.Icon = [System.Drawing.SystemIcons]::Information
+        $notif.Visible = $true
+        $notif.ShowBalloonTip(5000, $Title, $Message, [System.Windows.Forms.ToolTipIcon]::Info)
+        Start-Sleep -Seconds 1
+        $notif.Dispose()
+    } catch {
+        Write-Warning "Could not send Windows notification: $_"
+    }
+}
+
+$ArtifactCount = 0
 
 # 2. MODERN GUI (Flet)
 if ($Modern) {
@@ -118,9 +161,11 @@ if ($Modern) {
         python -m pip install ".[modern]"
         python -m PyInstaller switchcraft_modern.spec --clean --noconfirm
 
-        $BuiltModern = "$RepoRoot\dist\SwitchCraft.exe"
+        $BuiltModern = "$RepoRoot\dist\SwitchCraft-new-Test.exe"
         if (Test-Path $BuiltModern) {
             Write-Host "Success! Modern GUI built at: $BuiltModern" -ForegroundColor Green
+            Send-BuildNotification "SwitchCraft Build" "Modern GUI (Flet) successfully generated."
+            $ArtifactCount++
 
             if ($AutoLaunch) {
                 Write-Host "Auto-launching Modern GUI..." -ForegroundColor Green
@@ -142,9 +187,11 @@ if ($Legacy) {
         python -m pip install ".[gui]"
         python -m PyInstaller switchcraft_legacy.spec --clean --noconfirm
 
-        $BuiltLegacy = "$RepoRoot\dist\SwitchCraft-Legacy.exe"
+        $BuiltLegacy = "$RepoRoot\dist\SwitchCraft-windows.exe"
         if (Test-Path $BuiltLegacy) {
             Write-Host "Success! Legacy GUI built at: $BuiltLegacy" -ForegroundColor Green
+            Send-BuildNotification "SwitchCraft Build" "Legacy GUI (Tkinter) successfully generated."
+            $ArtifactCount++
         } else {
              Write-Error "Legacy GUI output missing!"
         }
@@ -164,6 +211,8 @@ if ($Cli) {
         $BuiltCli = "$RepoRoot\dist\SwitchCraft-CLI.exe"
         if (Test-Path $BuiltCli) {
             Write-Host "Success! CLI built at: $BuiltCli" -ForegroundColor Green
+            Send-BuildNotification "SwitchCraft Build" "CLI Executable successfully generated."
+            $ArtifactCount++
             # Verify
             & $BuiltCli --help | Out-Null
         } else {
@@ -181,8 +230,74 @@ if ($Pip) {
     python -m pip install --upgrade build
     python -m build
     Write-Host "Pip artifacts in dist/" -ForegroundColor Green
+    Send-BuildNotification "SwitchCraft Build" "PIP Package successfully generated."
+    $ArtifactCount++
+}
+
+# 6. INNO SETUP INSTALLER
+if ($Installer) {
+    Write-Host "`n[INSTALLER] Building Windows Installer (Inno Setup)..." -ForegroundColor Yellow
+
+    # Check if Legacy EXE exists (required for installer)
+    $LegacyExe = "$RepoRoot\dist\SwitchCraft-windows.exe"
+    if (-not (Test-Path $LegacyExe)) {
+        Write-Warning "Legacy EXE not found at $LegacyExe. Building Legacy first..."
+        python -m pip install ".[gui]"
+        python -m PyInstaller switchcraft_legacy.spec --clean --noconfirm
+    }
+
+    # Check for Inno Setup
+    $IsccPath = $null
+    $PossiblePaths = @(
+        "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+        "C:\Program Files\Inno Setup 6\ISCC.exe",
+        (Get-Command "iscc" -ErrorAction SilentlyContinue).Source
+    )
+
+    foreach ($Path in $PossiblePaths) {
+        if ($Path -and (Test-Path $Path)) {
+            $IsccPath = $Path
+            break
+        }
+    }
+
+    if (-not $IsccPath) {
+        Write-Error "Inno Setup not found. Please install Inno Setup 6 from https://jrsoftware.org/isinfo.php"
+        exit 1
+    }
+
+    Write-Host "Using Inno Setup: $IsccPath" -ForegroundColor Gray
+
+    # Check for ICO file, convert if needed
+    $IcoFile = "$RepoRoot\switchcraft_logo.ico"
+    if (-not (Test-Path $IcoFile)) {
+        Write-Host "ICO file not found. Checking for ImageMagick..." -ForegroundColor Yellow
+        if (Get-Command "magick" -ErrorAction SilentlyContinue) {
+            magick "$RepoRoot\images\switchcraft_logo.png" -define icon:auto-resize=256,128,64,48,32,16 $IcoFile
+            Write-Host "Created ICO file." -ForegroundColor Green
+        } else {
+            Write-Warning "ImageMagick not found. Using PNG as fallback (may cause issues)."
+        }
+    }
+
+    # Build installer
+    try {
+        & $IsccPath "$RepoRoot\switchcraft.iss"
+        $InstallerPath = "$RepoRoot\dist\SwitchCraft-Setup.exe"
+        if (Test-Path $InstallerPath) {
+            Write-Host "Success! Installer built at: $InstallerPath" -ForegroundColor Green
+            Send-BuildNotification "SwitchCraft Build" "Windows Installer successfully generated."
+            $ArtifactCount++
+        } else {
+            Write-Error "Installer output missing!"
+        }
+    } catch {
+        Write-Error "Installer Build Failed: $_"
+        exit 1
+    }
 }
 
 Write-Host "`nAll Tasks Complete." -ForegroundColor Cyan
+Send-BuildNotification "SwitchCraft Release Ready" "The complete build process finished. $ArtifactCount artifacts generated."
 
 Write-Host "`nDone!" -ForegroundColor Cyan

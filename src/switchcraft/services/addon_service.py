@@ -24,18 +24,18 @@ class AddonService:
         """Returns the directory where addons are stored."""
         if getattr(sys, 'frozen', False):
             if SwitchCraftConfig.get_value("PortableMode"):
-                 return Path(sys.executable).parent / "addons"
+                 return Path(sys.executable).parent.resolve() / "addons"
 
             app_data = os.getenv('APPDATA')
             if app_data:
                 path = Path(app_data) / "FaserF" / "SwitchCraft" / "addons"
                 path.mkdir(parents=True, exist_ok=True)
-                return path
+                return path.resolve()
 
         # Dev mode: Parent of src/switchcraft is src/
         # Addons are in src/switchcraft_*, so basically the same level as switchcraft package
         # IF running from source, addons are just sibling packages.
-        return Path(__file__).parent.parent.parent
+        return Path(__file__).parent.parent.parent.resolve()
 
     @classmethod
     def is_addon_installed(cls, addon_id: str) -> bool:
@@ -46,19 +46,17 @@ class AddonService:
 
         addon_path = cls.get_addon_dir() / package_name
 
-        # In Dev mode, they might be source folders
-        if not getattr(sys, 'frozen', False):
-            return (addon_path / "__init__.py").exists() or addon_path.is_dir()
-
+        # Always check for __init__.py to ensure it is a valid package
         return (addon_path / "__init__.py").exists()
 
     @classmethod
     def register_addons(cls):
         """Register all found addons to sys.path."""
         addon_dir = cls.get_addon_dir()
-        if str(addon_dir) not in sys.path:
-            sys.path.insert(0, str(addon_dir))
-            logger.info(f"Registered addon directory: {addon_dir}")
+        addon_dir_str = str(addon_dir)
+        if addon_dir_str not in sys.path:
+            sys.path.insert(0, addon_dir_str)
+            logger.info(f"Registered addon directory: {addon_dir_str}")
 
     @classmethod
     def import_addon_module(cls, addon_id: str, module_name: str):
@@ -98,8 +96,11 @@ class AddonService:
 
         # 0. Dev/Source Check
         if not getattr(sys, 'frozen', False):
-             logger.info("Running from source, addons should be present locally.")
-             return True
+             if cls.is_addon_installed(addon_id):
+                 logger.info(f"Addon {addon_id} already present in source.")
+                 return True
+             logger.warning(f"Addon {addon_id} NOT found in source directory ({cls.get_addon_dir()})")
+             return False
 
         from switchcraft import __version__
         is_dev_build = "dev" in __version__.lower() or "beta" in __version__.lower()

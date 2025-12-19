@@ -239,16 +239,38 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def _toggle_winget_tab(self, enabled):
         """Show or hide the Winget tab based on settings."""
+        logger.debug(f"Toggling Winget tab: enabled={enabled}")
+        logger.debug(f"Current tabs before toggle: {list(self.tabview._tab_dict.keys())}")
+
         if enabled:
             if "Winget Store" not in self.tabview._tab_dict:
-                # Re-add tab at the correct position (hard to force position, adds to end)
-                # To keep order, we might need to recreate all... or just add it.
-                # Adding to end is fine for now.
+                # CTkTabview.add() appends to the end.
+                # To insert at correct position (after Intune Utility, before History),
+                # we need to recreate the History tab after adding Winget Store.
+                history_exists = "History" in self.tabview._tab_dict
+
+                if history_exists:
+                    # Delete History, add Winget Store, re-add History
+                    self.tabview.delete("History")
+                    logger.debug("Temporarily removed History tab for repositioning")
+
+                # Add Winget Store
                 self.tab_winget = self.tabview.add("Winget Store")
                 self.setup_winget_tab()
+                logger.debug("Added Winget Store tab")
+
+                if history_exists:
+                    # Re-add History tab
+                    self.tab_history = self.tabview.add("History")
+                    self.setup_history_tab()
+                    logger.debug("Re-added History tab")
         else:
             if "Winget Store" in self.tabview._tab_dict:
                 self.tabview.delete("Winget Store")
+                self.tab_winget = None
+                logger.debug("Deleted Winget Store tab")
+
+        logger.debug(f"Current tabs after toggle: {list(self.tabview._tab_dict.keys())}")
 
     def _start_demo_analysis(self):
         """Download or locate a sample installer for demo."""
@@ -746,9 +768,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.intune_view.prefill_form(setup_path, metadata)
 
 
-def main():
+def main(splash=None):
     try:
         app = App()
+        if splash:
+            try:
+                splash.close()
+            except Exception:
+                pass
         app.mainloop()
     except Exception as e:
         import traceback
@@ -762,6 +789,7 @@ def main():
         except Exception:
             pass
         raise
+
 
 
 if __name__ == "__main__":

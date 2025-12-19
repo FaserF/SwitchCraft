@@ -73,7 +73,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='SwitchCraft-Legacy', # CHANGED NAME
+    name='SwitchCraft-windows', # Legacy (Tkinter) build
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

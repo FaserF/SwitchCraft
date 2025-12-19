@@ -43,13 +43,11 @@ python3 -m PyInstaller switchcraft.spec --clean --noconfirm
 # or 'SwitchCraft.app' on Mac (if configured for bundle).
 # Spec file usually defines name. Default is 'SwitchCraft' on Unix.
 
-BUILT_BIN="$REPO_ROOT/dist/SwitchCraft"
+BUILT_BIN="$REPO_ROOT/dist/SwitchCraft-windows"
 if [ ! -f "$BUILT_BIN" ]; then
-    # Fallback check for .app if on Mac and spec is Bundle?
-    # Current spec seems single-file console/windowed.
-    # Let's check for .exe too just in case
-    if [ -f "$REPO_ROOT/dist/SwitchCraft.exe" ]; then
-        BUILT_BIN="$REPO_ROOT/dist/SwitchCraft.exe"
+    # Fallback check for .exe too just in case
+    if [ -f "$REPO_ROOT/dist/SwitchCraft-windows.exe" ]; then
+        BUILT_BIN="$REPO_ROOT/dist/SwitchCraft-windows.exe"
     else
         echo "Error: Build output not found at $BUILT_BIN"
         exit 1

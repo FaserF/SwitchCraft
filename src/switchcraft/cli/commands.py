@@ -13,7 +13,7 @@ from switchcraft import __version__
 from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.exe import ExeAnalyzer
 from switchcraft.analyzers.macos import MacOSAnalyzer
-from switchcraft.utils.winget import WingetHelper
+# WingetHelper imported dynamically if needed
 from switchcraft.utils.config import SwitchCraftConfig
 
 logger = logging.getLogger(__name__)
@@ -314,10 +314,13 @@ def _run_analysis(filepath, output_json):
         print(f"[bold red]Could not identify installer type for {path}[/bold red]")
         return
 
-    winget = WingetHelper()
     winget_url = None
     if info.product_name:
-        winget_url = winget.search_by_name(info.product_name)
+        from switchcraft.services.addon_service import AddonService
+        winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+        if winget_mod:
+            winget = winget_mod.WingetHelper()
+            winget_url = winget.search_by_name(info.product_name)
 
     if output_json:
         out = info.__dict__.copy()

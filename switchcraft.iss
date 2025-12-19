@@ -9,7 +9,7 @@
 #define MyAppVersionNumeric "2025.12.4"
 #define MyAppPublisher "FaserF"
 #define MyAppURL "https://github.com/FaserF/SwitchCraft"
-#define MyAppExeName "SwitchCraft.exe"
+#define MyAppExeName "SwitchCraft-windows.exe"
 #define MyAppDescription "Silent Install Switch Finder"
 
 [Setup]
@@ -77,7 +77,7 @@ Name: "debugmode"; Description: "{cm:DebugMode}"; GroupDescription: "{cm:DebugMo
 
 [Files]
 ; Main executable
-Source: "dist\SwitchCraft.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\SwitchCraft-windows.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Logo/Icon
 Source: "images\switchcraft_logo.png"; DestDir: "{app}"; Flags: ignoreversion

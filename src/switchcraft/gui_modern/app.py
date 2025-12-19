@@ -5,6 +5,7 @@ from switchcraft import __version__
 class ModernApp:
     def __init__(self, page: ft.Page):
         self.page = page
+        self.page.clean() # Remove splash
         self.setup_page()
         self.build_ui()
 
@@ -27,33 +28,34 @@ class ModernApp:
             group_alignment=-0.9,
             destinations=[
                 ft.NavigationRailDestination(
-                    icon=ft.icons.HOME_OUTLINED,
-                    selected_icon=ft.icons.HOME,
+                    icon=ft.Icons.HOME_OUTLINED,
+                    selected_icon=ft.Icons.HOME,
                     label="Home"
                 ),
                 ft.NavigationRailDestination(
-                    icon=ft.icons.ANALYTICS_OUTLINED,
-                    selected_icon=ft.icons.ANALYTICS,
+                    icon=ft.Icons.ANALYTICS_OUTLINED,
+                    selected_icon=ft.Icons.ANALYTICS,
                     label="Analyzer"
                 ),
                 ft.NavigationRailDestination(
-                    icon=ft.icons.SHOP_TWO_OUTLINED,
-                    selected_icon=ft.icons.SHOP_TWO,
+                    icon=ft.Icons.SHOP_TWO_OUTLINED,
+                    selected_icon=ft.Icons.SHOP_TWO,
                     label="Winget"
                 ),
                 ft.NavigationRailDestination(
-                    icon=ft.icons.CLOUD_UPLOAD_OUTLINED,
-                    selected_icon=ft.icons.CLOUD_UPLOAD,
+                    icon=ft.Icons.CLOUD_UPLOAD_OUTLINED,
+                    selected_icon=ft.Icons.CLOUD_UPLOAD,
                     label="Intune"
                 ),
                 ft.NavigationRailDestination(
-                    icon=ft.icons.SETTINGS_OUTLINED,
-                    selected_icon=ft.icons.SETTINGS,
+                    icon=ft.Icons.SETTINGS_OUTLINED,
+                    selected_icon=ft.Icons.SETTINGS,
                     label="Settings"
                 ),
             ],
             on_change=self.nav_change,
         )
+
 
         # Content Area
         self.content_area = ft.Column(expand=True, controls=[
@@ -92,7 +94,34 @@ class ModernApp:
 
 # Adapter for flet.app target
 def main(page: ft.Page):
-    ModernApp(page)
+    # Initial Splash
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+
+    splash_text = ft.Text("SwitchCraft", size=40, weight=ft.FontWeight.BOLD)
+    splash_progress = ft.ProgressBar(width=400, color="blue")
+
+    splash_container = ft.Column(
+        [
+            splash_text,
+            ft.Text("Starting modern experience...", size=16, color="gray"),
+            ft.Container(height=20),
+            splash_progress
+        ],
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+    )
+
+    page.add(splash_container)
+    page.update()
+
+    # Artificial delay to ensure splash is visible for at least 800ms
+    # since initialization might be near-instant on fast machines
+    import time
+    time.sleep(0.8)
+
+    # Initialize the app
+    # ModernApp.__init__ calls page.clean()
+    app = ModernApp(page)
 
 # Allow direct run
 if __name__ == "__main__":
