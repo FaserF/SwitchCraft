@@ -5,6 +5,7 @@ from typing import Optional, Any
 
 logger = logging.getLogger(__name__)
 
+
 class SwitchCraftConfig:
     """
     Centralized configuration management for SwitchCraft.
@@ -82,7 +83,7 @@ class SwitchCraftConfig:
         # 3. Registry (reading policy first)
         val = cls.get_value("DebugMode")
         if val is not None:
-             return val == 1
+            return val == 1
 
         # 4. Default for Nightly/Dev builds
         from switchcraft import __version__
@@ -113,11 +114,26 @@ class SwitchCraftConfig:
         try:
             import winreg
             if value_type is None:
-                # Basic type inference
-                if isinstance(value, int):
+                # Basic type inference - handle float by converting to int
+                if isinstance(value, bool):
                     value_type = winreg.REG_DWORD
+                    value = 1 if value else 0
+                elif isinstance(value, float):
+                    value_type = winreg.REG_DWORD
+                    # Round standardly
+                    val_int = int(round(value))
+                    # Validate range for REG_DWORD (unsigned 32-bit: 0 to 4294967295)
+                    if val_int < 0 or val_int > 0xFFFFFFFF:
+                        raise ValueError(f"Registry value '{value_name}' out of range for REG_DWORD: {val_int}")
+                    value = val_int
+                elif isinstance(value, int):
+                    value_type = winreg.REG_DWORD
+                    # Validate range for REG_DWORD (unsigned 32-bit: 0 to 4294967295)
+                    if value < 0 or value > 0xFFFFFFFF:
+                        raise ValueError(f"Registry value '{value_name}' out of range for REG_DWORD: {value}")
                 else:
                     value_type = winreg.REG_SZ
+                    value = str(value)  # Ensure string
 
             # Create key if not exists
             winreg.CreateKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH)
@@ -125,6 +141,8 @@ class SwitchCraftConfig:
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH, 0, winreg.KEY_WRITE) as key:
                 winreg.SetValueEx(key, value_name, 0, value_type, value)
 
+        except ValueError:
+            raise  # Re-raise validation errors as requested
         except Exception as e:
             logger.error(f"Failed to set user preference '{value_name}': {e}")
 

@@ -10,7 +10,7 @@ class TestIntuneService(unittest.TestCase):
 
     def test_switchcraft_winget_fix(self):
         """Test that searching for 'SwitchCraft' returns the fixed URL."""
-        from switchcraft.utils.winget import WingetHelper
+        from switchcraft_winget.utils.winget import WingetHelper
 
         # Fake return value for search_packages
         fake_result = [{"Id": "FaserF.SwitchCraft", "Name": "SwitchCraft", "Source": "winget"}]
@@ -18,11 +18,11 @@ class TestIntuneService(unittest.TestCase):
         with patch.object(WingetHelper, 'search_packages', return_value=fake_result):
             helper = WingetHelper()
             url = helper.search_by_name("SwitchCraft")
-            # New URL format from refactor
-            self.assertEqual(url, "https://winget.run/pkg/FaserF/SwitchCraft")
+            # New URL format from refactor (GitHub)
+            self.assertEqual(url, "https://github.com/microsoft/winget-pkgs/tree/master/manifests/f/FaserF/SwitchCraft")
 
             url_lower = helper.search_by_name("switchcraft")
-            self.assertEqual(url_lower, "https://winget.run/pkg/FaserF/SwitchCraft")
+            self.assertEqual(url_lower, "https://github.com/microsoft/winget-pkgs/tree/master/manifests/f/FaserF/SwitchCraft")
 
     @patch('switchcraft.services.intune_service.subprocess.Popen')
     def test_create_intunewin_args(self, mock_popen):

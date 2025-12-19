@@ -57,9 +57,40 @@ class TestAddonService:
         assert (self.addon_path).exists()
 
         # Uninstall (it should NOT delete if in dev mode, but we can mock dev mode check)
-        # Actually, let's just test that it attempts to remove it if we bypass the dev check
-        # For simplicity, we just test that it returns True if directory exists
         # Mock frozen=True to allow deletion
         with patch.object(sys, 'frozen', True, create=True):
             assert AddonService.uninstall_addon(self.addon_id) is True
             assert not (self.addon_path).exists()
+
+    def test_extract_and_install_zip_backslashes(self):
+        """Test extraction of zip with backslash paths (Windows style)."""
+        import zipfile
+        import io
+
+        # Create a mock zip with backslash names
+        bio = io.BytesIO()
+        with zipfile.ZipFile(bio, 'w') as z:
+            # We must force backslashes in arcname
+            # Note: switchcraft_winget/utils/winget.py -> switchcraft_winget\utils\winget.py
+            # But the content should be a valid pkg structure
+            z.writestr('switchcraft_winget\\__init__.py', '')
+            z.writestr('switchcraft_winget\\utils\\__init__.py', '')
+            z.writestr('switchcraft_winget\\utils\\winget.py', 'print("ok")')
+
+        zip_content = bio.getvalue()
+
+        # Mock ADDONS map to recognize this package
+        AddonService.ADDONS["winget"] = "switchcraft_winget"
+
+        # Call extraction (auto-detect=True matching install_addon_from_zip or manual logic)
+        # Or explicit pkg_name
+        result = AddonService._extract_and_install_zip(zip_content, "switchcraft_winget", is_source=False, auto_detect=True)
+
+        assert result is True, "Extraction failed for backslash zip"
+
+        # Verify file existence
+        # get_addon_dir() returns tmp_path from fixture
+        root = AddonService.get_addon_dir()
+        assert (root / "switchcraft_winget" / "__init__.py").exists()
+        assert (root / "switchcraft_winget" / "utils" / "__init__.py").exists()
+        assert (root / "switchcraft_winget" / "utils" / "winget.py").exists()

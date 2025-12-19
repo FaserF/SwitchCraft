@@ -1,6 +1,5 @@
 import json
 import logging
-from typing import Optional
 from switchcraft.utils.config import SwitchCraftConfig
 
 logger = logging.getLogger(__name__)

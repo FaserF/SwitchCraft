@@ -83,7 +83,7 @@ class NotificationService:
         """
         def _notify():
             full_title = f"{NotificationService.APP_NAME}: {title}"
-            is_foreground = NotificationService._is_app_foreground()
+            # is_foreground = NotificationService._is_app_foreground()
 
             # Always send system notification (it will appear in action center)
             if sys.platform == "win32" and _WINOTIFY_AVAILABLE:

@@ -8,9 +8,8 @@ version = "2025.12.12-dev"
 description = "A universal silent switch finder and installer analyzer."
 readme = "README.md"
 authors = [{ name = "FaserF" }]
-license = { file = "LICENSE" }
+license = "MIT"
 classifiers = [
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
 ]
@@ -22,11 +21,7 @@ dependencies = [
     "click",
     "rich",
     "py7zr",
-    "customtkinter",
-    "tkinterdnd2",
-    "pillow",
     "PyYAML",
-    "plyer",
     "keyring",
     "openai",
     "google-generativeai",
@@ -36,11 +31,28 @@ dependencies = [
 ]
 requires-python = ">=3.9"
 
+[project.optional-dependencies]
+gui = [
+    "customtkinter",
+    "tkinterdnd2",
+    "pillow",
+    "plyer"
+]
+modern = ["flet", "flet-desktop"]
+
+
 [project.scripts]
-switchcraft = "switchcraft.main:cli"
+switchcraft = "switchcraft.main:main"
 
 [project.urls]
 Homepage = "https://github.com/FaserF/SwitchCraft"
 
 [tool.setuptools.package-data]
 switchcraft = ["assets/**/*", "assets/lang/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "--ignore=test_out.txt --ignore=test_output.txt --ignore=test_addons_result.txt"

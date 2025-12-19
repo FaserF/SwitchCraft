@@ -24,18 +24,18 @@ class AddonService:
         """Returns the directory where addons are stored."""
         if getattr(sys, 'frozen', False):
             if SwitchCraftConfig.get_value("PortableMode"):
-                 return Path(sys.executable).parent / "addons"
+                 return Path(sys.executable).parent.resolve() / "addons"
 
             app_data = os.getenv('APPDATA')
             if app_data:
                 path = Path(app_data) / "FaserF" / "SwitchCraft" / "addons"
                 path.mkdir(parents=True, exist_ok=True)
-                return path
+                return path.resolve()
 
         # Dev mode: Parent of src/switchcraft is src/
         # Addons are in src/switchcraft_*, so basically the same level as switchcraft package
         # IF running from source, addons are just sibling packages.
-        return Path(__file__).parent.parent.parent
+        return Path(__file__).parent.parent.parent.resolve()
 
     @classmethod
     def is_addon_installed(cls, addon_id: str) -> bool:
@@ -46,19 +46,17 @@ class AddonService:
 
         addon_path = cls.get_addon_dir() / package_name
 
-        # In Dev mode, they might be source folders
-        if not getattr(sys, 'frozen', False):
-            return (addon_path / "__init__.py").exists() or addon_path.is_dir()
-
+        # Always check for __init__.py to ensure it is a valid package
         return (addon_path / "__init__.py").exists()
 
     @classmethod
     def register_addons(cls):
         """Register all found addons to sys.path."""
         addon_dir = cls.get_addon_dir()
-        if str(addon_dir) not in sys.path:
-            sys.path.insert(0, str(addon_dir))
-            logger.info(f"Registered addon directory: {addon_dir}")
+        addon_dir_str = str(addon_dir)
+        if addon_dir_str not in sys.path:
+            sys.path.insert(0, addon_dir_str)
+            logger.info(f"Registered addon directory: {addon_dir_str}")
 
     @classmethod
     def import_addon_module(cls, addon_id: str, module_name: str):
@@ -73,11 +71,12 @@ class AddonService:
         cls.register_addons()
         full_name = f"{package_root}.{module_name}" if module_name else package_root
 
+        # Gracefully handle import failures (e.g., missing dependencies like py7zr)
         try:
             import importlib
             return importlib.import_module(full_name)
-        except ImportError as e:
-            logger.warning(f"Failed to import {full_name}: {e}")
+        except (ImportError, ModuleNotFoundError) as e:
+            logger.error(f"Failed to import addon module {full_name}: {e}")
             return None
 
     @classmethod
@@ -98,8 +97,11 @@ class AddonService:
 
         # 0. Dev/Source Check
         if not getattr(sys, 'frozen', False):
-             logger.info("Running from source, addons should be present locally.")
-             return True
+             if cls.is_addon_installed(addon_id):
+                 logger.info(f"Addon {addon_id} already present in source.")
+                 return True
+             logger.warning(f"Addon {addon_id} NOT found in source directory ({cls.get_addon_dir()})")
+             return False
 
         from switchcraft import __version__
         is_dev_build = "dev" in __version__.lower() or "beta" in __version__.lower()
@@ -246,16 +248,18 @@ class AddonService:
             if auto_detect:
                 # Find any folder matching switchcraft_* containing __init__.py
                 for f in z.namelist():
-                    parts = f.split('/')
+                    # Normalize slashes for Windows-created zips
+                    f_norm = f.replace('\\', '/')
+                    parts = f_norm.split('/')
                     for part in parts:
                         if part.startswith("switchcraft_") and not part.endswith(".zip"):
                             # Check if valid package (has init)
                             # Checking rigid path: .../switchcraft_xxx/__init__.py
-                            if f.endswith(f"{part}/__init__.py"):
+                            if f_norm.endswith(f"{part}/__init__.py"):
                                 detected_pkg_name = part
-                                # Calulcate prefix
+                                # Calculate prefix
                                 suffix = f"{part}/__init__.py"
-                                source_prefix = f[:-len(suffix)]
+                                source_prefix = f_norm[:-len(suffix)]
                                 break
                     if detected_pkg_name and detected_pkg_name != pkg_name:
                         break
@@ -306,12 +310,13 @@ class AddonService:
 
             if source_prefix is None and not auto_detect:
                 # Maybe it is at root
-                if f"{detected_pkg_name}/__init__.py" in z.namelist():
+                # Check normalized
+                normalized_names = [n.replace('\\', '/') for n in z.namelist()]
+                if f"{detected_pkg_name}/__init__.py" in normalized_names:
                     source_prefix = ""
-                    logger.debug(f"Found package at root level")
+                    logger.debug("Found package at root level")
                 else:
-                    # Log what we have for debugging
-                    logger.debug(f"Could not find {detected_pkg_name}/__init__.py in zip. Available paths: {z.namelist()[:20]}")
+                    logger.debug(f"Could not find {detected_pkg_name}/__init__.py in zip.")
 
             if source_prefix is None:
                 logger.error(f"Structure mismatch in zip for {detected_pkg_name}")
@@ -326,17 +331,29 @@ class AddonService:
 
             extracted_any = False
             for member in z.infolist():
-                if member.filename.startswith(source_prefix):
-                    rel_path = member.filename[len(source_prefix):] # e.g. switchcraft_advanced/mod.py
+                # Normalize member filename as well
+                fname_norm = member.filename.replace('\\', '/')
 
-                    if not rel_path or rel_path.startswith("__MACOSX"): continue
+                if fname_norm.startswith(source_prefix):
+                    rel_path = fname_norm[len(source_prefix):]  # e.g. switchcraft_advanced/mod.py
+
+                    if not rel_path or rel_path.startswith("__MACOSX"):
+                        continue
 
                     # Security check: rel_path should start with pkg_name
                     if not rel_path.startswith(detected_pkg_name):
                         continue
 
                     # Extract to addon_root / rel_path -> addon_root / switchcraft_advanced / mod.py
-                    full_target = addon_root / rel_path
+                    full_target = (addon_root / rel_path).resolve()
+
+                    # Security: Prevent zip slip attack (path traversal)
+                    # Ensure the resolved path is still within addon_root
+                    try:
+                        full_target.relative_to(addon_root.resolve())
+                    except ValueError:
+                        logger.warning(f"Skipping potentially malicious path: {rel_path}")
+                        continue
 
                     if member.is_dir():
                         full_target.mkdir(parents=True, exist_ok=True)

@@ -84,12 +84,18 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # 3. Winget Addon
         self.winget_helper = None
+        self.winget_load_error = None
         try:
             winget_mod = AddonService.import_addon_module("winget", "utils.winget")
             if winget_mod:
                 self.winget_helper = winget_mod.WingetHelper()
+            elif AddonService.is_addon_installed("winget"):
+                # Installed but import returned None (failed inside import_addon_module)
+                self.winget_load_error = "Import failed (returned None). Check log for details."
         except Exception as e:
-            logger.info(f"Winget Addon not loaded: {e}")
+            logger.exception(f"Winget Addon import crashed: {e}")
+            if AddonService.is_addon_installed("winget"):
+                self.winget_load_error = str(e)
 
         # 4. Debug Addon (Just check presence, logic used in Settings)
         self.has_debug_addon = AddonService.is_addon_installed("debug")
@@ -112,8 +118,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Initialize Tabs
         self.setup_analyzer_tab()
-        if self.ai_service:
-            self.setup_helper_tab()
+
 
         # Intune Utility Tab
         self.tab_intune = self.tabview.add("Intune Utility")
@@ -140,8 +145,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Demo / First Start Logic
         self.after(1000, self._run_demo_init)
 
+        # Check for Load Errors (Winget etc)
+        self.after(1500, self._check_init_errors)
+
         # Check for Addon (Virus Mitigation)
         self.after(4000, self._check_addon_status)
+
+        # Cloud Backup Check (Weekly)
+        self.after(6000, self._check_cloud_backup_auto)
 
     def _run_demo_init(self):
         """Check if first run/demo mode is needed."""
@@ -154,6 +165,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 if messagebox.askyesno("SwitchCraft Demo", msg):
                     # Locate own installer or download
                     self.after(500, self._start_demo_analysis)
+
 
     def _check_addon_status(self):
         """Check status. Auto-install for Dev builds silently. Prompt for others."""
@@ -208,20 +220,29 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             import os
             logger.info("Restarting application...")
 
+            # Clean environment for PyInstaller restart
+            # If we don't remove _MEIPASS, the new process might try to use the old temp dir
+            env = os.environ.copy()
+            env.pop('_MEIPASS', None)
+            env.pop('_MEIPASS2', None)
+
             # Ensure we have the full path to executable
             executable = sys.executable
             args = sys.argv[:]
 
-            # If we are running as a script (e.g. "python app.py"), executable is python.
-            # If frozen, executable is the app exe.
+            # If frozen, executable is the full path to the .exe
+            # If script, it is python.exe. We want to start in the app root dir.
+            cwd = os.path.dirname(executable) if getattr(sys, 'frozen', False) else os.getcwd()
 
             try:
-                # Use Popen with DETACHED_PROCESS flag on Windows to ensure it survives parent death
+                # Use Popen with CREATE_NEW_CONSOLE flag on Windows to ensure it survives parent death
                 if sys.platform == 'win32':
                     CREATE_NEW_CONSOLE = 0x00000010
-                    subprocess.Popen([executable] + args, creationflags=CREATE_NEW_CONSOLE, close_fds=True)
+                    cmd = [executable] + args
+                    logger.info(f"Restarting with command: {cmd} in {cwd}")
+                    subprocess.Popen(cmd, creationflags=CREATE_NEW_CONSOLE, close_fds=True, env=env, cwd=cwd)
                 else:
-                    subprocess.Popen([executable] + args, close_fds=True)
+                    subprocess.Popen([executable] + args, close_fds=True, env=env, cwd=cwd)
 
                 self.quit()  # Stop mainloop
                 os._exit(0)  # Force exit
@@ -231,24 +252,117 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         CountdownDialog(
             self,
-            "Restart Required",
+            i18n.get("restart_imminent") or "Restart Required",
             "Addon installed. Restarting automatically in:",
             timeout_seconds=5,
             on_timeout=do_restart
         )
 
+    def _check_init_errors(self):
+        """Check for initialization errors (e.g. addon load failures)."""
+        if getattr(self, 'winget_load_error', None):
+            msg = f"Winget Addon is installed but failed to load.\n\nError: {self.winget_load_error}\n\nPlease check logs or Reinstall."
+            messagebox.showerror("Addon Load Error", msg)
+            logger.error(f"Displaying Winget Load Error: {self.winget_load_error}")
+
+    def _check_cloud_backup_auto(self):
+        """Perform weekly cloud backup if enabled."""
+        if not SwitchCraftConfig.get_value("CloudSyncAuto", True): # Default True as requested
+            return
+
+        from switchcraft.services.auth_service import AuthService
+        from switchcraft.services.sync_service import SyncService
+
+        # Must be authenticated
+        if not AuthService.is_authenticated():
+            return
+
+        import time
+        import json
+        import threading
+
+        last_backup = SwitchCraftConfig.get_value("LastCloudBackup", 0)
+        now = time.time()
+
+        # Weekly = 7 * 24 * 3600 = 604800 seconds
+        if (now - last_backup) > 604800:
+             logger.info("Weekly cloud backup check triggered.")
+             def _run():
+                 try:
+                     import hashlib
+                     # Hash current prefs to check against last known backup hash
+                     current_prefs = SwitchCraftConfig.export_preferences()
+                     current_hash = hashlib.md5(json.dumps(current_prefs, sort_keys=True).encode()).hexdigest()
+
+                     last_hash = SwitchCraftConfig.get_value("LastBackupHash", "")
+
+                     if current_hash != last_hash:
+                         logger.info("Changes detected since last backup. Performing auto-backup...")
+                         if SyncService.sync_up():
+                             logger.info("Auto-backup successful.")
+                             SwitchCraftConfig.set_user_preference("LastCloudBackup", now)
+                             SwitchCraftConfig.set_user_preference("LastBackupHash", current_hash)
+                         else:
+                             # Sync failed but didn't raise - update timestamp to avoid continuous retries
+                             logger.warning("Auto-backup returned False. Will retry next week.")
+                             SwitchCraftConfig.set_user_preference("LastCloudBackup", now)
+                     else:
+                         logger.info("No changes since last backup. Skipping.")
+                         # Update timestamp so we don't check every restart for another week
+                         SwitchCraftConfig.set_user_preference("LastCloudBackup", now)
+                 except Exception as e:
+                     logger.exception(f"Auto-backup failed: {e}")
+                     # Still update LastCloudBackup so we don't retry continuously on next start
+                     SwitchCraftConfig.set_user_preference("LastCloudBackup", now)
+
+             threading.Thread(target=_run, daemon=True).start()
+
+
     def _toggle_winget_tab(self, enabled):
         """Show or hide the Winget tab based on settings."""
+        logger.debug(f"Toggling Winget tab: enabled={enabled}")
+        logger.debug(f"Current tabs before toggle: {list(self.tabview._tab_dict.keys())}")
+
         if enabled:
             if "Winget Store" not in self.tabview._tab_dict:
-                # Re-add tab at the correct position (hard to force position, adds to end)
-                # To keep order, we might need to recreate all... or just add it.
-                # Adding to end is fine for now.
+                # CTkTabview.add() appends to the end.
+                # To insert at correct position (after Intune Utility, before History),
+                # we need to temporarily remove and re-add History tab.
+                history_exists = "History" in self.tabview._tab_dict
+                history_view_ref = None
+
+                if history_exists:
+                    # Store reference to existing History view to preserve state
+                    history_view_ref = getattr(self, 'history_view', None)
+                    if history_view_ref:
+                        history_view_ref.pack_forget()  # Detach but don't destroy
+                    self.tabview.delete("History")
+                    logger.debug("Temporarily removed History tab for repositioning")
+
+                # Add Winget Store
                 self.tab_winget = self.tabview.add("Winget Store")
                 self.setup_winget_tab()
+                logger.debug("Added Winget Store tab")
+
+                if history_exists:
+                    # Re-add History tab and reattach preserved view
+                    self.tab_history = self.tabview.add("History")
+                    if history_view_ref:
+                        # Reparent and repack the existing view to preserve state
+                        history_view_ref.master = self.tab_history
+                        history_view_ref.pack(fill="both", expand=True)
+                        logger.debug("Re-attached existing History view (state preserved)")
+                    else:
+                        # Fallback: create new view if reference was lost
+                        self.setup_history_tab()
+                        logger.debug("Re-created History tab (no view reference)")
         else:
             if "Winget Store" in self.tabview._tab_dict:
                 self.tabview.delete("Winget Store")
+                self.tab_winget = None
+                logger.debug("Deleted Winget Store tab")
+
+        logger.debug(f"Current tabs after toggle: {list(self.tabview._tab_dict.keys())}")
 
     def _start_demo_analysis(self):
         """Download or locate a sample installer for demo."""
@@ -701,7 +815,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
             # Fallback: Missing Addon View
             from switchcraft.gui.views.missing_addon_view import MissingAddonView
-            MissingAddonView(self.tab_helper, "ai", "AI Assistant", i18n.get("ai_addon_desc")).pack(fill="both", expand=True)
+            MissingAddonView(self.tab_helper, self, "ai", "AI Assistant", i18n.get("ai_addon_desc")).pack(fill="both", expand=True)
 
         except Exception as e:
             logger.exception(f"Failed to setup AI Helper tab: {e}")
@@ -712,6 +826,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         """Setup the Settings tab."""
         self.settings_view = SettingsView(
             self.tab_settings,
+            self,
             self._run_update_check,
             self.intune_service,
             on_winget_toggle=self._toggle_winget_tab
@@ -732,7 +847,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.winget_view.pack(fill="both", expand=True)
         else:
             from switchcraft.gui.views.missing_addon_view import MissingAddonView
-            MissingAddonView(self.tab_winget, "winget", "Winget Integration", i18n.get("winget_addon_desc")).pack(fill="both", expand=True)
+            MissingAddonView(self.tab_winget, self, "winget", "Winget Integration", i18n.get("winget_addon_desc")).pack(fill="both", expand=True)
 
     def setup_history_tab(self):
         self.history_view = HistoryView(self.tab_history, self.history_service, self)
@@ -746,13 +861,32 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.intune_view.prefill_form(setup_path, metadata)
 
 
-def main():
+def main(splash=None):
     try:
+        # --- Auto-Enable Debug Console for Dev/Nightly Builds ---
+        from switchcraft import __version__
+        if "dev" in __version__.lower() or "nightly" in __version__.lower():
+            # Force Debug Console ON for Dev/Nightly builds at startup for better troubleshooting.
+            # This overrides user preference for the session but respects if user manually closes/disables it later.
+            logger.info(f"Dev/Nightly build detected ({__version__}): Auto-enabling debug console for troubleshooting.")
+            SwitchCraftConfig.set_user_preference("ShowDebugConsole", True)
+
         app = App()
+        if splash:
+            try:
+                splash.close()
+            except Exception:
+                pass
         app.mainloop()
     except Exception as e:
         import traceback
         traceback.print_exc()
+        try:
+             with open("crash.log", "w") as f:
+                 f.write(traceback.format_exc())
+        except Exception:
+            pass
+
         try:
             from tkinter import messagebox, Tk
             # Attempt to create a root for messagebox if app failed
@@ -762,6 +896,7 @@ def main():
         except Exception:
             pass
         raise
+
 
 
 if __name__ == "__main__":

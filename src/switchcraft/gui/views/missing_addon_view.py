@@ -6,8 +6,9 @@ from tkinter import messagebox
 import threading
 
 class MissingAddonView(ctk.CTkFrame):
-    def __init__(self, parent, addon_id, addon_name, description):
+    def __init__(self, parent, app, addon_id, addon_name, description):
         super().__init__(parent)
+        self.app = app
         self.addon_id = addon_id
         self.addon_name = addon_name
         self.description = description
@@ -51,7 +52,11 @@ class MissingAddonView(ctk.CTkFrame):
             success = AddonService.install_addon(self.addon_id)
             if success:
                 self.after(0, lambda: self.status_label.configure(text=i18n.get("status_installed_restart") or "Installed! Restart required.", text_color="green"))
-                self.after(0, lambda: messagebox.showinfo("Success", i18n.get("restart_required_msg")))
+                # Trigger App Restart Logic
+                if hasattr(self.app, '_show_restart_countdown'):
+                    self.after(0, self.app._show_restart_countdown)
+                else:
+                    self.after(0, lambda: messagebox.showinfo("Success", i18n.get("restart_required_msg")))
             else:
                 self.after(0, lambda: self.status_label.configure(text="Installation Failed.", text_color="red"))
                 self.after(0, lambda: self.btn_install.configure(state="normal"))

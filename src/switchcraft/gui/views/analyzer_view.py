@@ -14,7 +14,7 @@ from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.exe import ExeAnalyzer
 from switchcraft.analyzers.macos import MacOSAnalyzer
 from switchcraft.analyzers.universal import UniversalAnalyzer
-from switchcraft.utils.winget import WingetHelper
+# WingetHelper imported dynamically from addon
 from switchcraft.utils.i18n import i18n
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.services.notification_service import NotificationService
@@ -306,8 +306,10 @@ class AnalyzerView(ctk.CTkFrame):
             self._update_progress(0.9, "Searching Winget...")
             winget_url = None
             if SwitchCraftConfig.get_value("EnableWinget", True):
-                winget = WingetHelper()
-                if info.product_name:
+                from switchcraft.services.addon_service import AddonService
+                winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+                if winget_mod and info.product_name:
+                    winget = winget_mod.WingetHelper()
                     winget_url = winget.search_by_name(info.product_name)
             else:
                 logger.info("Winget search disabled in settings.")
@@ -390,6 +392,14 @@ class AnalyzerView(ctk.CTkFrame):
             ctk.CTkLabel(warning_frame, text=f"Reason: {silent_disabled.get('reason', 'Unknown')}", text_color="white").pack(pady=2)
             self._add_separator()
 
+        if nested_data and nested_data.get("archive_type") == "PE/SFX Archive":
+            sfx_frame = ctk.CTkFrame(self.result_frame, fg_color="#2980B9", corner_radius=8)
+            sfx_frame.pack(fill="x", pady=10, padx=5)
+            ctk.CTkLabel(sfx_frame, text="ℹ️ " + (i18n.get("sfx_notice_title") or "7-ZIP SFX DETECTED"), font=ctk.CTkFont(size=14, weight="bold"), text_color="white").pack(pady=5)
+            ctk.CTkLabel(sfx_frame, text=i18n.get("sfx_notice_msg"), text_color="white", wraplength=450).pack(pady=2)
+            ctk.CTkLabel(sfx_frame, text=i18n.get("sfx_howto_7zip"), text_color="#BDC3C7", font=ctk.CTkFont(size=11, slant="italic")).pack(pady=5)
+            self._add_separator()
+
         if info.install_switches:
             self._add_separator()
 
@@ -439,6 +449,13 @@ class AnalyzerView(ctk.CTkFrame):
                           text=i18n.get("create_intunewin_pkg"),
                           fg_color="#0066CC",
                           command=lambda: self._create_intunewin_action(info)).pack(pady=5, fill="x")
+
+            # [NEW] Winget Manifest Button
+            ctk.CTkButton(self.result_frame,
+                          text="Create Winget Manifest",
+                          fg_color=("#D35400", "#E67E22"), # Burnt Orange
+                          command=lambda: self._open_manifest_dialog(info)
+                          ).pack(pady=5, fill="x")
         else:
              self._add_result_row(i18n.get("silent_install"), i18n.get("no_switches"), color="orange")
              ctk.CTkButton(self.result_frame, text=i18n.get("gen_intune_script"), fg_color="purple", command=lambda: self._generate_intune_script_with_info(info)).pack(pady=5, fill="x")
@@ -725,7 +742,7 @@ class AnalyzerView(ctk.CTkFrame):
             for nested in nested_data["nested_executables"]:
                 analysis = nested.get("analysis")
                 if analysis:
-                    add_section(f"Nested: {nested['name']}", nested['relative_path'], analysis.installer_type, analysis.install_switches, raw_output=nested.get("raw_output"))
+                    add_section(f"Nested: {nested['name']}", nested['relative_path'], analysis.installer_type, analysis.install_switches, raw_output=nested.get("brute_force_output"))
 
     def _run_local_test_action(self, file_path, switches, uninstall=False):
         if not messagebox.askyesno("Test Confirmation", f"Do you want to run the {'UNINSTALL' if uninstall else 'INSTALL'} test locally?\n\nFile: {Path(file_path).name}\n\nWARNING: This will execute the file on YOUR system with Admin rights."):
@@ -948,3 +965,17 @@ if ($LASTEXITCODE -eq 0) {{
                 os.startfile(save_path)
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to save script: {e}")
+
+    def _open_manifest_dialog(self, info):
+        # Check Config
+        repo_path = SwitchCraftConfig.get_value("WingetRepoPath")
+        if not repo_path:
+             # Optional: Ask user if they want to configure it, or just rely on default logic in Service
+             pass
+
+        try:
+            from switchcraft.gui.views.manifest_dialog import ManifestDialog
+            dlg = ManifestDialog(self.winfo_toplevel(), info)
+            dlg.grab_set()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Manifest Dialog: {e}")
