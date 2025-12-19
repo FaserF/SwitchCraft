@@ -95,5 +95,38 @@ class TestSwitchCraftConfig(unittest.TestCase):
         os.environ['SWITCHCRAFT_DEBUG'] = '1'
         self.assertTrue(SwitchCraftConfig.is_debug_mode())
 
+    @patch('sys.platform', 'win32')
+    def test_set_user_preference_float(self):
+        """Test that float values are converted to int for REG_DWORD."""
+        import time
+        now = time.time()  # This is a float
+
+        with patch.object(self.winreg_mock, 'CreateKey'):
+            mock_key = MagicMock()
+            self.winreg_mock.OpenKey = MagicMock(return_value=mock_key)
+            mock_key.__enter__ = MagicMock(return_value=mock_key)
+            mock_key.__exit__ = MagicMock(return_value=False)
+
+            # Should not raise - float should be converted to int
+            SwitchCraftConfig.set_user_preference("TestFloat", now)
+            # Verify SetValueEx was called with int, not float
+            self.winreg_mock.SetValueEx.assert_called_once()
+            call_args = self.winreg_mock.SetValueEx.call_args[0]
+            self.assertEqual(call_args[2], self.winreg_mock.REG_DWORD)
+            self.assertIsInstance(call_args[3], int)
+
+    @patch('sys.platform', 'win32')
+    def test_set_user_preference_bool(self):
+        """Test that bool values are converted to 0/1 for REG_DWORD."""
+        with patch.object(self.winreg_mock, 'CreateKey'):
+            mock_key = MagicMock()
+            self.winreg_mock.OpenKey = MagicMock(return_value=mock_key)
+            mock_key.__enter__ = MagicMock(return_value=mock_key)
+            mock_key.__exit__ = MagicMock(return_value=False)
+
+            SwitchCraftConfig.set_user_preference("TestBool", True)
+            call_args = self.winreg_mock.SetValueEx.call_args[0]
+            self.assertEqual(call_args[3], 1)
+
 if __name__ == '__main__':
     unittest.main()

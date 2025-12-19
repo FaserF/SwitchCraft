@@ -159,8 +159,8 @@ class SettingsView(ctk.CTkFrame):
                                         ts_str = meta["updated_at"]
 
                                 def ask_import():
-                                    msg = f"{i18n.get('cloud_backup_found') or 'Cloud backup found.'}\n\nTime: {ts_str}\n\nImport now?"
-                                    if messagebox.askyesno("Cloud Sync", msg):
+                                    msg = f"{i18n.get('cloud_backup_found')}\n\n{i18n.get('time_label')}: {ts_str}\n\n{i18n.get('import_now')}"
+                                    if messagebox.askyesno(i18n.get("cloudsync_title"), msg):
                                         if SyncService.sync_down():
                                             if hasattr(self.app, '_show_restart_countdown'):
                                                 self.app._show_restart_countdown()
@@ -200,7 +200,8 @@ class SettingsView(ctk.CTkFrame):
                                         ts_str = meta["updated_at"]
 
                                 def ask_import_login():
-                                    if messagebox.askyesno("Cloud Sync", f"Cloud backup found ({ts_str}). Import settings now?"):
+                                    msg = f"{i18n.get('cloud_backup_found')}\n\n{i18n.get('time_label')}: {ts_str}\n\n{i18n.get('import_now')}"
+                                    if messagebox.askyesno(i18n.get("cloudsync_title"), msg):
                                         if SyncService.sync_down():
                                             if hasattr(self.app, '_show_restart_countdown'):
                                                  self.app._show_restart_countdown()

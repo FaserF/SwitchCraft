@@ -71,11 +71,12 @@ class AddonService:
         cls.register_addons()
         full_name = f"{package_root}.{module_name}" if module_name else package_root
 
+        # Gracefully handle import failures (e.g., missing dependencies like py7zr)
         try:
             import importlib
             return importlib.import_module(full_name)
-        except ImportError as e:
-            logger.warning(f"Failed to import {full_name}: {e}")
+        except Exception as e:
+            logger.error(f"Failed to import addon module {full_name}: {e}")
             return None
 
     @classmethod

@@ -84,12 +84,18 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # 3. Winget Addon
         self.winget_helper = None
+        self.winget_load_error = None
         try:
             winget_mod = AddonService.import_addon_module("winget", "utils.winget")
             if winget_mod:
                 self.winget_helper = winget_mod.WingetHelper()
+            elif AddonService.is_addon_installed("winget"):
+                # Installed but import returned None (failed inside import_addon_module)
+                self.winget_load_error = "Import failed (returned None). Check log for details."
         except Exception as e:
-            logger.info(f"Winget Addon not loaded: {e}")
+            logger.exception(f"Winget Addon import crashed: {e}")
+            if AddonService.is_addon_installed("winget"):
+                self.winget_load_error = str(e)
 
         # 4. Debug Addon (Just check presence, logic used in Settings)
         self.has_debug_addon = AddonService.is_addon_installed("debug")
@@ -138,6 +144,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Demo / First Start Logic
         self.after(1000, self._run_demo_init)
+
+        # Check for Load Errors (Winget etc)
+        self.after(1500, self._check_init_errors)
 
         # Check for Addon (Virus Mitigation)
         self.after(4000, self._check_addon_status)
@@ -229,7 +238,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 # Use Popen with DETACHED_PROCESS flag on Windows to ensure it survives parent death
                 if sys.platform == 'win32':
                     CREATE_NEW_CONSOLE = 0x00000010
-                    subprocess.Popen([executable] + args, creationflags=CREATE_NEW_CONSOLE, close_fds=True, env=env, cwd=cwd)
+                    cmd = [executable] + args
+                    logger.info(f"Restarting with command: {cmd} in {cwd}")
+                    subprocess.Popen(cmd, creationflags=CREATE_NEW_CONSOLE, close_fds=True, env=env, cwd=cwd)
                 else:
                     subprocess.Popen([executable] + args, close_fds=True, env=env, cwd=cwd)
 
@@ -241,11 +252,18 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         CountdownDialog(
             self,
-            "Restart Required",
+            i18n.get("restart_imminent") or "Restart Required",
             "Addon installed. Restarting automatically in:",
             timeout_seconds=5,
             on_timeout=do_restart
         )
+
+    def _check_init_errors(self):
+        """Check for initialization errors (e.g. addon load failures)."""
+        if getattr(self, 'winget_load_error', None):
+            msg = f"Winget Addon is installed but failed to load.\n\nError: {self.winget_load_error}\n\nPlease check logs or Reinstall."
+            messagebox.showerror("Addon Load Error", msg)
+            logger.error(f"Displaying Winget Load Error: {self.winget_load_error}")
 
     def _check_cloud_backup_auto(self):
         """Perform weekly cloud backup if enabled."""

@@ -113,11 +113,18 @@ class SwitchCraftConfig:
         try:
             import winreg
             if value_type is None:
-                # Basic type inference
-                if isinstance(value, int):
+                # Basic type inference - handle float by converting to int
+                if isinstance(value, bool):
+                    value_type = winreg.REG_DWORD
+                    value = 1 if value else 0
+                elif isinstance(value, float):
+                    value_type = winreg.REG_DWORD
+                    value = int(value)
+                elif isinstance(value, int):
                     value_type = winreg.REG_DWORD
                 else:
                     value_type = winreg.REG_SZ
+                    value = str(value)  # Ensure string
 
             # Create key if not exists
             winreg.CreateKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH)
