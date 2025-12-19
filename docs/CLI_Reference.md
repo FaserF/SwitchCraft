@@ -1,53 +1,73 @@
 # SwitchCraft CLI Reference
 
-SwitchCraft can be used as a headless command-line tool, ideal for automation scripts and AI-driven debugging pipelines.
-
-## Installation from Source
-
-For a lightweight, CLI-only installation (excludes GUI dependencies like Tkinter/CustomTkinter):
-```bash
-pip install .
-```
-
-For the full experience including the GUI:
-```bash
-pip install .[gui]
-```
+SwitchCraft can be used entirely from the command line.
 
 ## Usage
 
-### Basic Analysis
-Analyze an installer to detect silent switches, type, and detailed metadata.
-
 ```bash
-switchcraft path/to/installer.exe
+switchcraft [OPTIONS] COMMAND [ARGS]...
 ```
 
-### JSON Output (Machine Readable)
-Best for CI pipelines or AI Agents.
+To analyze a file directly (backward compatibility):
 ```bash
-switchcraft path/to/installer.exe --json
+switchcraft setup.exe
 ```
 
-**Example Output:**
-```json
-{
-  "file_path": "C:\\Installers\\setup.exe",
-  "installer_type": "Inno Setup",
-  "product_name": "Example App",
-  "product_version": "1.0.0",
-  "confidence": 1.0,
-  "install_switches": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"],
-  "uninstall_switches": ["/SILENT"],
-  "winget_url": "https://config.winget.com/manifests/e/Example/App/1.0.0.yaml"
-}
-```
+## Global Options
 
-### Help
+*   `--json`: Output analysis results in JSON format.
+*   `--version`: Show version information.
+*   `--help`: Show this message and exit.
+
+## Commands
+
+### `analyze`
+Analyze an installer file.
 ```bash
-switchcraft --help
+switchcraft analyze <filepath> [--json]
 ```
 
-## Entry Points
-- **`switchcraft`**: Main entry point. Attempts to load CLI first if arguments are present. If no arguments, tries to launch GUI.
-- **`src/switchcraft/cli_main.py`**: Strict CLI-only entry point. Does not import any GUI libraries. Safe for headless servers.
+### `config`
+Manage configuration values.
+*   `switchcraft config get <key>`
+*   `switchcraft config set <key> <value>`
+*   `switchcraft config set-secret <key> <value>` (Secure storage)
+
+### `winget`
+Interact with Winget.
+*   `switchcraft winget search <query>`
+*   `switchcraft winget install <pkg_id> [--scope user|machine]`
+
+### `intune`
+Intune packaging and upload tools.
+*   `switchcraft intune tool`: Check/Download IntuneWinAppUtil.
+*   `switchcraft intune package <setup_file> -o <out_folder> -s <source_folder>`
+*   `switchcraft intune upload <intunewin> --name "App Name" --publisher "Pub" ...`
+    *   Requires `IntuneTenantId`, `IntuneClientId`, `IntuneClientSecret` in config.
+
+### `addons`
+Manage addons.
+*   `switchcraft addons list`
+*   `switchcraft addons install <id>` (ids: `advanced`, `winget`, `ai`, `all`)
+
+## Examples
+
+**Analyze an MSI and output JSON:**
+```bash
+switchcraft analyze installer.msi --json
+```
+
+**Search for a package:**
+```bash
+switchcraft winget search "Google Chrome"
+```
+
+**Install a package:**
+```bash
+switchcraft winget install Google.Chrome
+```
+
+**Package for Intune:**
+```bash
+switchcraft intune package setup.exe -o dist -s .
+```

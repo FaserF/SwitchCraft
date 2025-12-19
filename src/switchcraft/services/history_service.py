@@ -27,8 +27,8 @@ class HistoryService:
             with open(self.history_file, 'r', encoding='utf-8') as f:
                  data = json.load(f)
                  return sorted(data, key=lambda x: x.get('timestamp', ''), reverse=True)
-        except Exception:
-            logger.exception("Failed to load history")
+        except (json.JSONDecodeError, Exception):
+            logger.warning(f"History file corrupted or invalid: {self.history_file}. Resetting.")
             return []
 
     def add_entry(self, entry):

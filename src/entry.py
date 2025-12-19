@@ -27,19 +27,18 @@ if getattr(sys, 'frozen', False):
 if not getattr(sys, 'frozen', False):
     sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from switchcraft.main import cli
+from switchcraft.main import main
 
 if __name__ == '__main__':
     try:
-        cli()
+        main()
     except BaseException as e:
-        import traceback
-        traceback.print_exc()
-        print(f"\nCRITICAL FAILURE: {e}")
-        # Only re-raise if it's not a normal exit (SystemExit with code 0)
         if isinstance(e, SystemExit) and e.code == 0:
             pass
         else:
+            import traceback
+            traceback.print_exc()
+            print(f"\nCRITICAL FAILURE: {e}")
             print("Abnormal termination.")
     finally:
         print("\nSession ended.")

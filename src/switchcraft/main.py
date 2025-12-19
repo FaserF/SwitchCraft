@@ -20,6 +20,18 @@ def main():
     if has_args:
         try:
             from switchcraft.cli.commands import cli
+
+            # Smart Argument Detection for Backward Compatibility
+            # If the first argument is a file or path, inject 'analyze'
+            first_arg = sys.argv[1]
+            path_arg = Path(first_arg)
+
+            # Simple heuristic: if it looks like a path/file, or isn't a known command
+            known_commands = ['analyze', 'config', 'winget', 'intune', 'addons', '--help', '--json']
+            if first_arg not in known_commands and not first_arg.startswith("-"):
+                 # Inject 'analyze'
+                 sys.argv.insert(1, 'analyze')
+
             cli()
         except ImportError as e:
             print(f"Failed to load CLI: {e}")

@@ -193,12 +193,11 @@ class WingetView(ctk.CTkFrame):
         lbl.pack(pady=20, padx=20)
 
         def _run():
-            import subprocess
-            proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            if proc.returncode == 0:
+            success = self.winget_helper.install_package(info['Id'], scope)
+            if success:
                 self.after(0, lambda: messagebox.showinfo(i18n.get("winget_install_success_title"), f"{info['Name']} {i18n.get('winget_install_success_msg')}"))
             else:
-                self.after(0, lambda: messagebox.showerror(i18n.get("winget_install_failed_title"), f"{i18n.get('winget_install_failed_msg')}\n\n{proc.stderr}"))
+                self.after(0, lambda: messagebox.showerror(i18n.get("winget_install_failed_title"), f"{i18n.get('winget_install_failed_msg')}"))
             self.after(0, top.destroy)
 
         threading.Thread(target=_run, daemon=True).start()

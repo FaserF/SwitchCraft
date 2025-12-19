@@ -439,6 +439,13 @@ class AnalyzerView(ctk.CTkFrame):
                           text=i18n.get("create_intunewin_pkg"),
                           fg_color="#0066CC",
                           command=lambda: self._create_intunewin_action(info)).pack(pady=5, fill="x")
+
+            # [NEW] Winget Manifest Button
+            ctk.CTkButton(self.result_frame,
+                          text="Create Winget Manifest",
+                          fg_color=("#D35400", "#E67E22"), # Burnt Orange
+                          command=lambda: self._open_manifest_dialog(info)
+                          ).pack(pady=5, fill="x")
         else:
              self._add_result_row(i18n.get("silent_install"), i18n.get("no_switches"), color="orange")
              ctk.CTkButton(self.result_frame, text=i18n.get("gen_intune_script"), fg_color="purple", command=lambda: self._generate_intune_script_with_info(info)).pack(pady=5, fill="x")
@@ -948,3 +955,15 @@ if ($LASTEXITCODE -eq 0) {{
                 os.startfile(save_path)
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to save script: {e}")
+
+    def _open_manifest_dialog(self, info):
+        # Check Config
+        repo_path = SwitchCraftConfig.get_value("WingetRepoPath")
+        if not repo_path:
+             from tkinter import messagebox
+             # Optional: Ask user if they want to configure it, or just rely on default logic in Service
+             pass
+
+        from switchcraft.gui.views.manifest_dialog import ManifestDialog
+        dlg = ManifestDialog(self.winfo_toplevel(), info)
+        dlg.grab_set()
