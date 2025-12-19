@@ -973,6 +973,9 @@ if ($LASTEXITCODE -eq 0) {{
              # Optional: Ask user if they want to configure it, or just rely on default logic in Service
              pass
 
-        from switchcraft.gui.views.manifest_dialog import ManifestDialog
-        dlg = ManifestDialog(self.winfo_toplevel(), info)
-        dlg.grab_set()
+        try:
+            from switchcraft.gui.views.manifest_dialog import ManifestDialog
+            dlg = ManifestDialog(self.winfo_toplevel(), info)
+            dlg.grab_set()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Manifest Dialog: {e}")

@@ -28,9 +28,38 @@
 
 SwitchCraft uses a modular addon system for advanced features like **Intune Integration** and **AI Analysis**. This ensures the core tool remains lightweight and less prone to false-positive antivirus detections.
 
-- **Automatic Install**: The app will prompt you to download missing features when needed.
 - **Manual Install**: You can upload custom addons in Settings.
 - 👉 [**Read the Addon Guide**](docs/ADDONS.md) for more details.
+
+## 📦 Release Artifacts & Versions
+
+SwitchCraft is available in two distinct design versions. You can install both side-by-side or choose the one that fits your workflow.
+
+### 🎨 Versions (Designs)
+
+| Version | Design Engine | Description | Use Case |
+| :--- | :--- | :--- | :--- |
+| **Classic** | **Tkinter** | The original, battle-tested interface. Stable, feature-complete, and lightweight. | **Production**. Recommended for daily packaging tasks where stability is paramount. |
+| **Modern** | **Flet (Flutter)** | A brand new, unified design language with animations and a modern aesthetic. Currently in **Preview/Beta**. | **Early Adopters**. Try this if you want to see the future of SwitchCraft or prefer a modern UI. |
+
+### 📂 File Guide (Assets)
+
+When you visit the [Releases Page](https://github.com/FaserF/SwitchCraft/releases), you will see several files. Here is what they do:
+
+1.  **Application Executables**:
+    *   `SwitchCraft-Setup.exe`: **(Recommended)** The classic installer. Handles shortcuts, uninstallation, and file associations.
+    *   `SwitchCraft-windows.exe`: A portable version of the **Classic** app. No installation required.
+    *   `SwitchCraft_Modern-windows.exe`: A portable version of the **Modern** (Flet) app.
+
+2.  **Addon Packages** (Optional, for offline/manual install):
+    *   `switchcraft_advanced.zip`: Intune & Brute-force modules.
+    *   `switchcraft_winget.zip`: Winget Store integration.
+    *   `switchcraft_ai.zip`: AI Chat assistant components.
+    *   *Note: These are usually downloaded automatically by the app, but provided here for offline environments.*
+
+3.  **Metadata**:
+    *   `manifest.json` / `update.json`: Used by the app's auto-update system.
+    *   `Source code`: The raw source for developers.
 
 ## 🚀 Installation
 

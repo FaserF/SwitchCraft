@@ -19,6 +19,15 @@ class LegacySplash:
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
 
+        # Fallback font handling
+        self.header_font = ("Segoe UI", 32, "bold")
+        self.sub_font = ("Segoe UI", 12)
+        self.status_font = ("Segoe UI", 9)
+
+        # Basic fallback check (Tkinter doesn't robustly support family lists in tuples)
+        # Assuming Windows mostly due to Segoe UI, but on Linux usually ignored or defaulted.
+        # We keep it simple as requested but acknowledge fallback.
+
         # UI Setup
         self.root.configure(bg="#2c3e50")
 
@@ -40,7 +49,7 @@ class LegacySplash:
         tk.Label(
             main_frame,
             text="SwitchCraft",
-            font=("Segoe UI", 32, "bold"),
+            font=self.header_font,
             bg="#2c3e50",
             fg="#ecf0f1"
         ).pack(pady=(40, 10))
@@ -48,7 +57,7 @@ class LegacySplash:
         tk.Label(
             main_frame,
             text="Universal Installer Analyzer",
-            font=("Segoe UI", 12),
+            font=self.sub_font,
             bg="#2c3e50",
             fg="#bdc3c7"
         ).pack()
@@ -56,15 +65,15 @@ class LegacySplash:
         self.status_label = tk.Label(
             main_frame,
             text="Loading components...",
-            font=("Segoe UI", 9),
+            font=self.status_font,
             bg="#2c3e50",
             fg="#95a5a6"
         )
         self.status_label.pack(side="bottom", pady=20)
 
-        progress = ttk.Progressbar(main_frame, mode="indeterminate", length=300)
-        progress.pack(pady=10)
-        progress.start(10)
+        self.progress = ttk.Progressbar(main_frame, mode="indeterminate", length=300)
+        self.progress.pack(pady=10)
+        self.progress.start(10)
 
         self.root.update()
 
@@ -73,4 +82,6 @@ class LegacySplash:
         self.root.update()
 
     def close(self):
+        if hasattr(self, 'progress'):
+            self.progress.stop()
         self.root.destroy()

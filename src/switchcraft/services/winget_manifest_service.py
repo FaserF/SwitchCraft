@@ -50,7 +50,7 @@ class WingetManifestService:
             repo_root = str(Path.home() / "SwitchCraft_Winget_Manifests")
 
         # Folder structure: manifests/{first_char_lower}/{Publisher}/{PackageName}/{Version}
-        p_char = publisher[0].lower()
+        p_char = publisher[0].lower() if publisher else "_"
         package_name = meta.get("PackageName", pkg_id.split('.')[-1])
 
         manifest_dir = Path(repo_root) / "manifests" / p_char / publisher / package_name / version
@@ -77,8 +77,10 @@ class WingetManifestService:
             cmd = [self.winget_exe, "validate", "--manifest", str(manifest_dir)]
 
             # Start process without window
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo = None
+            if hasattr(subprocess, 'STARTUPINFO'):
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
             result = subprocess.run(
                 cmd,

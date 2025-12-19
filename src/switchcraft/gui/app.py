@@ -208,6 +208,13 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             import os
             logger.info("Restarting application...")
 
+            # Clean environment for PyInstaller restart
+            # If we don't remove _MEIPASS, the new process might try to use the old temp dir
+            # causing FileNotFoundError: ... base_library.zip
+            env = os.environ.copy()
+            env.pop('_MEIPASS', None)
+            env.pop('_MEIPASS2', None)
+
             # Ensure we have the full path to executable
             executable = sys.executable
             args = sys.argv[:]
@@ -219,9 +226,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 # Use Popen with DETACHED_PROCESS flag on Windows to ensure it survives parent death
                 if sys.platform == 'win32':
                     CREATE_NEW_CONSOLE = 0x00000010
-                    subprocess.Popen([executable] + args, creationflags=CREATE_NEW_CONSOLE, close_fds=True)
+                    subprocess.Popen([executable] + args, creationflags=CREATE_NEW_CONSOLE, close_fds=True, env=env)
                 else:
-                    subprocess.Popen([executable] + args, close_fds=True)
+                    subprocess.Popen([executable] + args, close_fds=True, env=env)
 
                 self.quit()  # Stop mainloop
                 os._exit(0)  # Force exit
@@ -723,7 +730,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
             # Fallback: Missing Addon View
             from switchcraft.gui.views.missing_addon_view import MissingAddonView
-            MissingAddonView(self.tab_helper, "ai", "AI Assistant", i18n.get("ai_addon_desc")).pack(fill="both", expand=True)
+            MissingAddonView(self.tab_helper, self, "ai", "AI Assistant", i18n.get("ai_addon_desc")).pack(fill="both", expand=True)
 
         except Exception as e:
             logger.exception(f"Failed to setup AI Helper tab: {e}")
@@ -734,6 +741,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         """Setup the Settings tab."""
         self.settings_view = SettingsView(
             self.tab_settings,
+            self,
             self._run_update_check,
             self.intune_service,
             on_winget_toggle=self._toggle_winget_tab
@@ -754,7 +762,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.winget_view.pack(fill="both", expand=True)
         else:
             from switchcraft.gui.views.missing_addon_view import MissingAddonView
-            MissingAddonView(self.tab_winget, "winget", "Winget Integration", i18n.get("winget_addon_desc")).pack(fill="both", expand=True)
+            MissingAddonView(self.tab_winget, self, "winget", "Winget Integration", i18n.get("winget_addon_desc")).pack(fill="both", expand=True)
 
     def setup_history_tab(self):
         self.history_view = HistoryView(self.tab_history, self.history_service, self)

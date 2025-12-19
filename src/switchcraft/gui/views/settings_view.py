@@ -12,8 +12,9 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 class SettingsView(ctk.CTkFrame):
-    def __init__(self, parent, show_update_callback, intune_service, on_winget_toggle=None):
+    def __init__(self, parent, app, show_update_callback, intune_service, on_winget_toggle=None):
         super().__init__(parent)
+        self.app = app
         self.show_update_callback = show_update_callback
         self.intune_service = intune_service
         self.on_winget_toggle = on_winget_toggle
@@ -935,7 +936,10 @@ class SettingsView(ctk.CTkFrame):
         # But for now, let's keep it simple as requests are synchronous. Updates might freeze UI briefly.
 
         if AddonService.install_addon(addon_id, prompt_callback=prompt_handler):
-             messagebox.showinfo("Success", f"Addon {addon_id} installed! Please restart.")
+             if hasattr(self.app, '_show_restart_countdown'):
+                 self.app._show_restart_countdown()
+             else:
+                 messagebox.showinfo("Success", f"Addon {addon_id} installed! Please restart.")
         else:
              messagebox.showerror("Error", f"Failed to install addon {addon_id}.")
 
@@ -951,8 +955,11 @@ class SettingsView(ctk.CTkFrame):
             return False
 
         if AddonService.install_addon_from_zip(path):
-            success_msg = i18n.get("status_installed_restart") or "Addon installed successfully! Please restart."
-            messagebox.showinfo(i18n.get("restart_required"), success_msg)
+            if hasattr(self.app, '_show_restart_countdown'):
+                self.app._show_restart_countdown()
+            else:
+                success_msg = i18n.get("status_installed_restart") or "Addon installed successfully! Please restart."
+                messagebox.showinfo(i18n.get("restart_required"), success_msg)
             return True
         else:
             # Always show error so user knows what happened

@@ -100,9 +100,19 @@ class WingetHelper:
 
     def install_package(self, package_id: str, scope: str = "machine") -> bool:
         """Install a package via Winget CLI."""
-        cmd = f"winget install --id {package_id} --scope {scope} --accept-package-agreements --accept-source-agreements"
+        if scope not in ("machine", "user"):
+            logger.error(f"Invalid scope: {scope}")
+            return False
+
+        cmd = [
+            "winget", "install",
+            "--id", package_id,
+            "--scope", scope,
+            "--accept-package-agreements",
+            "--accept-source-agreements"
+        ]
         try:
-            proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            proc = subprocess.run(cmd, capture_output=True, text=True)
             if proc.returncode != 0:
                 logger.error(f"Winget install failed: {proc.stderr}")
                 return False

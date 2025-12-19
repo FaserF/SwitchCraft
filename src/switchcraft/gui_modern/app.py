@@ -87,12 +87,12 @@ class ModernApp:
         elif idx == 3:
             self.content_area.controls.append(ft.Text("Intune (Coming Soon)", size=30))
         elif idx == 4:
-             self.content_area.controls.append(ft.Text("Settings (Coming Soon)", size=30))
+            self.content_area.controls.append(ft.Text("Settings (Coming Soon)", size=30))
 
         self.page.update()
 
 # Adapter for flet.app target
-def main(page: ft.Page):
+async def main(page: ft.Page):
     # Initial Splash
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
@@ -115,8 +115,8 @@ def main(page: ft.Page):
 
     # Artificial delay to ensure splash is visible for at least 800ms
     # since initialization might be near-instant on fast machines
-    import time
-    time.sleep(0.8)
+    import asyncio
+    await asyncio.sleep(0.8)
 
     # Initialize the app
     # ModernApp.__init__ calls page.clean()
