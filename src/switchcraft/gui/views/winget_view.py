@@ -185,7 +185,7 @@ class WingetView(ctk.CTkFrame):
         else:
             scope = "user"
 
-        cmd = f"winget install --id {info['Id']} --scope {scope} --accept-package-agreements --accept-source-agreements"
+        cmd = f"winget install --id {info['Id']} --scope {scope} --accept-package-agreements --accept-source-agreements"  # noqa: F841
 
         top = ctk.CTkToplevel(self)
         top.title(i18n.get("winget_dl_title"))

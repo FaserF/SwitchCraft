@@ -1,10 +1,7 @@
-import os
 import yaml
 import logging
 import subprocess
-import shutil
 from pathlib import Path
-from datetime import datetime
 from switchcraft.utils.config import SwitchCraftConfig
 
 logger = logging.getLogger(__name__)

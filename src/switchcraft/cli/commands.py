@@ -99,10 +99,14 @@ def winget():
 @click.argument('query')
 def winget_search(query):
     """Search for packages in Winget."""
-    helper = WingetHelper()
+    from switchcraft.services.addon_service import AddonService
+    winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+    if not winget_mod:
+        print("[red]Winget addon not installed.[/red]")
+        sys.exit(1)
+    helper = winget_mod.WingetHelper()
     print(f"Searching Winget for '{query}'...")
     results = helper.search_packages(query)
-    # Need to verify WingetHelper API
     if not results:
         print("No results found.")
         return
@@ -113,7 +117,6 @@ def winget_search(query):
     t.add_column("Version")
 
     for r in results:
-        # Assuming result dict structure, need to verify
         t.add_row(r.get('Id'), r.get('Name'), r.get('Version'))
     print(t)
 
@@ -122,20 +125,12 @@ def winget_search(query):
 @click.option('--scope', default='machine', type=click.Choice(['user', 'machine']), help="Install scope")
 def winget_install(pkg_id, scope):
     """Install a package via Winget."""
-    helper = WingetHelper()
-    print(f"Installing {pkg_id} (Scope: {scope})...")
-    if helper.install_package(pkg_id, scope):
-        print(f"[green]Successfully installed {pkg_id}[/green]")
-    else:
-        print(f"[red]Failed to install {pkg_id}[/red]")
+    from switchcraft.services.addon_service import AddonService
+    winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+    if not winget_mod:
+        print("[red]Winget addon not installed.[/red]")
         sys.exit(1)
-
-@winget.command('install')
-@click.argument('pkg_id')
-@click.option('--scope', default='machine', type=click.Choice(['user', 'machine']), help="Install scope")
-def winget_install(pkg_id, scope):
-    """Install a package via Winget."""
-    helper = WingetHelper()
+    helper = winget_mod.WingetHelper()
     print(f"Installing {pkg_id} (Scope: {scope})...")
     if helper.install_package(pkg_id, scope):
         print(f"[green]Successfully installed {pkg_id}[/green]")
@@ -176,7 +171,7 @@ def intune_package(setup_file, output, source, quiet):
 
     print(f"Packaging {setup_file}...")
     try:
-        output_log = svc.create_intunewin(
+        svc.create_intunewin(
             source_folder=source,
             setup_file=setup_file,
             output_folder=output,

@@ -970,7 +970,6 @@ if ($LASTEXITCODE -eq 0) {{
         # Check Config
         repo_path = SwitchCraftConfig.get_value("WingetRepoPath")
         if not repo_path:
-             from tkinter import messagebox
              # Optional: Ask user if they want to configure it, or just rely on default logic in Service
              pass
 

@@ -1,5 +1,4 @@
 import flet as ft
-from switchcraft.utils.i18n import i18n
 from switchcraft import __version__
 
 class ModernApp:
@@ -121,7 +120,7 @@ def main(page: ft.Page):
 
     # Initialize the app
     # ModernApp.__init__ calls page.clean()
-    app = ModernApp(page)
+    _app = ModernApp(page)  # noqa: F841
 
 # Allow direct run
 if __name__ == "__main__":

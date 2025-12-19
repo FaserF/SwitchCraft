@@ -1,11 +1,9 @@
 import customtkinter as ctk
 import hashlib
 import threading
-import webbrowser
 from pathlib import Path
 from tkinter import messagebox
 from switchcraft.services.winget_manifest_service import WingetManifestService
-from switchcraft.utils.config import SwitchCraftConfig
 
 class ManifestDialog(ctk.CTkToplevel):
     def __init__(self, parent, installer_info):
