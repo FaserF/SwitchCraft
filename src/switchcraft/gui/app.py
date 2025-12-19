@@ -288,22 +288,27 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         if (now - last_backup) > 604800:
              logger.info("Weekly cloud backup check triggered.")
              def _run():
-                 import hashlib
-                 # Hash current prefs to check against last known backup hash
-                 current_prefs = SwitchCraftConfig.export_preferences()
-                 current_hash = hashlib.md5(json.dumps(current_prefs, sort_keys=True).encode()).hexdigest()
+                 try:
+                     import hashlib
+                     # Hash current prefs to check against last known backup hash
+                     current_prefs = SwitchCraftConfig.export_preferences()
+                     current_hash = hashlib.md5(json.dumps(current_prefs, sort_keys=True).encode()).hexdigest()
 
-                 last_hash = SwitchCraftConfig.get_value("LastBackupHash", "")
+                     last_hash = SwitchCraftConfig.get_value("LastBackupHash", "")
 
-                 if current_hash != last_hash:
-                     logger.info("Changes detected since last backup. Performing auto-backup...")
-                     if SyncService.sync_up():
-                         logger.info("Auto-backup successful.")
+                     if current_hash != last_hash:
+                         logger.info("Changes detected since last backup. Performing auto-backup...")
+                         if SyncService.sync_up():
+                             logger.info("Auto-backup successful.")
+                             SwitchCraftConfig.set_user_preference("LastCloudBackup", now)
+                             SwitchCraftConfig.set_user_preference("LastBackupHash", current_hash)
+                     else:
+                         logger.info("No changes since last backup. Skipping.")
+                         # Update timestamp so we don't check every restart for another week
                          SwitchCraftConfig.set_user_preference("LastCloudBackup", now)
-                         SwitchCraftConfig.set_user_preference("LastBackupHash", current_hash)
-                 else:
-                     logger.info("No changes since last backup. Skipping.")
-                     # Update timestamp so we don't check every restart for another week
+                 except Exception as e:
+                     logger.exception(f"Auto-backup failed: {e}")
+                     # Still update LastCloudBackup so we don't retry continuously on next start
                      SwitchCraftConfig.set_user_preference("LastCloudBackup", now)
 
              threading.Thread(target=_run, daemon=True).start()

@@ -5,6 +5,7 @@ from typing import Optional, Any
 
 logger = logging.getLogger(__name__)
 
+
 class SwitchCraftConfig:
     """
     Centralized configuration management for SwitchCraft.
@@ -82,7 +83,7 @@ class SwitchCraftConfig:
         # 3. Registry (reading policy first)
         val = cls.get_value("DebugMode")
         if val is not None:
-             return val == 1
+            return val == 1
 
         # 4. Default for Nightly/Dev builds
         from switchcraft import __version__
@@ -127,6 +128,9 @@ class SwitchCraftConfig:
                     value = val_int
                 elif isinstance(value, int):
                     value_type = winreg.REG_DWORD
+                    # Validate range for REG_DWORD (unsigned 32-bit: 0 to 4294967295)
+                    if value < 0 or value > 0xFFFFFFFF:
+                        raise ValueError(f"Registry value '{value_name}' out of range for REG_DWORD: {value}")
                 else:
                     value_type = winreg.REG_SZ
                     value = str(value)  # Ensure string

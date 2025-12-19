@@ -116,6 +116,8 @@ class TestSwitchCraftConfig(unittest.TestCase):
             # Index 3 is type, Index 4 is value
             self.assertEqual(call_args[3], self.winreg_mock.REG_DWORD)
             self.assertIsInstance(call_args[4], int)
+            # Optional verification of converted value
+            self.assertEqual(call_args[4], int(round(now)))
 
     @patch('sys.platform', 'win32')
     def test_set_user_preference_float_edge_cases(self):

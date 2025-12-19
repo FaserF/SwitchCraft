@@ -1,9 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
-import sys
+
 import os
 import customtkinter
 import tkinterdnd2
-from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules
 
 block_cipher = None
@@ -19,7 +18,8 @@ tkdnd_path, tkdnd_name = get_package_data(tkinterdnd2)
 # MANUAL COLLECTION to ensure robustness
 # Note: Addon modules (switchcraft_winget, switchcraft_ai, etc.) are NOT bundled.
 # They are downloaded separately at runtime.
-# py7zr is needed by switchcraft_advanced addon for 7z extraction
+# However, commonly-needed addon dependencies (py7zr) are pre-bundled
+# to reduce runtime issues and ensure 7z extraction works out-of-the-box.
 hidden_imports = [
     'PIL._tkinter_finder', 'tkinterdnd2', 'plyer.platforms.win.notification',
     'defusedxml', 'winotify', 'switchcraft.services.addon_service',
@@ -32,49 +32,7 @@ try:
 except Exception as e:
     print(f"Warning: Failed to collect switchcraft submodules: {e}")
 
-# Manually walk src/switchcraft to find all modules
-src_root = os.path.abspath('src')
-if src_root not in sys.path:
-    sys.path.insert(0, src_root)
 
-import switchcraft
-pkg_path = os.path.dirname(switchcraft.__file__)
-
-import importlib
-
-def can_import(module_name):
-    """Test if a module can actually be imported."""
-    try:
-        importlib.import_module(module_name)
-        return True
-    except (ImportError, ModuleNotFoundError):
-        return False
-
-# Use a set for faster lookups and automatic deduplication
-discovered_modules = set()
-
-for root, dirs, files in os.walk(pkg_path):
-    for file in files:
-        if file.endswith('.py') and not file == '__init__.py':
-            full_path = os.path.join(root, file)
-            rel_path = os.path.relpath(full_path, src_root)
-            module_name = rel_path.replace(os.sep, '.').replace('.py', '')
-            discovered_modules.add(module_name)
-        elif file == '__init__.py':
-             full_path = os.path.join(root, file)
-             rel_path = os.path.relpath(root, src_root)
-             module_name = rel_path.replace(os.sep, '.')
-             discovered_modules.add(module_name)
-
-# Add discovered modules if they can be imported and aren't already explicit
-initial_hidden_count = len(hidden_imports)
-hidden_imports_set = set(hidden_imports)
-
-for module_name in discovered_modules:
-    if module_name not in hidden_imports_set and can_import(module_name):
-        hidden_imports.append(module_name)
-
-print(f"DEBUG: Collected {len(hidden_imports) - initial_hidden_count} additional hidden imports.")
 
 
 datas = [
@@ -84,7 +42,7 @@ datas = [
     ('src/switchcraft/assets', 'assets'),
 ]
 
-a = Analysis(
+a = Analysis(  # noqa: F821
     ['src/entry.py'],
     pathex=[os.path.abspath('src')],
     binaries=[],
@@ -101,28 +59,28 @@ a = Analysis(
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)  # noqa: F821
 
-exe = EXE(
+exe = EXE(  # noqa: F821
     pyz,
     a.scripts,
     a.binaries,
     a.zipfiles,
     a.datas,
     [],
-    name='SwitchCraft-windows', # Legacy (Tkinter) build for CI
+    name='SwitchCraft-windows',  # Legacy (Tkinter) build for CI
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     # Console: Force enabled for debugging. Set to False for release builds.
-    console=True,
+    console=os.environ.get('SWITCHCRAFT_DEBUG_CONSOLE', '0') == '1',
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='images/switchcraft_logo.png', # Assuming we convert png to ico or pyinstaller handles it (it prefers ico)
+    icon='images/switchcraft_logo.png',  # Assuming we convert png to ico or pyinstaller handles it (it prefers ico)
     version='file_version_info.txt'
 )

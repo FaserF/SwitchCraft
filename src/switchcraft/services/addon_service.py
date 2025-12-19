@@ -75,7 +75,7 @@ class AddonService:
         try:
             import importlib
             return importlib.import_module(full_name)
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError) as e:
             logger.error(f"Failed to import addon module {full_name}: {e}")
             return None
 
@@ -257,15 +257,9 @@ class AddonService:
                             # Checking rigid path: .../switchcraft_xxx/__init__.py
                             if f_norm.endswith(f"{part}/__init__.py"):
                                 detected_pkg_name = part
-                                # Calulcate prefix
+                                # Calculate prefix
                                 suffix = f"{part}/__init__.py"
                                 source_prefix = f_norm[:-len(suffix)]
-                                # Maintain original slash style for the zip member lookup or just assume normalized?
-                                # z.open(member) handles the object, but we need the prefix valid for matching string
-                                # Ideally we map back to original filename, but zipfile might just handle /
-                                # Actually, member.filename is the source of truth.
-                                # If separators differ, len might match but content differs.
-                                # Safe bet: Use index from original 'f' if we can find the pattern
                                 break
                     if detected_pkg_name and detected_pkg_name != pkg_name:
                         break
@@ -341,7 +335,7 @@ class AddonService:
                 fname_norm = member.filename.replace('\\', '/')
 
                 if fname_norm.startswith(source_prefix):
-                    rel_path = fname_norm[len(source_prefix):] # e.g. switchcraft_advanced/mod.py
+                    rel_path = fname_norm[len(source_prefix):]  # e.g. switchcraft_advanced/mod.py
 
                     if not rel_path or rel_path.startswith("__MACOSX"):
                         continue
