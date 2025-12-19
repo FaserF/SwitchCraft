@@ -68,7 +68,7 @@ exe = EXE(  # noqa: F821
     a.zipfiles,
     a.datas,
     [],
-    name='SwitchCraft-windows',  # Legacy (Tkinter) build for CI
+    name='SwitchCraft',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

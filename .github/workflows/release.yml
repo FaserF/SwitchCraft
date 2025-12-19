@@ -188,7 +188,11 @@ jobs:
 
     - name: Rename to Platform Name
       run: |
-        cp dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
+        if [ "${{ matrix.artifact_name }}" != "${{ matrix.asset_name }}" ]; then
+          cp dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
+        else
+          echo "Source and destination are the same, skipping copy."
+        fi
       shell: bash
 
     - name: Decode Signing Certificate
