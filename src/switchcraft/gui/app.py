@@ -327,11 +327,15 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             if "Winget Store" not in self.tabview._tab_dict:
                 # CTkTabview.add() appends to the end.
                 # To insert at correct position (after Intune Utility, before History),
-                # we need to recreate the History tab after adding Winget Store.
+                # we need to temporarily remove and re-add History tab.
                 history_exists = "History" in self.tabview._tab_dict
+                history_view_ref = None
 
                 if history_exists:
-                    # Delete History, add Winget Store, re-add History
+                    # Store reference to existing History view to preserve state
+                    history_view_ref = getattr(self, 'history_view', None)
+                    if history_view_ref:
+                        history_view_ref.pack_forget()  # Detach but don't destroy
                     self.tabview.delete("History")
                     logger.debug("Temporarily removed History tab for repositioning")
 
@@ -341,10 +345,17 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 logger.debug("Added Winget Store tab")
 
                 if history_exists:
-                    # Re-add History tab
+                    # Re-add History tab and reattach preserved view
                     self.tab_history = self.tabview.add("History")
-                    self.setup_history_tab()
-                    logger.debug("Re-added History tab")
+                    if history_view_ref:
+                        # Reparent and repack the existing view to preserve state
+                        history_view_ref.master = self.tab_history
+                        history_view_ref.pack(fill="both", expand=True)
+                        logger.debug("Re-attached existing History view (state preserved)")
+                    else:
+                        # Fallback: create new view if reference was lost
+                        self.setup_history_tab()
+                        logger.debug("Re-created History tab (no view reference)")
         else:
             if "Winget Store" in self.tabview._tab_dict:
                 self.tabview.delete("Winget Store")
@@ -857,7 +868,7 @@ def main(splash=None):
         if "dev" in __version__.lower() or "nightly" in __version__.lower():
             # Force Debug Console ON for Dev/Nightly builds at startup for better troubleshooting.
             # This overrides user preference for the session but respects if user manually closes/disables it later.
-
+            logger.info(f"Dev/Nightly build detected ({__version__}): Auto-enabling debug console for troubleshooting.")
             SwitchCraftConfig.set_user_preference("ShowDebugConsole", True)
 
         app = App()
