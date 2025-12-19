@@ -264,8 +264,6 @@ class AddonService:
                                 # z.open(member) handles the object, but we need the prefix valid for matching string
                                 # Ideally we map back to original filename, but zipfile might just handle /
                                 # Actually, member.filename is the source of truth.
-                                # Let's find the ORIGINAL prefix
-
                                 # If separators differ, len might match but content differs.
                                 # Safe bet: Use index from original 'f' if we can find the pattern
                                 break
