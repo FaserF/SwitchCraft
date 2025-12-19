@@ -44,4 +44,8 @@ if __name__ == '__main__':
         print("\nSession ended.")
         if getattr(sys, 'frozen', False):
              # Only pause in frozen (EXE) mode, so we don't annoy dev usage
-             input("Press Enter to close this window...")
+             try:
+                 input("Press Enter to close this window...")
+             except (EOFError, RuntimeError):
+                 # stdin lost or not available, just exit
+                 pass

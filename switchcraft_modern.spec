@@ -8,7 +8,7 @@ block_cipher = None
 
 # MANUAL COLLECTION for Modern
 # We need switchcraft.* and flet
-hidden_imports = ['flet', 'defusedxml', 'winotify']
+hidden_imports = ['flet', 'flet_desktop', 'defusedxml', 'winotify']
 hidden_imports += collect_submodules('switchcraft')
 
 src_root = os.path.abspath('src')
