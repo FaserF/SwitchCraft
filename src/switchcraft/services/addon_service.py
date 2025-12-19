@@ -345,7 +345,15 @@ class AddonService:
                         continue
 
                     # Extract to addon_root / rel_path -> addon_root / switchcraft_advanced / mod.py
-                    full_target = addon_root / rel_path
+                    full_target = (addon_root / rel_path).resolve()
+
+                    # Security: Prevent zip slip attack (path traversal)
+                    # Ensure the resolved path is still within addon_root
+                    try:
+                        full_target.relative_to(addon_root.resolve())
+                    except ValueError:
+                        logger.warning(f"Skipping potentially malicious path: {rel_path}")
+                        continue
 
                     if member.is_dir():
                         full_target.mkdir(parents=True, exist_ok=True)

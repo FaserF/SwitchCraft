@@ -235,7 +235,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             cwd = os.path.dirname(executable) if getattr(sys, 'frozen', False) else os.getcwd()
 
             try:
-                # Use Popen with DETACHED_PROCESS flag on Windows to ensure it survives parent death
+                # Use Popen with CREATE_NEW_CONSOLE flag on Windows to ensure it survives parent death
                 if sys.platform == 'win32':
                     CREATE_NEW_CONSOLE = 0x00000010
                     cmd = [executable] + args
@@ -302,6 +302,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                              logger.info("Auto-backup successful.")
                              SwitchCraftConfig.set_user_preference("LastCloudBackup", now)
                              SwitchCraftConfig.set_user_preference("LastBackupHash", current_hash)
+                         else:
+                             # Sync failed but didn't raise - update timestamp to avoid continuous retries
+                             logger.warning("Auto-backup returned False. Will retry next week.")
+                             SwitchCraftConfig.set_user_preference("LastCloudBackup", now)
                      else:
                          logger.info("No changes since last backup. Skipping.")
                          # Update timestamp so we don't check every restart for another week
