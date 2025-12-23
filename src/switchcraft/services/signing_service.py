@@ -17,7 +17,12 @@ class SigningService:
             logger.info("Signing is disabled in settings.")
             return True
 
-        cert_path = SwitchCraftConfig.get_value("CertPath")
+        # Policy Priority: Check for Thumbprint first (ADMX/Intune support)
+        cert_thumbprint = SwitchCraftConfig.get_value("CodeSigningCertThumbprint")
+        cert_path = SwitchCraftConfig.get_value("CodeSigningCertPath")
+        if not cert_path:
+             cert_path = SwitchCraftConfig.get_value("CertPath")
+
         script_path_obj = Path(script_path).resolve()
 
         if not script_path_obj.exists():
@@ -28,7 +33,20 @@ class SigningService:
 
         ps_command = ""
 
-        if cert_path and Path(cert_path).exists():
+        if cert_thumbprint:
+             # Use specific thumbprint from Policy/Config
+             logger.info(f"Using Certificate Thumbprint from Policy: {cert_thumbprint}")
+             ps_command = (
+                f'$cert = Get-Item "Cert:\\CurrentUser\\My\\{cert_thumbprint}" -ErrorAction SilentlyContinue; '
+                f'if (-not $cert) {{ $cert = Get-Item "Cert:\\LocalMachine\\My\\{cert_thumbprint}" -ErrorAction SilentlyContinue }}; '
+                f'if ($cert) {{ '
+                f'   $sig = Set-AuthenticodeSignature -FilePath "{script_path_obj}" -Certificate $cert; '
+                f'   if ($sig.Status -eq "Valid") {{ Write-Output "Signed Successfully" }} else {{ Write-Error "Signing Failed: $($sig.StatusMessage)" }} '
+                f'}} '
+                f'else {{ Write-Error "Certificate with thumbprint {cert_thumbprint} not found." }}'
+             )
+
+        elif cert_path and Path(cert_path).exists():
             # PFX Path Logic - Note: Set-AuthenticodeSignature with PFX usually requires password or import.
             # However, if the user points to a PFX, we can try to use it.
             # Since we can't easily prompt for password in headless/automation securely here without UI,
@@ -78,9 +96,11 @@ class SigningService:
                 logger.info(f"Successfully signed {script_path_obj.name}")
                 return True
             else:
+                logger.error(f"Signing Failed. Return Code: {completed.returncode}")
                 if completed.stderr:
-                    logger.error(f"Signing Error: {completed.stderr.strip()}")
-                logger.warning(f"Signing Output: {completed.stdout.strip()}")
+                    logger.error(f"STDERR: {completed.stderr.strip()}")
+                if completed.stdout:
+                    logger.warning(f"STDOUT: {completed.stdout.strip()}")
                 return False
 
         except subprocess.CalledProcessError as e:

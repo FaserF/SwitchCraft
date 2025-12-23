@@ -45,6 +45,9 @@ class SettingsView(ctk.CTkFrame):
         self._setup_tab_deploy(self.tab_deploy)
         self._setup_tab_help(self.tab_help)
 
+        # Initial check for managed settings
+        self.after(500, self._check_managed_settings)
+
     def _setup_tab_general(self, parent):
         scroll = ctk.CTkScrollableFrame(parent)
         scroll.grid(row=0, column=0, sticky="nsew")
@@ -63,7 +66,8 @@ class SettingsView(ctk.CTkFrame):
             if self.on_winget_toggle:
                 self.on_winget_toggle(val)
 
-        ctk.CTkSwitch(frame_winget, text=i18n.get("settings_enable_winget"), variable=self.winget_var, command=toggle_winget).pack(pady=10, padx=10)
+        self.winget_switch = ctk.CTkSwitch(frame_winget, text=i18n.get("settings_enable_winget"), variable=self.winget_var, command=toggle_winget)
+        self.winget_switch.pack(pady=10, padx=10)
 
         # Language Selector
         frame_lang = ctk.CTkFrame(scroll)
@@ -77,7 +81,8 @@ class SettingsView(ctk.CTkFrame):
             SwitchCraftConfig.set_user_preference("Language", val)
             messagebox.showinfo(i18n.get("restart_required"), i18n.get("restart_required_msg"))
 
-        ctk.CTkOptionMenu(frame_lang, values=["en", "de"], command=change_lang, variable=lang_var).pack(side="right", padx=5)
+        self.lang_menu = ctk.CTkOptionMenu(frame_lang, values=["en", "de"], command=change_lang, variable=lang_var)
+        self.lang_menu.pack(side="right", padx=5)
 
         # Theme Selector
         frame_theme = ctk.CTkFrame(scroll)
@@ -89,7 +94,8 @@ class SettingsView(ctk.CTkFrame):
             SwitchCraftConfig.set_user_preference("Theme", val)
             ctk.set_appearance_mode(val)
 
-        ctk.CTkOptionMenu(frame_theme, values=["System", "Dark", "Light"], command=change_theme, variable=theme_var).pack(side="right", padx=5)
+        self.theme_menu = ctk.CTkOptionMenu(frame_theme, values=["System", "Dark", "Light"], command=change_theme, variable=theme_var)
+        self.theme_menu.pack(side="right", padx=5)
 
         # AI Configuration
         self._setup_ai_config(scroll)
@@ -780,7 +786,14 @@ class SettingsView(ctk.CTkFrame):
             ctk.CTkLabel(auth_grid, text=label).grid(row=row, column=0, sticky="w", padx=5, pady=2)
             entry = ctk.CTkEntry(auth_grid, show=show)
             entry.grid(row=row, column=1, sticky="ew", padx=5, pady=2)
-            entry.insert(0, SwitchCraftConfig.get_value(key, ""))
+
+            val = ""
+            if key == "GraphClientSecret":
+                val = SwitchCraftConfig.get_secure_value(key) or ""
+            else:
+                val = SwitchCraftConfig.get_value(key, "")
+
+            entry.insert(0, val)
             # Save on focus out or save button? Let's do Save Button.
             return entry
 
@@ -796,7 +809,7 @@ class SettingsView(ctk.CTkFrame):
 
             SwitchCraftConfig.set_user_preference("GraphTenantId", t)
             SwitchCraftConfig.set_user_preference("GraphClientId", c)
-            SwitchCraftConfig.set_user_preference("GraphClientSecret", s)
+            SwitchCraftConfig.set_secret("GraphClientSecret", s)
 
             messagebox.showinfo(i18n.get("settings_verify_success_title"), i18n.get("settings_saved"))
 
@@ -1020,3 +1033,49 @@ class SettingsView(ctk.CTkFrame):
     def _setup_help_section(self, parent):
          # Addon Explanation
         ctk.CTkLabel(parent, text="ℹ️ " + i18n.get("help_addons_explanation"), justify="left", wraplength=400).pack(anchor="w", padx=10, pady=(10, 20))
+
+    def _check_managed_settings(self):
+        """
+        Checks if settings are enforced by policy and disables UI elements.
+        Adds a '(Managed)' label to enforced settings.
+        """
+        managed_widgets = {
+             "EnableWinget": getattr(self, 'winget_switch', None),
+             "Language": getattr(self, 'lang_menu', None),
+             "Theme": getattr(self, 'theme_menu', None),
+             "AIProvider": getattr(self, 'ai_provider', None),
+             "SignScripts": getattr(self, 'sign_switch', None),
+             "CodeSigningCertThumbprint": getattr(self, 'cert_path_entry', None),
+             "GraphTenantId": getattr(self, 'entry_tenant', None),
+             "GraphClientId": getattr(self, 'entry_client', None),
+             "GraphClientSecret": getattr(self, 'entry_secret', None),
+             "UpdateChannel": getattr(self, 'channel_opt', None)
+        }
+
+        for key, widget in managed_widgets.items():
+            if not widget:
+                continue
+
+            if SwitchCraftConfig.is_managed(key):
+                try:
+                    widget.configure(state="disabled")
+                    if isinstance(widget, ctk.CTkEntry):
+                         val = SwitchCraftConfig.get_value(key, "")
+                         widget.delete(0, "end")
+                         widget.insert(0, str(val))
+                    elif isinstance(widget, ctk.CTkSwitch):
+                         val = SwitchCraftConfig.get_value(key, 0)
+                         # Ensure integer/bool
+                         if str(val).lower() in ("true", "1", "yes"):
+                             widget.select()
+                         else:
+                             widget.deselect()
+                    elif isinstance(widget, (ctk.CTkOptionMenu, ctk.CTkComboBox, ctk.CTkSegmentedButton)):
+                         val = SwitchCraftConfig.get_value(key, "")
+                         widget.set(str(val))
+                except Exception as e:
+                    logger.error(f"Failed to apply managed setting for {key}: {e}")
+
+    def tkraise(self, aboveThis=None):
+        super().tkraise(aboveThis)
+        self.after(100, self._check_managed_settings)

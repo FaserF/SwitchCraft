@@ -13,56 +13,253 @@
   <resources minRequiredRevision="1.0" />
 
   <categories>
+
+    <!-- Top Level -->
     <category name="SwitchCraft" displayName="$(string.Cat_SwitchCraft)" />
-    <category name="Updates" displayName="$(string.Cat_Updates)" parentCategory="SwitchCraft" />
+
+    <!-- Enforced Branch -->
+    <category name="Enforced" displayName="$(string.Cat_Enforced)">
+      <parentCategory ref="SwitchCraft" />
+    </category>
+
+    <!-- Defaults Branch -->
+    <category name="Defaults" displayName="$(string.Cat_Defaults)">
+      <parentCategory ref="SwitchCraft" />
+    </category>
+
+    <!-- Enforced Sub-Categories -->
+    <category name="Updates_Enf" displayName="$(string.Cat_Updates)">
+      <parentCategory ref="Enforced" />
+    </category>
+    <category name="General_Enf" displayName="$(string.Cat_General)">
+      <parentCategory ref="Enforced" />
+    </category>
+    <category name="AI_Enf" displayName="$(string.Cat_AI)">
+      <parentCategory ref="Enforced" />
+    </category>
+    <category name="Security_Enf" displayName="$(string.Cat_Security)">
+      <parentCategory ref="Enforced" />
+    </category>
+    <category name="Intune_Enf" displayName="$(string.Cat_Intune)">
+      <parentCategory ref="Enforced" />
+    </category>
+
+    <!-- Default Sub-Categories -->
+    <category name="Updates_Def" displayName="$(string.Cat_Updates)">
+      <parentCategory ref="Defaults" />
+    </category>
+    <category name="General_Def" displayName="$(string.Cat_General)">
+      <parentCategory ref="Defaults" />
+    </category>
+    <category name="AI_Def" displayName="$(string.Cat_AI)">
+      <parentCategory ref="Defaults" />
+    </category>
+    <category name="Security_Def" displayName="$(string.Cat_Security)">
+      <parentCategory ref="Defaults" />
+    </category>
+    <category name="Intune_Def" displayName="$(string.Cat_Intune)">
+      <parentCategory ref="Defaults" />
+    </category>
+
   </categories>
 
   <policies>
-    <!-- Debug Mode -->
-    <policy name="DebugMode"
-            class="User"
-            displayName="$(string.DebugMode)"
-            explainText="$(string.DebugMode_Help)"
-            key="Software\FaserF\SwitchCraft"
-            valueName="DebugMode">
-      <parentCategory ref="SwitchCraft" />
+
+    <!-- ================= ENFORCED POLICIES (Software\Policies\...) ================= -->
+
+    <policy name="DebugMode_Enf" class="User" displayName="$(string.DebugMode)" explainText="$(string.DebugMode_Help)" key="Software\Policies\FaserF\SwitchCraft" valueName="DebugMode">
+      <parentCategory ref="Enforced" />
       <supportedOn ref="windows:SUPPORTED_Windows10" />
-      <enabledValue>
-        <decimal value="1" />
-      </enabledValue>
-      <disabledValue>
-        <decimal value="0" />
-      </disabledValue>
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
     </policy>
 
-    <!-- Update Channel -->
-    <policy name="UpdateChannel"
-            class="User"
-            displayName="$(string.UpdateChannel)"
-            explainText="$(string.UpdateChannel_Help)"
-            presentation="$(presentation.UpdateChannel)"
-            key="Software\FaserF\SwitchCraft">
-      <parentCategory ref="Updates" />
+    <policy name="UpdateChannel_Enf" class="User" displayName="$(string.UpdateChannel)" explainText="$(string.UpdateChannel_Help)" presentation="$(presentation.UpdateChannel)" key="Software\Policies\FaserF\SwitchCraft" valueName="UpdateChannel">
+      <parentCategory ref="Updates_Enf" />
       <supportedOn ref="windows:SUPPORTED_Windows10" />
       <elements>
         <enum id="UpdateChannelDropdown" valueName="UpdateChannel">
-          <item displayName="$(string.Channel_Stable)">
-            <value>
-              <string>stable</string>
-            </value>
-          </item>
-          <item displayName="$(string.Channel_Beta)">
-            <value>
-              <string>beta</string>
-            </value>
-          </item>
-          <item displayName="$(string.Channel_Dev)">
-            <value>
-              <string>dev</string>
-            </value>
-          </item>
+          <item displayName="$(string.Channel_Stable)"><value><string>stable</string></value></item>
+          <item displayName="$(string.Channel_Beta)"><value><string>beta</string></value></item>
+          <item displayName="$(string.Channel_Dev)"><value><string>dev</string></value></item>
         </enum>
       </elements>
+    </policy>
+
+    <policy name="EnableWinget_Enf" class="User" displayName="$(string.EnableWinget)" explainText="$(string.EnableWinget_Help)" key="Software\Policies\FaserF\SwitchCraft" valueName="EnableWinget">
+      <parentCategory ref="General_Enf" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="Language_Enf" class="User" displayName="$(string.Language)" explainText="$(string.Language_Help)" presentation="$(presentation.Language)" key="Software\Policies\FaserF\SwitchCraft" valueName="Language">
+      <parentCategory ref="General_Enf" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <enum id="LanguageDropdown" valueName="Language">
+          <item displayName="$(string.Lang_EN)"><value><string>en</string></value></item>
+          <item displayName="$(string.Lang_DE)"><value><string>de</string></value></item>
+        </enum>
+      </elements>
+    </policy>
+
+    <policy name="GitRepoPath_Enf" class="User" displayName="$(string.GitRepoPath)" explainText="$(string.GitRepoPath_Help)" presentation="$(presentation.GitRepoPath)" key="Software\Policies\FaserF\SwitchCraft" valueName="GitRepoPath">
+       <parentCategory ref="General_Enf" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="GitRepoPathBox" valueName="GitRepoPath" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="AIProvider_Enf" class="User" displayName="$(string.AIProvider)" explainText="$(string.AIProvider_Help)" presentation="$(presentation.AIProvider)" key="Software\Policies\FaserF\SwitchCraft" valueName="AIProvider">
+      <parentCategory ref="AI_Enf" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <enum id="AIProviderDropdown" valueName="AIProvider">
+          <item displayName="$(string.AI_Local)"><value><string>local</string></value></item>
+          <item displayName="$(string.AI_OpenAI)"><value><string>openai</string></value></item>
+          <item displayName="$(string.AI_Gemini)"><value><string>gemini</string></value></item>
+        </enum>
+      </elements>
+    </policy>
+
+    <policy name="SignScripts_Enf" class="User" displayName="$(string.SignScripts)" explainText="$(string.SignScripts_Help)" key="Software\Policies\FaserF\SwitchCraft" valueName="SignScripts">
+      <parentCategory ref="Security_Enf" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="CodeSigningCertThumbprint_Enf" class="User" displayName="$(string.CodeSigningCertThumbprint)" explainText="$(string.CodeSigningCertThumbprint_Help)" presentation="$(presentation.CodeSigningCertThumbprint)" key="Software\Policies\FaserF\SwitchCraft" valueName="CodeSigningCertThumbprint">
+       <parentCategory ref="Security_Enf" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="CodeSigningCertThumbprintBox" valueName="CodeSigningCertThumbprint" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="GraphTenantId_Enf" class="User" displayName="$(string.GraphTenantId)" explainText="$(string.GraphTenantId_Help)" presentation="$(presentation.GraphTenantId)" key="Software\Policies\FaserF\SwitchCraft" valueName="GraphTenantId">
+       <parentCategory ref="Intune_Enf" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="GraphTenantIdBox" valueName="GraphTenantId" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="GraphClientId_Enf" class="User" displayName="$(string.GraphClientId)" explainText="$(string.GraphClientId_Help)" presentation="$(presentation.GraphClientId)" key="Software\Policies\FaserF\SwitchCraft" valueName="GraphClientId">
+       <parentCategory ref="Intune_Enf" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="GraphClientIdBox" valueName="GraphClientId" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="GraphClientSecret_Enf" class="User" displayName="$(string.GraphClientSecret)" explainText="$(string.GraphClientSecret_Help)" presentation="$(presentation.GraphClientSecret)" key="Software\Policies\FaserF\SwitchCraft" valueName="GraphClientSecret">
+       <parentCategory ref="Intune_Enf" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="GraphClientSecretBox" valueName="GraphClientSecret" required="true" />
+       </elements>
+    </policy>
+
+
+    <!-- ================= DEFAULT SETTINGS (Software\...) ================= -->
+
+    <policy name="DebugMode_Def" class="User" displayName="$(string.DebugMode)" explainText="$(string.DebugMode_Help)" key="Software\FaserF\SwitchCraft" valueName="DebugMode">
+      <parentCategory ref="Defaults" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="UpdateChannel_Def" class="User" displayName="$(string.UpdateChannel)" explainText="$(string.UpdateChannel_Help)" presentation="$(presentation.UpdateChannel)" key="Software\FaserF\SwitchCraft" valueName="UpdateChannel">
+      <parentCategory ref="Updates_Def" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <enum id="UpdateChannelDropdown" valueName="UpdateChannel">
+          <item displayName="$(string.Channel_Stable)"><value><string>stable</string></value></item>
+          <item displayName="$(string.Channel_Beta)"><value><string>beta</string></value></item>
+          <item displayName="$(string.Channel_Dev)"><value><string>dev</string></value></item>
+        </enum>
+      </elements>
+    </policy>
+
+    <policy name="EnableWinget_Def" class="User" displayName="$(string.EnableWinget)" explainText="$(string.EnableWinget_Help)" key="Software\FaserF\SwitchCraft" valueName="EnableWinget">
+      <parentCategory ref="General_Def" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="Language_Def" class="User" displayName="$(string.Language)" explainText="$(string.Language_Help)" presentation="$(presentation.Language)" key="Software\FaserF\SwitchCraft" valueName="Language">
+      <parentCategory ref="General_Def" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <enum id="LanguageDropdown" valueName="Language">
+          <item displayName="$(string.Lang_EN)"><value><string>en</string></value></item>
+          <item displayName="$(string.Lang_DE)"><value><string>de</string></value></item>
+        </enum>
+      </elements>
+    </policy>
+
+    <policy name="GitRepoPath_Def" class="User" displayName="$(string.GitRepoPath)" explainText="$(string.GitRepoPath_Help)" presentation="$(presentation.GitRepoPath)" key="Software\FaserF\SwitchCraft" valueName="GitRepoPath">
+       <parentCategory ref="General_Def" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="GitRepoPathBox" valueName="GitRepoPath" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="AIProvider_Def" class="User" displayName="$(string.AIProvider)" explainText="$(string.AIProvider_Help)" presentation="$(presentation.AIProvider)" key="Software\FaserF\SwitchCraft" valueName="AIProvider">
+      <parentCategory ref="AI_Def" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <enum id="AIProviderDropdown" valueName="AIProvider">
+          <item displayName="$(string.AI_Local)"><value><string>local</string></value></item>
+          <item displayName="$(string.AI_OpenAI)"><value><string>openai</string></value></item>
+          <item displayName="$(string.AI_Gemini)"><value><string>gemini</string></value></item>
+        </enum>
+      </elements>
+    </policy>
+
+    <policy name="SignScripts_Def" class="User" displayName="$(string.SignScripts)" explainText="$(string.SignScripts_Help)" key="Software\FaserF\SwitchCraft" valueName="SignScripts">
+      <parentCategory ref="Security_Def" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="CodeSigningCertThumbprint_Def" class="User" displayName="$(string.CodeSigningCertThumbprint)" explainText="$(string.CodeSigningCertThumbprint_Help)" presentation="$(presentation.CodeSigningCertThumbprint)" key="Software\FaserF\SwitchCraft" valueName="CodeSigningCertThumbprint">
+       <parentCategory ref="Security_Def" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="CodeSigningCertThumbprintBox" valueName="CodeSigningCertThumbprint" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="GraphTenantId_Def" class="User" displayName="$(string.GraphTenantId)" explainText="$(string.GraphTenantId_Help)" presentation="$(presentation.GraphTenantId)" key="Software\FaserF\SwitchCraft" valueName="GraphTenantId">
+       <parentCategory ref="Intune_Def" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="GraphTenantIdBox" valueName="GraphTenantId" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="GraphClientId_Def" class="User" displayName="$(string.GraphClientId)" explainText="$(string.GraphClientId_Help)" presentation="$(presentation.GraphClientId)" key="Software\FaserF\SwitchCraft" valueName="GraphClientId">
+       <parentCategory ref="Intune_Def" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="GraphClientIdBox" valueName="GraphClientId" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="GraphClientSecret_Def" class="User" displayName="$(string.GraphClientSecret)" explainText="$(string.GraphClientSecret_Help)" presentation="$(presentation.GraphClientSecret)" key="Software\FaserF\SwitchCraft" valueName="GraphClientSecret">
+       <parentCategory ref="Intune_Def" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="GraphClientSecretBox" valueName="GraphClientSecret" required="true" />
+       </elements>
     </policy>
 
   </policies>

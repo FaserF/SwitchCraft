@@ -6,14 +6,15 @@ from typing import Optional, Any
 logger = logging.getLogger(__name__)
 
 
+
 class SwitchCraftConfig:
     """
     Centralized configuration management for SwitchCraft.
     Handles precedence of settings:
     1. Machine Policy (HKLM\\Software\\Policies\\FaserF\\SwitchCraft) - Intune/GPO
     2. User Policy (HKCU\\Software\\Policies\\FaserF\\SwitchCraft) - Intune/GPO
-    3. Machine Preference (HKLM\\Software\\FaserF\\SwitchCraft)
-    4. User Preference (HKCU\\Software\\FaserF\\SwitchCraft) - Default User Settings
+    3. User Preference (HKCU\\Software\\FaserF\\SwitchCraft) - Default User Settings
+    4. Machine Preference (HKLM\\Software\\FaserF\\SwitchCraft)
     """
 
     POLICY_PATH = r"Software\Policies\FaserF\SwitchCraft"
@@ -33,31 +34,53 @@ class SwitchCraftConfig:
         except ImportError:
             return default
 
-        # Precedence 1: Machine Policy (HKLM)
+        # Precedence 1: Machine Policy (HKLM) - Enforced
         val = cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.POLICY_PATH, value_name)
         if val is not None:
             logger.debug(f"Config '{value_name}' found in HKLM Policy: {val}")
             return val
 
-        # Precedence 2: User Policy (HKCU)
+        # Precedence 2: User Policy (HKCU) - Enforced
         val = cls._read_registry(winreg.HKEY_CURRENT_USER, cls.POLICY_PATH, value_name)
         if val is not None:
             logger.debug(f"Config '{value_name}' found in HKCU Policy: {val}")
             return val
 
-        # Precedence 3: Machine Preference (HKLM)
-        val = cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.PREFERENCE_PATH, value_name)
-        if val is not None:
-            logger.debug(f"Config '{value_name}' found in HKLM Preference: {val}")
-            return val
-
-        # Precedence 4: User Preference (HKCU)
+        # Precedence 3: User Preference (HKCU) - User Setting (Overrides Machine Default)
         val = cls._read_registry(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH, value_name)
         if val is not None:
             logger.debug(f"Config '{value_name}' found in HKCU Preference: {val}")
             return val
 
+        # Precedence 4: Machine Preference (HKLM) - Admin Default
+        val = cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.PREFERENCE_PATH, value_name)
+        if val is not None:
+            logger.debug(f"Config '{value_name}' found in HKLM Preference: {val}")
+            return val
+
         return default
+
+    @classmethod
+    def is_managed(cls, value_name: str) -> bool:
+        """
+        Returns True if the setting is enforced by Policy (Machine or User).
+        Used to disable UI elements.
+        """
+        if sys.platform != 'win32':
+            return False
+
+        try:
+            import winreg
+            # Check HKLM Policy
+            if cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.POLICY_PATH, value_name) is not None:
+                return True
+            # Check HKCU Policy
+            if cls._read_registry(winreg.HKEY_CURRENT_USER, cls.POLICY_PATH, value_name) is not None:
+                return True
+        except Exception:
+            pass
+
+        return False
 
     @staticmethod
     def _read_registry(root_key, sub_key, value_name):
@@ -147,6 +170,63 @@ class SwitchCraftConfig:
             logger.error(f"Failed to set user preference '{value_name}': {e}")
 
     @classmethod
+    def get_secure_value(cls, value_name: str) -> Optional[str]:
+        """
+        Retrieves a sensitive value (secret) with the following precedence:
+        1. Machine Policy (HKLM Policy) - Enforced (Insecure but supported for GPO)
+        2. User Policy (HKCU Policy) - Enforced (Insecure but supported for GPO)
+        3. Keyring (Secure Store) - User Preference
+        4. User Registry (HKCU Pref) - Legacy (Migrates to Keyring if found)
+        5. Machine Registry (HKLM Pref) - Defaults
+
+        If a value is found in the Legacy User Registry, it is migrated to Keyring
+        and wiped from the Registry to improve security.
+        """
+        # 1. & 2. Check Policies (Enforced)
+        # We use standard get_value for this, but restricting to policies would be cleaner.
+        # However, is_managed uses the same keys.
+        # Let's check policies manually to ensure we don't accidentally pick up preferences via get_value
+        if sys.platform == 'win32':
+             try:
+                import winreg
+                # HKLM Policy
+                val = cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.POLICY_PATH, value_name)
+                if val:
+                    return val
+                # HKCU Policy
+                val = cls._read_registry(winreg.HKEY_CURRENT_USER, cls.POLICY_PATH, value_name)
+                if val:
+                    return val
+             except Exception:
+                 pass
+
+        # 3. Check Keyring (User Preference)
+        secret = cls.get_secret(value_name)
+        if secret:
+            return secret
+
+        # 4. Check Legacy User Registry & Migrate
+        if sys.platform == 'win32':
+            val = cls._read_registry(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH, value_name)
+            if val:
+                logger.info(f"Migrating legacy registry secret '{value_name}' to Keyring...")
+                cls.set_secret(value_name, val)
+                try:
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH, 0, winreg.KEY_WRITE) as key:
+                        winreg.DeleteValue(key, value_name)
+                    logger.info("Legacy registry secret deleted.")
+                except Exception as e:
+                    logger.warning(f"Failed to delete legacy registry key for '{value_name}': {e}")
+                return val
+
+            # 5. Check Machine Preference (Defaults)
+            val = cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.PREFERENCE_PATH, value_name)
+            if val:
+                return val
+
+        return None
+
+    @classmethod
     def get_secret(cls, key_name: str) -> Optional[str]:
         """Retrieve a secret from the system keyring."""
         try:
@@ -160,8 +240,16 @@ class SwitchCraftConfig:
     def set_secret(cls, key_name: str, value: str):
         """Store a secret securely in the system keyring."""
         try:
-            import keyring
-            keyring.set_password("SwitchCraft", key_name, value)
+             import keyring
+             if not value:
+                 # If empty, delete
+                 try:
+                     keyring.delete_password("SwitchCraft", key_name)
+                 except keyring.errors.PasswordDeleteError:
+                     pass
+                 return
+
+             keyring.set_password("SwitchCraft", key_name, value)
         except Exception as e:
             logger.error(f"Failed to set secret '{key_name}': {e}")
 
@@ -171,8 +259,10 @@ class SwitchCraftConfig:
         try:
             import keyring
             keyring.delete_password("SwitchCraft", key_name)
-        except Exception as e:
-            logger.error(f"Failed to delete secret '{key_name}': {e}")
+        except Exception:
+            # logger.error(f"Failed to delete secret '{key_name}': {e}")
+            # Ignore if not found
+            pass
 
     @classmethod
     def export_preferences(cls) -> dict:

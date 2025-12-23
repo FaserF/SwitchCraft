@@ -11,6 +11,8 @@
   <resources>
     <stringTable>
       <string id="Cat_SwitchCraft">SwitchCraft</string>
+      <string id="Cat_Enforced">Enforced Policies</string>
+      <string id="Cat_Defaults">Default Settings</string>
       <string id="Cat_Updates">Updates</string>
 
       <string id="DebugMode">Enable Debug Logging</string>
@@ -26,6 +28,12 @@ Logs are written to the console window (if running debug build) or can be viewed
 
 Requires application restart to take effect.</string>
 
+      <string id="Cat_General">General Settings</string>
+      <string id="Cat_AI">AI Configuration</string>
+      <string id="Cat_Security">Security &amp; Signing</string>
+      <string id="Cat_Intune">Intune Integration</string>
+
+      <!-- Existing Update Strings -->
       <string id="UpdateChannel">Update Channel</string>
       <string id="UpdateChannel_Help">Configures which update channel SwitchCraft uses for automatic update checks.
 
@@ -39,11 +47,89 @@ Changes take effect immediately on next update check.</string>
       <string id="Channel_Stable">Stable - Production releases only</string>
       <string id="Channel_Beta">Beta - Include pre-release versions</string>
       <string id="Channel_Dev">Dev - Latest development commits</string>
+
+      <!-- General Strings -->
+      <string id="EnableWinget">Enable Winget Integration</string>
+      <string id="EnableWinget_Help">Enables or disables the integration with Microsoft Winget Store.
+
+If enabled, SwitchCraft can search and generate installers for Winget packages.</string>
+
+      <string id="Language">Application Language</string>
+      <string id="Language_Help">Sets the display language of the application.</string>
+      <string id="Lang_EN">English</string>
+      <string id="Lang_DE">German (Deutsch)</string>
+
+      <string id="GitRepoPath">Git Repository Path</string>
+      <string id="GitRepoPath_Help">Sets the path to the local Git repository used for configuration storage.</string>
+
+      <!-- AI Strings -->
+      <string id="AIProvider">AI Provider</string>
+      <string id="AIProvider_Help">Selects the backend provider for AI assistance features.
+
+- Local: Uses local lightweight models (private, no internet)
+- OpenAI: Uses OpenAI API (Requires Key)
+- Gemini: Uses Google Gemini API (Requires Key)</string>
+      <string id="AI_Local">Local (Private)</string>
+      <string id="AI_OpenAI">OpenAI (Cloud)</string>
+      <string id="AI_Gemini">Google Gemini (Cloud)</string>
+
+      <!-- Security Strings -->
+      <string id="SignScripts">Enable Script Signing</string>
+      <string id="SignScripts_Help">If enabled, SwitchCraft will attempt to sign generated PowerShell scripts using the configured Code Signing Certificate.</string>
+
+      <string id="CodeSigningCertThumbprint">Code Signing Certificate Thumbprint</string>
+      <string id="CodeSigningCertThumbprint_Help">Specifies the Thumbprint of the certificate in the User Personal Store (Cert:\CurrentUser\My) to use for signing.
+
+This setting overrides the file-based certificate path.</string>
+
+      <!-- Intune Strings -->
+      <string id="GraphTenantId">Graph Tenant ID</string>
+      <string id="GraphTenantId_Help">The Azure AD Tenant ID for Graph API authentication.</string>
+
+      <string id="GraphClientId">Graph Client ID</string>
+      <string id="GraphClientId_Help">The App Registration (Client) ID for Graph API authentication.</string>
+
+      <string id="GraphClientSecret">Graph Client Secret</string>
+      <string id="GraphClientSecret_Help">The Client Secret for Graph API authentication.
+
+WARNING: This value is stored in the registry (HKCU/HKLM). Ensure access permissions are restricted if deploying this via Policy.</string>
+
     </stringTable>
 
     <presentationTable>
       <presentation id="UpdateChannel">
         <dropdownList refId="UpdateChannelDropdown" defaultItem="0">Update Channel:</dropdownList>
+      </presentation>
+      <presentation id="Language">
+        <dropdownList refId="LanguageDropdown" defaultItem="0">Language:</dropdownList>
+      </presentation>
+      <presentation id="GitRepoPath">
+        <textBox refId="GitRepoPathBox">
+          <label>Repository Path:</label>
+        </textBox>
+      </presentation>
+      <presentation id="AIProvider">
+        <dropdownList refId="AIProviderDropdown" defaultItem="0">Provider:</dropdownList>
+      </presentation>
+      <presentation id="CodeSigningCertThumbprint">
+        <textBox refId="CodeSigningCertThumbprintBox">
+          <label>Thumbprint:</label>
+        </textBox>
+      </presentation>
+      <presentation id="GraphTenantId">
+        <textBox refId="GraphTenantIdBox">
+          <label>Tenant ID:</label>
+        </textBox>
+      </presentation>
+      <presentation id="GraphClientId">
+        <textBox refId="GraphClientIdBox">
+          <label>Client ID:</label>
+        </textBox>
+      </presentation>
+      <presentation id="GraphClientSecret">
+        <textBox refId="GraphClientSecretBox">
+          <label>Client Secret:</label>
+        </textBox>
       </presentation>
     </presentationTable>
   </resources>
