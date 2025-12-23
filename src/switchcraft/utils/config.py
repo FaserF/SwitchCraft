@@ -259,7 +259,7 @@ class SwitchCraftConfig:
         try:
             import keyring
             keyring.delete_password("SwitchCraft", key_name)
-        except Exception as e:
+        except Exception:
             # logger.error(f"Failed to delete secret '{key_name}': {e}")
             # Ignore if not found
             pass
