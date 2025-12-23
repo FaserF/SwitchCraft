@@ -1043,7 +1043,8 @@ class SettingsView(ctk.CTkFrame):
         }
 
         for key, widget in managed_widgets.items():
-            if not widget: continue
+            if not widget:
+                continue
 
             if SwitchCraftConfig.is_managed(key):
                 try:
