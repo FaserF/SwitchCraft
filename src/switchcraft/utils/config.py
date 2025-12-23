@@ -191,10 +191,12 @@ class SwitchCraftConfig:
                 import winreg
                 # HKLM Policy
                 val = cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.POLICY_PATH, value_name)
-                if val: return val
+                if val:
+                    return val
                 # HKCU Policy
                 val = cls._read_registry(winreg.HKEY_CURRENT_USER, cls.POLICY_PATH, value_name)
-                if val: return val
+                if val:
+                    return val
              except Exception:
                  pass
 
@@ -219,7 +221,8 @@ class SwitchCraftConfig:
 
             # 5. Check Machine Preference (Defaults)
             val = cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.PREFERENCE_PATH, value_name)
-            if val: return val
+            if val:
+                return val
 
         return None
 
