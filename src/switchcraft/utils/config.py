@@ -33,31 +33,53 @@ class SwitchCraftConfig:
         except ImportError:
             return default
 
-        # Precedence 1: Machine Policy (HKLM)
+        # Precedence 1: Machine Policy (HKLM) - Enforced
         val = cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.POLICY_PATH, value_name)
         if val is not None:
             logger.debug(f"Config '{value_name}' found in HKLM Policy: {val}")
             return val
 
-        # Precedence 2: User Policy (HKCU)
+        # Precedence 2: User Policy (HKCU) - Enforced
         val = cls._read_registry(winreg.HKEY_CURRENT_USER, cls.POLICY_PATH, value_name)
         if val is not None:
             logger.debug(f"Config '{value_name}' found in HKCU Policy: {val}")
             return val
 
-        # Precedence 3: Machine Preference (HKLM)
-        val = cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.PREFERENCE_PATH, value_name)
-        if val is not None:
-            logger.debug(f"Config '{value_name}' found in HKLM Preference: {val}")
-            return val
-
-        # Precedence 4: User Preference (HKCU)
+        # Precedence 3: User Preference (HKCU) - User Setting (Overrides Machine Default)
         val = cls._read_registry(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH, value_name)
         if val is not None:
             logger.debug(f"Config '{value_name}' found in HKCU Preference: {val}")
             return val
 
+        # Precedence 4: Machine Preference (HKLM) - Admin Default
+        val = cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.PREFERENCE_PATH, value_name)
+        if val is not None:
+            logger.debug(f"Config '{value_name}' found in HKLM Preference: {val}")
+            return val
+
         return default
+
+    @classmethod
+    def is_managed(cls, value_name: str) -> bool:
+        """
+        Returns True if the setting is enforced by Policy (Machin or User).
+        Used to disable UI elements.
+        """
+        if sys.platform != 'win32':
+            return False
+
+        try:
+            import winreg
+            # Check HKLM Policy
+            if cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.POLICY_PATH, value_name) is not None:
+                return True
+            # Check HKCU Policy
+            if cls._read_registry(winreg.HKEY_CURRENT_USER, cls.POLICY_PATH, value_name) is not None:
+                return True
+        except Exception:
+            pass
+
+        return False
 
     @staticmethod
     def _read_registry(root_key, sub_key, value_name):

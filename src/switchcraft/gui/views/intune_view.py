@@ -110,9 +110,9 @@ class IntuneView(ctk.CTkFrame):
         upload_frame.grid(row=5, column=0, padx=20, pady=(0, 20), sticky="ew")
 
         # Check config
-        tenant_id = SwitchCraftConfig.get_value("IntuneTenantID")
-        client_id = SwitchCraftConfig.get_value("IntuneClientId")
-        client_secret = SwitchCraftConfig.get_value("IntuneClientSecret")
+        tenant_id = SwitchCraftConfig.get_value("GraphTenantId")
+        client_id = SwitchCraftConfig.get_value("GraphClientId")
+        client_secret = SwitchCraftConfig.get_value("GraphClientSecret")
 
         is_configured = tenant_id and client_id and client_secret
 
@@ -133,11 +133,6 @@ class IntuneView(ctk.CTkFrame):
             ctk.CTkLabel(upload_frame, text=i18n.get("configure_app_reg"), text_color="gray", font=ctk.CTkFont(size=10)).pack(pady=2)
 
 
-
-        # Log Toggle and Area
-        self.frame_log_container = ctk.CTkFrame(self.frame_intune, fg_color="transparent")
-        self.frame_log_container.grid(row=6, column=0, padx=20, pady=(0, 20), sticky="nsew")
-        self.frame_intune.grid_rowconfigure(6, weight=1)
 
         # Log Toggle and Area
         self.frame_log_container = ctk.CTkFrame(self.frame_intune, fg_color="transparent")
@@ -258,9 +253,9 @@ class IntuneView(ctk.CTkFrame):
         self.txt_intune_log.insert("end", f"Starting upload for {possible_intunewin.name}...\n")
 
         def _process_upload():
-            tenant_id = SwitchCraftConfig.get_value("IntuneTenantID")
-            client_id = SwitchCraftConfig.get_value("IntuneClientId")
-            client_secret = SwitchCraftConfig.get_value("IntuneClientSecret")
+            tenant_id = SwitchCraftConfig.get_value("GraphTenantId")
+            client_id = SwitchCraftConfig.get_value("GraphClientId")
+            client_secret = SwitchCraftConfig.get_value("GraphClientSecret")
 
             try:
                 self.after(0, lambda: self.txt_intune_log.insert("end", "Authenticating...\n"))

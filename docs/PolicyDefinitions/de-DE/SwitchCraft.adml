@@ -11,6 +11,8 @@
   <resources>
     <stringTable>
       <string id="Cat_SwitchCraft">SwitchCraft</string>
+      <string id="Cat_Enforced">Enforced Policies (Erzwungen)</string>
+      <string id="Cat_Defaults">Default Settings (Vorgabe)</string>
       <string id="Cat_Updates">Updates</string>
 
       <string id="DebugMode">Debug-Protokollierung aktivieren</string>
@@ -26,6 +28,12 @@ Protokolle werden im Konsolenfenster ausgegeben (bei Debug-Build) oder können m
 
 Erfordert einen Neustart der Anwendung.</string>
 
+      <string id="Cat_General">Allgemeine Einstellungen</string>
+      <string id="Cat_AI">KI-Konfiguration</string>
+      <string id="Cat_Security">Sicherheit &amp; Signierung</string>
+      <string id="Cat_Intune">Intune-Integration</string>
+
+      <!-- Existing Update Strings -->
       <string id="UpdateChannel">Update-Kanal</string>
       <string id="UpdateChannel_Help">Konfiguriert den Update-Kanal für automatische Update-Prüfungen.
 
@@ -39,11 +47,89 @@ Verfügbare Kanäle:
       <string id="Channel_Stable">Stable - Nur Produktions-Releases</string>
       <string id="Channel_Beta">Beta - Vorabversionen einschließen</string>
       <string id="Channel_Dev">Dev - Neueste Entwicklungs-Commits</string>
+
+      <!-- General Strings -->
+      <string id="EnableWinget">Winget-Integration aktivieren</string>
+      <string id="EnableWinget_Help">Aktiviert oder deaktiviert die Integration mit dem Microsoft Winget Store.
+
+Falls aktiviert, kann SwitchCraft nach Winget-Paketen suchen und Installer generieren.</string>
+
+      <string id="Language">Anwendungssprache</string>
+      <string id="Language_Help">Legt die Anzeigesprache der Anwendung fest.</string>
+      <string id="Lang_EN">Englisch</string>
+      <string id="Lang_DE">Deutsch</string>
+
+      <string id="GitRepoPath">Pfad zum Git-Repository</string>
+      <string id="GitRepoPath_Help">Legt den Pfad zum lokalen Git-Repository fest, das für die Konfigurationsspeicherung verwendet wird.</string>
+
+      <!-- AI Strings -->
+      <string id="AIProvider">KI-Anbieter</string>
+      <string id="AIProvider_Help">Wählt den Backend-Anbieter für KI-Assistenzfunktionen aus.
+
+- Lokal: Verwendet lokale Modelle (privat, kein Internet)
+- OpenAI: Verwendet OpenAI API (Key erforderlich)
+- Gemini: Verwendet Google Gemini API (Key erforderlich)</string>
+      <string id="AI_Local">Lokal (Privat)</string>
+      <string id="AI_OpenAI">OpenAI (Cloud)</string>
+      <string id="AI_Gemini">Google Gemini (Cloud)</string>
+
+      <!-- Security Strings -->
+      <string id="SignScripts">Skript-Signierung aktivieren</string>
+      <string id="SignScripts_Help">Wenn aktiviert, versucht SwitchCraft, generierte PowerShell-Skripte mit dem konfigurierten Code-Signing-Zertifikat zu signieren.</string>
+
+      <string id="CodeSigningCertThumbprint">Code-Signing-Zertifikat Thumbprint</string>
+      <string id="CodeSigningCertThumbprint_Help">Gibt den Thumbprint des Zertifikats im persönlichen Benutzerspeicher (Cert:\CurrentUser\My) an, das zum Signieren verwendet werden soll.
+
+Diese Einstellung überschreibt den dateibasierten Pfad.</string>
+
+      <!-- Intune Strings -->
+      <string id="GraphTenantId">Graph Tenant ID</string>
+      <string id="GraphTenantId_Help">Die Azure AD Tenant ID für die Graph API-Authentifizierung.</string>
+
+      <string id="GraphClientId">Graph Client ID</string>
+      <string id="GraphClientId_Help">Die App Registration (Client) ID für die Graph API-Authentifizierung.</string>
+
+      <string id="GraphClientSecret">Graph Client Secret</string>
+      <string id="GraphClientSecret_Help">Das Client Secret für die Graph API-Authentifizierung.
+
+WARNUNG: Dieser Wert wird in der Registry (HKCU/HKLM) gespeichert. Zugriffsberechtigungen beachten!</string>
+
     </stringTable>
 
     <presentationTable>
       <presentation id="UpdateChannel">
         <dropdownList refId="UpdateChannelDropdown" defaultItem="0">Update-Kanal:</dropdownList>
+      </presentation>
+      <presentation id="Language">
+        <dropdownList refId="LanguageDropdown" defaultItem="0">Sprache:</dropdownList>
+      </presentation>
+      <presentation id="GitRepoPath">
+        <textBox refId="GitRepoPathBox">
+          <label>Repository Pfad:</label>
+        </textBox>
+      </presentation>
+      <presentation id="AIProvider">
+        <dropdownList refId="AIProviderDropdown" defaultItem="0">Anbieter:</dropdownList>
+      </presentation>
+      <presentation id="CodeSigningCertThumbprint">
+        <textBox refId="CodeSigningCertThumbprintBox">
+          <label>Thumbprint:</label>
+        </textBox>
+      </presentation>
+      <presentation id="GraphTenantId">
+        <textBox refId="GraphTenantIdBox">
+          <label>Tenant ID:</label>
+        </textBox>
+      </presentation>
+      <presentation id="GraphClientId">
+        <textBox refId="GraphClientIdBox">
+          <label>Client ID:</label>
+        </textBox>
+      </presentation>
+      <presentation id="GraphClientSecret">
+        <textBox refId="GraphClientSecretBox">
+          <label>Client Secret:</label>
+        </textBox>
       </presentation>
     </presentationTable>
   </resources>

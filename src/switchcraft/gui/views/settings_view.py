@@ -45,6 +45,9 @@ class SettingsView(ctk.CTkFrame):
         self._setup_tab_deploy(self.tab_deploy)
         self._setup_tab_help(self.tab_help)
 
+        # Initial check for managed settings
+        self.after(500, self._check_managed_settings)
+
     def _setup_tab_general(self, parent):
         scroll = ctk.CTkScrollableFrame(parent)
         scroll.grid(row=0, column=0, sticky="nsew")
@@ -1020,3 +1023,47 @@ class SettingsView(ctk.CTkFrame):
     def _setup_help_section(self, parent):
          # Addon Explanation
         ctk.CTkLabel(parent, text="ℹ️ " + i18n.get("help_addons_explanation"), justify="left", wraplength=400).pack(anchor="w", padx=10, pady=(10, 20))
+
+    def _check_managed_settings(self):
+        """
+        Checks if settings are enforced by policy and disables UI elements.
+        Adds a '(Managed)' label to enforced settings.
+        """
+        managed_widgets = {
+             "EnableWinget": getattr(self, 'chk_winget', None),
+             "Language": getattr(self, 'combo_lang', None),
+             "ColorTheme": getattr(self, 'combo_theme', None),
+             "AIProvider": getattr(self, 'combo_ai_provider', None),
+             "SignScripts": getattr(self, 'sign_switch', None),
+             "CodeSigningCertThumbprint": getattr(self, 'cert_path_entry', None),
+             "GraphTenantId": getattr(self, 'entry_tenant', None),
+             "GraphClientId": getattr(self, 'entry_client', None),
+             "GraphClientSecret": getattr(self, 'entry_secret', None),
+             "UpdateChannel": getattr(self, 'combo_channel', None)
+        }
+
+        for key, widget in managed_widgets.items():
+            if not widget: continue
+
+            if SwitchCraftConfig.is_managed(key):
+                try:
+                    widget.configure(state="disabled")
+                    if isinstance(widget, ctk.CTkEntry):
+                         val = SwitchCraftConfig.get_value(key, "")
+                         widget.delete(0, "end")
+                         widget.insert(0, str(val))
+                    elif isinstance(widget, ctk.CTkComboBox) or isinstance(widget, ctk.CTkOptionMenu) or isinstance(widget, ctk.CTkSwitch):
+                        # Switch/Combo setting logic
+                        val = SwitchCraftConfig.get_value(key, "")
+                        if hasattr(widget, 'set'):
+                            widget.set(str(val))
+                        if hasattr(widget, 'select') and val: # Switch
+                             widget.select()
+                        if hasattr(widget, 'deselect') and not val:
+                             widget.deselect()
+                except Exception:
+                    pass
+
+    def tkraise(self, aboveThis=None):
+        super().tkraise(aboveThis)
+        self.after(100, self._check_managed_settings)

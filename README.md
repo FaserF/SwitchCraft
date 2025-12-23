@@ -120,6 +120,8 @@ switchcraft --install-addons=advanced,winget
 - **Analysis History**: Keep track of your last 100 analyzed installers.
 - **Winget Toggle**: Easily enable/disable store integration to suit your workflow.
 - **Enhanced AI**: Support for local AI, Gemini (Free tier), and OpenAI.
+- **Cloud Sync**: Sync your configuration and settings across devices using GitHub Gists.
+- **Script Signing**: Automatically sign generated PowerShell scripts with your Code Signing Certificate.
 
 ## 🛠️ Building from Source
 SwitchCraft includes helper scripts to easily build release executables for your platform.

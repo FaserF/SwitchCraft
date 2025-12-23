@@ -4,10 +4,19 @@ Administrative templates for managing SwitchCraft settings via Group Policy (GPO
 
 ## Available Policies
 
-| Policy | Category | Description |
-|--------|----------|-------------|
-| **Enable Debug Logging** | SwitchCraft | Enable/disable verbose debug logging |
-| **Update Channel** | Updates | Configure update channel (Stable/Beta/Dev) |
+| Policy | Category | Description | Registry Value | Type |
+|--------|----------|-------------|----------------|------|
+| **Enable Debug Logging** | SwitchCraft | Enable/disable verbose debug logging | `DebugMode` | DWORD (0/1) |
+| **Update Channel** | Updates | Configure update channel (Stable/Beta/Dev) | `UpdateChannel` | String |
+| **Enable Winget** | General | Enable/disable Winget Store integration | `EnableWinget` | DWORD (0/1) |
+| **Language** | General | Set application language (en/de) | `Language` | String |
+| **Git Repo Path** | General | Path to local Git repository | `GitRepoPath` | String |
+| **AI Provider** | AI | Backend provider (local, openai, gemini) | `AIProvider` | String |
+| **Sign Scripts** | Security | Enable automatic script signing | `SignScripts` | DWORD (0/1) |
+| **Cert Thumbprint** | Security | Thumbprint of Code Signing Certificate | `CodeSigningCertThumbprint` | String |
+| **Tenant ID** | Intune | Azure AD Tenant ID | `GraphTenantId` | String |
+| **Client ID** | Intune | Azure App Client ID | `GraphClientId` | String |
+| **Client Secret** | Intune | Azure App Client Secret (Use with caution) | `GraphClientSecret` | String |
 
 ## Installation
 
@@ -29,26 +38,33 @@ Administrative templates for managing SwitchCraft settings via Group Policy (GPO
 Method 1: **Settings Catalog** (Recommended for new policies)
 1. Create a new Configuration Profile → Settings Catalog
 2. Search for the registry path: `HKCU\Software\FaserF\SwitchCraft`
-3. Add values manually:
-   - `DebugMode` (Integer): `1` = enabled, `0` = disabled
-   - `UpdateChannel` (String): `stable`, `beta`, or `dev`
+3. Add values manually matching the table above.
 
 Method 2: **Custom OMA-URI** (Preferred for Intune)
 
 SwitchCraft fully supports Intune's custom OMA-URI policies that target the `Software\Policies` keys.
+The Base URI is: `./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft`
 
-**Debug Mode Example:**
-```
-OMA-URI: ./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/DebugMode
-Data type: Integer
-Value: 1
-```
+| Setting | OMA-URI Path | Data Type | Value Example |
+|---------|--------------|-----------|---------------|
+| **Debug Mode** | `.../DebugMode` | Integer | `1` |
+| **Update Channel** | `.../UpdateChannel` | String | `stable` |
+| **Enable Winget** | `.../EnableWinget` | Integer | `1` |
+| **Language** | `.../Language` | String | `en` |
+| **Git Repo Path** | `.../GitRepoPath` | String | `C:\Repo\MyConfig` |
+| **AI Provider** | `.../AIProvider` | String | `local` |
+| **Sign Scripts** | `.../SignScripts` | Integer | `1` |
+| **Cert Thumbprint** | `.../CodeSigningCertThumbprint` | String | `A1B2C3D4...` |
+| **Tenant ID** | `.../GraphTenantId` | String | `00000000-0000...` |
+| **Client ID** | `.../GraphClientId` | String | `00000000-0000...` |
 
-**Update Channel Example:**
-```
-OMA-URI: ./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/UpdateChannel
-Data type: String
-Value: stable
+**Example XML for Bulk Import:**
+```xml
+<Row>
+  <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/EnableWinget</OMAURI>
+  <DataType>Integer</DataType>
+  <Value>1</Value>
+</Row>
 ```
 
 Method 3: **ADMX Ingestion**
