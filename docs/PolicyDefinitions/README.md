@@ -82,8 +82,8 @@ SwitchCraft reads configuration with the following precedence order:
 
 1. **Machine Policy** (`HKLM\Software\Policies\FaserF\SwitchCraft`) - *Highest Priority (Intune/GPO)*
 2. **User Policy** (`HKCU\Software\Policies\FaserF\SwitchCraft`) - *High Priority (Intune/GPO)*
-3. **Machine Preference** (`HKLM\Software\FaserF\SwitchCraft`)
-4. **User Preference** (`HKCU\Software\FaserF\SwitchCraft`) - *Default User Settings*
+3. **User Preference** (`HKCU\Software\FaserF\SwitchCraft`) - *User Setting (Overrides Machine Default)*
+4. **Machine Preference** (`HKLM\Software\FaserF\SwitchCraft`) - *Admin Default*
 
 This ensures that Policies managed by your organization (via Intune/GPO) always override local user settings.
 

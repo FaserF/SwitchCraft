@@ -60,3 +60,61 @@ jobs:
   build:
     needs: [test-backend]
     uses: ./.github/workflows/build.yml
+
+  auto-merge:
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check Criteria and Merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "Processing PR #$PR_NUMBER for Auto-Merge..."
+
+          # 1. Check CI Status
+          # Implicitly passed because this job 'needs' build/test-backend.
+          echo "CI Orchestrator pipeline passed."
+
+          # 2. Check PR Author Permissions (Security Restriction)
+          PR_AUTHOR=$(gh pr view "$PR_NUMBER" --json author --jq '.author.login')
+          echo "PR Author: $PR_AUTHOR"
+
+          if [[ "$PR_AUTHOR" == *"[bot]" ]]; then
+             echo "PR Author is a Bot. Allowed."
+          else
+             PERM=$(gh api "repos/$REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission')
+             echo "Author Permission: $PERM"
+             if [[ "$PERM" == "admin" || "$PERM" == "maintain" || "$PERM" == "write" ]]; then
+                 echo "Author has trusted permission ($PERM). Allowed."
+             else
+                 echo "::notice::PR Author ($PR_AUTHOR) does not have sufficient permissions ($PERM) for auto-merge. Skipping."
+                 exit 0
+             fi
+          fi
+
+          # 3. Check Coderabbit Status
+          echo "Checking Coderabbit status..."
+          IS_APPROVED=$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" --jq '.[] | select(.user.login == "coderabbitai[bot]" and .state == "APPROVED") | .state' | head -n 1)
+          HAS_SKIP_COMMENT=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --jq '.[] | select(.user.login == "coderabbitai[bot]" and (.body | test("skip"; "i"))) | .id' | head -n 1)
+
+          if [[ -n "$IS_APPROVED" ]]; then
+             echo "Coderabbit APPROVED."
+          elif [[ -n "$HAS_SKIP_COMMENT" ]]; then
+             echo "Coderabbit SKIPPED review."
+          else
+             echo "::notice::Coderabbit has not approved or skipped yet. Waiting."
+             exit 0
+          fi
+
+          # 4. Attempt Merge
+          gh pr merge "$PR_NUMBER" --merge --auto --delete-branch
