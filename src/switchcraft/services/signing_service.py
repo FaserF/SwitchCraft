@@ -19,7 +19,10 @@ class SigningService:
 
         # Policy Priority: Check for Thumbprint first (ADMX/Intune support)
         cert_thumbprint = SwitchCraftConfig.get_value("CodeSigningCertThumbprint")
-        cert_path = SwitchCraftConfig.get_value("CertPath")
+        cert_path = SwitchCraftConfig.get_value("CodeSigningCertPath")
+        if not cert_path:
+             cert_path = SwitchCraftConfig.get_value("CertPath")
+
         script_path_obj = Path(script_path).resolve()
 
         if not script_path_obj.exists():
@@ -93,9 +96,11 @@ class SigningService:
                 logger.info(f"Successfully signed {script_path_obj.name}")
                 return True
             else:
+                logger.error(f"Signing Failed. Return Code: {completed.returncode}")
                 if completed.stderr:
-                    logger.error(f"Signing Error: {completed.stderr.strip()}")
-                logger.warning(f"Signing Output: {completed.stdout.strip()}")
+                    logger.error(f"STDERR: {completed.stderr.strip()}")
+                if completed.stdout:
+                    logger.warning(f"STDOUT: {completed.stdout.strip()}")
                 return False
 
         except subprocess.CalledProcessError as e:

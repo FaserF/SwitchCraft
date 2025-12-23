@@ -57,6 +57,7 @@ The Base URI is: `./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft`
 | **Cert Thumbprint** | `.../CodeSigningCertThumbprint` | String | `A1B2C3D4...` |
 | **Tenant ID** | `.../GraphTenantId` | String | `00000000-0000...` |
 | **Client ID** | `.../GraphClientId` | String | `00000000-0000...` |
+| **Graph Client Secret** | `.../GraphClientSecret` | String | `*****` |
 
 **Example XML for Bulk Import:**
 ```xml

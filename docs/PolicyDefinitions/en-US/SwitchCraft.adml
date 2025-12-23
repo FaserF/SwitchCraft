@@ -11,8 +11,8 @@
   <resources>
     <stringTable>
       <string id="Cat_SwitchCraft">SwitchCraft</string>
-      <string id="Cat_Enforced">Enforced Policies (Erzwungen)</string>
-      <string id="Cat_Defaults">Default Settings (Vorgabe)</string>
+      <string id="Cat_Enforced">Enforced Policies</string>
+      <string id="Cat_Defaults">Default Settings</string>
       <string id="Cat_Updates">Updates</string>
 
       <string id="DebugMode">Enable Debug Logging</string>

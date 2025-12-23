@@ -112,7 +112,7 @@ class IntuneView(ctk.CTkFrame):
         # Check config
         tenant_id = SwitchCraftConfig.get_value("GraphTenantId")
         client_id = SwitchCraftConfig.get_value("GraphClientId")
-        client_secret = SwitchCraftConfig.get_value("GraphClientSecret")
+        client_secret = SwitchCraftConfig.get_secure_value("GraphClientSecret")
 
         is_configured = tenant_id and client_id and client_secret
 
@@ -255,7 +255,7 @@ class IntuneView(ctk.CTkFrame):
         def _process_upload():
             tenant_id = SwitchCraftConfig.get_value("GraphTenantId")
             client_id = SwitchCraftConfig.get_value("GraphClientId")
-            client_secret = SwitchCraftConfig.get_value("GraphClientSecret")
+            client_secret = SwitchCraftConfig.get_secure_value("GraphClientSecret")
 
             try:
                 self.after(0, lambda: self.txt_intune_log.insert("end", "Authenticating...\n"))
