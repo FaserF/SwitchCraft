@@ -7,10 +7,7 @@ import os
 # Ensure we load from local src, not installed site-packages
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-try:
-    from switchcraft.utils.config import SwitchCraftConfig
-except ImportError:
-    pass
+from switchcraft.utils.config import SwitchCraftConfig
 
 class TestSecureConfig(unittest.TestCase):
 

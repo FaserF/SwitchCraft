@@ -176,7 +176,7 @@ class SwitchCraftConfig:
         1. Machine Policy (HKLM Policy) - Enforced (Insecure but supported for GPO)
         2. User Policy (HKCU Policy) - Enforced (Insecure but supported for GPO)
         3. Keyring (Secure Store) - User Preference
-        4. User Registry (HKCU Pref) - Legecy (Migrates to Keyring if found)
+        4. User Registry (HKCU Pref) - Legacy (Migrates to Keyring if found)
         5. Machine Registry (HKLM Pref) - Defaults
 
         If a value is found in the Legacy User Registry, it is migrated to Keyring

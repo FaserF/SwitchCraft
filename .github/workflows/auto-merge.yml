@@ -5,24 +5,114 @@ on:
     workflows: ["CI Orchestrator"]
     types:
       - completed
+  pull_request_review:
+    types: [submitted]
 
 permissions:
-  pull-requests: write
   contents: write
+  pull-requests: write
+  checks: read
+  issues: read
+  statuses: read
+  actions: read
 
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
     if: >
-      github.event.workflow_run.event == 'pull_request' &&
-      ${{ github.event.workflow_run.conclusion == 'success' }} &&
-      (github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]' || github.actor == 'fseitz')
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'pull_request_review')
     steps:
-      - name: Enable Auto Merge
+      - uses: actions/checkout@v6
+
+      - name: Check Criteria and Merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
-          # Find the PR associated with this branch/commit
-          # tailored logic needed here to match workflow_run to PR
-          echo "Checking criteria for auto-merge..."
-          # gh pr merge --auto --merge "$PR_URL"
+          # 1. Identify PR Number
+          PR_NUMBER=""
+          if [[ "${{ github.event_name }}" == "pull_request_review" ]]; then
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            # Try getting from payload (works for same-repo PRs)
+            PR_NUMBER=$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")
+            if [[ -z "$PR_NUMBER" ]]; then
+               # Fallback: Search by SHA
+               SHA=$(jq -r '.workflow_run.head_sha' "$GITHUB_EVENT_PATH")
+               PR_NUMBER=$(gh pr list --search "$SHA" --state open --json number --jq '.[0].number')
+            fi
+          fi
+
+          if [[ -z "$PR_NUMBER" || "$PR_NUMBER" == "null" ]]; then
+            echo "::warning::No active Pull Request found for this event."
+            exit 0
+          fi
+
+          echo "Evaluating PR #$PR_NUMBER..."
+
+          # 2. Check CI Orchestrator Status
+          # If triggered by workflow_run (which is CI Orchestrator), we know it succeeded (checked in 'if').
+          # If triggered by PR review, we must verify that the *latest* CI Orchestrator run on this branch is successful.
+
+          echo "Checking CI Status..."
+          if [[ "${{ github.event_name }}" == "pull_request_review" ]]; then
+             # Get the HASH of the PR head
+             PR_HEAD_SHA=$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')
+
+             # Check status of CI Orchestrator for this SHA
+             # We look for a successful conclusion
+             CI_CONCLUSION=$(gh run list --commit "$PR_HEAD_SHA" --workflow "CI Orchestrator" --json conclusion --jq '.[0].conclusion')
+
+             if [[ "$CI_CONCLUSION" != "success" ]]; then
+                echo "::notice::CI Orchestrator is not 'success' (current: $CI_CONCLUSION). Skipping merge."
+                exit 0
+             fi
+             echo "CI Orchestrator passed ($CI_CONCLUSION)."
+          else
+             echo "Triggered by successful CI Orchestrator run. CI Pass confirm."
+          fi
+
+          # 3. Check PR Author Permissions (Security Restriction)
+          # Only allow auto-merge for Bots or Repo Admins/Owners
+          PR_AUTHOR=$(gh pr view "$PR_NUMBER" --json author --jq '.author.login')
+          echo "PR Author: $PR_AUTHOR"
+
+          if [[ "$PR_AUTHOR" == *"[bot]" ]]; then
+             echo "PR Author is a Bot. Allowed."
+          else
+             # Check if user has admin/write permissions
+             # We assume 'write' or 'admin' is trusted for auto-merge configured here
+             PERM=$(gh api "repos/$REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission')
+             echo "Author Permission: $PERM"
+
+             if [[ "$PERM" == "admin" || "$PERM" == "maintain" || "$PERM" == "write" ]]; then
+                 echo "Author has trusted permission ($PERM). Allowed."
+             else
+                 echo "::notice::PR Author ($PR_AUTHOR) does not have sufficient permissions ($PERM) for auto-merge. Skipping."
+                 exit 0
+             fi
+          fi
+
+          # 3. Check Coderabbit Status
+          echo "Checking Coderabbit status..."
+
+          # Check for Approval Review
+          # We check if ANY review from coderabbitai[bot] is APPROVED.
+          IS_APPROVED=$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" --jq '.[] | select(.user.login == "coderabbitai[bot]" and .state == "APPROVED") | .state' | head -n 1)
+
+          # Check for Skip Comment (case-insensitive "skip")
+          HAS_SKIP_COMMENT=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --jq '.[] | select(.user.login == "coderabbitai[bot]" and (.body | test("skip"; "i"))) | .id' | head -n 1)
+
+          if [[ -n "$IS_APPROVED" ]]; then
+             echo "Coderabbit APPROVED."
+          elif [[ -n "$HAS_SKIP_COMMENT" ]]; then
+             echo "Coderabbit SKIPPED review (detected comment)."
+          else
+             echo "::notice::Coderabbit has not approved or skipped yet. Waiting."
+             exit 0
+          fi
+
+          # 4. Attempt Merge
+          echo "Criteria met. Attempting merge..."
+          gh pr merge "$PR_NUMBER" --merge --auto --delete-branch

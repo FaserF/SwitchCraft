@@ -1073,8 +1073,8 @@ class SettingsView(ctk.CTkFrame):
                     elif isinstance(widget, (ctk.CTkOptionMenu, ctk.CTkComboBox, ctk.CTkSegmentedButton)):
                          val = SwitchCraftConfig.get_value(key, "")
                          widget.set(str(val))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.error(f"Failed to apply managed setting for {key}: {e}")
 
     def tkraise(self, aboveThis=None):
         super().tkraise(aboveThis)
