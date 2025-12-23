@@ -45,27 +45,105 @@ Method 2: **Custom OMA-URI** (Preferred for Intune)
 SwitchCraft fully supports Intune's custom OMA-URI policies that target the `Software\Policies` keys.
 The Base URI is: `./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft`
 
-| Setting | OMA-URI Path | Data Type | Value Example |
-|---------|--------------|-----------|---------------|
-| **Debug Mode** | `.../DebugMode` | Integer | `1` |
-| **Update Channel** | `.../UpdateChannel` | String | `stable` |
-| **Enable Winget** | `.../EnableWinget` | Integer | `1` |
-| **Language** | `.../Language` | String | `en` |
-| **Git Repo Path** | `.../GitRepoPath` | String | `C:\Repo\MyConfig` |
-| **AI Provider** | `.../AIProvider` | String | `local` |
-| **Sign Scripts** | `.../SignScripts` | Integer | `1` |
-| **Cert Thumbprint** | `.../CodeSigningCertThumbprint` | String | `A1B2C3D4...` |
-| **Tenant ID** | `.../GraphTenantId` | String | `00000000-0000...` |
-| **Client ID** | `.../GraphClientId` | String | `00000000-0000...` |
-| **Graph Client Secret** | `.../GraphClientSecret` | String | `*****` |
+### Configuration Reference
 
-**Example XML for Bulk Import:**
+| Setting | OMA-URI Path Suffix | Data Type | Default | Allowed Values |
+|---------|---------------------|-----------|---------|----------------|
+| **Debug Mode** | `/DebugMode` | Integer | `0` | `0` (Off), `1` (On) |
+| **Update Channel** | `/UpdateChannel` | String | `stable` | `stable` (Standard), `beta` (Pre-release), `dev` (Nightly) |
+| **Enable Winget** | `/EnableWinget` | Integer | `0` | `0` (Disabled), `1` (Enabled) |
+| **Language** | `/Language` | String | `en` | `en` (English), `de` (German) |
+| **Git Repo Path** | `/GitRepoPath` | String | *Empty* | Valid filesystem path (e.g. `C:\SwitchCraftConfig`) |
+| **AI Provider** | `/AIProvider` | String | `local` | `local` (Ollama), `openai`, `gemini` |
+| **Sign Scripts** | `/SignScripts` | Integer | `0` | `0` (Disabled), `1` (Enabled) |
+| **Cert Thumbprint** | `/CodeSigningCertThumbprint` | String | *Empty* | SHA1 Certificate Thumbprint |
+| **Tenant ID** | `/GraphTenantId` | String | *Empty* | Azure AD Tenant GUID |
+| **Client ID** | `/GraphClientId` | String | *Empty* | Azure Application Client GUID |
+| **Graph Client Secret** | `/GraphClientSecret` | String | *Empty* | Application Client Secret |
+
+### Complete OMA-URI XML Example
+
+Use this XML structure to bulk import settings. Remove `<Row>` blocks for settings you do not wish to enforce.
+
 ```xml
-<Row>
-  <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/EnableWinget</OMAURI>
-  <DataType>Integer</DataType>
-  <Value>1</Value>
-</Row>
+<Data>
+  <!-- Debug Mode: 0=Off, 1=On -->
+  <Row>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/DebugMode</OMAURI>
+    <DataType>Integer</DataType>
+    <Value>0</Value>
+  </Row>
+
+  <!-- Update Channel: stable, beta, dev -->
+  <Row>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/UpdateChannel</OMAURI>
+    <DataType>String</DataType>
+    <Value>stable</Value>
+  </Row>
+
+  <!-- Enable Winget Integration: 0=Disabled, 1=Enabled -->
+  <Row>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/EnableWinget</OMAURI>
+    <DataType>Integer</DataType>
+    <Value>1</Value>
+  </Row>
+
+  <!-- Language: en, de -->
+  <Row>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/Language</OMAURI>
+    <DataType>String</DataType>
+    <Value>en</Value>
+  </Row>
+
+  <!-- Git Repository Path -->
+  <Row>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/GitRepoPath</OMAURI>
+    <DataType>String</DataType>
+    <Value>C:\ProgramData\SwitchCraft\ConfigRepo</Value>
+  </Row>
+
+  <!-- AI Provider: local, openai, gemini -->
+  <Row>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/AIProvider</OMAURI>
+    <DataType>String</DataType>
+    <Value>local</Value>
+  </Row>
+
+  <!-- Sign Scripts: 0=Disabled, 1=Enabled -->
+  <Row>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/SignScripts</OMAURI>
+    <DataType>Integer</DataType>
+    <Value>1</Value>
+  </Row>
+
+  <!-- Code Signing Certificate Thumbprint -->
+  <Row>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/CodeSigningCertThumbprint</OMAURI>
+    <DataType>String</DataType>
+    <Value>A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8A9B0</Value>
+  </Row>
+
+  <!-- Intune: Tenant ID -->
+  <Row>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/GraphTenantId</OMAURI>
+    <DataType>String</DataType>
+    <Value>00000000-0000-0000-0000-000000000000</Value>
+  </Row>
+
+  <!-- Intune: Client ID -->
+  <Row>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/GraphClientId</OMAURI>
+    <DataType>String</DataType>
+    <Value>00000000-0000-0000-0000-000000000000</Value>
+  </Row>
+
+  <!-- Intune: Client Secret -->
+  <Row>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/GraphClientSecret</OMAURI>
+    <DataType>String</DataType>
+    <Value>YOUR_CLIENT_SECRET_HERE</Value>
+  </Row>
+</Data>
 ```
 
 Method 3: **ADMX Ingestion**

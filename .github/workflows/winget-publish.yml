@@ -1,0 +1,23 @@
+name: Publish to Winget
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 1.2.3). Leave empty to use latest release.'
+        required: false
+
+  # release:
+  #   types: [published]
+
+jobs:
+  winget:
+    name: Publish to Winget
+    runs-on: ubuntu-latest
+    steps:
+      - name: Winget Releaser
+        uses: vedantmgoyal2009/winget-releaser@v2
+        with:
+          identifier: FaserF.SwitchCraft
+          installers-regex: SwitchCraft-Setup.exe$
+          token: ${{ secrets.WINGET_TOKEN }}
