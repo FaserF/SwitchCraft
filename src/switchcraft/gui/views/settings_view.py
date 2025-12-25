@@ -55,6 +55,22 @@ class SettingsView(ctk.CTkFrame):
 
         ctk.CTkLabel(scroll, text=i18n.get("settings_title"), font=ctk.CTkFont(size=20, weight="bold")).pack(pady=10)
 
+        # Company Name
+        frame_company = ctk.CTkFrame(scroll)
+        frame_company.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(frame_company, text=i18n.get("settings_company_name") or "Company Name").pack(side="left", padx=5)
+
+        self.company_entry = ctk.CTkEntry(frame_company, width=250)
+        self.company_entry.pack(side="right", padx=5)
+        self.company_entry.insert(0, SwitchCraftConfig.get_company_name())
+
+        def save_company(event=None):
+            SwitchCraftConfig.set_user_preference("CompanyName", self.company_entry.get())
+
+        # Save on focus out or return
+        self.company_entry.bind("<FocusOut>", save_company)
+        self.company_entry.bind("<Return>", save_company)
+
         # Winget Toggle
         frame_winget = ctk.CTkFrame(scroll)
         frame_winget.pack(fill="x", padx=10, pady=10)

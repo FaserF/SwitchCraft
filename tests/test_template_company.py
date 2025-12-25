@@ -1,0 +1,57 @@
+import unittest
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+from switchcraft.utils.templates import TemplateGenerator
+
+class TestTemplateWithCompany(unittest.TestCase):
+    def setUp(self):
+        self.output_path = Path("test_output.ps1")
+
+    def tearDown(self):
+        if self.output_path.exists():
+            self.output_path.unlink()
+
+    @patch("switchcraft.utils.config.SwitchCraftConfig.get_company_name")
+    @patch("os.environ.get")
+    def test_generate_with_company_name(self, mock_env, mock_get_company):
+        mock_get_company.return_value = "Acme Corp"
+        mock_env.return_value = "TestUser"
+
+        generator = TemplateGenerator()
+
+        context = {
+            "INSTALLER_FILE": "setup.exe",
+            "INSTALL_ARGS": "/S",
+            "APP_NAME": "TestApp",
+            "PUBLISHER": "TestPub"
+        }
+
+        success = generator.generate(context, str(self.output_path))
+        self.assertTrue(success)
+
+        content = self.output_path.read_text(encoding="utf-8")
+
+        # Should contain full header
+        self.assertIn('company "Acme Corp"', content)
+        self.assertIn('Created by "TestUser"', content)
+        self.assertIn('with SwitchCraft automatically', content)
+
+    @patch("switchcraft.utils.config.SwitchCraftConfig.get_company_name")
+    @patch("os.environ.get")
+    def test_generate_without_company_name(self, mock_env, mock_get_company):
+        mock_get_company.return_value = "" # No company
+        mock_env.return_value = "TestUser"
+
+        generator = TemplateGenerator()
+        context = { "INSTALLER_FILE": "setup.exe", "INSTALL_ARGS": "/S" }
+
+        generator.generate(context, str(self.output_path))
+        content = self.output_path.read_text(encoding="utf-8")
+
+        # Should NOT contain "company" string in header
+        self.assertNotIn('company "', content)
+        # Should contain simpler header
+        self.assertIn('Created by "TestUser" with SwitchCraft automatically', content)
+
+if __name__ == "__main__":
+    unittest.main()

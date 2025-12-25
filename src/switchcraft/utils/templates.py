@@ -62,6 +62,24 @@ class TemplateGenerator:
             if "SWITCHCRAFT_GITHUB" not in context:
                  context["SWITCHCRAFT_GITHUB"] = "https://github.com/FaserF/SwitchCraft"
 
+            # --- New Context Variables ---
+            from switchcraft.utils.config import SwitchCraftConfig
+            import os
+
+            if "COMPANY_NAME" not in context:
+                context["COMPANY_NAME"] = SwitchCraftConfig.get_company_name() or ""
+
+            if "USER" not in context:
+                context["USER"] = os.environ.get("USERNAME", "System")
+
+            # Conditional Header
+            user = context["USER"]
+            company = context["COMPANY_NAME"]
+            if company and company != "Unknown Company":
+                context["HEADER_CREATED_BY"] = f'Created by "{user}" company "{company}" with SwitchCraft automatically.'
+            else:
+                 context["HEADER_CREATED_BY"] = f'Created by "{user}" with SwitchCraft automatically.'
+
             # 1. Enterprise Template Specific Logic (Regex Replacement)
             # Detect if it's the specific enterprise template by looking for unique function names
             # User requested anonymization of company name "PARI"

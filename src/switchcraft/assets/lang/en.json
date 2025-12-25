@@ -256,6 +256,7 @@
     "installation_failed": "Installation failed.",
     "intune_chk_quiet": "Use Quiet Mode",
     "settings_general": "General",
+    "settings_company_name": "Company Name",
     "cloudsync_title": "Cloud Sync",
     "btn_login_github": "Login with GitHub",
     "btn_logout": "Logout",

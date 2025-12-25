@@ -277,6 +277,7 @@
     "main_file": "Hauptdatei",
     "installation_failed": "Installation fehlgeschlagen.",
     "settings_general": "Allgemein",
+    "settings_company_name": "Firmenname",
     "cloudsync_title": "Cloud-Synchronisierung",
     "btn_login_github": "Mit GitHub anmelden",
     "btn_logout": "Abmelden",

@@ -21,6 +21,11 @@ class SwitchCraftConfig:
     PREFERENCE_PATH = r"Software\FaserF\SwitchCraft"
 
     @classmethod
+    def get_company_name(cls) -> str:
+        """Returns the configured company name or an empty string."""
+        return cls.get_value("CompanyName", "")
+
+    @classmethod
     def get_value(cls, value_name: str, default: Any = None) -> Any:
         """
         Retrieves a registry value respecting the policy precedence order.

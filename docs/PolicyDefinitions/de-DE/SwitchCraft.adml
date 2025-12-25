@@ -62,6 +62,9 @@ Falls aktiviert, kann SwitchCraft nach Winget-Paketen suchen und Installer gener
       <string id="GitRepoPath">Pfad zum Git-Repository</string>
       <string id="GitRepoPath_Help">Legt den Pfad zum lokalen Git-Repository fest, das für die Konfigurationsspeicherung verwendet wird.</string>
 
+      <string id="CompanyName">Firmenname</string>
+      <string id="CompanyName_Help">Legt den Firmennamen fest, der in den generierten Skript-Headern verwendet wird.</string>
+
       <!-- AI Strings -->
       <string id="AIProvider">KI-Anbieter</string>
       <string id="AIProvider_Help">Wählt den Backend-Anbieter für KI-Assistenzfunktionen aus.
@@ -106,6 +109,11 @@ WARNUNG: Dieser Wert wird in der Registry (HKCU/HKLM) gespeichert. Zugriffsberec
       <presentation id="GitRepoPath">
         <textBox refId="GitRepoPathBox">
           <label>Repository Pfad:</label>
+        </textBox>
+      </presentation>
+      <presentation id="CompanyName">
+        <textBox refId="CompanyNameBox">
+          <label>Firmenname:</label>
         </textBox>
       </presentation>
       <presentation id="AIProvider">
