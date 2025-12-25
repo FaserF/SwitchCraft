@@ -62,6 +62,9 @@ If enabled, SwitchCraft can search and generate installers for Winget packages.<
       <string id="GitRepoPath">Git Repository Path</string>
       <string id="GitRepoPath_Help">Sets the path to the local Git repository used for configuration storage.</string>
 
+      <string id="CompanyName">Company Name</string>
+      <string id="CompanyName_Help">Sets the Company Name used in generated script headers.</string>
+
       <!-- AI Strings -->
       <string id="AIProvider">AI Provider</string>
       <string id="AIProvider_Help">Selects the backend provider for AI assistance features.
@@ -106,6 +109,11 @@ WARNING: This value is stored in the registry (HKCU/HKLM). Ensure access permiss
       <presentation id="GitRepoPath">
         <textBox refId="GitRepoPathBox">
           <label>Repository Path:</label>
+        </textBox>
+      </presentation>
+      <presentation id="CompanyName">
+        <textBox refId="CompanyNameBox">
+          <label>Company Name:</label>
         </textBox>
       </presentation>
       <presentation id="AIProvider">

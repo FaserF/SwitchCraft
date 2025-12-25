@@ -112,6 +112,14 @@
        </elements>
     </policy>
 
+    <policy name="CompanyName_Enf" class="User" displayName="$(string.CompanyName)" explainText="$(string.CompanyName_Help)" presentation="$(presentation.CompanyName)" key="Software\Policies\FaserF\SwitchCraft" valueName="CompanyName">
+       <parentCategory ref="General_Enf" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="CompanyNameBox" valueName="CompanyName" required="true" />
+       </elements>
+    </policy>
+
     <policy name="AIProvider_Enf" class="User" displayName="$(string.AIProvider)" explainText="$(string.AIProvider_Help)" presentation="$(presentation.AIProvider)" key="Software\Policies\FaserF\SwitchCraft" valueName="AIProvider">
       <parentCategory ref="AI_Enf" />
       <supportedOn ref="windows:SUPPORTED_Windows10" />
@@ -208,6 +216,14 @@
        <supportedOn ref="windows:SUPPORTED_Windows10" />
        <elements>
          <text id="GitRepoPathBox" valueName="GitRepoPath" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="CompanyName_Def" class="User" displayName="$(string.CompanyName)" explainText="$(string.CompanyName_Help)" presentation="$(presentation.CompanyName)" key="Software\FaserF\SwitchCraft" valueName="CompanyName">
+       <parentCategory ref="General_Def" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="CompanyNameBox" valueName="CompanyName" required="true" />
        </elements>
     </policy>
 
