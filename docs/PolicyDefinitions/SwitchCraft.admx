@@ -116,7 +116,7 @@
        <parentCategory ref="General_Enf" />
        <supportedOn ref="windows:SUPPORTED_Windows10" />
        <elements>
-         <text id="CompanyNameBox" valueName="CompanyName" required="true" />
+         <text id="CompanyNameBox" valueName="CompanyName" required="false" />
        </elements>
     </policy>
 
@@ -223,7 +223,7 @@
        <parentCategory ref="General_Def" />
        <supportedOn ref="windows:SUPPORTED_Windows10" />
        <elements>
-         <text id="CompanyNameBox" valueName="CompanyName" required="true" />
+         <text id="CompanyNameBox" valueName="CompanyName" required="false" />
        </elements>
     </policy>
 

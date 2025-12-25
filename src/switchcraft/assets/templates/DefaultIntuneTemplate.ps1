@@ -20,6 +20,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ExitCode = 0
 $AppName = "{{APP_NAME}}"
+$InstallerFile = "{{INSTALLER_FILE}}"
 $ScriptVersion = "{{SWITCHCRAFT_VERSION}}"
 
 # --- Logging Setup (CMTrace Compatible) ---
@@ -98,7 +99,6 @@ function Start-Process-Function {
 try {
     # --- INSTALL ---
     if ($InstallMode -match "^(Install|i)$") {
-        $InstallerFile = "{{INSTALLER_FILE}}"
         $InstallerPath = Join-Path -Path $PSScriptRoot -ChildPath $InstallerFile
 
         if (!(Test-Path $InstallerPath)) { throw "Installer missing: $InstallerPath" }
@@ -143,7 +143,6 @@ try {
                      $ExitCode = Start-Process-Function -FilePath $cmd -ArgumentList "/S"
                  }
             }
-        } else {
         } else {
             Write-Log -Type Warning "App not found based on filter '$SearchName'. Attempting fallback..."
              # Fallback: exact match if user provided explicit MSI

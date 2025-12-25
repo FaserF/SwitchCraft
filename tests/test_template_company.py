@@ -11,11 +11,15 @@ class TestTemplateWithCompany(unittest.TestCase):
         if self.output_path.exists():
             self.output_path.unlink()
 
+    @patch("switchcraft.utils.config.SwitchCraftConfig.get_value")
     @patch("switchcraft.utils.config.SwitchCraftConfig.get_company_name")
     @patch("os.environ.get")
-    def test_generate_with_company_name(self, mock_env, mock_get_company):
-        mock_get_company.return_value = "Acme Corp"
+    def test_generate_with_company_name(self, mock_env, mock_get_company, mock_get_value):
+        # Setup Mocks
+        mock_get_company.return_value = "SwitchCraft Corp"
         mock_env.return_value = "TestUser"
+        # Ensure 'CustomTemplatePath' returns None so default template is used
+        mock_get_value.return_value = None
 
         generator = TemplateGenerator()
 
@@ -32,20 +36,26 @@ class TestTemplateWithCompany(unittest.TestCase):
         content = self.output_path.read_text(encoding="utf-8")
 
         # Should contain full header
-        self.assertIn('company "Acme Corp"', content)
+        self.assertIn('company "SwitchCraft Corp"', content)
         self.assertIn('Created by "TestUser"', content)
         self.assertIn('with SwitchCraft automatically', content)
 
+    @patch("switchcraft.utils.config.SwitchCraftConfig.get_value")
     @patch("switchcraft.utils.config.SwitchCraftConfig.get_company_name")
     @patch("os.environ.get")
-    def test_generate_without_company_name(self, mock_env, mock_get_company):
+    def test_generate_without_company_name(self, mock_env, mock_get_company, mock_get_value):
+        # Setup Mocks
         mock_get_company.return_value = "" # No company
         mock_env.return_value = "TestUser"
+        # Ensure 'CustomTemplatePath' returns None
+        mock_get_value.return_value = None
 
         generator = TemplateGenerator()
         context = { "INSTALLER_FILE": "setup.exe", "INSTALL_ARGS": "/S" }
 
-        generator.generate(context, str(self.output_path))
+        success = generator.generate(context, str(self.output_path))
+        self.assertTrue(success)
+
         content = self.output_path.read_text(encoding="utf-8")
 
         # Should NOT contain "company" string in header
