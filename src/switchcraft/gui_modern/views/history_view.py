@@ -1,7 +1,6 @@
 import flet as ft
 import threading
 from datetime import datetime
-from pathlib import Path
 from switchcraft.services.history_service import HistoryService
 
 

@@ -10,10 +10,6 @@ import shutil
 import ctypes
 import time
 
-from switchcraft.analyzers.msi import MsiAnalyzer
-from switchcraft.analyzers.exe import ExeAnalyzer
-from switchcraft.analyzers.macos import MacOSAnalyzer
-from switchcraft.analyzers.universal import UniversalAnalyzer
 # WingetHelper imported dynamically from addon
 from switchcraft.utils.i18n import i18n
 from switchcraft.utils.config import SwitchCraftConfig
