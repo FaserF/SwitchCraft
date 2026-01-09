@@ -1,11 +1,24 @@
-# -*- mode: python ; coding: utf-8 -*-
-
 import os
 import customtkinter
 import tkinterdnd2
-from PyInstaller.utils.hooks import collect_submodules
+import sys
+from PyInstaller.utils.hooks import collect_submodules, collect_all
+
+src_root = os.path.abspath('src')
+if src_root not in sys.path:
+    sys.path.insert(0, src_root)
 
 block_cipher = None
+
+# Collect all submodules, binaries and data files from the package
+sc_datas, sc_binaries, sc_hidden_imports = collect_all('switchcraft')
+
+# MANUAL COLLECTION to ensure robustness
+hidden_imports = list(set(sc_hidden_imports + [
+    'PIL._tkinter_finder', 'tkinterdnd2', 'plyer.platforms.win.notification',
+    'defusedxml', 'winotify', 'switchcraft.services.addon_service',
+    'py7zr', 'py7zr.archiveinfo', 'py7zr.compressor', 'py7zr.helpers',
+]))
 
 # Helper to find package data
 def get_package_data(package):
@@ -15,27 +28,7 @@ def get_package_data(package):
 ctk_path, ctk_name = get_package_data(customtkinter)
 tkdnd_path, tkdnd_name = get_package_data(tkinterdnd2)
 
-# MANUAL COLLECTION to ensure robustness
-# Note: Addon modules (switchcraft_winget, switchcraft_ai, etc.) are NOT bundled.
-# They are downloaded separately at runtime.
-# However, commonly-needed addon dependencies (py7zr) are pre-bundled
-# to reduce runtime issues and ensure 7z extraction works out-of-the-box.
-hidden_imports = [
-    'PIL._tkinter_finder', 'tkinterdnd2', 'plyer.platforms.win.notification',
-    'defusedxml', 'winotify', 'switchcraft.services.addon_service',
-    'py7zr', 'py7zr.archiveinfo', 'py7zr.compressor', 'py7zr.helpers'
-]
-
-# Only collect submodules that actually exist in the main package
-try:
-    hidden_imports += collect_submodules('switchcraft')
-except Exception as e:
-    print(f"Warning: Failed to collect switchcraft submodules: {e}")
-
-
-
-
-datas = [
+datas = sc_datas + [
     (ctk_path, ctk_name),
     (tkdnd_path, tkdnd_name),
     ('images/switchcraft_logo.png', '.'),
@@ -74,7 +67,7 @@ exe = EXE(  # noqa: F821
     strip=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    # Console: Force enabled for debugging. Set to False for release builds.
+    # Console: Conditional based on environment variable for debugging.
     console=os.environ.get('SWITCHCRAFT_DEBUG_CONSOLE', '0') == '1',
     disable_windowed_traceback=False,
     argv_emulation=False,

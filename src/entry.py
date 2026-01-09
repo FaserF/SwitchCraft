@@ -7,27 +7,17 @@ if getattr(sys, 'frozen', False):
     #    (Static Analysis sees this import).
     # 2. We import it at runtime to populate sys.modules, bypassing any
     #    shadowing 'switchcraft' folder that might exist in _MEIPASS.
-    #    (Static Analysis sees this import).
-    # 2. We import it at runtime to populate sys.modules, bypassing any
-    #    shadowing 'switchcraft' folder that might exist in _MEIPASS.
-    print("DEBUG: Pre-Importing addon_service explicitly...")
     try:
-        import switchcraft.services.addon_service  # noqa: F401
-        print("DEBUG: SUCCESS importing switchcraft.services.addon_service")
-    except ImportError as e:
-        print(f"DEBUG: FAILURE importing switchcraft.services.addon_service: {e}")
-        # Only in frozen mode do we care deeply, dev mode has source path
-        if getattr(sys, 'frozen', False):
-            print(f"DEBUG: sys.path in frozen mode: {sys.path}")
-
-    print("DEBUG: Attempting to import switchcraft.gui.app...")
-    print("DEBUG: Import GUI SUCCESS.")
+        import switchcraft.gui.app # noqa: F401
+    except ImportError:
+        pass
 
 # Ensure local source is found (Dev mode)
 if not getattr(sys, 'frozen', False):
     sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from switchcraft.main import main
+
 
 if __name__ == '__main__':
     try:

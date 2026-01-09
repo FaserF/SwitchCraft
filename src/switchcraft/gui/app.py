@@ -59,16 +59,42 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Pending update info (for "Update Later" feature)
         self.pending_update = None
 
-        # Load Assets
-        self.logo_image = None
-        self.load_assets()
+        # 1. Show Loading Screen immediately
+        self.loading_frame = ctk.CTkFrame(self)
+        self.loading_frame.grid(row=0, column=0, sticky="nsew")
+        self.loading_frame.grid_columnconfigure(0, weight=1)
+        self.loading_frame.grid_rowconfigure((0, 1, 2), weight=1)
 
-        # Initialize Services early
+        if self.logo_image:
+             ctk.CTkLabel(self.loading_frame, image=self.logo_image, text="").grid(row=0, column=0, pady=(40, 0))
+
+        ctk.CTkLabel(
+            self.loading_frame,
+            text=i18n.get("app_title") or "SwitchCraft",
+            font=ctk.CTkFont(size=24, weight="bold")
+        ).grid(row=1, column=0, pady=10)
+
+        self.loading_label = ctk.CTkLabel(self.loading_frame, text="Loading components...")
+        self.loading_label.grid(row=2, column=0, pady=(0, 40))
+
+        # Defer initialization
+        self.after(100, self._perform_initialization)
+
+    def _update_loading(self, text):
+        """Update loading text and refresh UI."""
+        logger.info(f"Init: {text}")
+        self.loading_label.configure(text=text)
+        self.update_idletasks()
+
+    def _perform_initialization(self):
+        """Heavy initialization carried out while showing loading screen."""
+        self._update_loading("Registering Addons...")
         AddonService.register_addons()
 
-        # Register this window for notification click-to-focus
+        self._update_loading("Setting up Notifications...")
         NotificationService.set_app_window(self)
 
+        self._update_loading("Loading Services...")
         # 1. AI Addon
         self.ai_service = None
         try:
@@ -78,7 +104,6 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         except Exception as e:
             logger.info(f"AI Addon not loaded: {e}")
 
-        # 2. Intune Service (Core or Addon? Currently Core/Universal stub, but let's keep as is)
         self.intune_service = IntuneService()
         self.history_service = HistoryService()
 
@@ -86,20 +111,18 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.winget_helper = None
         self.winget_load_error = None
         try:
-            winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+            winget_mod = AddonService.import_addon_module("winget", "utils.winget", raise_error=True)
             if winget_mod:
                 self.winget_helper = winget_mod.WingetHelper()
-            elif AddonService.is_addon_installed("winget"):
-                # Installed but import returned None (failed inside import_addon_module)
-                self.winget_load_error = "Import failed (returned None). Check log for details."
         except Exception as e:
             logger.exception(f"Winget Addon import crashed: {e}")
             if AddonService.is_addon_installed("winget"):
                 self.winget_load_error = str(e)
 
-        # 4. Debug Addon (Just check presence, logic used in Settings)
+        # 4. Debug Addon
         self.has_debug_addon = AddonService.is_addon_installed("debug")
 
+        self._update_loading("Building Tabs...")
         # Grid Layout
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -109,23 +132,15 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.tabview.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
 
         self.tab_analyzer = self.tabview.add(i18n.get("tab_analyzer"))
-
-        # AI Helper tab (Always show)
         self.tab_helper = self.tabview.add(i18n.get("tab_helper"))
         self.setup_helper_tab()
-
         self.tab_settings = self.tabview.add(i18n.get("tab_settings"))
 
-        # Initialize Tabs
         self.setup_analyzer_tab()
 
-
-        # Intune Utility Tab
         self.tab_intune = self.tabview.add("Intune Utility")
         self.setup_intune_tab()
 
-        # Winget Tab (Always show, toggleable via settings but default ON/Persistent)
-        # User requested: "Same for wingetstore tab" -> imply if missing, show missing view.
         if SwitchCraftConfig.get_value("EnableWinget", True):
             self.tab_winget = self.tabview.add("Winget Store")
             self.setup_winget_tab()
@@ -135,24 +150,24 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.setup_settings_tab()
 
-        # Setup Beta/Dev banner if pre-release
+        self._update_loading("Finalizing UI...")
         self.setup_version_banner()
 
-
-        # Handle window close for "Update Later" feature
-        self.protocol("WM_DELETE_WINDOW", self.on_close)
-
         # Demo / First Start Logic
-        self.after(1000, self._run_demo_init)
+        self.after(500, self._run_demo_init)
 
         # Check for Load Errors (Winget etc)
-        self.after(1500, self._check_init_errors)
+        self.after(1000, self._check_init_errors)
 
         # Check for Addon (Virus Mitigation)
-        self.after(4000, self._check_addon_status)
+        self.after(3000, self._check_addon_status)
 
         # Cloud Backup Check (Weekly)
-        self.after(6000, self._check_cloud_backup_auto)
+        self.after(5000, self._check_cloud_backup_auto)
+
+        # Remove Loading Screen
+        self.loading_frame.destroy()
+        logger.info("Initialization complete.")
 
     def _run_demo_init(self):
         """Check if first run/demo mode is needed."""
@@ -218,36 +233,67 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             import sys
             import subprocess
             import os
+            import logging
+
             logger.info("Restarting application...")
 
-            # Clean environment for PyInstaller restart
-            # If we don't remove _MEIPASS, the new process might try to use the old temp dir
-            env = os.environ.copy()
-            env.pop('_MEIPASS', None)
-            env.pop('_MEIPASS2', None)
-
-            # Ensure we have the full path to executable
             executable = sys.executable
-            args = sys.argv[:]
+            # Handle arguments based on execution mode
+            if getattr(sys, 'frozen', False):
+                # Frozen: executable is the app itself. argv[0] is the exe path (same as executable).
+                # New args should be just the parameters (argv[1:])
+                launch_args = sys.argv[1:]
+            else:
+                # Script: executable is python.exe. argv[0] is the script path (app.py).
+                # We need to pass [script_path] + parameters
+                launch_args = sys.argv
 
-            # If frozen, executable is the full path to the .exe
-            # If script, it is python.exe. We want to start in the app root dir.
             cwd = os.path.dirname(executable) if getattr(sys, 'frozen', False) else os.getcwd()
 
             try:
-                # Use Popen with CREATE_NEW_CONSOLE flag on Windows to ensure it survives parent death
-                if sys.platform == 'win32':
-                    CREATE_NEW_CONSOLE = 0x00000010
-                    cmd = [executable] + args
-                    logger.info(f"Restarting with command: {cmd} in {cwd}")
-                    subprocess.Popen(cmd, creationflags=CREATE_NEW_CONSOLE, close_fds=True, env=env, cwd=cwd)
-                else:
-                    subprocess.Popen([executable] + args, close_fds=True, env=env, cwd=cwd)
+                # Flush and close logging handlers to release file locks
+                logging.shutdown()
 
-                self.quit()  # Stop mainloop
-                os._exit(0)  # Force exit
+                # Prepare environment: remove PyInstaller's _MEIPASS
+                env = os.environ.copy()
+                for key in list(env.keys()):
+                    if key.startswith('_MEI'):
+                        env.pop(key)
+
+                # Check for other Pyinstaller vars
+                env.pop('LD_LIBRARY_PATH', None) # Linux related but good practice
+
+                if sys.platform == 'win32':
+                    # Use Popen directly with DETACHED_PROCESS to survive parent death
+                    # and explicit env.
+                    flags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+
+                    cmd = [executable] + launch_args
+                    logger.info(f"Restarting with command: {cmd}")
+
+                    subprocess.Popen(
+                        cmd,
+                        creationflags=flags,
+                        close_fds=True,
+                        env=env,
+                        cwd=cwd
+                    )
+                else:
+                    # Linux/Mac
+                    subprocess.Popen([executable] + launch_args, close_fds=True, env=env, cwd=cwd)
+
+                self.quit()
+                sys.exit(0)
             except Exception as e:
+                # Re-setup logger to show error if possible (since we shut it down)
+                logging.basicConfig(level=logging.INFO)
                 logger.error(f"Restart failed: {e}")
+                messagebox.showerror("Error", "Could not restart automatically. Please restart manually.")
+
+            except Exception as e:
+                # Re-setup logger to show error if possible (since we shut it down)
+                logging.basicConfig(level=logging.INFO)
+                logging.getLogger(__name__).error(f"Restart failed: {e}")
                 messagebox.showerror("Error", "Could not restart automatically. Please restart manually.")
 
         CountdownDialog(

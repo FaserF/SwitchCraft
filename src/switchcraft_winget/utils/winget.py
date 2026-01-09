@@ -150,7 +150,7 @@ class WingetHelper:
         """Fallback search using winget CLI."""
         import re
         try:
-             cmd = ["winget", "search", "--name", query, "--source", "winget", "--accept-source-agreements"]
+             cmd = ["winget", "search", query, "--source", "winget", "--accept-source-agreements"]
              startupinfo = self._get_startup_info()
 
              proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)

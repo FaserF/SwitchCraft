@@ -69,8 +69,8 @@ Download from the [Releases](https://github.com/FaserF/SwitchCraft/releases) pag
 
 #### Windows Installer (Recommended)
 - **`SwitchCraft-Setup.exe`** – Full installer with Start Menu, Desktop shortcuts.
-  - **User Scope**: Installs to `%LOCALAPPDATA%` (Default).
-  - **Machine Scope**: Run as Admin to install to `%PROGRAMFILES%`.
+  - **User Scope**: Installs to `%LOCALAPPDATA%\FaserF\SwitchCraft` (Default).
+  - **Machine Scope**: Run as Admin to install to `%ProgramFiles(x86)%\FaserF\SwitchCraft`.
   - **Silent Install**: `SwitchCraft-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`
 
 #### Portable Executables

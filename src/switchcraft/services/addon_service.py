@@ -59,7 +59,7 @@ class AddonService:
             logger.info(f"Registered addon directory: {addon_dir_str}")
 
     @classmethod
-    def import_addon_module(cls, addon_id: str, module_name: str):
+    def import_addon_module(cls, addon_id: str, module_name: str, raise_error: bool = False):
         """Dynamically import a module from an addon."""
         if not cls.is_addon_installed(addon_id):
             return None
@@ -77,6 +77,8 @@ class AddonService:
             return importlib.import_module(full_name)
         except (ImportError, ModuleNotFoundError) as e:
             logger.error(f"Failed to import addon module {full_name}: {e}")
+            if raise_error:
+                raise
             return None
 
     @classmethod
