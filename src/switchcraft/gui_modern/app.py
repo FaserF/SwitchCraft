@@ -162,7 +162,6 @@ class ModernApp:
         # but here we just show message or close.
         # Flet window.close() closes the app.
         time.sleep(2)
-        import sys
         # For now just close, user has to reopen.
         # Process restart is tricky without external launcher.
         self.page.window.close()

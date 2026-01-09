@@ -3,7 +3,6 @@ import threading
 import logging
 from switchcraft.services.addon_service import AddonService
 from switchcraft.utils.i18n import i18n
-from switchcraft.utils.config import SwitchCraftConfig
 from pathlib import Path
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 

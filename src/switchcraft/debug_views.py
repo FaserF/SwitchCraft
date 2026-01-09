@@ -1,7 +1,6 @@
 
 import sys
 import os
-import logging
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.getcwd(), 'src'))

@@ -1,7 +1,6 @@
 import logging
 import collections
 from datetime import datetime
-import os
 
 class SessionLogHandler(logging.Handler):
     """

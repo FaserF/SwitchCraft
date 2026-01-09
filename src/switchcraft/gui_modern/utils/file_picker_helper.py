@@ -1,7 +1,6 @@
 
 import tkinter
 from tkinter import filedialog
-import os
 
 class FilePickerHelper:
     """

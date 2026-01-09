@@ -320,7 +320,7 @@ def logs_export(output):
     if handler.export_logs(output):
         print(f"[green]Logs exported successfully to: {output}[/green]")
     else:
-        print(f"[red]Failed to export logs.[/red]")
+        print("[red]Failed to export logs.[/red]")
         sys.exit(1)
 
 # --- Helper Function for Analysis ---

@@ -1,7 +1,6 @@
 import flet as ft
 import threading
 import logging
-import os
 import shutil
 import ctypes
 import webbrowser
@@ -501,7 +500,7 @@ class ModernAnalyzerView(ft.Column):
                 # Step 2: Packaging
                 log("\n--- Step 2: Creating Intune Package ---")
                 res = self.intune_service.create_intunewin(str(base_dir), script_path.name, str(base_dir), quiet=True)
-                log(f"Packaging complete.")
+                log("Packaging complete.")
 
                 # Step 3: Upload
                 if SwitchCraftConfig.get_value("IntuneTenantID"):

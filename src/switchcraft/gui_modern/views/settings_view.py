@@ -2,7 +2,6 @@ import flet as ft
 import threading
 import logging
 import json
-from pathlib import Path
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 from switchcraft import __version__

@@ -640,7 +640,7 @@ class SettingsView(ctk.CTkFrame):
             path = ctk.filedialog.asksaveasfilename(
                 defaultextension=".txt",
                 filetypes=[("Log File", "*.txt"), ("All Files", "*.*")],
-                initialfile=f"switchcraft_logs.txt"
+                initialfile="switchcraft_logs.txt"
             )
             if path:
                 from switchcraft.utils.logging_handler import get_session_handler
