@@ -38,7 +38,7 @@ gui = [
     "pillow",
     "plyer"
 ]
-modern = ["flet", "flet-desktop"]
+modern = ["flet>=0.80.1", "flet-desktop>=0.80.1"]
 
 
 [project.scripts]

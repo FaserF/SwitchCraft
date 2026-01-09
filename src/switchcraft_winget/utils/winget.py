@@ -147,8 +147,7 @@ class WingetHelper:
             return None
 
     def _search_via_cli(self, query: str) -> List[Dict[str, str]]:
-        """Fallback search using winget CLI."""
-        import re
+        """Fallback search using winget CLI with robust table parsing."""
         try:
              cmd = ["winget", "search", query, "--source", "winget", "--accept-source-agreements"]
              startupinfo = self._get_startup_info()
@@ -157,27 +156,91 @@ class WingetHelper:
              if proc.returncode != 0:
                  return []
 
-             lines = proc.stdout.strip().splitlines()
-             if len(lines) < 3:
+             # Skip any leading empty lines/garbage
+             lines = [l for l in proc.stdout.splitlines() if l.strip()]
+             if len(lines) < 2:
                  return []
 
-             results = []
-             start_idx = 0
+             # Find header line (must contain Name, Id, Version)
+             header_idx = -1
              for i, line in enumerate(lines):
-                 if hasattr(line, "startswith") and line.startswith("---"):
-                     start_idx = i + 1
+                 lower_line = line.lower()
+                 # Use localized name detection or common substrings
+                 # German: Name, ID, Version, Übereinstimmung
+                 # English: Name, Id, Version, Match
+                 if "name" in lower_line and "id" in lower_line and "version" in lower_line:
+                     header_idx = i
                      break
 
-             for line in lines[start_idx:]:
-                 if not line.strip():
+             if header_idx == -1 or header_idx + 1 >= len(lines):
+                 return []
+
+             header = lines[header_idx]
+
+             # Locate column starts
+             # We look for "ID" (case insensitive) and "Version" as anchors
+             import re
+
+             # Robust ID anchor
+             match_id = re.search(r'\bID\b', header, re.IGNORECASE)
+             # Robust Version anchor
+             match_ver = re.search(r'\bVersion\b', header, re.IGNORECASE)
+             # Robust Source anchor (optional)
+             match_source = re.search(r'\bSource\b|\bQuelle\b', header, re.IGNORECASE)
+
+             if not match_id or not match_ver:
+                 # Fallback to smart split if anchors fail
+                 results = []
+                 data_start = header_idx + 1
+                 if lines[data_start].startswith("---"):
+                     data_start += 1
+
+                 for line in lines[data_start:]:
+                     parts = re.split(r'\s{2,}', line.strip())
+                     if len(parts) >= 3:
+                         results.append({
+                             "Name": parts[0],
+                             "Id": parts[1],
+                             "Version": parts[2],
+                             "Source": parts[3] if len(parts) > 3 else "winget"
+                         })
+                 return results
+
+             idx_id = match_id.start()
+             idx_ver = match_ver.start()
+             idx_source = match_source.start() if match_source else -1
+
+             # The line below header is usually dashes, skip it
+             data_start = header_idx + 1
+             if lines[data_start].startswith("---"):
+                 data_start += 1
+
+             results = []
+             for line in lines[data_start:]:
+                 if not line.strip() or len(line) < idx_ver:
                      continue
-                 parts = re.split(r'\s{2,}', line.strip())
-                 if len(parts) >= 3:
+
+                 name = line[:idx_id].strip()
+                 pkg_id = line[idx_id:idx_ver].strip()
+
+                 if idx_source != -1 and len(line) > idx_source:
+                     version = line[idx_ver:idx_source].strip()
+                     source = line[idx_source:].strip()
+                 else:
+                     version = line[idx_ver:].strip()
+                     # If there's content after version but no source column detected,
+                     # we might need to split version from a potential 'Match' column
+                     if "  " in version:
+                         v_parts = re.split(r'\s{2,}', version)
+                         version = v_parts[0]
+                     source = "winget"
+
+                 if name and pkg_id:
                      results.append({
-                         "Name": parts[0],
-                         "Id": parts[1],
-                         "Version": parts[2],
-                         "Source": parts[-1] if len(parts) > 3 else "winget"
+                         "Name": name,
+                         "Id": pkg_id,
+                         "Version": version,
+                         "Source": source
                      })
              return results
 

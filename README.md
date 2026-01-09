@@ -19,6 +19,7 @@
 - [**🤖 CLI Reference**](docs/CLI_Reference.md): Command-line usage, JSON output, and headless operation.
 - [**🏗️ CI Architecture**](docs/CI_Architecture.md): Build process, pip structure, and testing guide.
 - [**📦 Winget Store & Integration**](docs/WINGET.md): Using the Winget Store and Auto-Update deployment.
+- **Session Logs**: Track errors and warnings during your session and export them for troubleshooting.
 - [**☁️ Enterprise & Intune**](docs/INTUNE.md): Guide to Automation, Intune Uploads, Group Assignments, and Script Signing.
 - [**Registry Reference**](docs/Registry.md): Configuration via Registry.
 - [**GPO / Policies**](docs/PolicyDefinitions/README.md): ADMX Templates.
@@ -99,6 +100,18 @@ Then **Drag & Drop** your installer into the window or click to browse.
 - **`--json`**: Output analysis results in JSON format.
 - **`--install-addons=<list>`**: Install specific addons (e.g., `ai,winget` or `all`).
 - **`--debug`**: Enable the debug console on startup (if addon is installed).
+
+### Viewing Logs (CLI)
+
+You can export session logs directly from the command line:
+
+```bash
+# Export logs to a file (default: switchcraft_session.log)
+switchcraft logs export
+
+# Specify output file
+switchcraft logs export --output=my_logs.txt
+```
 
 ## 🧩 Addon System (Modular Features)
 

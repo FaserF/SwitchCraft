@@ -1,7 +1,9 @@
 import flet as ft
 from switchcraft import __version__
 from switchcraft.utils.i18n import i18n
+from switchcraft.utils.config import SwitchCraftConfig
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +28,7 @@ class ModernApp:
                     alignment=ft.MainAxisAlignment.CENTER,
                 ),
                 expand=True,
-                alignment=ft.alignment.center,
+                alignment=ft.Alignment.CENTER,
             )
         )
         self.page.update()
@@ -36,13 +38,15 @@ class ModernApp:
 
     def setup_page(self):
         self.page.title = f"SwitchCraft v{__version__}"
-        self.page.theme_mode = ft.ThemeMode.DARK
+        # Parse theme
+        theme_pref = SwitchCraftConfig.get_value("Theme", "System")
+        self.page.theme_mode = ft.ThemeMode.DARK if theme_pref == "Dark" else ft.ThemeMode.LIGHT if theme_pref == "Light" else ft.ThemeMode.SYSTEM
         self.page.padding = 0
         try:
-            self.page.window.min_width = 800
-            self.page.window.min_height = 600
+            self.page.window.min_width = 1000
+            self.page.window.min_height = 700
         except Exception:
-            pass  # Older Flet versions
+            pass
 
     def build_ui(self):
         # Sidebar Navigation
@@ -64,14 +68,11 @@ class ModernApp:
             on_change=self.nav_change,
         )
 
-        # Content Area - Simple Column
-        self.content = ft.Column(
-            expand=True,
-            controls=[
-                ft.Text(i18n.get("welcome_title") or "Welcome to Modern SwitchCraft", size=30, weight=ft.FontWeight.BOLD),
-                ft.Text(i18n.get("welcome_subtitle") or "Select a tool from the sidebar to get started."),
-            ],
-        )
+        # Content Area
+        self.content = ft.Column(expand=True)
+
+        # Load Home by default
+        self._load_home()
 
         # Main Layout
         self.page.clean()
@@ -80,22 +81,33 @@ class ModernApp:
                 controls=[
                     self.rail,
                     ft.VerticalDivider(width=1),
-                    ft.Container(content=self.content, expand=True, padding=20),
+                    ft.Container(content=self.content, expand=True, padding=0),
                 ],
                 expand=True,
             )
         )
 
+    def _load_home(self):
+        self.content.controls.clear()
+        self.content.controls.append(
+            ft.Container(
+                content=ft.Column([
+                    ft.Text(i18n.get("welcome_title") or "Welcome to Modern SwitchCraft", size=40, weight=ft.FontWeight.BOLD),
+                    ft.Text(i18n.get("welcome_subtitle") or "Select a tool from the sidebar to get started.", size=16),
+                    ft.Container(height=20),
+                    ft.Icon(ft.Icons.AUTO_AWESOME, size=100, color=ft.Colors.BLUE_200)
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                alignment=ft.Alignment.CENTER,
+                expand=True
+            )
+        )
+
     def nav_change(self, e):
         idx = e.control.selected_index
-        logger.info(f"Navigation changed to index: {idx}")
-
-        # Clear and rebuild content
         self.content.controls.clear()
 
         if idx == 0:
-            self.content.controls.append(ft.Text(i18n.get("nav_home") or "Home Dashboard", size=30, weight=ft.FontWeight.BOLD))
-            self.content.controls.append(ft.Text(i18n.get("welcome_subtitle") or "Welcome to SwitchCraft Modern UI!"))
+            self._load_home()
         elif idx == 1:
             try:
                 from switchcraft.gui_modern.views.analyzer_view import ModernAnalyzerView
@@ -132,16 +144,41 @@ class ModernApp:
                 self.content.controls.append(ModernSettingsView(self.page))
             except Exception as ex:
                 self.content.controls.append(ft.Text(f"Error loading Settings: {ex}", color="red"))
-        else:
-            self.content.controls.append(ft.Text(f"Unknown tab: {idx}", color="orange"))
 
         self.page.update()
+
+    def _show_restart_countdown(self):
+        """Overlay for restart required."""
+        dlg = ft.AlertDialog(
+            title=ft.Text("Restart Required"),
+            content=ft.Text("Settings changed. Restarting app..."),
+            modal=True,
+        )
+        self.page.dialog = dlg
+        dlg.open = True
+        self.page.update()
+
+        # In a real scenario we'd trigger a restart of process,
+        # but here we just show message or close.
+        # Flet window.close() closes the app.
+        time.sleep(2)
+        import sys
+        # For now just close, user has to reopen.
+        # Process restart is tricky without external launcher.
+        self.page.window.close()
 
 
 def main(page: ft.Page):
     """Entry point for Flet app."""
-    ModernApp(page)
+    # Add restart method to page for injection if needed, or pass app instance.
+    app = ModernApp(page)
+    # Monkey patch page to have access to app restart logic?
+    # Better: Views should accept 'app' instance or page should store logic.
+    # Current Views accept 'page'. We can add '_show_restart_countdown' to page object dynamically if needed,
+    # but clean way is views taking app.
+    # Since we didn't refactor all views signature, we'll monkeypatch page for backward compat in this refactor.
+    page._show_restart_countdown = app._show_restart_countdown
 
 
 if __name__ == "__main__":
-    ft.app(target=main)
+    ft.run(main)

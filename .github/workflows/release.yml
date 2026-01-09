@@ -170,7 +170,10 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller switchcraft.spec
+        # Build Modern (Portable One-File)
+        pyinstaller switchcraft_modern.spec --noconfirm
+        # Build Legacy (One-Dir for Installer)
+        pyinstaller switchcraft_legacy.spec --noconfirm
 
     - name: Create Addon Packages
       if: matrix.os == 'windows-latest'
@@ -188,10 +191,12 @@ jobs:
 
     - name: Rename to Platform Name
       run: |
-        if [ "${{ matrix.artifact_name }}" != "${{ matrix.asset_name }}" ]; then
-          cp dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            mv dist/SwitchCraft.exe dist/SwitchCraft-windows.exe
         else
-          echo "Source and destination are the same, skipping copy."
+            if [ "${{ matrix.artifact_name }}" != "${{ matrix.asset_name }}" ]; then
+              cp dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
+            fi
         fi
       shell: bash
 
@@ -218,8 +223,11 @@ jobs:
             # Find signtool
             $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Include signtool.exe -Recurse | Select-Object -Last 1
             if ($signtool) {
-                Write-Host "Signing SwitchCraft.exe with $($signtool.FullName)..."
+                Write-Host "Signing SwitchCraft-windows.exe (Portable)..."
                 & $signtool.FullName sign /f "cert.pfx" /p "$env:SIGNING_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "dist/SwitchCraft-windows.exe"
+
+                Write-Host "Signing SwitchCraft-Legacy.exe (for Installer)..."
+                & $signtool.FullName sign /f "cert.pfx" /p "$env:SIGNING_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "dist/SwitchCraft-Legacy/SwitchCraft-Legacy.exe"
             } else {
                 Write-Error "Signtool not found!"
             }
@@ -230,7 +238,8 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ needs.prepare_release.outputs.version }}
-        files: dist/${{ matrix.asset_name }}
+        files: |
+            dist/${{ matrix.asset_name }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

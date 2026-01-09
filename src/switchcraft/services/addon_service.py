@@ -52,11 +52,17 @@ class AddonService:
     @classmethod
     def register_addons(cls):
         """Register all found addons to sys.path."""
-        addon_dir = cls.get_addon_dir()
+        addon_dir = cls.get_addon_dir().resolve()
         addon_dir_str = str(addon_dir)
-        if addon_dir_str not in sys.path:
-            sys.path.insert(0, addon_dir_str)
-            logger.info(f"Registered addon directory: {addon_dir_str}")
+
+        # Normalize to ensure no dupes with different casing
+        # We want to ensure addon_dir is at sys.path[0] to prioritize local dev addons over site-packages
+
+        if addon_dir_str in sys.path:
+            sys.path.remove(addon_dir_str)
+
+        sys.path.insert(0, addon_dir_str)
+        logger.info(f"Registered addon directory (priority): {addon_dir_str}")
 
     @classmethod
     def import_addon_module(cls, addon_id: str, module_name: str, raise_error: bool = False):
@@ -77,6 +83,8 @@ class AddonService:
             return importlib.import_module(full_name)
         except (ImportError, ModuleNotFoundError) as e:
             logger.error(f"Failed to import addon module {full_name}: {e}")
+            logger.debug(f"Sys.Path: {sys.path}")
+            logger.debug(f"Addon Dir: {cls.get_addon_dir()}")
             if raise_error:
                 raise
             return None

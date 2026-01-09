@@ -9,7 +9,7 @@
 #define MyAppVersionNumeric "2025.12.4"
 #define MyAppPublisher "FaserF"
 #define MyAppURL "https://github.com/FaserF/SwitchCraft"
-#define MyAppExeName "SwitchCraft-windows.exe"
+#define MyAppExeName "SwitchCraft-Legacy.exe"
 #define MyAppDescription "Silent Install Switch Finder"
 
 [Setup]
@@ -76,8 +76,8 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 Name: "debugmode"; Description: "{cm:DebugMode}"; GroupDescription: "{cm:DebugModeDesc}"; Flags: unchecked
 
 [Files]
-; Main executable
-Source: "dist\SwitchCraft-windows.exe"; DestDir: "{app}"; Flags: ignoreversion
+; Main executable and dependencies (Legacy One-Dir)
+Source: "dist\SwitchCraft-Legacy\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Logo/Icon
 Source: "images\switchcraft_logo.png"; DestDir: "{app}"; Flags: ignoreversion

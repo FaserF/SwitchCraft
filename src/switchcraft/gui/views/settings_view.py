@@ -532,6 +532,9 @@ class SettingsView(ctk.CTkFrame):
         # Addon Manager
         self._setup_addon_manager(scroll)
 
+        # Troubleshooting
+        self._setup_troubleshooting(scroll)
+
         # Debug Console
         self._setup_debug_console(scroll)
 
@@ -550,6 +553,36 @@ class SettingsView(ctk.CTkFrame):
             font=ctk.CTkFont(size=11)
         )
         debug_hint.pack(pady=10)
+
+        # Danger Zone
+        frame_danger = ctk.CTkFrame(scroll, border_width=1, border_color="red")
+        frame_danger.pack(fill="x", padx=10, pady=20)
+
+        ctk.CTkLabel(frame_danger, text="Danger Zone", text_color="red", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        ctk.CTkLabel(frame_danger, text="Irreversible actions.", font=ctk.CTkFont(size=11)).pack()
+
+        ctk.CTkButton(
+            frame_danger,
+            text="Factory Reset (Delete All Data)",
+            fg_color="red",
+            hover_color="darkred",
+            command=self._on_factory_reset_click
+        ).pack(pady=10)
+
+    def _on_factory_reset_click(self):
+        if messagebox.askyesno(
+            "Confirm Factory Reset",
+            "Are you SURE? This will delete ALL settings, secrets, and local data.\n\nThis action cannot be undone.",
+            icon='warning'
+        ):
+            try:
+                SwitchCraftConfig.delete_all_application_data()
+                messagebox.showinfo("Reset Complete", "Application data deleted. The application will now close.")
+                self.app.destroy()
+                import sys
+                sys.exit(0)
+            except Exception as e:
+                messagebox.showerror("Reset Failed", f"An error occurred: {e}")
 
 
     # --- Sub-components (Refactored to accept 'parent') ---
@@ -589,6 +622,39 @@ class SettingsView(ctk.CTkFrame):
         self.privacy_lbl = ctk.CTkLabel(frame, text="", font=ctk.CTkFont(size=10), text_color="gray")
         self.privacy_lbl.pack(pady=5)
         self._update_privacy_text(SwitchCraftConfig.get_value("AIProvider", "local"))
+
+    def _setup_troubleshooting(self, parent):
+        """Setup Troubleshooting section in Help tab."""
+        frame = ctk.CTkFrame(parent)
+        frame.pack(fill="x", padx=10, pady=10)
+
+        ctk.CTkLabel(frame, text="Troubleshooting", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=5)
+        # Shared settings notice
+        ctk.CTkLabel(frame, text="Settings are shared across all SwitchCraft editions (Modern, Legacy, and CLI).",
+                     font=ctk.CTkFont(size=11, slant="italic"), text_color="gray").pack(anchor="w", padx=10)
+
+        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=10, pady=5)
+
+        def export_logs():
+            path = ctk.filedialog.asksaveasfilename(
+                defaultextension=".txt",
+                filetypes=[("Log File", "*.txt"), ("All Files", "*.*")],
+                initialfile=f"switchcraft_logs.txt"
+            )
+            if path:
+                from switchcraft.utils.logging_handler import get_session_handler
+                if get_session_handler().export_logs(path):
+                    messagebox.showinfo("Export Logs", f"Logs exported successfully to:\n{path}")
+                else:
+                    messagebox.showerror("Export Logs", "Failed to export logs. Check console for details.")
+
+        def open_issue():
+            from switchcraft.utils.logging_handler import get_session_handler
+            webbrowser.open(get_session_handler().get_github_issue_link())
+
+        ctk.CTkButton(btn_frame, text="Export Session Logs", width=150, command=export_logs).pack(side="left", padx=5)
+        ctk.CTkButton(btn_frame, text="Report Issue on GitHub", width=150, fg_color="#24292e", command=open_issue).pack(side="left", padx=5)
 
     def _update_privacy_text(self, provider):
         if provider == "local":

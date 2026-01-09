@@ -1,5 +1,5 @@
 {
-    "app_title": "SwitchCraft 🧙‍♂️",
+    "app_title": "SwitchCraft Legacy 🧙‍♂️",
     "nav_home": "Startseite",
     "tab_analyzer": "Analyse",
     "tab_helper": "KI Helfer",
@@ -61,7 +61,7 @@
     "silent_switches": "Silent Switches",
     "ask_something": "Frage etwas...",
     "ai_helper_welcome": "Willkommen beim KI Helfer!\nFrage mich nach Silent Switches oder Kommandozeilen-Argumenten.",
-    "brought_by": "Ein Projekt von FaserF",
+    "brought_by": "Ein Projekt von Fabian Seitz (FaserF)",
     "msi_wrapper_tip": "💡 MSI Wrapper erkannt! Standard MSI-Switches funktionieren möglicherweise.",
     "found_params": "Gefundene Parameter",
     "known_params": "Bekannte Parameter",
@@ -181,6 +181,7 @@
     "ai_openai": "OpenAI (Online)",
     "ai_gemini": "Google Gemini (Online)",
     "winget_search_placeholder": "Apps suchen...",
+    "winget_search_hint": "Gib oben einen Suchbegriff ein, um Apps zu finden.",
     "winget_search_instruction": "Gib einen Suchbegriff ein, um die Suche zu starten.",
     "winget_search_btn": "🔍",
     "winget_no_results": "Keine Ergebnisse.",

@@ -30,7 +30,7 @@ def ModernHelperView(page: ft.Page):
     input_field = ft.TextField(label="Ask a question...", expand=True)
 
     def add_message(sender, text, is_user=False, is_error=False):
-        bg_color = ft.colors.BLUE_900 if is_user else (ft.colors.RED_900 if is_error else ft.colors.GREEN_900)
+        bg_color = ft.Colors.BLUE_900 if is_user else (ft.Colors.RED_900 if is_error else ft.Colors.GREEN_900)
 
         chat_history.controls.append(
             ft.Container(
@@ -58,6 +58,7 @@ def ModernHelperView(page: ft.Page):
         typing_indicator = ft.Text("AI is typing...", italic=True, color="grey")
         chat_history.controls.append(typing_indicator)
         page.update()
+        input_field.focus()
 
         def _get_response():
             try:
@@ -77,14 +78,14 @@ def ModernHelperView(page: ft.Page):
 
     return ft.Column([
         ft.Row([
-            ft.Icon(ft.Icons.SMART_TOY, size=30, color=ft.colors.BLUE),
+            ft.Icon(ft.Icons.SMART_TOY, size=30, color=ft.Colors.BLUE),
             ft.Text("AI Helper", size=24, weight=ft.FontWeight.BOLD),
         ]),
         ft.Divider(),
         ft.Container(
             content=chat_history,
             expand=True,
-            bgcolor=ft.colors.SURFACE_CONTAINER_HIGHEST if hasattr(ft.colors, "SURFACE_CONTAINER_HIGHEST") else ft.colors.GREY_900,
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST if hasattr(ft.Colors, "SURFACE_CONTAINER_HIGHEST") else ft.Colors.GREY_900,
             border_radius=10,
             padding=10
         ),

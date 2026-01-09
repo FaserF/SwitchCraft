@@ -56,10 +56,10 @@ def ModernHistoryView(page: ft.Page):
                     ft.Text(filename, weight=ft.FontWeight.BOLD),
                     ft.Text(f"{product} | {date_display}", size=12, color="grey")
                 ], expand=True),
-                ft.ElevatedButton("Load", on_click=lambda e: page.show_snack_bar(ft.SnackBar(ft.Text(f"Loading {filename}..."))))
+                ft.ElevatedButton("Load", on_click=lambda e: page.open(ft.SnackBar(ft.Text(f"Loading {filename}..."))))
             ]),
             padding=10,
-            bgcolor=ft.colors.SURFACE_CONTAINER_HIGHEST if hasattr(ft.colors, "SURFACE_CONTAINER_HIGHEST") else ft.colors.GREY_900,
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST if hasattr(ft.Colors, "SURFACE_CONTAINER_HIGHEST") else ft.Colors.GREY_900,
             border_radius=5
         )
 

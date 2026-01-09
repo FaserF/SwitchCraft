@@ -66,16 +66,13 @@ pyz = PYZ(a.pure, a.zipped_data)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
-    name='SwitchCraft-windows', # Legacy (Tkinter) build
+    exclude_binaries=True,
+    name='SwitchCraft-Legacy',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx_exclude=[],
-    runtime_tmpdir=None,
+    upx=True,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -83,5 +80,15 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon='images/switchcraft_logo.png',
-    version='file_version_info.txt'
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='SwitchCraft-Legacy'
 )

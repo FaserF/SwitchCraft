@@ -10,35 +10,31 @@ if src_root not in sys.path:
 
 block_cipher = None
 
-# Collect all submodules, binaries and data files from the package
+# Collect all submodules, binaries and data files from dependencies
 sc_datas, sc_binaries, sc_hidden_imports = collect_all('switchcraft')
+ctk_datas, ctk_binaries, ctk_hidden_imports = collect_all('customtkinter')
+tkdnd_datas, tkdnd_binaries, tkdnd_hidden_imports = collect_all('tkinterdnd2')
 
-# MANUAL COLLECTION to ensure robustness
-hidden_imports = list(set(sc_hidden_imports + [
-    'PIL._tkinter_finder', 'tkinterdnd2', 'plyer.platforms.win.notification',
-    'defusedxml', 'winotify', 'switchcraft.services.addon_service',
-    'py7zr', 'py7zr.archiveinfo', 'py7zr.compressor', 'py7zr.helpers',
-]))
+# MANUAL COLLECTION for extra robustness
+hidden_imports = list(set(
+    sc_hidden_imports + ctk_hidden_imports + tkdnd_hidden_imports + [
+        'PIL._tkinter_finder', 'plyer.platforms.win.notification',
+        'defusedxml', 'winotify', 'switchcraft.services.addon_service',
+        'py7zr', 'py7zr.archiveinfo', 'py7zr.compressor', 'py7zr.helpers',
+    ]
+))
 
-# Helper to find package data
-def get_package_data(package):
-    path = os.path.dirname(package.__file__)
-    return (path, os.path.basename(path))
-
-ctk_path, ctk_name = get_package_data(customtkinter)
-tkdnd_path, tkdnd_name = get_package_data(tkinterdnd2)
-
-datas = sc_datas + [
-    (ctk_path, ctk_name),
-    (tkdnd_path, tkdnd_name),
+datas = sc_datas + ctk_datas + tkdnd_datas + [
     ('images/switchcraft_logo.png', '.'),
     ('src/switchcraft/assets', 'assets'),
 ]
 
+binaries = sc_binaries + ctk_binaries + tkdnd_binaries
+
 a = Analysis(  # noqa: F821
     ['src/entry.py'],
     pathex=[os.path.abspath('src')],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hidden_imports,
     hookspath=[os.path.abspath('hooks')],
@@ -61,7 +57,7 @@ exe = EXE(  # noqa: F821
     a.zipfiles,
     a.datas,
     [],
-    name='SwitchCraft',
+    name='SwitchCraft-Legacy',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

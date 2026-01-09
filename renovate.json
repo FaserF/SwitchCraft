@@ -2,5 +2,33 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "pip_requirements": {
+    "fileMatch": [
+      "(^|/)pyproject\\.toml$",
+      "(^|/)requirements.*\\.txt$"
+    ]
+  },
+  "packageRules": [
+    {
+      "matchManagers": [
+        "pip_requirements",
+        "pep621"
+      ],
+      "matchPackageNames": [
+        "flet",
+        "flet-desktop"
+      ],
+      "groupName": "flet packages",
+      "description": "Group flet and flet-desktop updates together to keep them in sync"
+    },
+    {
+      "matchManagers": [
+        "pip_requirements",
+        "pep621"
+      ],
+      "automerge": false,
+      "description": "Require manual review for Python dependency updates"
+    }
   ]
 }

@@ -8,6 +8,10 @@ import logging
 from tkinter import messagebox
 import os
 import sys
+from switchcraft.utils.logging_handler import setup_session_logging
+
+# Setup session logging early to capture all events
+setup_session_logging()
 
 
 import ctypes
@@ -59,6 +63,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Pending update info (for "Update Later" feature)
         self.pending_update = None
 
+        # Initialize logo_image and load assets before building UI
+        self.logo_image = None
+        self.load_assets()
+
         # 1. Show Loading Screen immediately
         self.loading_frame = ctk.CTkFrame(self)
         self.loading_frame.grid(row=0, column=0, sticky="nsew")
@@ -87,42 +95,61 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.update_idletasks()
 
     def _perform_initialization(self):
-        """Heavy initialization carried out while showing loading screen."""
-        self._update_loading("Registering Addons...")
-        AddonService.register_addons()
+        """Start heavy initialization in a background thread."""
+        threading.Thread(target=self._run_background_init, daemon=True).start()
 
-        self._update_loading("Setting up Notifications...")
-        NotificationService.set_app_window(self)
-
-        self._update_loading("Loading Services...")
-        # 1. AI Addon
-        self.ai_service = None
+    def _run_background_init(self):
+        """Run heavy imports and service init in background."""
         try:
-            ai_mod = AddonService.import_addon_module("ai", "service")
-            if ai_mod:
-                self.ai_service = ai_mod.SwitchCraftAI()
+            self.after(0, lambda: self._update_loading("Registering Addons..."))
+            AddonService.register_addons()
+
+            self.after(0, lambda: self._update_loading("Setting up Notifications..."))
+            NotificationService.set_app_window(self)
+
+            self.after(0, lambda: self._update_loading("Loading Services..."))
+
+            # 1. AI Addon (Heavy Import)
+            self.ai_service = None
+            try:
+                ai_mod = AddonService.import_addon_module("ai", "service")
+                if ai_mod:
+                    self.ai_service = ai_mod.SwitchCraftAI()
+            except Exception as e:
+                logger.info(f"AI Addon not loaded: {e}")
+
+            # 2. Standard Services
+            self.intune_service = IntuneService()
+            self.history_service = HistoryService()
+
+            # 3. Winget Addon
+            self.winget_helper = None
+            self.winget_load_error = None
+            try:
+                winget_mod = AddonService.import_addon_module("winget", "utils.winget", raise_error=True)
+                if winget_mod:
+                    self.winget_helper = winget_mod.WingetHelper()
+            except Exception as e:
+                logger.exception(f"Winget Addon import crashed: {e}")
+                if AddonService.is_addon_installed("winget"):
+                    self.winget_load_error = str(e)
+
+            # 4. Debug Addon
+            self.has_debug_addon = AddonService.is_addon_installed("debug")
+
+            # Initialization done, switch to main thread for UI
+            self.after(0, self._finalize_startup)
+
         except Exception as e:
-            logger.info(f"AI Addon not loaded: {e}")
+            logger.exception(f"Critical error during background init: {e}")
+            # Ensure we don't hang forever
+            self.after(0, lambda: messagebox.showerror("Startup Error", f"Critical error: {e}"))
+            self.after(0, self.destroy)
 
-        self.intune_service = IntuneService()
-        self.history_service = HistoryService()
-
-        # 3. Winget Addon
-        self.winget_helper = None
-        self.winget_load_error = None
-        try:
-            winget_mod = AddonService.import_addon_module("winget", "utils.winget", raise_error=True)
-            if winget_mod:
-                self.winget_helper = winget_mod.WingetHelper()
-        except Exception as e:
-            logger.exception(f"Winget Addon import crashed: {e}")
-            if AddonService.is_addon_installed("winget"):
-                self.winget_load_error = str(e)
-
-        # 4. Debug Addon
-        self.has_debug_addon = AddonService.is_addon_installed("debug")
-
+    def _finalize_startup(self):
+        """Build UI components on main thread after services are loaded."""
         self._update_loading("Building Tabs...")
+
         # Grid Layout
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -164,6 +191,12 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Cloud Backup Check (Weekly)
         self.after(5000, self._check_cloud_backup_auto)
+
+        # Update Check
+        self.after(2000, self.check_updates_silently)
+
+        # Security Check
+        self.after(4000, self.check_security_silently)
 
         # Remove Loading Screen
         self.loading_frame.destroy()
