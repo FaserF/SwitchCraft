@@ -1,51 +1,40 @@
-# -*- mode: python ; coding: utf-8 -*-
-
 import os
 import customtkinter
 import tkinterdnd2
-from PyInstaller.utils.hooks import collect_submodules
+import sys
+from PyInstaller.utils.hooks import collect_submodules, collect_all
+
+src_root = os.path.abspath('src')
+if src_root not in sys.path:
+    sys.path.insert(0, src_root)
 
 block_cipher = None
 
-# Helper to find package data
-def get_package_data(package):
-    path = os.path.dirname(package.__file__)
-    return (path, os.path.basename(path))
+# Collect all submodules, binaries and data files from dependencies
+sc_datas, sc_binaries, sc_hidden_imports = collect_all('switchcraft')
+ctk_datas, ctk_binaries, ctk_hidden_imports = collect_all('customtkinter')
+tkdnd_datas, tkdnd_binaries, tkdnd_hidden_imports = collect_all('tkinterdnd2')
 
-ctk_path, ctk_name = get_package_data(customtkinter)
-tkdnd_path, tkdnd_name = get_package_data(tkinterdnd2)
+# MANUAL COLLECTION for extra robustness
+hidden_imports = list(set(
+    sc_hidden_imports + ctk_hidden_imports + tkdnd_hidden_imports + [
+        'PIL._tkinter_finder', 'plyer.platforms.win.notification',
+        'defusedxml', 'winotify', 'switchcraft.services.addon_service',
+        'py7zr', 'py7zr.archiveinfo', 'py7zr.compressor', 'py7zr.helpers',
+    ]
+))
 
-# MANUAL COLLECTION to ensure robustness
-# Note: Addon modules (switchcraft_winget, switchcraft_ai, etc.) are NOT bundled.
-# They are downloaded separately at runtime.
-# However, commonly-needed addon dependencies (py7zr) are pre-bundled
-# to reduce runtime issues and ensure 7z extraction works out-of-the-box.
-hidden_imports = [
-    'PIL._tkinter_finder', 'tkinterdnd2', 'plyer.platforms.win.notification',
-    'defusedxml', 'winotify', 'switchcraft.services.addon_service',
-    'py7zr', 'py7zr.archiveinfo', 'py7zr.compressor', 'py7zr.helpers'
-]
-
-# Only collect submodules that actually exist in the main package
-try:
-    hidden_imports += collect_submodules('switchcraft')
-except Exception as e:
-    print(f"Warning: Failed to collect switchcraft submodules: {e}")
-
-
-
-
-datas = [
-    (ctk_path, ctk_name),
-    (tkdnd_path, tkdnd_name),
+datas = sc_datas + ctk_datas + tkdnd_datas + [
     ('images/switchcraft_logo.png', '.'),
     ('src/switchcraft/assets', 'assets'),
 ]
 
+binaries = sc_binaries + ctk_binaries + tkdnd_binaries
+
 a = Analysis(  # noqa: F821
     ['src/entry.py'],
     pathex=[os.path.abspath('src')],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hidden_imports,
     hookspath=[os.path.abspath('hooks')],
@@ -68,13 +57,13 @@ exe = EXE(  # noqa: F821
     a.zipfiles,
     a.datas,
     [],
-    name='SwitchCraft',
+    name='SwitchCraft-Legacy',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    # Console: Force enabled for debugging. Set to False for release builds.
+    # Console: Conditional based on environment variable for debugging.
     console=os.environ.get('SWITCHCRAFT_DEBUG_CONSOLE', '0') == '1',
     disable_windowed_traceback=False,
     argv_emulation=False,

@@ -41,7 +41,10 @@ def setup_logging():
 @click.pass_context
 def cli(ctx, output_json, version):
     """SwitchCraft: Analyze installers/packages or manage configuration."""
+    """SwitchCraft: Analyze installers/packages or manage configuration."""
+    from switchcraft.utils.logging_handler import setup_session_logging
     setup_logging()
+    setup_session_logging()
 
     if version:
         print(f"SwitchCraft v{__version__}")
@@ -292,6 +295,33 @@ def config_set_secret(key, value):
     """Set a secure configuration value (keyring)."""
     SwitchCraftConfig.set_secret(key, value)
     print(f"Secret {key} saved securely.")
+
+    SwitchCraftConfig.set_secret(key, value)
+    print(f"Secret {key} saved securely.")
+
+# --- Logs Group ---
+@cli.group()
+def logs():
+    """Manage session logs."""
+    pass
+
+@logs.command('export')
+@click.option('--output', '-o', default="switchcraft_session.log", help="Output file path")
+def logs_export(output):
+    """Export the current session logs to a file."""
+    # Since CLI is stateless per command run, this will mostly capture the current command's startup logs
+    # and whatever happened during this execution. It won't capture "previous" sessions.
+    from switchcraft.utils.logging_handler import get_session_handler
+
+    # Generate some logs if empty just so we have something (e.g. "Export initiated")
+    logging.info("Exporting session logs via CLI...")
+
+    handler = get_session_handler()
+    if handler.export_logs(output):
+        print(f"[green]Logs exported successfully to: {output}[/green]")
+    else:
+        print("[red]Failed to export logs.[/red]")
+        sys.exit(1)
 
 # --- Helper Function for Analysis ---
 def _run_analysis(filepath, output_json):

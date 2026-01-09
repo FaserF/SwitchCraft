@@ -19,6 +19,8 @@ class SwitchCraftConfig:
 
     POLICY_PATH = r"Software\Policies\FaserF\SwitchCraft"
     PREFERENCE_PATH = r"Software\FaserF\SwitchCraft"
+    # Note: Settings are shared between all SwitchCraft editions (Modern/Legacy/CLI)
+    # as they all use the same registry path above.
 
     @classmethod
     def get_company_name(cls) -> str:
@@ -310,3 +312,63 @@ class SwitchCraftConfig:
             logger.info("Preferences imported successfully.")
         except Exception as e:
             logger.error(f"Failed to import preferences: {e}")
+
+    @classmethod
+    def delete_all_application_data(cls):
+        """
+        Factory Reset: Deletes all user data, configuration, and secrets.
+        1. Deletes Registry Key (HKCU\Software\FaserF\SwitchCraft)
+        2. Deletes all known secrets from Keyring
+        """
+        if sys.platform != 'win32':
+            return
+
+        try:
+            import winreg
+            import keyring
+
+            logger.warning("Initiating Factory Reset...")
+
+            # 1. Delete Secrets
+            # We must manually list them as keyring doesn't support list easily across backends
+            known_secrets = [
+                "SwitchCraft_GitHub_Token",
+                "AIKey",
+                "IntuneClientSecret",
+                "GraphClientSecret"
+            ]
+            for s in known_secrets:
+                try:
+                    keyring.delete_password("SwitchCraft", s)
+                    logger.debug(f"Deleted secret: {s}")
+                except Exception:
+                    pass
+
+            # 2. Delete Registry Tree
+            # winreg.DeleteKey doesn't do recursive delete on Windows (unlike shell),
+            # but usually for preferences we only have values under the main key.
+            # If we add subkeys later, we need a recursive delete function.
+            # For now, let's assume flat structure or implement simple recursive delete.
+            def delete_subkeys(key_handle):
+                 while True:
+                    try:
+                        subkey = winreg.EnumKey(key_handle, 0)
+                        with winreg.OpenKey(key_handle, subkey, 0, winreg.KEY_ALL_ACCESS) as sk:
+                            delete_subkeys(sk)
+                        winreg.DeleteKey(key_handle, subkey)
+                    except OSError:
+                        break
+
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH, 0, winreg.KEY_ALL_ACCESS) as key:
+                    delete_subkeys(key)
+                winreg.DeleteKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH)
+                logger.info("Registry preferences deleted.")
+            except FileNotFoundError:
+                pass # Already gone
+            except Exception as e:
+                logger.error(f"Failed to delete registry keys: {e}")
+
+        except Exception as ex:
+             logger.error(f"Factory reset failed: {ex}")
+             raise

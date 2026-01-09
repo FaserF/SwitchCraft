@@ -55,6 +55,14 @@ class WingetView(ctk.CTkFrame):
         self.results_scroll = ctk.CTkScrollableFrame(left_pane)
         self.results_scroll.grid(row=2, column=0, sticky="nsew", padx=10, pady=(0, 10))
 
+        # Initial placeholder - tell user to search first
+        self.lbl_results_placeholder = ctk.CTkLabel(
+            self.results_scroll,
+            text=i18n.get("winget_search_hint") or "Enter a search term above to find apps.",
+            text_color="gray"
+        )
+        self.lbl_results_placeholder.pack(pady=20)
+
         # === Right Pane: Details ===
         self.right_pane = ctk.CTkFrame(self.panes)
         self.right_pane.grid(row=0, column=1, sticky="nsew", padx=(5, 0))

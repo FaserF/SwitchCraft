@@ -10,10 +10,6 @@ import shutil
 import ctypes
 import time
 
-from switchcraft.analyzers.msi import MsiAnalyzer
-from switchcraft.analyzers.exe import ExeAnalyzer
-from switchcraft.analyzers.macos import MacOSAnalyzer
-from switchcraft.analyzers.universal import UniversalAnalyzer
 # WingetHelper imported dynamically from addon
 from switchcraft.utils.i18n import i18n
 from switchcraft.utils.config import SwitchCraftConfig
@@ -215,129 +211,44 @@ class AnalyzerView(ctk.CTkFrame):
 
     def _analyze_thread(self, file_path_str):
         try:
+            from switchcraft.controllers.analysis_controller import AnalysisController
+
             path = Path(file_path_str)
             if not path.exists():
                 self.after(0, lambda: self._show_error(i18n.get("file_not_found")))
                 return
 
-            self._update_progress(0.1, f"{i18n.get('analyzing')} {path.name}...")
+            # Initialize Controller
+            controller = AnalysisController(self.ai_service)
 
-            analyzers = [MsiAnalyzer(), ExeAnalyzer(), MacOSAnalyzer()]
-            info = None
-            total_analyzers = len(analyzers)
+            # Progress callback adapter
+            def on_progress(pct, msg, eta=None):
+                self._update_progress(pct, msg, eta_seconds=eta)
 
-            start_time = time.time()
+            # Run Analysis
+            result = controller.analyze_file(file_path_str, progress_callback=on_progress)
 
-            def progress_handler(pct, message, _=None):
-                 # Map 0-100 from sub-task to global progress range [0.5, 0.9]
-                 # We are in deep analysis phase
-                 global_pct = 0.5 + (pct / 100 * 0.4)
+            if result.error:
+                 self.after(0, lambda: self._show_error(result.error))
+                 self._update_progress(0, "Analysis Failed")
+                 self._is_analyzing = False
+                 NotificationService.send_notification("Analysis Failed", f"Error analyzing {path.name}: {result.error}")
+                 return
 
-                 # ETA Calculation
-                 elapsed = time.time() - start_time
-                 # Heuristic: If we are at global_pct, expected total time = elapsed / global_pct
-                 # But global_pct is rough.
-                 # Let's use simple logic:
-                 eta = 0
-                 if global_pct > 0.1:
-                     total_est = elapsed / global_pct
-                     eta = total_est - elapsed
-
-                 self._update_progress(global_pct, message, eta)
-
-            for idx, analyzer in enumerate(analyzers):
-                self._update_progress(0.1 + (0.3 * (idx / total_analyzers)), f"Running {analyzer.__class__.__name__}...")
-                if analyzer.can_analyze(path):
-                    try:
-                        info = analyzer.analyze(path)
-                        break
-                    except Exception as e:
-                        logger.error(f"Analysis failed for {analyzer.__class__.__name__}: {e}")
-
-            brute_force_data = None
-            nested_data = None
-            silent_disabled = None
-            uni = UniversalAnalyzer()
-            wrapper = uni.check_wrapper(path)
-
-            if not info or info.installer_type == "Unknown" or "Unknown" in (info.installer_type or "") or wrapper:
-                logger.info("Starting Universal Analysis...")
-                self._update_progress(0.5, "Running Universal Analysis...")
-
-                if not info or "Unknown" in (info.installer_type or ""):
-                    self._update_progress(0.6, "Attempting Brute Force Analysis...")
-                    bf_results = uni.brute_force_help(path)
-
-                    if bf_results.get("detected_type"):
-                        if not info:
-                            from switchcraft.models import InstallerInfo
-                            info = InstallerInfo(file_path=str(path), installer_type=bf_results["detected_type"])
-                        else:
-                            info.installer_type = bf_results["detected_type"]
-
-                        info.install_switches = bf_results["suggested_switches"]
-                        if "MSI" in bf_results["detected_type"]:
-                            info.uninstall_switches = ["/x", "{ProductCode}"]
-
-                    brute_force_data = bf_results.get("output", "")
-                    silent_disabled = uni.detect_silent_disabled(path, brute_force_data)
-
-                if wrapper:
-                    if not info:
-                        from switchcraft.models import InstallerInfo
-                        info = InstallerInfo(file_path=str(path), installer_type="Wrapper")
-                    info.installer_type += f" ({wrapper})"
-
-            if not info:
-                from switchcraft.models import InstallerInfo
-                info = InstallerInfo(file_path=str(path), installer_type="Unknown")
-
-            if not info.install_switches and path.suffix.lower() == '.exe':
-                self._update_progress(0.5, "Extracting ecosystem for nested analysis... (This may take a while)", eta_seconds=15)
-                # progress_bar to determinate mode if it was indeterminate
-                self.progress_bar.configure(mode="determinate")
-
-                # Use callback
-                nested_data = uni.extract_and_analyze_nested(path, progress_callback=progress_handler)
-
-                self.progress_bar.configure(mode="determinate")
-                self._update_progress(0.9, "Deep Analysis Complete")
-
-            self._update_progress(0.9, "Searching Winget...")
-            winget_url = None
-            if SwitchCraftConfig.get_value("EnableWinget", True):
-                from switchcraft.services.addon_service import AddonService
-                winget_mod = AddonService.import_addon_module("winget", "utils.winget")
-                if winget_mod and info.product_name:
-                    winget = winget_mod.WingetHelper()
-                    winget_url = winget.search_by_name(info.product_name)
-            else:
-                logger.info("Winget search disabled in settings.")
-
-            context_data = {
-                "type": info.installer_type,
-                "filename": path.name,
-                "install_silent": " ".join(info.install_switches) if info.install_switches else "Unknown",
-                "product": info.product_name or "Unknown",
-                "manufacturer": info.manufacturer or "Unknown"
-            }
-            if self.ai_service:
-                self.ai_service.update_context(context_data)
-
-            if hasattr(self.app, 'history_service'):
+            # Handle History
+            if hasattr(self.app, 'history_service') and result.info:
                 try:
                     self.app.history_service.add_entry({
                         "filename": path.name,
                         "filepath": str(path),
-                        "product": info.product_name or "Unknown",
-                        "type": info.installer_type
+                        "product": result.info.product_name or "Unknown",
+                        "type": result.info.installer_type
                     })
                 except Exception:
                     logger.exception("Failed to save history")
 
-            self._update_progress(1.0, "Analysis Complete")
-            self.after(0, lambda i=info, w=winget_url, bf=brute_force_data, nd=nested_data, sd=silent_disabled:
-                       self._show_results(i, w, bf, nd, sd))
+            # Show Results
+            self.after(0, lambda: self._show_results(result))
 
         except Exception as e:
             logger.exception("CRITICAL CRASH IN ANALYZER THREAD")
@@ -346,12 +257,16 @@ class AnalyzerView(ctk.CTkFrame):
             self._update_progress(0, "Analysis Failed")
             self._is_analyzing = False
             NotificationService.send_notification("Analysis Failed", f"Error analyzing {Path(file_path_str).name}: {err}")
-        except SystemExit:
-            logger.error("Analyzer thread attempted sys.exit()!")
-            self._update_progress(0, "Analysis Error")
-            NotificationService.send_notification("Analysis Error", "Critical system error during analysis.")
 
-    def _show_results(self, info, winget_url, brute_force_data=None, nested_data=None, silent_disabled=None):
+
+    def _show_results(self, result):
+        # Unpack result object
+        info = result.info
+        winget_url = result.winget_url
+        brute_force_data = result.brute_force_data
+        nested_data = result.nested_data
+        silent_disabled = result.silent_disabled_info
+
         self._is_analyzing = False
 
         self.status_bar.configure(text=i18n.get("analysis_complete"))

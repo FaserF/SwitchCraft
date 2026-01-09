@@ -10,6 +10,22 @@ def main():
     has_args = len(sys.argv) > 1
 
     if has_args:
+        if "--factory-reset" in sys.argv:
+            try:
+                from switchcraft.utils.config import SwitchCraftConfig
+                print("WARNING: This will delete ALL user data, settings, and secrets.")
+                print("Are you sure? (Type 'yes' to confirm)")
+                confirmation = input("> ")
+                if confirmation.strip().lower() == "yes":
+                    SwitchCraftConfig.delete_all_application_data()
+                    print("Factory reset complete.")
+                else:
+                    print("Aborted.")
+                sys.exit(0)
+            except Exception as e:
+                print(f"Factory reset failed: {e}")
+                sys.exit(1)
+
         try:
             from switchcraft.cli.commands import cli
             cli()

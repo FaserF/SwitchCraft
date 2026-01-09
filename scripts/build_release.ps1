@@ -82,7 +82,7 @@ Set-Location $RepoRoot
 Write-Host "Project Root: $RepoRoot" -ForegroundColor Gray
 
 # 1. CLEANUP PROCESSES
-$ProcessNames = @("SwitchCraft-new-Test", "SwitchCraft-windows", "SwitchCraft-CLI")
+$ProcessNames = @("SwitchCraft", "SwitchCraft-windows", "SwitchCraft-CLI")
 foreach ($ProcessName in $ProcessNames) {
     try {
         $RunningProcesses = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
@@ -98,8 +98,8 @@ Start-Sleep -Seconds 1 # Give OS time to release file handles
 
 # 1b. SELECTIVE CLEANUP & RENAMING
 $ArtifactMap = @{
-    "Modern" = "$RepoRoot\dist\SwitchCraft-new-Test.exe"
-    "Legacy" = "$RepoRoot\dist\SwitchCraft-windows.exe"
+    "Modern" = "$RepoRoot\dist\SwitchCraft.exe"
+    "Legacy" = "$RepoRoot\dist\SwitchCraft-Legacy"
     "Cli"    = "$RepoRoot\dist\SwitchCraft-CLI.exe"
 }
 
@@ -116,19 +116,20 @@ foreach ($Key in $ArtifactMap.Keys) {
             # Delete target before building
             try {
                 Write-Host "Deleting target artifact for rebuild: $Art" -ForegroundColor Gray
-                Remove-Item $Art -Force -ErrorAction Stop
+                Remove-Item $Art -Force -Recurse -ErrorAction Ignore
             } catch {
-                 Write-Error "CRITICAL: Cannot remove $Art. The file is locked by another process."
+                 Write-Error "CRITICAL: Cannot remove $Art. The file/folder is locked by another process."
                  Write-Error "Please close SwitchCraft manually and try again."
                  exit 1
             }
         } else {
             # Rename existing non-targets to _old
-            $OldName = $Art -replace "\.exe$", "_old.exe"
+            $OldName = $Art + "_old"
+            if ($Art.EndsWith(".exe")) { $OldName = $Art -replace "\.exe$", "_old.exe" }
             try {
-                if (Test-Path $OldName) { Remove-Item $OldName -Force } # Remove previous _old
+                if (Test-Path $OldName) { Remove-Item $OldName -Force -Recurse } # Remove previous _old
                 Move-Item $Art $OldName -Force
-                Write-Host "Archived existing $Key version to _old.exe." -ForegroundColor Gray
+                Write-Host "Archived existing $Key version to _old." -ForegroundColor Gray
             } catch {
                 Write-Warning "Could not rename $Art to $OldName. It might be in use."
             }
@@ -159,9 +160,10 @@ if ($Modern) {
     Write-Host "`n[MODERN] Building Flet GUI..." -ForegroundColor Yellow
     try {
         python -m pip install ".[modern]"
-        python -m PyInstaller switchcraft_modern.spec --clean --noconfirm
+        python -m PyInstaller switchcraft_modern.spec --noconfirm
+        if ($LASTEXITCODE -ne 0) { throw "PyInstaller Modern build process exited with code $LASTEXITCODE" }
 
-        $BuiltModern = "$RepoRoot\dist\SwitchCraft-new-Test.exe"
+        $BuiltModern = "$RepoRoot\dist\SwitchCraft.exe"
         if (Test-Path $BuiltModern) {
             Write-Host "Success! Modern GUI built at: $BuiltModern" -ForegroundColor Green
             Send-BuildNotification "SwitchCraft Build" "Modern GUI (Flet) successfully generated."
@@ -185,11 +187,12 @@ if ($Legacy) {
     Write-Host "`n[LEGACY] Building Tkinter GUI..." -ForegroundColor Yellow
     try {
         python -m pip install ".[gui]"
-        python -m PyInstaller switchcraft_legacy.spec --clean --noconfirm
+        python -m PyInstaller switchcraft_legacy.spec --noconfirm
+        if ($LASTEXITCODE -ne 0) { throw "PyInstaller Legacy build process exited with code $LASTEXITCODE" }
 
-        $BuiltLegacy = "$RepoRoot\dist\SwitchCraft-windows.exe"
+        $BuiltLegacy = "$RepoRoot\dist\SwitchCraft-Legacy\SwitchCraft-Legacy.exe"
         if (Test-Path $BuiltLegacy) {
-            Write-Host "Success! Legacy GUI built at: $BuiltLegacy" -ForegroundColor Green
+            Write-Host "Success! Legacy GUI built at: $(Split-Path -Parent $BuiltLegacy)" -ForegroundColor Green
             Send-BuildNotification "SwitchCraft Build" "Legacy GUI (Tkinter) successfully generated."
             $ArtifactCount++
         } else {
@@ -206,7 +209,8 @@ if ($Cli) {
     Write-Host "`n[CLI] Building CLI..." -ForegroundColor Yellow
     try {
         python -m pip install .
-        python -m PyInstaller switchcraft_cli.spec --clean --noconfirm
+        python -m PyInstaller switchcraft_cli.spec --noconfirm
+        if ($LASTEXITCODE -ne 0) { throw "PyInstaller CLI build process exited with code $LASTEXITCODE" }
 
         $BuiltCli = "$RepoRoot\dist\SwitchCraft-CLI.exe"
         if (Test-Path $BuiltCli) {
@@ -238,12 +242,12 @@ if ($Pip) {
 if ($Installer) {
     Write-Host "`n[INSTALLER] Building Windows Installer (Inno Setup)..." -ForegroundColor Yellow
 
-    # Check if Legacy EXE exists (required for installer)
-    $LegacyExe = "$RepoRoot\dist\SwitchCraft-windows.exe"
-    if (-not (Test-Path $LegacyExe)) {
-        Write-Warning "Legacy EXE not found at $LegacyExe. Building Legacy first..."
+    # Check if Legacy build folder exists (required for installer)
+    $LegacyDir = "$RepoRoot\dist\SwitchCraft-Legacy"
+    if (-not (Test-Path $LegacyDir)) {
+        Write-Warning "Legacy build not found at $LegacyDir. Building Legacy first..."
         python -m pip install ".[gui]"
-        python -m PyInstaller switchcraft_legacy.spec --clean --noconfirm
+        python -m PyInstaller switchcraft_legacy.spec --noconfirm
     }
 
     # Check for Inno Setup
