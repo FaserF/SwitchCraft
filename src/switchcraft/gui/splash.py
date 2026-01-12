@@ -83,5 +83,18 @@ class LegacySplash:
 
     def close(self):
         if hasattr(self, 'progress'):
-            self.progress.stop()
+            try:
+                self.progress.stop()
+            except Exception:
+                pass
         self.root.destroy()
+
+if __name__ == "__main__":
+    try:
+        splash = LegacySplash()
+        # Ensure it handles external termination signals if possible, or just runs until close()
+        # When run as subprocess, it will be killed by parent.
+        # But we want to ensure it pumps messages.
+        splash.root.mainloop()
+    except KeyboardInterrupt:
+        pass

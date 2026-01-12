@@ -147,6 +147,42 @@
        </elements>
     </policy>
 
+    <policy name="CustomTemplatePath_Enf" class="User" displayName="$(string.CustomTemplatePath)" explainText="$(string.CustomTemplatePath_Help)" presentation="$(presentation.CustomTemplatePath)" key="Software\Policies\FaserF\SwitchCraft" valueName="CustomTemplatePath">
+       <parentCategory ref="General_Enf" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="CustomTemplatePathBox" valueName="CustomTemplatePath" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="WingetRepoPath_Enf" class="User" displayName="$(string.WingetRepoPath)" explainText="$(string.WingetRepoPath_Help)" presentation="$(presentation.WingetRepoPath)" key="Software\Policies\FaserF\SwitchCraft" valueName="WingetRepoPath">
+       <parentCategory ref="General_Enf" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="WingetRepoPathBox" valueName="WingetRepoPath" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="Theme_Enf" class="User" displayName="$(string.Theme)" explainText="$(string.Theme_Help)" presentation="$(presentation.Theme)" key="Software\Policies\FaserF\SwitchCraft" valueName="Theme">
+      <parentCategory ref="General_Enf" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <enum id="ThemeDropdown" valueName="Theme">
+          <item displayName="$(string.Theme_System)"><value><string>System</string></value></item>
+          <item displayName="$(string.Theme_Light)"><value><string>Light</string></value></item>
+          <item displayName="$(string.Theme_Dark)"><value><string>Dark</string></value></item>
+        </enum>
+      </elements>
+    </policy>
+
+    <policy name="AIKey_Enf" class="User" displayName="$(string.AIKey)" explainText="$(string.AIKey_Help)" presentation="$(presentation.AIKey)" key="Software\Policies\FaserF\SwitchCraft" valueName="AIKey">
+       <parentCategory ref="AI_Enf" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="AIKeyBox" valueName="AIKey" required="true" />
+       </elements>
+    </policy>
+
     <policy name="GraphTenantId_Enf" class="User" displayName="$(string.GraphTenantId)" explainText="$(string.GraphTenantId_Help)" presentation="$(presentation.GraphTenantId)" key="Software\Policies\FaserF\SwitchCraft" valueName="GraphTenantId">
        <parentCategory ref="Intune_Enf" />
        <supportedOn ref="windows:SUPPORTED_Windows10" />
@@ -168,6 +204,14 @@
        <supportedOn ref="windows:SUPPORTED_Windows10" />
        <elements>
          <text id="GraphClientSecretBox" valueName="GraphClientSecret" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="IntuneTestGroups_Enf" class="User" displayName="$(string.IntuneTestGroups)" explainText="$(string.IntuneTestGroups_Help)" presentation="$(presentation.IntuneTestGroups)" key="Software\Policies\FaserF\SwitchCraft" valueName="IntuneTestGroups">
+       <parentCategory ref="Intune_Enf" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="IntuneTestGroupsBox" valueName="IntuneTestGroups" required="false" />
        </elements>
     </policy>
 
@@ -254,6 +298,42 @@
        </elements>
     </policy>
 
+    <policy name="CustomTemplatePath_Def" class="User" displayName="$(string.CustomTemplatePath)" explainText="$(string.CustomTemplatePath_Help)" presentation="$(presentation.CustomTemplatePath)" key="Software\FaserF\SwitchCraft" valueName="CustomTemplatePath">
+       <parentCategory ref="General_Def" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="CustomTemplatePathBox" valueName="CustomTemplatePath" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="WingetRepoPath_Def" class="User" displayName="$(string.WingetRepoPath)" explainText="$(string.WingetRepoPath_Help)" presentation="$(presentation.WingetRepoPath)" key="Software\FaserF\SwitchCraft" valueName="WingetRepoPath">
+       <parentCategory ref="General_Def" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="WingetRepoPathBox" valueName="WingetRepoPath" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="Theme_Def" class="User" displayName="$(string.Theme)" explainText="$(string.Theme_Help)" presentation="$(presentation.Theme)" key="Software\FaserF\SwitchCraft" valueName="Theme">
+      <parentCategory ref="General_Def" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <enum id="ThemeDropdown" valueName="Theme">
+          <item displayName="$(string.Theme_System)"><value><string>System</string></value></item>
+          <item displayName="$(string.Theme_Light)"><value><string>Light</string></value></item>
+          <item displayName="$(string.Theme_Dark)"><value><string>Dark</string></value></item>
+        </enum>
+      </elements>
+    </policy>
+
+    <policy name="AIKey_Def" class="User" displayName="$(string.AIKey)" explainText="$(string.AIKey_Help)" presentation="$(presentation.AIKey)" key="Software\FaserF\SwitchCraft" valueName="AIKey">
+       <parentCategory ref="AI_Def" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="AIKeyBox" valueName="AIKey" required="true" />
+       </elements>
+    </policy>
+
     <policy name="GraphTenantId_Def" class="User" displayName="$(string.GraphTenantId)" explainText="$(string.GraphTenantId_Help)" presentation="$(presentation.GraphTenantId)" key="Software\FaserF\SwitchCraft" valueName="GraphTenantId">
        <parentCategory ref="Intune_Def" />
        <supportedOn ref="windows:SUPPORTED_Windows10" />
@@ -275,6 +355,14 @@
        <supportedOn ref="windows:SUPPORTED_Windows10" />
        <elements>
          <text id="GraphClientSecretBox" valueName="GraphClientSecret" required="true" />
+       </elements>
+    </policy>
+
+    <policy name="IntuneTestGroups_Def" class="User" displayName="$(string.IntuneTestGroups)" explainText="$(string.IntuneTestGroups_Help)" presentation="$(presentation.IntuneTestGroups)" key="Software\FaserF\SwitchCraft" valueName="IntuneTestGroups">
+       <parentCategory ref="Intune_Def" />
+       <supportedOn ref="windows:SUPPORTED_Windows10" />
+       <elements>
+         <text id="IntuneTestGroupsBox" valueName="IntuneTestGroups" required="false" />
        </elements>
     </policy>
 

@@ -1,12 +1,22 @@
 import logging
 import json
 import subprocess
+import requests
+import time
 from pathlib import Path
 from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
 
+# API Configuration
+WINGET_API_BASE = "https://winget-pkg-api.onrender.com/api/v1"
+WINGET_API_TIMEOUT = 10  # seconds
+
 class WingetHelper:
+    # Class-level cache for search results
+    _search_cache: Dict[str, tuple] = {}  # {query: (timestamp, results)}
+    _cache_ttl = 300  # 5 minutes
+
     def __init__(self):
         self.local_repo = None
 
@@ -33,27 +43,89 @@ class WingetHelper:
 
     def search_packages(self, query: str) -> List[Dict[str, str]]:
         """
-        Search for packages using PowerShell Microsoft.WinGet.Client module.
-        Returns list of {Id, Name, Version, Source}
+        Search for packages. Tries API first, then falls back to local CLI.
+        Results are cached for 5 minutes.
         """
+        if not query:
+            return []
+
+        # Check cache first
+        cache_key = query.lower().strip()
+        if cache_key in self._search_cache:
+            timestamp, cached_results = self._search_cache[cache_key]
+            if time.time() - timestamp < self._cache_ttl:
+                logger.debug(f"Winget cache hit for '{query}'")
+                return cached_results
+
+        # Try API first (faster)
+        results = self._search_via_api(query)
+
+        # If API returns empty or fails, try local CLI
+        if not results:
+            logger.info(f"API returned no results for '{query}', trying local CLI...")
+            results = self._search_via_powershell(query)
+
+        # If PowerShell fails, try CLI directly
+        if not results:
+            results = self._search_via_cli(query)
+
+        # Cache results
+        if results:
+            self._search_cache[cache_key] = (time.time(), results)
+
+        return results
+
+    def _search_via_api(self, query: str) -> List[Dict[str, str]]:
+        """Search using the winget-pkg-api (fast online API)."""
         try:
-            ps_script = f"Find-WinGetPackage -Query '{query}' -Source winget | Select-Object Name, Id, Version, Source | ConvertTo-Json -Depth 1"
+            url = f"{WINGET_API_BASE}/search"
+            params = {"q": query}
+
+            response = requests.get(url, params=params, timeout=WINGET_API_TIMEOUT)
+
+            if response.status_code == 200:
+                data = response.json()
+                # API returns a list of packages
+                if isinstance(data, list):
+                    results = []
+                    for pkg in data[:50]:  # Limit to 50 results
+                        results.append({
+                            "Name": pkg.get("PackageName", pkg.get("name", "")),
+                            "Id": pkg.get("PackageIdentifier", pkg.get("id", "")),
+                            "Version": pkg.get("PackageVersion", pkg.get("version", "")),
+                            "Source": "winget"
+                        })
+                    logger.debug(f"API returned {len(results)} results for '{query}'")
+                    return results
+            else:
+                logger.debug(f"API returned status {response.status_code}")
+
+        except requests.exceptions.Timeout:
+            logger.debug(f"API timeout for query '{query}'")
+        except Exception as ex:
+            logger.debug(f"API search failed: {ex}")
+
+        return []
+
+    def _search_via_powershell(self, query: str) -> List[Dict[str, str]]:
+        """Search using PowerShell Microsoft.WinGet.Client module."""
+        try:
+            ps_script = f"Find-WinGetPackage -Query '{query}' | Select-Object Name, Id, Version, Source | ConvertTo-Json -Depth 1"
             cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script]
             startupinfo = self._get_startup_info()
 
-            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo, timeout=30)
 
             if proc.returncode != 0:
-                err_msg = proc.stderr.strip()
-                if "Find-WinGetPackage" in err_msg:
-                    logger.info("Winget PowerShell module not found. Attempting Winget CLI fallback...")
-                    return self._search_via_cli(query)
+                logger.debug(f"PowerShell search failed: {proc.stderr[:200] if proc.stderr else 'No error'}")
                 return []
 
             output = proc.stdout.strip()
             if not output:
+                logger.debug("Winget PS Search: Empty output")
                 return []
 
+            logger.debug(f"Winget PS Search raw output: {output}")
             try:
                 data = json.loads(output)
             except json.JSONDecodeError:
@@ -77,32 +149,115 @@ class WingetHelper:
             return []
 
     def get_package_details(self, package_id: str) -> Dict[str, str]:
-        """Get details via PowerShell (Find-WinGetPackage)."""
+        """
+        Get detailed package information using 'winget show' command.
+        This provides full manifest details including Description, License, Homepage, etc.
+        """
         try:
-            ps_script = f"Find-WinGetPackage -Id '{package_id}' -Source winget | ConvertTo-Json -Depth 2"
-            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script]
+            # Use 'winget show' which provides full manifest details
+            cmd = ["winget", "show", "--id", package_id, "--source", "winget", "--accept-source-agreements"]
             startupinfo = self._get_startup_info()
 
-            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+                startupinfo=startupinfo
+            )
+
             output = proc.stdout.strip()
             if not output:
                 return {}
 
-            item = json.loads(output)
-            provider = item.get("Provider", {})
-            publisher = provider.get("Name") if isinstance(provider, dict) else str(provider)
+            # Parse the key: value format from winget show output
+            details = self._parse_winget_show_output(output)
+            return details
 
-            return {
-                "publisher": publisher or item.get("Source", ""),
-                "name": item.get("Name", ""),
-                "id": item.get("Id", ""),
-                "version": item.get("Version", ""),
-                "description": item.get("Description", ""),
-                "homepage": item.get("Source", ""),
-            }
         except Exception as e:
-            logger.error(f"Winget PS Details Error: {e}")
+            logger.error(f"Winget show error: {e}")
             return {}
+
+    def _parse_winget_show_output(self, output: str) -> Dict[str, str]:
+        """
+        Parse the output of 'winget show' command into a dictionary.
+        Handles multi-line values like Description and nested structure.
+        """
+        details = {}
+        lines = output.splitlines()
+
+        # Common field mappings (handles both English and German)
+        field_mappings = {
+            # English
+            'name': 'Name',
+            'id': 'Id',
+            'version': 'Version',
+            'publisher': 'Publisher',
+            'publisher url': 'PublisherUrl',
+            'publisher support url': 'PublisherSupportUrl',
+            'author': 'Author',
+            'moniker': 'Moniker',
+            'description': 'Description',
+            'homepage': 'Homepage',
+            'license': 'License',
+            'license url': 'LicenseUrl',
+            'privacy url': 'PrivacyUrl',
+            'copyright': 'Copyright',
+            'copyright url': 'CopyrightUrl',
+            'release notes': 'ReleaseNotes',
+            'release notes url': 'ReleaseNotesUrl',
+            'tags': 'Tags',
+            'installer type': 'InstallerType',
+            'installer url': 'InstallerUrl',
+            'installer sha256': 'InstallerSha256',
+            # German
+            'herausgeber': 'Publisher',
+            'herausgeber-url': 'PublisherUrl',
+            'beschreibung': 'Description',
+            'startseite': 'Homepage',
+            'lizenz': 'License',
+            'lizenz-url': 'LicenseUrl',
+            'datenschutz-url': 'PrivacyUrl',
+            'urheberrecht': 'Copyright',
+            'versionshinweise': 'ReleaseNotes',
+        }
+
+        current_key = None
+        current_value_lines = []
+
+        for line in lines:
+            # Skip empty lines
+            if not line.strip():
+                continue
+
+            # Check if this is a new key: value pair
+            if ':' in line and not line.startswith(' ') and not line.startswith('\t'):
+                # Save previous key if exists
+                if current_key:
+                    value = '\n'.join(current_value_lines).strip()
+                    details[current_key] = value
+
+                # Parse new key: value
+                parts = line.split(':', 1)
+                raw_key = parts[0].strip().lower()
+                raw_value = parts[1].strip() if len(parts) > 1 else ''
+
+                # Map to normalized key name
+                normalized_key = field_mappings.get(raw_key, parts[0].strip())
+                current_key = normalized_key
+                current_value_lines = [raw_value] if raw_value else []
+
+            elif current_key and (line.startswith(' ') or line.startswith('\t')):
+                # This is a continuation of the previous value (multi-line description, etc.)
+                current_value_lines.append(line.strip())
+
+        # Don't forget the last key
+        if current_key:
+            value = '\n'.join(current_value_lines).strip()
+            details[current_key] = value
+
+        return details
 
     def install_package(self, package_id: str, scope: str = "machine") -> bool:
         """Install a package via Winget CLI."""
@@ -149,7 +304,7 @@ class WingetHelper:
     def _search_via_cli(self, query: str) -> List[Dict[str, str]]:
         """Fallback search using winget CLI with robust table parsing."""
         try:
-             cmd = ["winget", "search", query, "--source", "winget", "--accept-source-agreements"]
+             cmd = ["winget", "search", query, "--accept-source-agreements"]
              startupinfo = self._get_startup_info()
 
              proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)
@@ -158,22 +313,34 @@ class WingetHelper:
 
              # Skip any leading empty lines/garbage
              lines = [l for l in proc.stdout.splitlines() if l.strip()]
+             logger.debug(f"Winget CLI fallback lines: {len(lines)}")
              if len(lines) < 2:
+                 logger.debug(f"Winget CLI output too short: {proc.stdout}")
                  return []
 
              # Find header line (must contain Name, Id, Version)
              header_idx = -1
              for i, line in enumerate(lines):
                  lower_line = line.lower()
-                 # Use localized name detection or common substrings
-                 # German: Name, ID, Version, Übereinstimmung
-                 # English: Name, Id, Version, Match
-                 if "name" in lower_line and "id" in lower_line and "version" in lower_line:
+                 # Even more robust: just check for 'ID' and 'Version'/ 'Vers'
+                 if "id" in lower_line and ("ver" in lower_line):
                      header_idx = i
                      break
 
              if header_idx == -1 or header_idx + 1 >= len(lines):
-                 return []
+                 logger.debug("Failed to find Winget table header. Trying smart split on all lines.")
+                 results = []
+                 for line in lines:
+                    if "---" in line: continue
+                    parts = re.split(r'\s{2,}', line.strip())
+                    if len(parts) >= 3 and "." in parts[1]: # IDs usually have dots
+                        results.append({
+                            "Name": parts[0],
+                            "Id": parts[1],
+                            "Version": parts[2],
+                            "Source": parts[3] if len(parts) > 3 else "winget"
+                        })
+                 return results
 
              header = lines[header_idx]
 
@@ -236,12 +403,13 @@ class WingetHelper:
                      source = "winget"
 
                  if name and pkg_id:
-                     results.append({
-                         "Name": name,
-                         "Id": pkg_id,
-                         "Version": version,
-                         "Source": source
-                     })
+                      results.append({
+                          "Name": name,
+                          "Id": pkg_id,
+                          "Version": version,
+                          "Source": source
+                      })
+             logger.debug(f"Winget CLI logic parsed {len(results)} results")
              return results
 
         except Exception as e:

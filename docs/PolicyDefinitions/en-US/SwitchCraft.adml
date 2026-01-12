@@ -59,6 +59,18 @@ If enabled, SwitchCraft can search and generate installers for Winget packages.<
       <string id="Lang_EN">English</string>
       <string id="Lang_DE">German (Deutsch)</string>
 
+      <string id="Theme">App Theme</string>
+      <string id="Theme_Help">Controls the application visual theme (Light/Dark/System).</string>
+      <string id="Theme_System">System Default</string>
+      <string id="Theme_Light">Light Mode</string>
+      <string id="Theme_Dark">Dark Mode</string>
+
+      <string id="CustomTemplatePath">Custom Template Path</string>
+      <string id="CustomTemplatePath_Help">Path to a custom PowerShell template folder to use for script generation.</string>
+
+      <string id="WingetRepoPath">Winget Repository Path</string>
+      <string id="WingetRepoPath_Help">Path to the local Winget repository storage.</string>
+
       <string id="GitRepoPath">Git Repository Path</string>
       <string id="GitRepoPath_Help">Sets the path to the local Git repository used for configuration storage.</string>
 
@@ -75,6 +87,11 @@ If enabled, SwitchCraft can search and generate installers for Winget packages.<
       <string id="AI_Local">Local (Private)</string>
       <string id="AI_OpenAI">OpenAI (Cloud)</string>
       <string id="AI_Gemini">Google Gemini (Cloud)</string>
+
+      <string id="AIKey">AI API Key</string>
+      <string id="AIKey_Help">API Key for the selected AI Provider (OpenAI or Gemini).
+
+WARNING: This value is stored in the registry (HKCU/HKLM). Ensure access permissions are restricted if deploying this via Policy.</string>
 
       <!-- Security Strings -->
       <string id="SignScripts">Enable Script Signing</string>
@@ -96,6 +113,9 @@ This setting overrides the file-based certificate path.</string>
       <string id="GraphClientSecret_Help">The Client Secret for Graph API authentication.
 
 WARNING: This value is stored in the registry (HKCU/HKLM). Ensure access permissions are restricted if deploying this via Policy.</string>
+
+      <string id="IntuneTestGroups">Intune Test Groups</string>
+      <string id="IntuneTestGroups_Help">A comma-separated list of Entra ID Group IDs to automatically assign to the created Intune application.</string>
 
     </stringTable>
 
@@ -137,6 +157,29 @@ WARNING: This value is stored in the registry (HKCU/HKLM). Ensure access permiss
       <presentation id="GraphClientSecret">
         <textBox refId="GraphClientSecretBox">
           <label>Client Secret:</label>
+        </textBox>
+      </presentation>
+      <presentation id="Theme">
+        <dropdownList refId="ThemeDropdown" defaultItem="0">Theme:</dropdownList>
+      </presentation>
+      <presentation id="CustomTemplatePath">
+        <textBox refId="CustomTemplatePathBox">
+          <label>Template Path:</label>
+        </textBox>
+      </presentation>
+      <presentation id="WingetRepoPath">
+        <textBox refId="WingetRepoPathBox">
+          <label>Winget Repo Path:</label>
+        </textBox>
+      </presentation>
+      <presentation id="AIKey">
+        <textBox refId="AIKeyBox">
+          <label>API Key:</label>
+        </textBox>
+      </presentation>
+      <presentation id="IntuneTestGroups">
+        <textBox refId="IntuneTestGroupsBox">
+          <label>Group IDs (CSV):</label>
         </textBox>
       </presentation>
     </presentationTable>

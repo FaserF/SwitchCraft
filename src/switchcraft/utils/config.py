@@ -33,6 +33,26 @@ class SwitchCraftConfig:
         Retrieves a registry value respecting the policy precedence order.
         Returns 'default' if the value is not found in any location.
         """
+        # Alias mapping for GPO compatibility (Intune* -> Graph*)
+        # The ADMX uses GraphTenantId, but some code uses IntuneTenantID.
+        key_map = {
+            "IntuneTenantID": "GraphTenantId",
+            "IntuneClientId": "GraphClientId",
+            "IntuneClientSecret": "GraphClientSecret"
+        }
+        # If the requested key has a GPO alias, check that alias INSTEAD or AS FALLBACK?
+        # To support both old local prefs and new GPO, we should probably check the alias
+        # if the original isn't found, OR check the alias first if we want GPO to win.
+        # Since GPO (Policy) is checked in _read_registry(HKEY_LOCAL_MACHINE, POLICY_PATH),
+        # passing the alias "GraphTenantId" will find the GPO value.
+        # So we should map it.
+        if value_name in key_map:
+             # Check GPO/Policy path with the Alias First (Graph*)
+             # This ensures if GPO is set (Graph*), it overrides local config (Intune*)
+             alias_val = cls.get_value(key_map[value_name], default=None)
+             if alias_val is not None:
+                 return alias_val
+
         if sys.platform != 'win32':
             return default
 
@@ -94,9 +114,28 @@ class SwitchCraftConfig:
         try:
             import winreg
             with winreg.OpenKey(root_key, sub_key, 0, winreg.KEY_READ) as key:
-                value, _ = winreg.QueryValueEx(key, value_name)
+                value, val_type = winreg.QueryValueEx(key, value_name)
+
+                # Normalize types for consistency
+                if val_type == winreg.REG_SZ or val_type == winreg.REG_EXPAND_SZ:
+                    # OMA-URI sometimes sends "1" or "true" for booleans
+                    v_lower = str(value).lower()
+                    if v_lower == "true":
+                        return True
+                    if v_lower == "false":
+                        return False
+                    # Check if it looks like an int
+                    if v_lower.isdigit():
+                         return int(v_lower)
+                    return value
+
+                if val_type == winreg.REG_DWORD:
+                    return int(value)
+
                 return value
-        except (FileNotFoundError, OSError, WindowsError):
+        except (FileNotFoundError, OSError, WindowsError, PermissionError) as e:
+            if isinstance(e, PermissionError):
+                logger.warning(f"Access denied reading registry key '{sub_key}\\{value_name}': {e}")
             return None
 
     @classmethod

@@ -51,7 +51,7 @@ a = Analysis(
     pathex=[os.path.abspath('src')],
     binaries=[],
     datas=datas,
-    hiddenimports=hidden_imports,
+    hiddenimports=hidden_imports + ['switchcraft.utils', 'switchcraft.utils.config'],
     hookspath=[os.path.abspath('hooks')],
     hooksconfig={},
     runtime_hooks=[],
@@ -66,13 +66,17 @@ pyz = PYZ(a.pure, a.zipped_data)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
     [],
-    exclude_binaries=True,
     name='SwitchCraft-Legacy',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -80,15 +84,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon='images/switchcraft_logo.png',
-)
-
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='SwitchCraft-Legacy'
+    version='file_version_info_legacy.txt'
 )

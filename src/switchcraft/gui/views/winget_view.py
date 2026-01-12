@@ -41,24 +41,41 @@ class WingetView(ctk.CTkFrame):
 
         ctk.CTkLabel(left_pane, text="Winget Store", font=ctk.CTkFont(size=20, weight="bold")).grid(row=0, column=0, pady=10)
 
-        # Search Bar
-        search_frame = ctk.CTkFrame(left_pane, fg_color="transparent")
-        search_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
+        # Filter and Search Bar
+        filter_search_frame = ctk.CTkFrame(left_pane, fg_color="transparent")
+        filter_search_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 5))
 
-        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text=i18n.get("winget_search_placeholder"))
+        # Filter dropdown
+        self.filter_var = ctk.StringVar(value="All")
+        self.filter_dropdown = ctk.CTkOptionMenu(
+            filter_search_frame,
+            values=["All", "Name", "Package ID", "Publisher"],
+            variable=self.filter_var,
+            width=100
+        )
+        self.filter_dropdown.pack(side="left", padx=(0, 5))
+
+        self.search_entry = ctk.CTkEntry(filter_search_frame, placeholder_text=i18n.get("winget_search_placeholder"))
         self.search_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
         self.search_entry.bind("<Return>", lambda e: self._perform_search())
 
-        ctk.CTkButton(search_frame, text=i18n.get("winget_search_btn"), width=40, command=self._perform_search).pack(side="right")
+        ctk.CTkButton(filter_search_frame, text=i18n.get("winget_search_btn"), width=40, command=self._perform_search).pack(side="right")
+
+        # Results count label
+        self.results_count_label = ctk.CTkLabel(left_pane, text="", text_color="gray", font=ctk.CTkFont(size=11))
+        self.results_count_label.grid(row=2, column=0, sticky="w", padx=10)
 
         # Results List
         self.results_scroll = ctk.CTkScrollableFrame(left_pane)
-        self.results_scroll.grid(row=2, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        self.results_scroll.grid(row=3, column=0, sticky="nsew", padx=10, pady=(0, 10))
+
+        # Configure row weight for scrollable area
+        left_pane.grid_rowconfigure(3, weight=1)
 
         # Initial placeholder - tell user to search first
         self.lbl_results_placeholder = ctk.CTkLabel(
             self.results_scroll,
-            text=i18n.get("winget_search_hint") or "Enter a search term above to find apps.",
+            text="Type a search term above to find apps...",
             text_color="gray"
         )
         self.lbl_results_placeholder.pack(pady=20)
@@ -89,6 +106,9 @@ class WingetView(ctk.CTkFrame):
         if not query:
             return
 
+        filter_by = self.filter_var.get()
+        self.results_count_label.configure(text="")
+
         for w in self.results_scroll.winfo_children():
             w.destroy()
 
@@ -104,18 +124,38 @@ class WingetView(ctk.CTkFrame):
             except Exception as e:
                 error_msg = str(e)
 
-            self.after(0, lambda: self._display_results(results, error=error_msg))
+            self.after(0, lambda: self._display_results(results, error=error_msg, filter_by=filter_by, query=query))
 
         threading.Thread(target=_search_thread, daemon=True).start()
 
-    def _display_results(self, results, error=None):
+    def _display_results(self, results, error=None, filter_by="All", query=""):
         for w in self.results_scroll.winfo_children():
             w.destroy()
 
         if error:
             err_label = ctk.CTkLabel(self.results_scroll, text=f"Error: {error}", text_color="red", wraplength=250)
             err_label.pack(pady=20, padx=10)
+            self.results_count_label.configure(text="")
             return
+
+        # Filter results based on selected filter
+        if results and filter_by != "All" and query:
+            query_lower = query.lower()
+            filtered_results = []
+            for app in results:
+                if filter_by == "Name" and query_lower in app.get('Name', '').lower():
+                    filtered_results.append(app)
+                elif filter_by == "Package ID" and query_lower in app.get('Id', '').lower():
+                    filtered_results.append(app)
+                elif filter_by == "Publisher":
+                    pkg_id = app.get('Id', '')
+                    if '.' in pkg_id and query_lower in pkg_id.split('.')[0].lower():
+                        filtered_results.append(app)
+            results = filtered_results
+
+        # Update results count
+        count = len(results) if results else 0
+        self.results_count_label.configure(text=f"Found {count} app{'s' if count != 1 else ''}")
 
         if not results:
             ctk.CTkLabel(self.results_scroll, text=i18n.get("winget_no_results")).pack(pady=20)
@@ -166,9 +206,29 @@ class WingetView(ctk.CTkFrame):
                 else:
                     ctk.CTkLabel(f, text=val, anchor="w", wraplength=400).pack(side="left", fill="x", expand=True)
 
+        add_row("Version", info.get("Version"))
         add_row("Publisher", info.get("publisher"))
         add_row("Description", info.get("description"))
         add_row("Homepage", info.get("homepage"), link=True)
+
+        # Manifest URL Logic
+        manifest_url = info.get("manifest_url")
+        if not manifest_url and info.get("Id"):
+             # Construct GitHub link
+             pkg_id = info.get("Id")
+             try:
+                 parts = pkg_id.split('.', 1)
+                 if len(parts) >= 2:
+                     publisher = parts[0]
+                     first_char = publisher[0].lower()
+                     manifest_url = f"https://github.com/microsoft/winget-pkgs/tree/master/manifests/{first_char}/{publisher.replace('.', '/')}/{parts[1]}"
+                 else:
+                     manifest_url = f"https://github.com/microsoft/winget-pkgs/tree/master/manifests/{pkg_id[0].lower()}/{pkg_id}"
+             except:
+                 pass
+
+        add_row("Manifest URL", manifest_url, link=True)
+
         add_row("License", info.get("license"))
         add_row("License URL", info.get("license_url"), link=True)
         add_row("Installer Type", info.get("installer_type"))
@@ -180,11 +240,14 @@ class WingetView(ctk.CTkFrame):
         actions_frame = ctk.CTkFrame(self.details_content)
         actions_frame.pack(fill="x", pady=10, padx=10)
 
+        ctk.CTkButton(actions_frame, text="Copy Command", fg_color="gray",
+                      command=lambda: self._copy_install_command(info)).pack(side="left", padx=5, pady=10, expand=True)
+
         ctk.CTkButton(actions_frame, text=i18n.get("winget_install_local"), fg_color="green",
-                      command=lambda: self._install_local(info)).pack(side="left", padx=10, pady=10, expand=True)
+                      command=lambda: self._install_local(info)).pack(side="left", padx=5, pady=10, expand=True)
 
         ctk.CTkButton(actions_frame, text=i18n.get("winget_deploy_intune"), fg_color="#0066CC",
-                      command=lambda: self._deploy_menu(info)).pack(side="right", padx=10, pady=10, expand=True)
+                      command=lambda: self._deploy_menu(info)).pack(side="right", padx=5, pady=10, expand=True)
 
     def _install_local(self, info):
         scope = "machine"
@@ -209,6 +272,14 @@ class WingetView(ctk.CTkFrame):
             self.after(0, top.destroy)
 
         threading.Thread(target=_run, daemon=True).start()
+
+    def _copy_install_command(self, info):
+        """Copy the winget install command to clipboard."""
+        pkg_id = info.get('Id', '')
+        command = f"winget install --id {pkg_id} --accept-package-agreements --accept-source-agreements"
+        self.clipboard_clear()
+        self.clipboard_append(command)
+        messagebox.showinfo("Copied", f"Command copied to clipboard:\n{command}")
 
     def _deploy_menu(self, info):
         dialog = ctk.CTkToplevel(self)

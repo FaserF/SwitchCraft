@@ -40,6 +40,25 @@ class ModernAnalyzerView(ft.Column):
              if path:
                  self.start_analysis(path)
 
+        def on_drag_enter(e):
+            self.drop_zone.border = ft.border.all(4, ft.Colors.BLUE_400)
+            self.drop_text.value = "Release to analyze!"
+            self.update()
+
+        def on_drag_leave(e):
+            self.drop_zone.border = ft.border.all(2, ft.Colors.BLUE_700)
+            self.drop_text.value = i18n.get("drag_drop") or "Drag & Drop Installer Here"
+            self.update()
+
+        def on_drop(e):
+            if e.files:
+                for f in e.files:
+                     if f.name.lower().endswith((".exe", ".msi")):
+                         # Flet for Windows provides path in f.path
+                         self.start_analysis(f.path)
+                         break
+            on_drag_leave(None)
+
         # Enhanced Drop Zone matching Legacy aesthetic (Logo + Blue/Purple gradient)
         self.drop_zone = ft.Container(
             content=ft.Column(
@@ -60,8 +79,9 @@ class ModernAnalyzerView(ft.Column):
                 end=ft.Alignment(1, 1),
                 colors=[ft.Colors.BLUE_900, ft.Colors.DEEP_PURPLE_900],
             ),
-            alignment=ft.Alignment.CENTER,
+            alignment=ft.Alignment(0, 0),
             on_click=on_drop_click,
+            on_hover=lambda e: setattr(self.drop_zone, "border", ft.border.all(4, ft.Colors.BLUE_400) if e.data == "true" else ft.border.all(2, ft.Colors.BLUE_700)) or self.update(),
             padding=20
         )
 
@@ -120,10 +140,10 @@ class ModernAnalyzerView(ft.Column):
         def _run():
             success = AddonService.install_addon("advanced")
             if success:
-                self.app_page.open(ft.SnackBar(ft.Text("Addon installed! Please restart SwitchCraft."), bgcolor=ft.Colors.GREEN))
+                self._show_snack("Addon installed! Please restart SwitchCraft.", ft.Colors.GREEN)
                 self.addon_warning.visible = False
             else:
-                self.app_page.open(ft.SnackBar(ft.Text("Installation failed. Check logs."), bgcolor=ft.Colors.RED))
+                self._show_snack("Installation failed. Check logs.", ft.Colors.RED)
             e.control.disabled = False
             e.control.text = i18n.get("analyzer_addon_install") or "Install Now"
             self.update()
@@ -190,8 +210,10 @@ class ModernAnalyzerView(ft.Column):
         # 2. macOS Specific Info
         if info.installer_type and "MacOS" in info.installer_type:
             mac_rows = []
-            if info.bundle_id: mac_rows.append(ft.DataRow([ft.DataCell(ft.Text("Bundle ID")), ft.DataCell(ft.Text(info.bundle_id))]))
-            if info.min_os_version: mac_rows.append(ft.DataRow([ft.DataCell(ft.Text("Min OS")), ft.DataCell(ft.Text(info.min_os_version))]))
+            if info.bundle_id:
+                mac_rows.append(ft.DataRow([ft.DataCell(ft.Text("Bundle ID")), ft.DataCell(ft.Text(info.bundle_id))]))
+            if info.min_os_version:
+                mac_rows.append(ft.DataRow([ft.DataCell(ft.Text("Min OS")), ft.DataCell(ft.Text(info.min_os_version))]))
             if mac_rows:
                 self.results_column.controls.append(ft.DataTable(columns=[ft.DataColumn(ft.Text("macOS Property")), ft.DataColumn(ft.Text("Value"))], rows=mac_rows, width=float("inf")))
 
@@ -234,7 +256,7 @@ class ModernAnalyzerView(ft.Column):
             ft.Container(
                 content=ft.Column([
                     ft.Text("Silent Install Parameters", weight=ft.FontWeight.BOLD),
-                    ft.TextField(value=switches_str, read_only=True, text_style=ft.TextStyle(color=color, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _: self.app_page.set_clipboard(switches_str))),
+                    ft.TextField(value=switches_str, read_only=True, text_style=ft.TextStyle(color=color, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=switches_str: self._copy_to_clipboard(s))),
                 ]),
                 padding=10, bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST, border_radius=5
             )
@@ -247,7 +269,7 @@ class ModernAnalyzerView(ft.Column):
                 ft.Container(
                     content=ft.Column([
                         ft.Text("Silent Uninstall Parameters", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_400),
-                        ft.TextField(value=un_switches, read_only=True, text_style=ft.TextStyle(color=ft.Colors.RED_200, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _: self.app_page.set_clipboard(un_switches))),
+                        ft.TextField(value=un_switches, read_only=True, text_style=ft.TextStyle(color=ft.Colors.RED_200, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=un_switches: self._copy_to_clipboard(s))),
                     ]),
                     padding=10, bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST, border_radius=5
                 )
@@ -288,7 +310,7 @@ class ModernAnalyzerView(ft.Column):
                         title=ft.Text(f"{name} ({n_type})"),
                         subtitle=ft.Text(details, font_family="Consolas", size=11),
                         leading=ft.Icon(ft.Icons.SUBDIRECTORY_ARROW_RIGHT),
-                        trailing=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=sw_text: self.app_page.set_clipboard(s)) if sw_text else None
+                        trailing=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=sw_text: self._copy_to_clipboard(s)) if sw_text else None
                     )
                 )
 
@@ -340,8 +362,10 @@ class ModernAnalyzerView(ft.Column):
         unknown = []
         for p in params:
             expl = i18n.get_param_explanation(p)
-            if expl: known.append((p, expl))
-            else: unknown.append(p)
+            if expl:
+                known.append((p, expl))
+            else:
+                unknown.append(p)
 
         controls = [ft.Text("Parameter Explanations", weight=ft.FontWeight.BOLD, size=14)]
 
@@ -361,13 +385,16 @@ class ModernAnalyzerView(ft.Column):
         from switchcraft.analyzers.universal import UniversalAnalyzer
         ua = UniversalAnalyzer()
         dirs = [nested_data.get("temp_dir")]
-        if nested_data.get("all_temp_dirs"): dirs = nested_data["all_temp_dirs"]
+        if nested_data.get("all_temp_dirs"):
+            dirs = nested_data["all_temp_dirs"]
         for d in dirs:
-            if d: ua.cleanup_temp_dir(d)
-        self.app_page.open(ft.SnackBar(ft.Text("Cleanup complete."), bgcolor=ft.Colors.GREEN))
+            if d:
+                ua.cleanup_temp_dir(d)
+        self._show_snack("Cleanup complete.", ft.Colors.GREEN)
 
     def _on_click_create_script(self, e):
-        if not self.current_info: return
+        if not self.current_info:
+            return
         # Ask where to save
         default_name = f"Install-{self.current_info.product_name or 'App'}.ps1"
         # Sanitize
@@ -379,8 +406,10 @@ class ModernAnalyzerView(ft.Column):
             app_name_safe = "".join(x for x in (self.current_info.product_name or "UnknownApp") if x.isalnum() or x in "-_.")
             suggested_path = Path(git_repo) / "Apps" / app_name_safe
             if not suggested_path.exists():
-                try: suggested_path.mkdir(parents=True, exist_ok=True)
-                except Exception: pass
+                try:
+                    suggested_path.mkdir(parents=True, exist_ok=True)
+                except Exception:
+                    pass
             if suggested_path.exists():
                 initial_dir = str(suggested_path)
 
@@ -402,18 +431,18 @@ class ModernAnalyzerView(ft.Column):
             tmpl_path = SwitchCraftConfig.get_value("CustomTemplatePath")
             gen = TemplateGenerator(tmpl_path)
             if gen.generate(context, path):
-                self.app_page.open(ft.SnackBar(ft.Text(f"Script saved to {path}"), bgcolor=ft.Colors.GREEN))
+                self._show_snack(f"Script saved to {path}", ft.Colors.GREEN)
                 # Optional: Sign
                 if SwitchCraftConfig.get_value("SignScripts", False):
                      if SigningService.sign_script(path):
-                         self.app_page.open(ft.SnackBar(ft.Text("Script signed successfully!"), bgcolor=ft.Colors.GREEN))
+                         self._show_snack("Script signed successfully!", ft.Colors.GREEN)
                      else:
-                         self.app_page.open(ft.SnackBar(ft.Text("Signing failed (check logs)"), bgcolor=ft.Colors.ORANGE))
+                         self._show_snack("Signing failed (check logs)", ft.Colors.ORANGE)
             else:
-                 self.app_page.open(ft.SnackBar(ft.Text("Failed to generate script"), bgcolor=ft.Colors.RED))
+                 self._show_snack("Failed to generate script", ft.Colors.RED)
 
     def _run_all_in_one_flow(self, result: AnalysisResult):
-        info = result.info
+        # info unused here
 
         # Confirmation Dialog
         def start_flow(e):
@@ -499,7 +528,7 @@ class ModernAnalyzerView(ft.Column):
 
                 # Step 2: Packaging
                 log("\n--- Step 2: Creating Intune Package ---")
-                res = self.intune_service.create_intunewin(str(base_dir), script_path.name, str(base_dir), quiet=True)
+                self.intune_service.create_intunewin(str(base_dir), script_path.name, str(base_dir), quiet=True)
                 log("Packaging complete.")
 
                 # Step 3: Upload
@@ -539,7 +568,8 @@ class ModernAnalyzerView(ft.Column):
         threading.Thread(target=_bg, daemon=True).start()
 
     def _run_local_test_action(self, file_path, switches):
-        if not file_path: return
+        if not file_path:
+            return
 
         def on_confirm(e):
             local_dlg.open = False
@@ -557,9 +587,9 @@ class ModernAnalyzerView(ft.Column):
             try:
                 ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", cmd_exec, cmd_params, str(path_obj.parent), 1)
                 if int(ret) <= 32:
-                    self.app_page.open(ft.SnackBar(ft.Text(f"Failed to start process (Code {ret})"), bgcolor=ft.Colors.RED))
+                    self._show_snack(f"Failed to start process (Code {ret})", ft.Colors.RED)
             except Exception as ex:
-                self.app_page.open(ft.SnackBar(ft.Text(str(ex)), bgcolor=ft.Colors.RED))
+                self._show_snack(str(ex), ft.Colors.RED)
 
         local_dlg = ft.AlertDialog(
             title=ft.Text("Run Test Locally"),
@@ -575,7 +605,7 @@ class ModernAnalyzerView(ft.Column):
 
     def _open_manifest_dialog(self, info):
         # Placeholder for Winget Manifest Creation (Similar to Legacy)
-        self.app_page.open(ft.SnackBar(ft.Text("Winget Manifest Creation not yet fully ported, but coming soon!")))
+        self._show_snack("Winget Manifest Creation not yet fully ported, but coming soon!", ft.Colors.BLUE)
 
     def _show_detailed_parameters(self, result: AnalysisResult):
         info = result.info
@@ -602,26 +632,28 @@ class ModernAnalyzerView(ft.Column):
 
     def _on_click_create_intunewin(self, e):
         # We need a source folder and output. For simplicity, use installer dir and create alongside.
-        if not self.current_info: return
+        if not self.current_info:
+            return
 
         installer = Path(self.current_info.file_path)
         source = installer.parent
         output = source
         setup_file = installer.name
 
-        self.app_page.open(ft.SnackBar(ft.Text("Creating .intunewin package...")))
+        self._show_snack("Creating .intunewin package...", ft.Colors.BLUE)
 
         def _bg():
             try:
-                res = self.intune_service.create_intunewin(str(source), setup_file, str(output), quiet=True)
-                self.app_page.open(ft.SnackBar(ft.Text("Package Created Successfully!"), bgcolor=ft.Colors.GREEN))
+                self.intune_service.create_intunewin(str(source), setup_file, str(output), quiet=True)
+                self._show_snack("Package Created Successfully!", ft.Colors.GREEN)
             except Exception as ex:
-                self.app_page.open(ft.SnackBar(ft.Text(f"Packaging Failed: {ex}"), bgcolor=ft.Colors.RED))
+                self._show_snack(f"Packaging Failed: {ex}", ft.Colors.RED)
 
         threading.Thread(target=_bg, daemon=True).start()
 
     def _show_manual_cmds(self, e):
-        if not self.current_info: return
+        if not self.current_info:
+            return
         switches = " ".join(self.current_info.install_switches)
         path = self.current_info.file_path
 
@@ -629,11 +661,33 @@ class ModernAnalyzerView(ft.Column):
             title=ft.Text("Manual Commands"),
             content=ft.Column([
                 ft.Text("CMD / Batch:", weight=ft.FontWeight.BOLD),
-                ft.TextField(value=f'"{path}" {switches}', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _: self.app_page.set_clipboard(f'"{path}" {switches}'))),
+                ft.TextField(value=f'"{path}" {switches}', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, cmd=f'"{path}" {switches}': self._copy_to_clipboard(cmd))),
                 ft.Text("PowerShell:", weight=ft.FontWeight.BOLD),
-                ft.TextField(value=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _: self.app_page.set_clipboard(f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait'))),
+                ft.TextField(value=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, cmd=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait': self._copy_to_clipboard(cmd))),
             ], height=240, spacing=10),
         )
         self.app_page.dialog = dlg
         dlg.open = True
         self.app_page.update()
+
+    def _copy_to_clipboard(self, text: str):
+        """Copy text to clipboard."""
+        try:
+            import pyperclip
+            pyperclip.copy(text)
+            self._show_snack("Copied to clipboard!", ft.Colors.GREEN_700)
+        except ImportError:
+            try:
+                import subprocess
+                subprocess.run(['clip'], input=text.encode('utf-8'), check=True)
+                self._show_snack("Copied to clipboard!", ft.Colors.GREEN_700)
+            except Exception:
+                self._show_snack("Failed to copy", ft.Colors.RED)
+
+    def _show_snack(self, msg, color=ft.Colors.GREEN):
+        try:
+            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
+            self.app_page.snack_bar.open = True
+            self.app_page.update()
+        except Exception:
+             pass

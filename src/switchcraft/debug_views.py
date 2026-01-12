@@ -33,7 +33,7 @@ def test_views():
     print("--- Starting View Test ---")
     try:
         print(f"Flet Version: {ft.version}")
-    except:
+    except Exception:
         print("Flet Version: Unknown (no version attr)")
     page = MockPage()
 

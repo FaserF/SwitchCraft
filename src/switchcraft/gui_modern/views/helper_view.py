@@ -19,15 +19,22 @@ def ModernHelperView(page: ft.Page):
         logger.info(f"AI Addon not loaded: {e}")
 
     if not ai_service:
+        from switchcraft.utils.i18n import i18n
         return ft.Column([
             ft.Icon(ft.Icons.SMART_TOY_OUTLINED, size=60, color="grey"),
-            ft.Text("AI Helper", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text("The AI Addon is not installed or failed to load.", color="orange"),
-            ft.Text("Install the 'AI' addon to enable this feature.", size=12, color="grey"),
+            ft.Text(i18n.get("ai_helper") or "AI Helper", size=28, weight=ft.FontWeight.BOLD),
+            ft.Text(i18n.get("addon_missing_msg_ai") or "The AI Addon is not installed or failed to load.", color="orange"),
+            ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=12, color="grey"),
         ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
+    from switchcraft.utils.i18n import i18n
     chat_history = ft.ListView(expand=True, spacing=10, auto_scroll=True)
-    input_field = ft.TextField(label="Ask a question...", expand=True)
+    input_field = ft.TextField(
+        label=i18n.get("ai_ask_hint") or "Ask a question...",
+        expand=True,
+        border_radius=10,
+        content_padding=15
+    )
 
     def add_message(sender, text, is_user=False, is_error=False):
         bg_color = ft.Colors.BLUE_900 if is_user else (ft.Colors.RED_900 if is_error else ft.Colors.GREEN_900)
@@ -76,10 +83,19 @@ def ModernHelperView(page: ft.Page):
 
     input_field.on_submit = send_message
 
+    # Initial Welcome Message
+    if len(chat_history.controls) == 0:
+        from switchcraft.utils.i18n import i18n
+        add_message(
+            i18n.get("ai_welcome_title") or "AI Assistant",
+            i18n.get("ai_welcome_msg") or "Hello! How can I help you today?",
+            is_user=False
+        )
+
     return ft.Column([
         ft.Row([
             ft.Icon(ft.Icons.SMART_TOY, size=30, color=ft.Colors.BLUE),
-            ft.Text("AI Helper", size=24, weight=ft.FontWeight.BOLD),
+            ft.Text(i18n.get("ai_helper") or "AI Helper", size=24, weight=ft.FontWeight.BOLD),
         ]),
         ft.Divider(),
         ft.Container(

@@ -36,11 +36,39 @@ def main():
         # NOTE: Splash screen removed to avoid Tkinter dual-root conflict.
         # CTk creates its own Tk root, so a separate tk.Tk() splash causes
         # "pyimage doesn't exist" errors when loading images.
+        # FIX: We now run splash in a separate process to avoid these conflicts AND show it immediately.
+        splash_proc = None
+        try:
+            import subprocess
+            import os
+            # Launch splash.py as a separate process
+            # Resolve path to splash.py
+            base_dir = Path(__file__).resolve().parent
+            splash_script = base_dir / "gui" / "splash.py"
+
+            if splash_script.exists():
+                # Use subprocess.Popen to start it without blocking
+                env = os.environ.copy()
+                env["PYTHONPATH"] = str(base_dir.parent) # Ensure src is in path
+
+                # Hide console window for the splash process if possible
+                creationflags = 0x08000000 if sys.platform == "win32" else 0 # CREATE_NO_WINDOW
+
+                splash_proc = subprocess.Popen(
+                    [sys.executable, str(splash_script)],
+                    env=env,
+                    creationflags=creationflags
+                )
+        except Exception as e:
+            print(f"Failed to launch splash: {e}")
+
         try:
             from switchcraft.gui.app import main as gui_main
-            gui_main()
+            gui_main(splash_proc)
         except ImportError as e:
              print(f"GUI dependencies not found. Error: {e}")
+             if splash_proc:
+                 splash_proc.terminate()
              sys.exit(1)
 
 if __name__ == "__main__":

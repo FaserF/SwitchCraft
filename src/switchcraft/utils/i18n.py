@@ -95,15 +95,42 @@ class I18n:
 
     def _detect_language(self):
         try:
-            # Fix DeprecationWarning for Python 3.11+
-            lang = locale.getlocale()[0]
-            if not lang:
-                 lang = locale.getdefaultlocale()[0] # Fallback if getlocale returns None (e.g. C locale)
+            # 1. Try SwitchCraft Config User Preference first
+            from switchcraft.utils.config import SwitchCraftConfig
+            user_pref = SwitchCraftConfig.get_value("Language", None)
+            if user_pref and user_pref in ["de", "en"]:
+                return user_pref
 
-            if lang and lang.startswith("de"):
-                return "de"
+            # 2. Try System Locale
+            # Windows can return 'de_DE', 'German_Germany', 'de', etc.
+            lang = None
+            try:
+                # locale.getlocale() is preferred but can fail or return (None, None)
+                loc = locale.getlocale()
+                if loc and loc[0]:
+                    lang = loc[0]
+            except Exception:
+                pass
+
+            if not lang:
+                try:
+                    # Fallback to default locale
+                    loc = locale.getdefaultlocale()
+                    if loc and loc[0]:
+                        lang = loc[0]
+                except Exception:
+                    pass
+
+            # 3. Analyze detected system string
+            if lang:
+                lang = lang.lower()
+                if "de_" in lang or "german" in lang or lang == "de":
+                    return "de"
+
         except Exception as e:
             logger.warning(f"Could not detect language: {e}")
+
+        # Default fallback
         return "en"
 
     def set_language(self, lang_code):

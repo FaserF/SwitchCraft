@@ -1,20 +1,20 @@
-; SwitchCraft Installer Script for Inno Setup 6.x
+; SwitchCraft Legacy Installer Script for Inno Setup 6.x
 ; Supports both User and Admin installation modes
 ; Silent Install: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 ; Silent Uninstall: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 ; Debug Mode: /DEBUGMODE=1 (enables verbose logging)
 
-#define MyAppName "SwitchCraft"
+#define MyAppName "SwitchCraft Legacy"
 #define MyAppVersion "2025.12.4"
 #define MyAppVersionNumeric "2025.12.4"
 #define MyAppPublisher "FaserF"
 #define MyAppURL "https://github.com/FaserF/SwitchCraft"
 #define MyAppExeName "SwitchCraft-Legacy.exe"
-#define MyAppDescription "Silent Install Switch Finder"
+#define MyAppDescription "Silent Install Switch Finder (Legacy)"
 
 [Setup]
 ; Basic Info
-AppId={{F4A53RF0-5W1T-CH3R-AFTF-ASE3RF453RF0}
+AppId={{F4A53RF0-5W1T-CH3R-AFTF-ASE3RF453RF0}_Legacy
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
@@ -41,7 +41,7 @@ PrivilegesRequiredOverridesAllowed=dialog commandline
 
 ; Output settings
 OutputDir=dist
-OutputBaseFilename=SwitchCraft-Setup
+OutputBaseFilename=SwitchCraft-Legacy-Setup
 SetupIconFile=switchcraft_logo.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
@@ -76,8 +76,9 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 Name: "debugmode"; Description: "{cm:DebugMode}"; GroupDescription: "{cm:DebugModeDesc}"; Flags: unchecked
 
 [Files]
-; Main executable and dependencies (Legacy One-Dir)
-Source: "dist\SwitchCraft-Legacy\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Main executable (Legacy One-File) - NOTE: This was previously expecting a dir, but we built one-file in spec.
+; If the build is indeed one-file, we point to the exe directly.
+Source: "dist\SwitchCraft-Legacy.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Logo/Icon
 Source: "images\switchcraft_logo.png"; DestDir: "{app}"; Flags: ignoreversion

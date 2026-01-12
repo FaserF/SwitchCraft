@@ -128,21 +128,24 @@ jobs:
           git push origin main
 
   build:
-    name: Build using PyInstaller
+    name: Build Artifacts
     needs: prepare_release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - os: windows-latest
-            artifact_name: SwitchCraft.exe
-            asset_name: SwitchCraft-windows.exe
+            build_flags: "-All"
+            asset_path: "dist/SwitchCraft-windows.exe"
+            asset_name: "SwitchCraft-windows.exe"
           - os: ubuntu-latest
-            artifact_name: SwitchCraft
-            asset_name: SwitchCraft-linux
+            build_flags: "-Modern"
+            asset_path: "dist/SwitchCraft-linux"
+            asset_name: "SwitchCraft-linux"
           - os: macos-latest
-            artifact_name: SwitchCraft
-            asset_name: SwitchCraft-macos
+            build_flags: "-Modern"
+            asset_path: "dist/SwitchCraft"
+            asset_name: "SwitchCraft-macos"
 
     steps:
     - uses: actions/checkout@v6
@@ -154,51 +157,36 @@ jobs:
       with:
         python-version: '3.14'
 
-    # Caching PyInstaller Build
+    # Cache PyInstaller
     - uses: actions/cache@v5
       with:
         path: build
-        key: ${{ matrix.os }}-pyinstaller-build-${{ hashFiles('**/pyproject.toml') }}
+        key: ${{ matrix.os }}-build-${{ hashFiles('**/pyproject.toml') }}
         restore-keys: |
-            ${{ matrix.os }}-pyinstaller-build-
+            ${{ matrix.os }}-build-
 
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install .[gui]
-        pip install pyinstaller
+        pip install ".[modern,gui]"
+        pip install pyinstaller build
 
-    - name: Build with PyInstaller
+    - name: Build with Script
       run: |
-        # Build Modern (Portable One-File)
-        pyinstaller switchcraft_modern.spec --noconfirm
-        # Build Legacy (One-Dir for Installer)
-        pyinstaller switchcraft_legacy.spec --noconfirm
+        # Call the unified build script
+        pwsh ./scripts/build_release.ps1 ${{ matrix.build_flags }}
+      env:
+        TERM: xterm
 
-    - name: Create Addon Packages
-      if: matrix.os == 'windows-latest'
+    - name: Rename MacOS Artifact (if needed)
+      if: matrix.os == 'macos-latest'
       run: |
-        $addons = @("switchcraft_advanced", "switchcraft_ai", "switchcraft_winget")
-        foreach ($addon in $addons) {
-            if (Test-Path "src/$addon") {
-                Write-Host "Zipping $addon..."
-                Compress-Archive -Path "src/$addon" -DestinationPath "dist/$addon.zip" -Force
-            } else {
-                Write-Warning "Addon source src/$addon not found!"
-            }
-        }
-      shell: pwsh
-
-    - name: Rename to Platform Name
-      run: |
-        if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            mv dist/SwitchCraft.exe dist/SwitchCraft-windows.exe
-        else
-            if [ "${{ matrix.artifact_name }}" != "${{ matrix.asset_name }}" ]; then
-              cp dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
-            fi
-        fi
+        # Script produces 'dist/SwitchCraft' on Mac.
+        # We might want to rename it to match asset_name expected
+        mv dist/SwitchCraft dist/${{ matrix.asset_name }} || true
       shell: bash
+
+    # --- Windows Specific Signing & Uploads ---
 
     - name: Decode Signing Certificate
       if: matrix.os == 'windows-latest'
@@ -208,33 +196,27 @@ jobs:
         if ($env:SIGNING_CERT) {
           $certBytes = [System.Convert]::FromBase64String($env:SIGNING_CERT)
           [System.IO.File]::WriteAllBytes("cert.pfx", $certBytes)
-          Write-Host "Certificate decoded successfully."
-        } else {
-          Write-Warning "SIGNING_CERT secret not found. Signing will be skipped."
         }
       shell: pwsh
 
-    - name: Sign Standalone Executable
+    - name: Sign Windows Artifacts
       if: matrix.os == 'windows-latest'
       env:
         SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
       run: |
         if (Test-Path "cert.pfx") {
-            # Find signtool
             $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Include signtool.exe -Recurse | Select-Object -Last 1
             if ($signtool) {
-                Write-Host "Signing SwitchCraft-windows.exe (Portable)..."
-                & $signtool.FullName sign /f "cert.pfx" /p "$env:SIGNING_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "dist/SwitchCraft-windows.exe"
-
-                Write-Host "Signing SwitchCraft-Legacy.exe (for Installer)..."
-                & $signtool.FullName sign /f "cert.pfx" /p "$env:SIGNING_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "dist/SwitchCraft-Legacy/SwitchCraft-Legacy.exe"
-            } else {
-                Write-Error "Signtool not found!"
+                # Sign everything executable in dist
+                Get-ChildItem dist\*.exe | ForEach-Object {
+                    Write-Host "Signing $_..."
+                    & $signtool.FullName sign /f "cert.pfx" /p "$env:SIGNING_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName
+                }
             }
         }
       shell: pwsh
 
-    - name: Upload Release Asset
+    - name: Upload Core Assets
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ needs.prepare_release.outputs.version }}
@@ -243,114 +225,24 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload Addon Packages
+    - name: Upload Windows Extras (Legacy, CLIs, Installers, Addons)
       if: matrix.os == 'windows-latest'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ needs.prepare_release.outputs.version }}
         files: |
-            dist/switchcraft_advanced.zip
-            dist/switchcraft_ai.zip
-            dist/switchcraft_winget.zip
+            dist/SwitchCraft-Legacy.exe
+            dist/SwitchCraft-CLI-windows.exe
+            dist/SwitchCraft-Setup.exe
+            dist/SwitchCraft-Legacy-Setup.exe
+            dist/*.zip
+            dist/*.whl
+            dist/*.tar.gz
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Build Windows Installer
-      if: matrix.os == 'windows-latest'
-      run: |
-        # Install Inno Setup
-        choco install innosetup -y
-
-        # Install ImageMagick for PNG to ICO conversion
-        choco install imagemagick -y
-
-        # Convert PNG to ICO with multiple sizes
-        magick images/switchcraft_logo.png -define icon:auto-resize=256,128,64,48,32,16 switchcraft_logo.ico
-
-        # Update version in ISS file
-        $version = "${{ needs.prepare_release.outputs.version }}"
-        # Clean version for VersionInfoVersion (remove -beta, -dev, etc.)
-        $cleanVersion = $version -replace '[^0-9.]', ''
-
-        # Update both display version and numeric version
-        (Get-Content switchcraft.iss) -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$version`"" | Set-Content switchcraft.iss
-        (Get-Content switchcraft.iss) -replace '#define MyAppVersionNumeric ".*"', "#define MyAppVersionNumeric `"$cleanVersion`"" | Set-Content switchcraft.iss
-
-        # Build installer
-        iscc switchcraft.iss
-      shell: pwsh
-
-    - name: Sign Windows Installer
-      if: matrix.os == 'windows-latest'
-      env:
-        SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-      run: |
-        if (Test-Path "cert.pfx") {
-            $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Include signtool.exe -Recurse | Select-Object -Last 1
-            if ($signtool) {
-                Write-Host "Signing SwitchCraft-Setup.exe..."
-                & $signtool.FullName sign /f "cert.pfx" /p "$env:SIGNING_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "dist/SwitchCraft-Setup.exe"
-            }
-        }
-      shell: pwsh
 
     - name: Cleanup Certificate
       if: always() && matrix.os == 'windows-latest'
       run: |
         if (Test-Path "cert.pfx") { Remove-Item "cert.pfx" -Force }
       shell: pwsh
-
-    - name: Upload Windows Installer
-      if: matrix.os == 'windows-latest'
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: v${{ needs.prepare_release.outputs.version }}
-        files: dist/SwitchCraft-Setup.exe
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build_cli:
-    name: Build CLI Only (Windows)
-    needs: prepare_release
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        ref: v${{ needs.prepare_release.outputs.version }}
-
-    - name: Set up Python
-      uses: actions/setup-python@v6
-      with:
-        python-version: '3.14'
-
-    - uses: actions/cache@v5
-      with:
-        path: build
-        key: windows-cli-pyinstaller-${{ hashFiles('**/pyproject.toml') }}
-        restore-keys: |
-            windows-cli-pyinstaller-
-
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install .
-        pip install pyinstaller
-
-    - name: Build CLI
-      run: |
-        pyinstaller switchcraft_cli.spec
-
-    - name: Rename CLI Executable
-      run: |
-        if (Test-Path "dist/SwitchCraft-CLI.exe") {
-            Rename-Item "dist/SwitchCraft-CLI.exe" "SwitchCraft-CLI-windows.exe"
-        }
-      shell: pwsh
-
-    - name: Upload CLI Asset
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: v${{ needs.prepare_release.outputs.version }}
-        files: dist/SwitchCraft-CLI-windows.exe
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

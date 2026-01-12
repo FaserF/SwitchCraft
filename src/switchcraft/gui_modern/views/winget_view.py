@@ -1,6 +1,7 @@
 import flet as ft
 import threading
 import logging
+import webbrowser
 from switchcraft.services.addon_service import AddonService
 from switchcraft.utils.i18n import i18n
 from pathlib import Path
@@ -37,28 +38,58 @@ class ModernWingetView(ft.Row):
         # State
         self.search_results = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
         self.details_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+        self.results_count = ft.Text("", size=12, color=ft.Colors.GREY_500)
+
+        # Filter dropdown
+        self.filter_dropdown = ft.Dropdown(
+            options=[
+                ft.dropdown.Option("all", i18n.get("winget_filter_all") or "All Fields"),
+                ft.dropdown.Option("name", i18n.get("winget_filter_name") or "Name"),
+                ft.dropdown.Option("id", i18n.get("winget_filter_id") or "Package ID"),
+                ft.dropdown.Option("publisher", i18n.get("winget_filter_publisher") or "Publisher"),
+            ],
+            value="all",
+            width=130,
+            height=48,
+            text_size=14,
+            content_padding=ft.Padding(10, 0, 10, 0),
+            border_radius=8,
+        )
 
         self.search_field = ft.TextField(
-            label=i18n.get("tab_winget") or "Search Winget",
-            hint_text=i18n.get("winget_search_placeholder") or "Apps suchen...",
+            hint_text=i18n.get("winget_search_hint") or "Search apps...",
             expand=True,
+            height=48,
+            text_size=14,
+            content_padding=ft.Padding(12, 0, 12, 0),
+            border_radius=8,
+            on_submit=self._run_search
         )
-        self.search_field.on_submit = self._run_search
 
-        btn_search = ft.IconButton(ft.Icons.SEARCH)
-        btn_search.on_click = self._run_search
+        btn_search = ft.IconButton(
+            icon=ft.Icons.SEARCH_ROUNDED,
+            icon_color=ft.Colors.BLUE_400,
+            tooltip=i18n.get("search") or "Search",
+            on_click=self._run_search
+        )
 
-        # Left Pane
+        # Left Pane with filter row
         left_pane = ft.Container(
             content=ft.Column([
-                ft.Row([self.search_field, btn_search]),
-                ft.Divider(),
+                ft.Text("Winget Explorer", size=18, weight=ft.FontWeight.BOLD),
+                ft.Row(
+                    [self.filter_dropdown, self.search_field, btn_search],
+                    spacing=10,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER
+                ),
+                self.results_count,
+                ft.Divider(height=10, thickness=1),
                 self.search_results
             ], expand=True),
-            width=350,
-            padding=10,
+            width=420,
+            padding=15,
             bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST if hasattr(ft.Colors, "SURFACE_CONTAINER_HIGHEST") else ft.Colors.GREY_900,
-            border_radius=10
+            border_radius=15
         )
 
         # Right Pane
@@ -77,7 +108,7 @@ class ModernWingetView(ft.Row):
                             color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER)
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 padding=20,
-                alignment=ft.Alignment.CENTER
+                alignment=ft.Alignment(0, 0)
             )
         )
 
@@ -88,28 +119,107 @@ class ModernWingetView(ft.Row):
         if not query:
             return
 
+        filter_by = self.filter_dropdown.value or "all"
+        self.results_count.value = ""
         self.search_results.controls.clear()
         self.search_results.controls.append(
-            ft.Column([
-                ft.ProgressBar(),
-                ft.Text(i18n.get("winget_searching") or "Searching...")
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+            ft.Container(
+                content=ft.Column([
+                    ft.ProgressRing(width=40, height=40),
+                    ft.Text(i18n.get("winget_searching") or "Searching...", size=16),
+                    ft.Text(f"'{query}'", size=12, color=ft.Colors.GREY_500)
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                alignment=ft.alignment.center,
+                expand=True,
+                padding=40
+            )
         )
-        self.update()
+        try:
+            self.page.update()
+        except Exception:
+            pass
 
         def _search():
             try:
-                results = self.winget.search_packages(query)
-                self._show_list(results)
+                result_holder = {"data": None, "error": None}
+
+                def target():
+                    try:
+                        result_holder["data"] = self.winget.search_packages(query)
+                    except Exception as e:
+                        result_holder["error"] = e
+
+                t = threading.Thread(target=target)
+                t.start()
+                t.join(timeout=30)  # Reduced to 30 seconds
+
+                if t.is_alive():
+                    self.search_results.controls.clear()
+                    self.search_results.controls.append(
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Icon(ft.Icons.WARNING, color=ft.Colors.ORANGE, size=40),
+                                ft.Text(i18n.get("winget_search_timeout") or "Search is taking too long...", color=ft.Colors.ORANGE),
+                                ft.Text(i18n.get("winget_search_timeout_hint") or "Try a more specific search term.", size=12, color=ft.Colors.GREY_500)
+                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                            alignment=ft.alignment.center,
+                            padding=40
+                        )
+                    )
+                    try:
+                        self.page.update()
+                    except Exception:
+                        pass
+                    return
+
+                if result_holder["error"]:
+                    raise result_holder["error"]
+
+                self._show_list(result_holder["data"], filter_by, query)
             except Exception as ex:
+                logger.error(f"Winget search error: {ex}")
                 self.search_results.controls.clear()
-                self.search_results.controls.append(ft.Text(f"Error: {ex}", color="red"))
-                self.update()
+                self.search_results.controls.append(
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Icon(ft.Icons.ERROR, color=ft.Colors.RED, size=40),
+                            ft.Text(f"Error: {ex}", color=ft.Colors.RED)
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                        alignment=ft.alignment.center,
+                        padding=40
+                    )
+                )
+                try:
+                    self.page.update()
+                except Exception:
+                    pass
 
         threading.Thread(target=_search, daemon=True).start()
 
-    def _show_list(self, results):
+    def _show_list(self, results, filter_by="all", query=""):
+        logger.debug(f"Showing Winget results: count={len(results) if results else 0}, filter={filter_by}, query='{query}'")
         self.search_results.controls.clear()
+
+        # Filter results based on selected filter
+        if results and filter_by != "all" and query:
+            query_lower = query.lower()
+            filtered_results = []
+            for item in results:
+                if filter_by == "name" and query_lower in item.get('Name', '').lower():
+                    filtered_results.append(item)
+                elif filter_by == "id" and query_lower in item.get('Id', '').lower():
+                    filtered_results.append(item)
+                elif filter_by == "publisher":
+                    # Publisher is in ID prefix (before the dot)
+                    pkg_id = item.get('Id', '')
+                    if '.' in pkg_id and query_lower in pkg_id.split('.')[0].lower():
+                        filtered_results.append(item)
+            results = filtered_results
+
+        # Update results count
+        count = len(results) if results else 0
+        self.results_count.value = f"Found {count} app{'s' if count != 1 else ''}"
+
         if not results:
             self.search_results.controls.append(ft.Text(i18n.get("winget_no_results") or "No results found."))
         else:
@@ -144,31 +254,217 @@ class ModernWingetView(ft.Row):
 
     def _show_details_ui(self, info):
         self.details_area.controls.clear()
+
+        # Header Section
         self.details_area.controls.append(ft.Text(info.get('Name', 'Unknown'), size=28, weight=ft.FontWeight.BOLD))
-        self.details_area.controls.append(ft.Text(info.get('Id', ''), color="grey"))
+        self.details_area.controls.append(ft.Text(info.get('Id', ''), color="grey", size=14))
+
+        # Version Badge
+        version = info.get('Version', 'Unknown')
+        self.details_area.controls.append(
+            ft.Container(
+                content=ft.Text(f"v{version}", color=ft.Colors.WHITE, size=12),
+                bgcolor=ft.Colors.BLUE_700,
+                padding=ft.Padding(8, 4, 8, 4),
+                border_radius=4,
+                margin=ft.Margin(0, 8, 0, 8)
+            )
+        )
+
         self.details_area.controls.append(ft.Divider())
 
-        for key in ['Publisher', 'Description', 'License', 'Homepage']:
-            val = info.get(key.lower()) or info.get(key)
-            if val:
-                self.details_area.controls.append(ft.Text(f"{key}: {val}"))
+        # Description Section (prominent like winstall.app)
+        description = info.get('Description') or info.get('description')
+        if description:
+            self.details_area.controls.append(ft.Text("About", size=18, weight=ft.FontWeight.BOLD))
+            self.details_area.controls.append(
+                ft.Container(
+                    content=ft.Text(description, size=14, selectable=True),
+                    padding=ft.Padding(0, 8, 0, 16)
+                )
+            )
+
+        # Publisher/Author Info
+        publisher = info.get('Publisher') or info.get('publisher')
+        author = info.get('Author') or info.get('author')
+        if publisher or author:
+            pub_text = publisher or author
+            self.details_area.controls.append(
+                ft.Row([
+                    ft.Icon(ft.Icons.BUSINESS, size=16, color=ft.Colors.GREY_500),
+                    ft.Text("Publisher: ", weight=ft.FontWeight.BOLD, size=14),
+                    ft.Text(pub_text, size=14)
+                ], spacing=4)
+            )
+
+        # License Section
+        license_val = info.get('License') or info.get('license')
+        license_url = info.get('LicenseUrl') or info.get('license url')
+        if license_val or license_url:
+            license_row = [
+                ft.Icon(ft.Icons.GAVEL, size=16, color=ft.Colors.GREY_500),
+                ft.Text("License: ", weight=ft.FontWeight.BOLD, size=14),
+            ]
+            if license_url:
+                license_row.append(ft.TextButton(
+                    content=ft.Text(license_val or "View License"),
+                    on_click=lambda e, url=license_url: self._open_url(url)
+                ))
+            else:
+                license_row.append(ft.Text(license_val, size=14))
+            self.details_area.controls.append(ft.Row(license_row, spacing=4))
+
+        # Tags Section
+        tags = info.get('Tags') or info.get('tags')
+        if tags:
+            tag_list = tags.split('\n') if '\n' in tags else tags.split(',') if ',' in tags else [tags]
+            tag_chips = []
+            for tag in tag_list[:10]:  # Limit to 10 tags
+                tag = tag.strip()
+                if tag:
+                    tag_chips.append(
+                        ft.Container(
+                            content=ft.Text(tag, size=11, color=ft.Colors.BLUE_700),
+                            bgcolor=ft.Colors.BLUE_50 if hasattr(ft.Colors, 'BLUE_50') else ft.Colors.BLUE_900,
+                            padding=ft.Padding(8, 4, 8, 4),
+                            border_radius=12
+                        )
+                    )
+            if tag_chips:
+                self.details_area.controls.append(ft.Container(height=8))
+                self.details_area.controls.append(
+                    ft.Row([
+                        ft.Icon(ft.Icons.LABEL, size=16, color=ft.Colors.GREY_500),
+                        ft.Text("Tags: ", weight=ft.FontWeight.BOLD, size=14),
+                    ], spacing=4)
+                )
+                self.details_area.controls.append(ft.Row(tag_chips, wrap=True, spacing=6))
+
+        self.details_area.controls.append(ft.Container(height=12))
+
+        # Links Section
+        self.details_area.controls.append(ft.Text("Links", size=16, weight=ft.FontWeight.BOLD))
+
+        # Homepage
+        homepage = info.get('Homepage') or info.get('homepage')
+        if homepage:
+            self.details_area.controls.append(
+                ft.Row([
+                    ft.Icon(ft.Icons.HOME, size=16, color=ft.Colors.BLUE_400),
+                    ft.TextButton(content=ft.Text("Homepage"), on_click=lambda e, url=homepage: self._open_url(url))
+                ], spacing=4)
+            )
+
+        # Publisher URL
+        pub_url = info.get('PublisherUrl') or info.get('publisher url')
+        if pub_url:
+            self.details_area.controls.append(
+                ft.Row([
+                    ft.Icon(ft.Icons.BUSINESS, size=16, color=ft.Colors.BLUE_400),
+                    ft.TextButton(content=ft.Text("Publisher Website"), on_click=lambda e, url=pub_url: self._open_url(url))
+                ], spacing=4)
+            )
+
+        # Privacy URL
+        privacy_url = info.get('PrivacyUrl') or info.get('privacy url')
+        if privacy_url:
+            self.details_area.controls.append(
+                ft.Row([
+                    ft.Icon(ft.Icons.PRIVACY_TIP, size=16, color=ft.Colors.BLUE_400),
+                    ft.TextButton(content=ft.Text("Privacy Policy"), on_click=lambda e, url=privacy_url: self._open_url(url))
+                ], spacing=4)
+            )
+
+        # Release Notes URL
+        release_notes_url = info.get('ReleaseNotesUrl') or info.get('release notes url')
+        if release_notes_url:
+            self.details_area.controls.append(
+                ft.Row([
+                    ft.Icon(ft.Icons.NEW_RELEASES, size=16, color=ft.Colors.BLUE_400),
+                    ft.TextButton(content=ft.Text("Release Notes"), on_click=lambda e, url=release_notes_url: self._open_url(url))
+                ], spacing=4)
+            )
+
+        # Manifest Link (GitHub)
+        manifest = info.get('ManifestUrl')
+        if not manifest and info.get('Id'):
+            pkg_id = info.get('Id')
+            try:
+                parts = pkg_id.split('.', 1)
+                if len(parts) >= 2:
+                    publisher_part = parts[0]
+                    first_char = publisher_part[0].lower()
+                    manifest = f"https://github.com/microsoft/winget-pkgs/tree/master/manifests/{first_char}/{publisher_part}/{parts[1]}"
+                else:
+                    manifest = f"https://github.com/microsoft/winget-pkgs/tree/master/manifests/{pkg_id[0].lower()}/{pkg_id}"
+            except:
+                pass
+
+        if manifest:
+            self.details_area.controls.append(
+                ft.Row([
+                    ft.Icon(ft.Icons.CODE, size=16, color=ft.Colors.BLUE_400),
+                    ft.TextButton(content=ft.Text("View Manifest on GitHub"), on_click=lambda e, url=manifest: self._open_url(url))
+                ], spacing=4)
+            )
+
+        # Winstall.app link
+        pkg_id = info.get('Id')
+        if pkg_id:
+            winstall_url = f"https://winstall.app/apps/{pkg_id}"
+            self.details_area.controls.append(
+                ft.Row([
+                    ft.Icon(ft.Icons.WEB, size=16, color=ft.Colors.PURPLE_400),
+                    ft.TextButton(content=ft.Text("View on winstall.app"), on_click=lambda e, url=winstall_url: self._open_url(url))
+                ], spacing=4)
+            )
 
         self.details_area.controls.append(ft.Divider())
 
         # Actions
+        btn_copy = ft.ElevatedButton("Copy Command", icon=ft.Icons.COPY, bgcolor=ft.Colors.GREY_700, color=ft.Colors.WHITE)
+        btn_copy.on_click = lambda e, i=info: self._copy_install_command(i)
+
         btn_local = ft.ElevatedButton("Install Locally", icon=ft.Icons.DOWNLOAD, bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE)
         btn_local.on_click = self._install_local
 
         btn_deploy = ft.ElevatedButton("Deploy / Package...", icon=ft.Icons.CLOUD_UPLOAD, bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE)
         btn_deploy.on_click = lambda e: self._open_deploy_menu(info)
 
-        self.details_area.controls.append(ft.Row([btn_local, btn_deploy], wrap=True))
+        self.details_area.controls.append(ft.Row([btn_copy, btn_local, btn_deploy], wrap=True, spacing=8))
 
         # Tip
         self.details_area.controls.append(ft.Container(height=20))
         self.details_area.controls.append(ft.Text("Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color=ft.Colors.GREY, italic=True))
 
         self.update()
+
+    def _copy_install_command(self, info):
+        """Copy the winget install command to clipboard."""
+        pkg_id = info.get('Id', '')
+        command = f"winget install --id {pkg_id} --accept-package-agreements --accept-source-agreements"
+        self._copy_to_clipboard(command)
+        self._show_snack(f"Copied: {command}", ft.Colors.GREEN_700)
+
+    def _open_url(self, url: str):
+        """Open URL in default browser."""
+        try:
+            webbrowser.open(url)
+        except Exception as ex:
+            logger.error(f"Failed to open URL: {ex}")
+
+    def _copy_to_clipboard(self, text: str):
+        """Copy text to clipboard."""
+        try:
+            import pyperclip
+            pyperclip.copy(text)
+        except ImportError:
+            # Fallback for systems without pyperclip
+            try:
+                import subprocess
+                subprocess.run(['clip'], input=text.encode('utf-8'), check=True)
+            except Exception:
+                pass
 
     def _open_deploy_menu(self, info):
         def close_dlg(e):
@@ -207,7 +503,8 @@ class ModernWingetView(ft.Row):
     def _deploy_wau(self, info):
         import webbrowser
         webbrowser.open("https://github.com/Romanitho/Winget-AutoUpdate")
-        self.app_page.open(ft.SnackBar(ft.Text("WAU info opened in browser.")))
+        self._show_snack("WAU info opened in browser.")
+
 
     def _deploy_package(self, info):
         import tempfile
@@ -215,7 +512,7 @@ class ModernWingetView(ft.Row):
         import subprocess
 
         pkg_id = info.get('Id')
-        self.app_page.open(ft.SnackBar(ft.Text(f"Downloading {pkg_id} for packaging...")))
+        self._show_snack(f"Downloading {pkg_id} for packaging...", ft.Colors.BLUE)
 
         def _bg():
             try:
@@ -239,15 +536,15 @@ class ModernWingetView(ft.Row):
                     dest = dest_dir / installer.name
                     shutil.copy(installer, dest)
 
-                    self.app_page.open(ft.SnackBar(ft.Text(f"Downloaded to {dest}"), bgcolor=ft.Colors.GREEN))
+                    self._show_snack(f"Downloaded to {dest}", ft.Colors.GREEN)
                     # TODO: Maybe auto-switch to Analyzer?
                 else:
-                    self.app_page.open(ft.SnackBar(ft.Text("Download success but no installer found?"), bgcolor=ft.Colors.ORANGE))
+                    self._show_snack("Download success but no installer found?", ft.Colors.ORANGE)
 
                 shutil.rmtree(tmp_dir)
 
             except Exception as ex:
-                self.app_page.open(ft.SnackBar(ft.Text(f"Download failed: {ex}"), bgcolor=ft.Colors.RED))
+                self._show_snack(f"Download failed: {ex}", ft.Colors.RED)
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -256,22 +553,24 @@ class ModernWingetView(ft.Row):
         # Enhancing existing method to be more advanced is better.
 
     def _install_local(self, e):
-        if not self.current_pkg: return
+        if not self.current_pkg:
+            return
         pkg_id = self.current_pkg.get('Id')
         cmd = f"winget install --id {pkg_id} --silent --accept-package-agreements --accept-source-agreements"
 
         def _run():
             import subprocess
-            self.app_page.open(ft.SnackBar(ft.Text(f"Starting install for {pkg_id}...")))
+            self._show_snack(f"Starting install for {pkg_id}...", ft.Colors.BLUE)
             try:
                 subprocess.Popen(f'start cmd /k "{cmd}"', shell=True)
             except Exception as ex:
-                self.app_page.open(ft.SnackBar(ft.Text(f"Failed to start install: {ex}"), bgcolor=ft.Colors.RED))
+                self._show_snack(f"Failed to start install: {ex}", ft.Colors.RED)
 
         _run()
 
     def _create_script_click(self, e):
-        if not self.current_pkg: return
+        if not self.current_pkg:
+            return
         default_name = f"Install-{self.current_pkg.get('Name', 'App')}.ps1"
         default_name = "".join(x for x in default_name if x.isalnum() or x in "-_.")
 
@@ -304,6 +603,14 @@ exit $err
             try:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(script_content)
-                self.app_page.open(ft.SnackBar(ft.Text(f"Script saved to {path}"), bgcolor=ft.Colors.GREEN))
+                self._show_snack(f"Script saved to {path}", ft.Colors.GREEN)
             except Exception as ex:
-                self.app_page.open(ft.SnackBar(ft.Text(f"Save failed: {ex}"), bgcolor=ft.Colors.RED))
+                self._show_snack(f"Save failed: {ex}", ft.Colors.RED)
+
+    def _show_snack(self, msg, color=ft.Colors.GREEN):
+        try:
+            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
+            self.app_page.snack_bar.open = True
+            self.app_page.update()
+        except:
+             pass

@@ -3,17 +3,28 @@
   "extends": [
     "config:recommended"
   ],
-  "pip_requirements": {
-    "fileMatch": [
-      "(^|/)pyproject\\.toml$",
-      "(^|/)requirements.*\\.txt$"
-    ]
-  },
+  "labels": [
+    "dependencies"
+  ],
+  "rebaseWhen": "conflicted",
+  "enabledManagers": [
+    "pep621",
+    "pip_requirements",
+    "github-actions",
+    "npm",
+    "dockerfile",
+    "pre-commit"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/venv/**",
+    "**/__pycache__/**"
+  ],
   "packageRules": [
     {
       "matchManagers": [
-        "pip_requirements",
-        "pep621"
+        "pep621",
+        "pip_requirements"
       ],
       "matchPackageNames": [
         "flet",
@@ -24,8 +35,8 @@
     },
     {
       "matchManagers": [
-        "pip_requirements",
-        "pep621"
+        "pep621",
+        "pip_requirements"
       ],
       "automerge": false,
       "description": "Require manual review for Python dependency updates"

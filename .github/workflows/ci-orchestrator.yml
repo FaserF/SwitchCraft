@@ -3,8 +3,20 @@ name: CI Orchestrator
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/workflows/**'
+      - 'images/**'
+      - 'LICENSE'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/workflows/**'
+      - 'images/**'
+      - 'LICENSE'
   release:
     types: [ published ]
   workflow_dispatch:

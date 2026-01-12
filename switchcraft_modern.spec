@@ -8,7 +8,7 @@ block_cipher = None
 
 # MANUAL COLLECTION for Modern
 # We need switchcraft.* and flet
-hidden_imports = ['flet', 'flet_desktop', 'defusedxml', 'winotify']
+hidden_imports = ['flet', 'flet_desktop', 'defusedxml', 'winotify', 'switchcraft.utils', 'switchcraft.utils.config', 'switchcraft.gui', 'switchcraft.gui_modern']
 hidden_imports += collect_submodules('switchcraft')
 
 src_root = os.path.abspath('src')
@@ -46,7 +46,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='SwitchCraft', # Modern (Flet) Production Build
+    name='SwitchCraft', # Modern (Flet) is now the main 'SwitchCraft'
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

@@ -154,7 +154,11 @@ class IntuneView(ctk.CTkFrame):
             self.btn_toggle_log.configure(text=i18n.get("toggle_log_hide"))
 
     def _browse_intune_setup(self):
-        f = ctk.filedialog.askopenfilename(title=i18n.get("intune_browse_setup_title"))
+        filetypes = [
+            ("Installers/Scripts", "*.exe *.msi *.ps1 *.bat *.cmd *.vbs *.wsf"),
+            ("All Files", "*.*")
+        ]
+        f = ctk.filedialog.askopenfilename(title=i18n.get("intune_browse_setup_title"), filetypes=filetypes)
         if f:
             self.entry_intune_setup.delete(0, "end")
             self.entry_intune_setup.insert(0, f)

@@ -29,102 +29,162 @@ class UpdateChecker:
 
     def check_for_updates(self):
         """
-        Checks for updates based on configured channel.
+        Checks for updates based on configured channel with cross-channel logic.
         Returns (has_update, latest_version_str, release_info_dict)
         """
+        candidates = []
+
+        # Always check Stable
+        stable_ver, stable_data = self._get_latest_stable_release()
+        if stable_ver:
+            candidates.append((stable_ver, stable_data, "stable"))
+
+        # If Beta or Dev, check Beta
+        if self.channel in [self.CHANNEL_BETA, self.CHANNEL_DEV]:
+             beta_ver, beta_data = self._get_latest_beta_release()
+             if beta_ver:
+                 candidates.append((beta_ver, beta_data, "beta"))
+
+        # If Dev, check Dev
         if self.channel == self.CHANNEL_DEV:
-            return self._check_dev_channel()
-        elif self.channel == self.CHANNEL_BETA:
-            return self._check_beta_channel()
-        else:
-            return self._check_stable_channel()
+            dev_ver, dev_data = self._get_latest_dev_commit()
+            if dev_ver:
+                candidates.append((dev_ver, dev_data, "dev"))
 
-    def _check_stable_channel(self):
-        """Check for stable releases (non-prerelease)."""
+        if not candidates:
+            return False, self.current_version, None
+
+        return self._resolve_best_update(candidates)
+
+    def _resolve_best_update(self, candidates):
+        """
+        Selects the best update from candidates and populates fields.
+        Candidate tuple: (version_str, data_dict, source_channel)
+        """
+        valid_updates = []
+
         try:
-            response = requests.get(f"{self.API_BASE}/releases/latest", timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                return self._process_release(data)
-        except Exception as e:
-            logger.error(f"Failed to check stable updates: {e}")
-        return False, None, None
+            curr_parsed = version.parse(self.current_version)
+        except:
+            # Fallback for non-standard versions like 'dev-xxxx'
+            curr_parsed = version.Version("0.0.0")
 
-    def _check_beta_channel(self):
-        """Check for beta/pre-releases."""
+        for ver, data, source in candidates:
+             is_newer = False
+             if source == "dev":
+                 # For dev, if SHA is different, we assume update (if we are on dev channel)
+                 if "dev-" in self.current_version:
+                      curr_sha = self.current_version.replace("dev-", "").split("-")[0]
+                      new_sha = ver.replace("dev-", "").split("-")[0]
+                      if curr_sha != new_sha:
+                           is_newer = True
+                 else:
+                      # If currently on Stable/Beta and switching to Dev channel
+                      is_newer = True
+             else:
+                 # Standard version compare for Stable/Beta
+                 try:
+                     v_cand = version.parse(ver)
+                     if v_cand > curr_parsed:
+                         is_newer = True
+                 except:
+                     # If parsing fails, but it's different from current, maybe it's newer?
+                     # But safer to just ignore if we can't parse.
+                     pass
+
+             if is_newer:
+                 valid_updates.append((ver, data, source))
+
+        if not valid_updates:
+            # Even if no update, populate latest_version for display
+            if candidates:
+               # Sort candidates by same key to find what IS latest even if not "newer"
+               candidates.sort(key=self._sort_key, reverse=True)
+               best_cand_ver, best_cand_data, _ = candidates[0]
+               self._populate_fields(best_cand_ver, best_cand_data)
+            return False, self.current_version, None
+
+        # Sort candidates to find the "best" one.
+        valid_updates.sort(key=self._sort_key, reverse=True)
+
+        best_ver, best_data, _ = valid_updates[0]
+        self._populate_fields(best_ver, best_data)
+        return True, best_ver, best_data
+
+    def _sort_key(self, item):
+        ver_str, data, source = item
+
+        # Priority: Date > Version > Channel
+        # Get date
+        date_str = data.get("published_at") or ""
+
         try:
-            response = requests.get(f"{self.API_BASE}/releases", timeout=5)
-            if response.status_code == 200:
-                releases = response.json()
-                # Find latest release (including pre-releases)
-                for release in releases:
-                    # Return the first one (most recent)
-                    return self._process_release(release)
-        except Exception as e:
-            logger.error(f"Failed to check beta updates: {e}")
-        return False, None, None
+            v = version.parse(ver_str)
+        except:
+            v = version.Version("0.0.0")
 
-    def _check_dev_channel(self):
-        """Check for development updates (latest commit on main branch)."""
-        try:
-            # Get latest commit on main branch
-            response = requests.get(f"{self.API_BASE}/commits/main", timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                commit_sha = data.get("sha", "")[:7]
-                commit_date_str = data.get("commit", {}).get("committer", {}).get("date", "")
-                commit_message = data.get("commit", {}).get("message", "").split("\n")[0]
+        # Channel tie-breaker: Stable (2) > Beta (1) > Dev (0)
+        # But Date should be the main factor for "latest"
+        priority = 2 if source == "stable" else 1 if source == "beta" else 0
 
-                self.commit_sha = commit_sha
-                self.latest_version = f"dev-{commit_sha}"
-                self.release_url = f"https://github.com/{self.GITHUB_REPO}/commit/{data.get('sha', '')}"
-                self.release_notes = f"Latest commit: {commit_message}"
+        return (date_str, v, priority)
 
-                if commit_date_str:
-                    self.commit_date = datetime.fromisoformat(commit_date_str.replace("Z", "+00:00"))
-                    self.release_date = commit_date_str
-
-                # For dev channel, always show update if different commit
-                # Parse current version to check if it's already a dev version
-                if "-dev" in self.current_version or "-beta" in self.current_version:
-                    # Currently on dev/beta - check if commit is newer
-                    if commit_sha not in self.current_version:
-                        return True, self.latest_version, {"sha": commit_sha, "message": commit_message}
-                else:
-                    # On stable - offer dev if user specifically chose dev channel
-                    return True, self.latest_version, {"sha": commit_sha, "message": commit_message}
-
-        except Exception as e:
-            logger.error(f"Failed to check dev updates: {e}")
-        return False, None, None
-
-    def _process_release(self, data):
-        """Process release data and check if update available."""
-        tag_name = data.get("tag_name", "").lstrip("v")
-        self.latest_version = tag_name
+    def _populate_fields(self, ver, data):
+        self.latest_version = ver
         self.release_url = data.get("html_url")
         self.release_notes = data.get("body")
         self.release_date = data.get("published_at")
         self.assets = data.get("assets", [])
         self.is_prerelease = data.get("prerelease", False)
 
+
+    def _get_latest_stable_release(self):
         try:
-            # Parse versions - handle dev/beta suffixes
-            current_base = self.current_version.split("-")[0]
+            response = requests.get(f"{self.API_BASE}/releases/latest", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                tag = data.get("tag_name", "").lstrip("v")
+                return tag, data
+        except Exception:
+            pass
+        return None, None
 
-            # If on beta channel, accept pre-releases as updates
-            if self.channel == self.CHANNEL_BETA:
-                if version.parse(tag_name) > version.parse(self.current_version):
-                    return True, tag_name, data
-            else:
-                # Stable channel - only stable releases
-                if not self.is_prerelease:
-                    if version.parse(tag_name) > version.parse(current_base):
-                        return True, tag_name, data
-        except Exception as e:
-            logger.error(f"Version comparison failed: {e}")
+    def _get_latest_beta_release(self):
+        try:
+            response = requests.get(f"{self.API_BASE}/releases", timeout=5)
+            if response.status_code == 200:
+                # First release that is prerelease=True? Or just first release?
+                # GitHub list is sorted by date.
+                # We want the newest release that IS a beta (prerelease).
+                for rel in response.json():
+                    if rel.get("prerelease"):
+                        tag = rel.get("tag_name", "").lstrip("v")
+                        return tag, rel
+        except Exception:
+            pass
+        return None, None
 
-        return False, None, None
+    def _get_latest_dev_commit(self):
+        try:
+            response = requests.get(f"{self.API_BASE}/commits/main", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                sha = data.get("sha", "")[:7]
+                msg = data.get("commit", {}).get("message", "").split("\n")[0]
+                # Construct a pseudo-data dict that mimics release
+                date = data.get("commit", {}).get("committer", {}).get("date", "")
+                fake_data = {
+                    "html_url": f"https://github.com/{self.GITHUB_REPO}/commit/{data.get('sha', '')}",
+                    "body": f"Latest commit: {msg}",
+                    "published_at": date,
+                    "name": f"Dev Build {sha}",
+                    "assets": [] # Dev has no assets usually
+                }
+                return f"dev-{sha}", fake_data
+        except Exception:
+            pass
+        return None, None
+
 
     def get_download_url(self, file_extension=".exe"):
         """Get download URL for the appropriate asset."""

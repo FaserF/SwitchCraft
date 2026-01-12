@@ -189,21 +189,37 @@ class SwitchCraftAI:
         is_de = any(w in q for w in ["hallo", "wer", "was", "wie", "ist", "kannst", "machen", "unterstützt", "du", "neueste", "version", "welche", "für", "geht"])
         lang = "de" if is_de else "en"
 
-        # 1. SmartScreen / Signing
-        if any(x in q for x in ["smartscreen", "defender", "virus", "bedrohung", "unknown publisher", "unbekannt", "block"]):
-             return i18n.get("ai_explain_smartscreen", lang=lang, default="SmartScreen warns about 'Unknown Publisher' if the app is not signed. You can sign it using a certificate in the Release Workflow.")
+        # 1. Exit Codes / Reboot
+        if any(x in q for x in ["code", "exit", "return", "3010", "1641", "1618", "1603", "fehler", "error"]):
+             return i18n.get("ai_explain_codes", lang=lang)
 
-        # 2. Winget
+        # 2. Logs / Intune Debugging
+        if any(x in q for x in ["log", "debug", "protokoll", "fehlersuche", "nachsehen"]):
+             return i18n.get("ai_explain_logs", lang=lang)
+
+        # 3. AppX / MSIX
+        if any(x in q for x in ["appx", "msix", "store", "modern app"]):
+             return i18n.get("ai_explain_appx", lang=lang)
+
+        # 4. Access Denied / Admin
+        if any(x in q for x in ["zugriff", "verweigert", "access", "denied", "admin", "berechtigung", "permission", "0x80070005"]):
+             return i18n.get("ai_explain_access", lang=lang)
+
+        # 5. SmartScreen / Signing
+        if any(x in q for x in ["smartscreen", "defender", "virus", "bedrohung", "unknown publisher", "unbekannt", "block", "sign"]):
+             return i18n.get("ai_explain_smartscreen", lang=lang)
+
+        # 6. Winget
         if "winget" in q:
-             return i18n.get("ai_explain_winget", lang=lang, default="Winget is the Windows Package Manager. SwitchCraft can detect if an installer is available on Winget and generate install scripts for it.")
+             return i18n.get("ai_explain_winget", lang=lang)
 
-        # 3. Intune / .intunewin
+        # 7. Intune / .intunewin
         if any(x in q for x in ["intune", "intunewin", "upload", "cloud"]):
-             return i18n.get("ai_explain_intune", lang=lang, default="To deploy via Intune, you need to wrap the installer into an .intunewin file. SwitchCraft automates this in the 'Intune Utility' tab.")
+             return i18n.get("ai_explain_intune", lang=lang)
 
-        # 4. PSExec / System Context
-        if any(x in q for x in ["psexec", "system", "admin", "test"]):
-             return i18n.get("ai_explain_psexec", lang=lang, default="Testing as SYSTEM user is crucial because Intune installs run as SYSTEM. Use PSExec (checked in settings) to simulate this.")
+        # 8. PSExec / System Context
+        if any(x in q for x in ["psexec", "system", "test"]):
+             return i18n.get("ai_explain_psexec", lang=lang)
 
         # 5. Installer Specifics (Context Aware)
         if self.context:

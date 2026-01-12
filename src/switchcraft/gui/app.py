@@ -8,32 +8,18 @@ import logging
 from tkinter import messagebox
 import os
 import sys
-from switchcraft.utils.logging_handler import setup_session_logging
-
-# Setup session logging early to capture all events
-setup_session_logging()
-
-
 import ctypes
 
-
+from switchcraft.utils.logging_handler import setup_session_logging
 from switchcraft.utils.i18n import i18n
 from switchcraft.utils.updater import UpdateChecker
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.security import SecurityChecker
-from switchcraft.services.notification_service import NotificationService
-from switchcraft.services.addon_service import AddonService
-
-from switchcraft.services.intune_service import IntuneService
-from switchcraft.gui.views.intune_view import IntuneView
-from switchcraft.gui.views.settings_view import SettingsView
-# AIView imported dynamically if needed, or we keep it if it is just a view class (but moved to addon)
-# Actually, AIView is in addon now, so we cannot import it unless we use AddonService or try/except
-from switchcraft.gui.views.analyzer_view import AnalyzerView
-from switchcraft.gui.views.winget_view import WingetView # Winget View depends on helper, verify usage
-from switchcraft.gui.views.history_view import HistoryView
-from switchcraft.services.history_service import HistoryService
 from switchcraft import __version__
+
+# Setup session logging early to capture all events
+setup_session_logging()
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -56,9 +42,12 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def __init__(self):
         super().__init__()
         self.TkdndVersion = TkinterDnD._require(self)
+        self.title(f"SwitchCraft Legacy v{__version__}")
+        self.geometry(f"{1100}x{580}")
 
-        self.title(i18n.get("app_title"))
-        self.geometry("900x700")
+        # Assets & State
+        self.logo_image = None
+        self.load_assets()
 
         # Pending update info (for "Update Later" feature)
         self.pending_update = None
@@ -83,7 +72,11 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         ).grid(row=1, column=0, pady=10)
 
         self.loading_label = ctk.CTkLabel(self.loading_frame, text="Loading components...")
-        self.loading_label.grid(row=2, column=0, pady=(0, 40))
+        self.loading_label.grid(row=2, column=0, pady=(0, 20))
+
+        self.loading_bar = ctk.CTkProgressBar(self.loading_frame, mode="indeterminate", width=400)
+        self.loading_bar.grid(row=3, column=0, pady=(0, 40))
+        self.loading_bar.start()
 
         # Defer initialization
         self.after(100, self._perform_initialization)
@@ -102,9 +95,11 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         """Run heavy imports and service init in background."""
         try:
             self.after(0, lambda: self._update_loading("Registering Addons..."))
+            from switchcraft.services.addon_service import AddonService
             AddonService.register_addons()
 
             self.after(0, lambda: self._update_loading("Setting up Notifications..."))
+            from switchcraft.services.notification_service import NotificationService
             NotificationService.set_app_window(self)
 
             self.after(0, lambda: self._update_loading("Loading Services..."))
@@ -112,6 +107,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             # 1. AI Addon (Heavy Import)
             self.ai_service = None
             try:
+                from switchcraft.services.addon_service import AddonService
                 ai_mod = AddonService.import_addon_module("ai", "service")
                 if ai_mod:
                     self.ai_service = ai_mod.SwitchCraftAI()
@@ -119,7 +115,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 logger.info(f"AI Addon not loaded: {e}")
 
             # 2. Standard Services
+            from switchcraft.services.intune_service import IntuneService
             self.intune_service = IntuneService()
+            from switchcraft.services.history_service import HistoryService
             self.history_service = HistoryService()
 
             # 3. Winget Addon
@@ -135,6 +133,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                     self.winget_load_error = str(e)
 
             # 4. Debug Addon
+            from switchcraft.services.addon_service import AddonService
             self.has_debug_addon = AddonService.is_addon_installed("debug")
 
             # Initialization done, switch to main thread for UI
@@ -143,7 +142,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         except Exception as e:
             logger.exception(f"Critical error during background init: {e}")
             # Ensure we don't hang forever
-            self.after(0, lambda: messagebox.showerror("Startup Error", f"Critical error: {e}"))
+            err_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Startup Error", f"Critical error: {err_msg}"))
             self.after(0, self.destroy)
 
     def _finalize_startup(self):
@@ -158,6 +158,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
 
+        # Ensure loading screen stays on top while we build the UI
+        self.loading_frame.lift()
+
         self.tab_analyzer = self.tabview.add(i18n.get("tab_analyzer"))
         self.tab_helper = self.tabview.add(i18n.get("tab_helper"))
         self.setup_helper_tab()
@@ -165,8 +168,12 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.setup_analyzer_tab()
 
-        self.tab_intune = self.tabview.add("Intune Utility")
+        self.tab_intune = self.tabview.add("Intune")
         self.setup_intune_tab()
+
+        # Intune Store
+        self.tab_intune_store = self.tabview.add("Intune Store")
+        self.setup_intune_store_tab()
 
         if SwitchCraftConfig.get_value("EnableWinget", True):
             self.tab_winget = self.tabview.add("Winget Store")
@@ -198,8 +205,13 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Security Check
         self.after(4000, self.check_security_silently)
 
+        # Finally, remove loading screen
+        self.after(800, self._finish_initialization)
+
+    def _finish_initialization(self):
         # Remove Loading Screen
-        self.loading_frame.destroy()
+        if hasattr(self, 'loading_frame') and self.loading_frame:
+            self.loading_frame.destroy()
         logger.info("Initialization complete.")
 
     def _run_demo_init(self):
@@ -221,12 +233,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         from switchcraft import __version__
         is_dev = "dev" in __version__.lower() or "beta" in __version__.lower()
 
+        from switchcraft.services.addon_service import AddonService
         missing_any = not (AddonService.is_addon_installed("advanced") and AddonService.is_addon_installed("ai"))
 
         if is_dev and missing_any:
             logger.info("Dev build detected with missing addons. Auto-installing silently...")
             # Run in thread to not block UI, then show restart prompt
             def auto_install_all():
+                from switchcraft.services.addon_service import AddonService
                 success = AddonService.install_all_missing()
                 if success:
                     logger.info("All addons installed successfully. Prompting for restart...")
@@ -237,6 +251,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             threading.Thread(target=auto_install_all, daemon=True).start()
             return
 
+        from switchcraft.services.addon_service import AddonService
         if not AddonService.is_addon_installed("advanced"):
             # Only ask once per session or use config to remember "Don't ask again"
             if SwitchCraftConfig.get_value("AddonPromptShown", False):
@@ -252,6 +267,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             if messagebox.askyesno(i18n.get("addon_missing_title") or "Advanced Features Missing", msg):
                 # Auto-install with restart countdown
                 def run_install():
+                    from switchcraft.services.addon_service import AddonService
                     if AddonService.install_addon("advanced"):
                         self.after(0, self._show_restart_countdown)
                     else:
@@ -875,6 +891,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         ).pack(pady=10)
 
     def setup_analyzer_tab(self):
+        from switchcraft.gui.views.analyzer_view import AnalyzerView
         self.analyzer_view = AnalyzerView(self.tab_analyzer, self.intune_service, self.ai_service, self)
         self.analyzer_view.pack(fill="both", expand=True)
         self.tab_analyzer.grid_rowconfigure(1, weight=1)
@@ -885,6 +902,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         try:
             # Check if AI addon is loaded
             if self.ai_service:
+                from switchcraft.services.addon_service import AddonService
                 ai_view_mod = AddonService.import_addon_module("ai", "gui.view")
                 if ai_view_mod:
                     AIView = ai_view_mod.AIView
@@ -903,6 +921,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def setup_settings_tab(self):
         """Setup the Settings tab."""
+        from switchcraft.gui.views.settings_view import SettingsView
         self.settings_view = SettingsView(
             self.tab_settings,
             self,
@@ -915,13 +934,22 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
 
 
+    def setup_intune_store_tab(self):
+        from switchcraft.gui.views.intune_store_view import IntuneStoreView
+        self.intune_store_view = IntuneStoreView(self.tab_intune_store)
+        self.intune_store_view.pack(fill="both", expand=True)
+
     def setup_intune_tab(self):
         """Setup the dedicated Intune Utility tab."""
+        from switchcraft.gui.views.intune_view import IntuneView
+        from switchcraft.services.notification_service import NotificationService
         self.intune_view = IntuneView(self.tab_intune, self.intune_service, NotificationService())
         self.intune_view.pack(fill="both", expand=True)
 
     def setup_winget_tab(self):
         if self.winget_helper:
+            from switchcraft.gui.views.winget_view import WingetView
+            from switchcraft.services.notification_service import NotificationService
             self.winget_view = WingetView(self.tab_winget, self.winget_helper, self.intune_service, NotificationService())
             self.winget_view.pack(fill="both", expand=True)
         else:
@@ -929,6 +957,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             MissingAddonView(self.tab_winget, self, "winget", "Winget Integration", i18n.get("winget_addon_desc")).pack(fill="both", expand=True)
 
     def setup_history_tab(self):
+        from switchcraft.gui.views.history_view import HistoryView
         self.history_view = HistoryView(self.tab_history, self.history_service, self)
         self.history_view.pack(fill="both", expand=True)
 
@@ -940,7 +969,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.intune_view.prefill_form(setup_path, metadata)
 
 
-def main(splash=None):
+def main(splash_proc=None):
     try:
         # --- Auto-Enable Debug Console for Dev/Nightly Builds ---
         from switchcraft import __version__
@@ -951,11 +980,19 @@ def main(splash=None):
             SwitchCraftConfig.set_user_preference("ShowDebugConsole", True)
 
         app = App()
-        if splash:
+
+        # Force one update to ensure main window is painted before killing splash
+        app.update()
+
+        if splash_proc:
             try:
-                splash.close()
+                import time
+                # Small delay to ensure smooth transition visually
+                # time.sleep(0.1)
+                splash_proc.terminate()
             except Exception:
                 pass
+
         app.mainloop()
     except Exception as e:
         import traceback

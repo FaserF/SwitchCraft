@@ -365,3 +365,37 @@ class IntuneService:
         except Exception as e:
             logger.error(f"Failed to assign group: {e}")
             raise e
+
+    def list_apps(self, token, filter_query=None):
+        """
+        List apps from Intune.
+        Returns a list of dicts.
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        base_url = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps"
+
+        url = base_url
+        params = {}
+        if filter_query:
+            params["$filter"] = filter_query
+        else:
+            # Default to showing Win32 apps if possible
+            # params["$filter"] = "isof('microsoft.graph.win32LobApp')"
+            pass
+
+        try:
+            resp = requests.get(url, headers=headers, params=params, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("value", [])
+        except Exception as e:
+            logger.error(f"Failed to list apps: {e}")
+            raise e
+
+    def search_apps(self, token, query):
+        """
+        Search apps by name.
+        """
+        escaped_query = query.replace("'", "''")
+        filter_str = f"contains(displayName, '{escaped_query}')"
+        return self.list_apps(token, filter_query=filter_str)

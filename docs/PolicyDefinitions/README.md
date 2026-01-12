@@ -50,7 +50,7 @@ The Base URI is: `./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft`
 | Setting | OMA-URI Path Suffix | Data Type | Default | Allowed Values |
 |---------|---------------------|-----------|---------|----------------|
 | **Debug Mode** | `/DebugMode` | Integer | `0` | `0` (Off), `1` (On) |
-| **Update Channel** | `/UpdateChannel` | String | `stable` | `stable` (Standard), `beta` (Pre-release), `dev` (Nightly) |
+| **Update Channel** | `/UpdateChannel` | String | `stable` | `stable` (Standard), `beta`, `Pre-release`, `dev` (Nightly) |
 | **Enable Winget** | `/EnableWinget` | Integer | `0` | `0` (Disabled), `1` (Enabled) |
 | **Language** | `/Language` | String | `en` | `en` (English), `de` (German) |
 | **Git Repo Path** | `/GitRepoPath` | String | *Empty* | Valid filesystem path (e.g. `C:\SwitchCraftConfig`) |
@@ -59,7 +59,12 @@ The Base URI is: `./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft`
 | **Cert Thumbprint** | `/CodeSigningCertThumbprint` | String | *Empty* | SHA1 Certificate Thumbprint |
 | **Tenant ID** | `/GraphTenantId` | String | *Empty* | Azure AD Tenant GUID |
 | **Client ID** | `/GraphClientId` | String | *Empty* | Azure Application Client GUID |
-| **Graph Client Secret** | `/GraphClientSecret` | String | *Empty* | Application Client Secret |
+| **Client Secret** | `/GraphClientSecret` | String | *Empty* | Application Client Secret |
+| **Theme** | `/Theme` | String | `System` | `System`, `Light`, `Dark` |
+| **Custom Template** | `/CustomTemplatePath` | String | *Empty* | Path to custom templates |
+| **Winget Repo** | `/WingetRepoPath` | String | *Empty* | Path to Winget repo |
+| **AI Key** | `/AIKey` | String | *Empty* | API Key (Gemini/OpenAI) |
+| **Intune Groups** | `/IntuneTestGroups` | String | *Empty* | CSV of Group IDs |
 
 ### Complete OMA-URI XML Example
 
