@@ -986,7 +986,6 @@ def main(splash_proc=None):
 
         if splash_proc:
             try:
-                import time
                 # Small delay to ensure smooth transition visually
                 # time.sleep(0.1)
                 splash_proc.terminate()

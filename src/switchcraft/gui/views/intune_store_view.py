@@ -97,7 +97,7 @@ class IntuneStoreView(ctk.CTkFrame):
                     apps = self.intune_service.list_apps(token)
 
                 self.after(0, lambda: self._update_list(apps))
-            except Exception as ex:
+            except Exception:
                 self.after(0, lambda: self._show_error(str(ex)))
 
         threading.Thread(target=_bg, daemon=True).start()

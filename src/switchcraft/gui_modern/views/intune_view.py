@@ -4,7 +4,6 @@ import logging
 import os
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
-from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 

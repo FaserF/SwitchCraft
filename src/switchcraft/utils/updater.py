@@ -2,7 +2,6 @@ import requests
 import logging
 from packaging import version
 from switchcraft import __version__
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
