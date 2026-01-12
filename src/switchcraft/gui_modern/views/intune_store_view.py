@@ -70,7 +70,7 @@ class ModernIntuneStoreView(ft.Column):
                         )
                     ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                     expand=True,
-                    alignment=ft.alignment.center
+                    alignment=ft.Alignment(0, 0)
                 )
              ]
              self.alignment = ft.MainAxisAlignment.CENTER

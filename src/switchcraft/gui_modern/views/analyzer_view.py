@@ -41,12 +41,12 @@ class ModernAnalyzerView(ft.Column):
                  self.start_analysis(path)
 
         def on_drag_enter(e):
-            self.drop_zone.border = ft.border.all(4, ft.Colors.BLUE_400)
+            self.drop_zone.border = ft.Border.all(4, ft.Colors.BLUE_400)
             self.drop_text.value = "Release to analyze!"
             self.update()
 
         def on_drag_leave(e):
-            self.drop_zone.border = ft.border.all(2, ft.Colors.BLUE_700)
+            self.drop_zone.border = ft.Border.all(2, ft.Colors.BLUE_700)
             self.drop_text.value = i18n.get("drag_drop") or "Drag & Drop Installer Here"
             self.update()
 
@@ -72,7 +72,7 @@ class ModernAnalyzerView(ft.Column):
             ),
             width=float("inf"),
             height=180,
-            border=ft.border.all(2, ft.Colors.BLUE_700),
+            border=ft.Border.all(2, ft.Colors.BLUE_700),
             border_radius=15,
             gradient=ft.LinearGradient(
                 begin=ft.Alignment(-1, -1),
@@ -81,7 +81,7 @@ class ModernAnalyzerView(ft.Column):
             ),
             alignment=ft.Alignment(0, 0),
             on_click=on_drop_click,
-            on_hover=lambda e: setattr(self.drop_zone, "border", ft.border.all(4, ft.Colors.BLUE_400) if e.data == "true" else ft.border.all(2, ft.Colors.BLUE_700)) or self.update(),
+            on_hover=lambda e: setattr(self.drop_zone, "border", ft.Border.all(4, ft.Colors.BLUE_400) if e.data == "true" else ft.Border.all(2, ft.Colors.BLUE_700)) or self.update(),
             padding=20
         )
 

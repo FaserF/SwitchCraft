@@ -17,7 +17,7 @@ def ModernHomeView(page: ft.Page, on_navigate=None):
             padding=20,
             bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST if hasattr(ft.Colors, "SURFACE_CONTAINER_HIGHEST") else ft.Colors.GREY_900,
             border_radius=15,
-            border=ft.border.all(1, ft.Colors.BLUE_700),
+            border=ft.Border.all(1, ft.Colors.BLUE_700),
             animate_scale=ft.Animation(300, ft.AnimationCurve.DECELERATE),
             on_hover=lambda e: setattr(e.control, "scale", 1.05 if e.data == "true" else 1.0) or e.control.update(),
         )

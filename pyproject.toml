@@ -40,6 +40,10 @@ gui = [
     "plyer"
 ]
 modern = ["flet>=0.80.1", "flet-desktop>=0.80.1"]
+test = [
+    "pytest>=7.0",
+    "flet>=0.80.1"
+]
 
 
 [project.scripts]

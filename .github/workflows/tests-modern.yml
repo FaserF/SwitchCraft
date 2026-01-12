@@ -1,0 +1,42 @@
+name: Modern GUI Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/switchcraft/gui_modern/**'
+      - 'tests/test_modern_gui.py'
+      - 'pyproject.toml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/switchcraft/gui_modern/**'
+      - 'tests/test_modern_gui.py'
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+jobs:
+  test-modern-ui:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13", "3.14"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install .[test]
+        pip install .[modern]
+
+    - name: Run Tests
+      # We skip GUI tests that require a display if any, but our smoke tests should run fine headless
+      run: |
+        pytest tests/test_modern_gui.py

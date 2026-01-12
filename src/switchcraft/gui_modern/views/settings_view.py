@@ -412,7 +412,7 @@ class ModernSettingsView(ft.Column):
                 )
             ]),
             padding=10,
-            border=ft.border.all(1, ft.Colors.RED),
+            border=ft.Border.all(1, ft.Colors.RED),
             border_radius=5,
             margin=ft.margin.only(top=20)
         )

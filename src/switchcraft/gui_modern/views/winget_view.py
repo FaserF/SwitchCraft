@@ -129,7 +129,7 @@ class ModernWingetView(ft.Row):
                     ft.Text(i18n.get("winget_searching") or "Searching...", size=16),
                     ft.Text(f"'{query}'", size=12, color=ft.Colors.GREY_500)
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
-                alignment=ft.alignment.center,
+                alignment=ft.Alignment(0, 0),
                 expand=True,
                 padding=40
             )
@@ -162,7 +162,7 @@ class ModernWingetView(ft.Row):
                                 ft.Text(i18n.get("winget_search_timeout") or "Search is taking too long...", color=ft.Colors.ORANGE),
                                 ft.Text(i18n.get("winget_search_timeout_hint") or "Try a more specific search term.", size=12, color=ft.Colors.GREY_500)
                             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
-                            alignment=ft.alignment.center,
+                            alignment=ft.Alignment(0, 0),
                             padding=40
                         )
                     )
@@ -185,7 +185,7 @@ class ModernWingetView(ft.Row):
                             ft.Icon(ft.Icons.ERROR, color=ft.Colors.RED, size=40),
                             ft.Text(f"Error: {ex}", color=ft.Colors.RED)
                         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
-                        alignment=ft.alignment.center,
+                        alignment=ft.Alignment(0, 0),
                         padding=40
                     )
                 )

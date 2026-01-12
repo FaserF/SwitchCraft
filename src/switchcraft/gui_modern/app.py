@@ -29,7 +29,7 @@ class ModernApp:
                     spacing=20,
                 ),
                 expand=True,
-                alignment=ft.alignment.center,  # Use the alignment constant
+                alignment=ft.Alignment(0, 0),  # Use the alignment constant
             )
         )
         self.page.update()
