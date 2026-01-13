@@ -27,15 +27,20 @@ class ScriptUploadView(ft.Column):
         ]
 
     def _build_tabs(self):
-        return ft.Tabs(
-            selected_index=0,
+        tab1 = ft.Tab("Platform Scripts", icon=ft.Icons.TERMINAL)
+        tab1.content = self._build_platform_script_tab()
+
+        tab2 = ft.Tab("Remediations", icon=ft.Icons.HEALING)
+        tab2.content = self._build_remediation_tab()
+
+        t = ft.Tabs(
+            content=None,
+            length=0,
             animation_duration=300,
-            tabs=[
-                ft.Tab(text="Platform Scripts", icon=ft.Icons.TERMINAL, content=self._build_platform_script_tab()),
-                ft.Tab(text="Remediations", icon=ft.Icons.HEALING, content=self._build_remediation_tab()),
-            ],
             expand=True
         )
+        t.tabs = [tab1, tab2]
+        return t
 
     # --- Platform Script Tab ---
     def _build_platform_script_tab(self):

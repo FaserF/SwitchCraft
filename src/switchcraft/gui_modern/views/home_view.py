@@ -10,7 +10,7 @@ class ModernHomeView(ft.Container):
         self.on_navigate = on_navigate
         self.expand = True
         self.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-        self.scroll = ft.ScrollMode.AUTO
+        # self.scroll = ft.ScrollMode.AUTO # Container does not support scroll, handling in content Column
         self.content = self._build_content()
 
     def _create_card(self, title, subtitle, icon, target_idx):
@@ -60,7 +60,7 @@ class ModernHomeView(ft.Container):
             create_card(i18n.get("home_card_analyzer_title") or "Analyzer", i18n.get("home_card_analyzer_desc") or "Deep Scan Installers", ft.Icons.SEARCH, 2),
             create_card(i18n.get("home_card_ai_title") or "AI Helper", i18n.get("home_card_ai_desc") or "AI Powered Support", ft.Icons.SMART_TOY, 3), # 3 = Generate
             create_card(i18n.get("home_card_winget_title") or "Winget", i18n.get("home_card_winget_desc") or "Browse App Store", ft.Icons.SHOP_TWO, 1),
-        ], alignment=ft.MainAxisAlignment.CENTER, spacing=30),
+        ], alignment=ft.MainAxisAlignment.CENTER, spacing=30, wrap=True, run_spacing=30),
 
         ft.Container(height=40),
 
@@ -70,15 +70,15 @@ class ModernHomeView(ft.Container):
                 i18n.get("home_card_intune_desc") or "Prep for Deployment",
                 ft.Icons.CLOUD_UPLOAD, 4
             ),
-            create_card("Dashboard", "Your Statistics", ft.Icons.DASHBOARD, 13),
-            create_card("Stacks", "Batch Deployments", ft.Icons.LAYERS, 12),
-            create_card("Live Check", "Test Detection Rules", ft.Icons.RULE, 11),
-            create_card("Wizard", "End-to-End Packaging", ft.Icons.AUTO_FIX_HIGH, 10),
+            create_card(i18n.get("home_card_dashboard_title") or "Dashboard", i18n.get("home_card_dashboard_desc") or "Your Statistics", ft.Icons.DASHBOARD, 13),
+            create_card(i18n.get("home_card_stacks_title") or "Stacks", i18n.get("home_card_stacks_desc") or "Batch Deployments", ft.Icons.LAYERS, 12),
+            create_card(i18n.get("home_card_livecheck_title") or "Live Check", i18n.get("home_card_livecheck_desc") or "Test Detection Rules", ft.Icons.RULE, 11),
+            create_card(i18n.get("home_card_wizard_title") or "Wizard", i18n.get("home_card_wizard_desc") or "End-to-End Packaging", ft.Icons.AUTO_FIX_HIGH, 10),
             create_card(
                 i18n.get("home_card_settings_title") or "Settings",
                 i18n.get("home_card_settings_desc") or "Configure App",
                 ft.Icons.SETTINGS, 9
             ),
-        ], alignment=ft.MainAxisAlignment.CENTER, spacing=30),
+        ], alignment=ft.MainAxisAlignment.CENTER, spacing=30, wrap=True, run_spacing=30),
 
     ], expand=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.AUTO)

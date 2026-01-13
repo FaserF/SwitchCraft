@@ -161,7 +161,7 @@ class AddonService:
                     shutil.rmtree(target) # Overwrite
                 target.mkdir()
 
-                target.mkdir()
+                # target.mkdir() was already called above
 
                 # Secure extraction
                 for member in z.infolist():
@@ -200,3 +200,20 @@ class AddonService:
                  except (FileNotFoundError, json.JSONDecodeError, OSError):
                      pass
          return False
+
+    def is_addon_installed(self, addon_id):
+        """
+        Checks if an addon is installed by ID.
+        """
+        for d in self.addons_dir.iterdir():
+            if d.is_dir():
+                manifest = d / "manifest.json"
+                if manifest.exists():
+                    try:
+                        with open(manifest, "r") as f:
+                            data = json.load(f)
+                            if data.get("id") == addon_id:
+                                return True
+                    except Exception:
+                        pass
+        return False

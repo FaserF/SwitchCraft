@@ -10,22 +10,39 @@ def ModernHelperView(page: ft.Page):
     """AI Helper View."""
     ai_service = None
 
-    # Try to load AI Addon
+    # Try to load AI Service (uses stub if addon missing)
     try:
-        ai_mod = AddonService.import_addon_module("ai", "service")
-        if ai_mod:
-            ai_service = ai_mod.SwitchCraftAI()
+        from switchcraft.services.ai_service import SwitchCraftAI
+        ai_service = SwitchCraftAI()
     except Exception as e:
-        logger.info(f"AI Addon not loaded: {e}")
+        logger.error(f"AI Service init failed: {e}")
 
     if not ai_service:
         from switchcraft.utils.i18n import i18n
+
+        def go_to_addons(e):
+            # Navigate to Addon Manager (tab index 16)
+            if hasattr(page, 'switchcraft_app') and hasattr(page.switchcraft_app, 'goto_tab'):
+                page.switchcraft_app.goto_tab(16)
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text("Please navigate to Addons tab manually"), bgcolor="ORANGE")
+                page.snack_bar.open = True
+                page.update()
+
         return ft.Column([
             ft.Icon(ft.Icons.SMART_TOY_OUTLINED, size=60, color="grey"),
             ft.Text(i18n.get("ai_helper") or "AI Helper", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text(i18n.get("addon_missing_msg_ai") or "The AI Addon is not installed or failed to load.", color="orange"),
-            ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=12, color="grey"),
-        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+            ft.Text(i18n.get("addon_missing_msg_ai") or "The AI Addon is not installed or failed to load.", color="orange", text_align=ft.TextAlign.CENTER),
+            ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=12, color="grey", text_align=ft.TextAlign.CENTER),
+            ft.Container(height=10),
+            ft.ElevatedButton(
+                i18n.get("btn_go_to_addons") or "Go to Addon Manager",
+                icon=ft.Icons.EXTENSION,
+                bgcolor="BLUE_700",
+                color="WHITE",
+                on_click=go_to_addons
+            )
+        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
 
     from switchcraft.utils.i18n import i18n
     chat_history = ft.ListView(expand=True, spacing=10, auto_scroll=True)
@@ -33,24 +50,37 @@ def ModernHelperView(page: ft.Page):
         label=i18n.get("ai_ask_hint") or "Ask a question...",
         expand=True,
         border_radius=10,
-        content_padding=15
+        content_padding=15,
+        border_color="BLUE_400",
+        focused_border_color="BLUE_600",
+        filled=True,
+        bgcolor="GREY_900",
     )
 
     def add_message(sender, text, is_user=False, is_error=False):
-        bg_color = "BLUE_900" if is_user else ("RED_900" if is_error else "GREEN_900")
+        bg_color = "SURFACE_VARIANT" if is_user else "PRIMARY_CONTAINER"
+        text_color = "WHITE"
+        align = ft.MainAxisAlignment.END if is_user else ft.MainAxisAlignment.START
 
         chat_history.controls.append(
-            ft.Container(
-                content=ft.Column([
-                    ft.Text(sender, weight=ft.FontWeight.BOLD, size=12),
-                    ft.Text(text, selectable=True)
-                ]),
-                bgcolor=bg_color,
-                padding=10,
-                border_radius=8,
-                margin=ft.margin.only(left=50 if is_user else 0, right=0 if is_user else 50)
-            )
+            ft.Row([
+                ft.Container(
+                    content=ft.Column([
+                        ft.Text(sender, weight=ft.FontWeight.BOLD, size=12, color=text_color),
+                        ft.Text(text, selectable=True, color=text_color)
+                    ]),
+                    bgcolor=bg_color,
+                    padding=15,
+                    border_radius=ft.border_radius.only(
+                        top_left=15, top_right=15,
+                        bottom_left=15 if not is_user else 0,
+                        bottom_right=15 if is_user else 0
+                    ),
+                    # constraints=ft.BoxConstraints(max_width=500), # Removed from init
+                )
+            ], alignment=align)
         )
+        # Apply constraints manually if needed or wrap in a constrained container
         page.update()
 
     def send_message(e):
@@ -93,20 +123,40 @@ def ModernHelperView(page: ft.Page):
         )
 
     return ft.Column([
-        ft.Row([
-            ft.Icon(ft.Icons.SMART_TOY, size=30, color="BLUE"),
-            ft.Text(i18n.get("ai_helper") or "AI Helper", size=24, weight=ft.FontWeight.BOLD),
-        ]),
-        ft.Divider(),
+        ft.Container(
+            content=ft.Row([
+                ft.Icon(ft.Icons.SMART_TOY, size=30, color="BLUE_400"),
+                ft.Text(i18n.get("ai_helper") or "AI Helper", size=24, weight=ft.FontWeight.BOLD),
+            ]),
+            padding=10,
+            bgcolor="SURFACE_VARIANT",
+            border_radius=10,
+        ),
+        ft.Container(height=10),
         ft.Container(
             content=chat_history,
             expand=True,
-            bgcolor="SURFACE_CONTAINER_HIGHEST" if hasattr(getattr(ft, "colors", None), "SURFACE_CONTAINER_HIGHEST") else "GREY_900",
+            bgcolor="BLACK12",
+            border=ft.border.all(1, "GREY_700"),
             border_radius=10,
-            padding=10
+            padding=15
         ),
-        ft.Row([
-            input_field,
-            ft.IconButton(ft.Icons.SEND, on_click=send_message, tooltip="Send")
-        ])
+        ft.Container(height=10),
+        ft.Container(
+            content=ft.Row([
+                input_field,
+                ft.IconButton(
+                    ft.Icons.SEND,
+                    on_click=send_message,
+                    tooltip="Send",
+                    icon_color="BLUE_400",
+                    bgcolor="BLUE_900",
+                    style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))
+                )
+            ], spacing=10),
+            bgcolor="SURFACE_VARIANT",
+            padding=10,
+            border_radius=10,
+            border=ft.border.all(1, "GREY_700"),
+        )
     ], expand=True)

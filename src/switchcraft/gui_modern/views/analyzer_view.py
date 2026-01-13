@@ -71,15 +71,16 @@ class ModernAnalyzerView(ft.Column):
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             ),
             width=float("inf"),
-            height=180,
-            border=ft.Border.all(2, "BLUE_700"),
+            height=200,
+            border=ft.Border.all(2, "GREY_700"), # Dashed if possible? No, solid is fine but color matters.
             border_radius=15,
+            # Explicitly set gradient with known hex codes if needed, but theme colors should work.
             gradient=ft.LinearGradient(
                 begin=ft.Alignment(-1, -1),
                 end=ft.Alignment(1, 1),
-                colors=["BLUE_900", "DEEP_PURPLE_900"],
+                colors=["#0D47A1", "#311B92"], # Blue 900 to Deep Purple 900
             ),
-            alignment=ft.Alignment(0, 0),
+            bgcolor=None, # Ensure gradient is visible
             on_click=on_drop_click,
             on_hover=lambda e: setattr(self.drop_zone, "border", ft.Border.all(4, "BLUE_400") if e.data == "true" else ft.Border.all(2, "BLUE_700")) or self.update(),
             padding=20
@@ -109,7 +110,7 @@ class ModernAnalyzerView(ft.Column):
 
     def _check_addon(self):
         """Check if Advanced addon is installed and show warning if not."""
-        if not AddonService.is_addon_installed("advanced"):
+        if not AddonService().is_addon_installed("advanced"):
             self.addon_warning.content = ft.Container(
                 content=ft.Row([
                     ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, color="WHITE", size=30),
@@ -130,7 +131,7 @@ class ModernAnalyzerView(ft.Column):
                 margin=ft.margin.only(bottom=15)
             )
             self.addon_warning.visible = True
-            self.update()
+            # Note: Don't call self.update() here - view isn't added to page yet
 
     def _install_advanced_addon(self, e):
         e.control.disabled = True
@@ -138,7 +139,7 @@ class ModernAnalyzerView(ft.Column):
         self.update()
 
         def _run():
-            success = AddonService.install_addon("advanced")
+            success = AddonService().install_addon("advanced")
             if success:
                 self._show_snack("Addon installed! Please restart SwitchCraft.", "GREEN")
                 self.addon_warning.visible = False
@@ -187,6 +188,21 @@ class ModernAnalyzerView(ft.Column):
         self.results_column.controls.clear()
         self.current_info = result.info
         info = result.info
+
+        # Save to History
+        try:
+             from switchcraft.services.history_service import HistoryService
+             h_service = HistoryService()
+             entry = {
+                 "filename": Path(info.file_path).name,
+                 "product": info.product_name or "Unknown",
+                 "version": info.product_version or "Unknown",
+                 "status": "Analyzed",
+                 "manufacturer": info.manufacturer
+             }
+             h_service.add_entry(entry)
+        except Exception as ex:
+             logger.error(f"Failed to save history: {ex}")
 
         if result.error:
              self.results_column.controls.append(ft.Text(f"Analysis Error: {result.error}", color="RED", size=16))

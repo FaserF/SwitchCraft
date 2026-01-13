@@ -67,11 +67,19 @@ def patch_flet():
 
 patch_flet()
 
-from switchcraft.gui_modern.app import ModernApp  # noqa: E402
-from switchcraft.utils.logging_handler import setup_session_logging  # noqa: E402
+_IMPORT_ERROR = None
+_IMPORT_EXC_INFO = None
 
-# Setup session logging
-setup_session_logging()
+try:
+    # Explicitly import updater to ensure PyInstaller bundles it
+    import switchcraft.utils.app_updater # noqa: F401
+    from switchcraft.gui_modern.app import ModernApp  # noqa: E402
+    from switchcraft.utils.logging_handler import setup_session_logging  # noqa: E402
+    # Setup session logging
+    setup_session_logging()
+except Exception:
+    _IMPORT_ERROR = True
+    _IMPORT_EXC_INFO = sys.exc_info()
 
 def write_crash_dump(exc_info):
     """Write crash dump to a file for debugging."""
@@ -97,10 +105,46 @@ def write_crash_dump(exc_info):
         f.write(f"Frozen: {getattr(sys, 'frozen', False)}\n")
         if getattr(sys, 'frozen', False):
             f.write(f"MEIPASS: {sys._MEIPASS}\n")
+
+        # Extended Metadata
+        try:
+            from switchcraft import __version__
+            f.write(f"App Version: {__version__}\n")
+        except:
+             f.write("App Version: unknown\n")
+
+        try:
+             from switchcraft.utils.config import SwitchCraftConfig
+             channel = SwitchCraftConfig.get_value("UpdateChannel", "stable")
+             f.write(f"Update Channel: {channel}\n")
+        except:
+             f.write("Update Channel: unknown\n")
+
         f.write("\n" + "="*60 + "\n")
         f.write("TRACEBACK:\n")
         f.write("="*60 + "\n\n")
         traceback.print_exception(*exc_info, file=f)
+
+        # Enhanced Debugging: Inspect Module Loader
+        f.write("\n" + "="*60 + "\n")
+        f.write("DEBUG: Internal Module Inspection:\n")
+        f.write("="*60 + "\n")
+        try:
+            import pkgutil
+            import switchcraft.gui_modern.views
+            f.write(f"Views Package Path: {switchcraft.gui_modern.views.__path__}\n")
+            f.write("Available Modules in 'switchcraft.gui_modern.views':\n")
+            for importer, name, ispkg in pkgutil.iter_modules(switchcraft.gui_modern.views.__path__):
+                f.write(f" - {name} (Package: {ispkg})\n")
+        except Exception as e:
+            f.write(f"Failed to inspect modules: {e}\n")
+
+        if getattr(sys, 'frozen', False):
+            # Also dump sys.modules keys related to views
+            f.write("\nLoaded View Modules:\n")
+            for k in sorted(sys.modules.keys()):
+                if "gui_modern.views" in k:
+                    f.write(f" - {k}\n")
 
     return dump_file
 
@@ -120,6 +164,9 @@ def main(page: ft.Page):
             elif isinstance(control, ft.Banner):
                 page.banner = control
                 page.banner.open = True
+            elif isinstance(control, ft.NavigationDrawer):
+                page.end_drawer = control
+                page.end_drawer.open = True
             page.update()
         page.open = legacy_open
 
@@ -134,6 +181,10 @@ def main(page: ft.Page):
                 page.bottom_sheet.open = False
             elif page.banner:
                 page.banner.open = False
+            elif page.end_drawer:
+                page.end_drawer.open = False
+            elif page.drawer:
+                page.drawer.open = False
             page.update()
         page.close = legacy_close
 
@@ -154,7 +205,24 @@ def main(page: ft.Page):
 
     # --- End Patching ---
 
+    # Check for Import Errors first
+    if _IMPORT_ERROR:
+        # Re-raise to trigger the exception handler below
+        # Or better, manually trigger the crash UI logic directly
+        # to ensure we use the _IMPORT_EXC_INFO
+        try:
+             raise _IMPORT_EXC_INFO[1].with_traceback(_IMPORT_EXC_INFO[2])
+        except Exception:
+             # This will be caught by the general catch-all below usually,
+             # but we want to ensure we pass the specific EXC_INFO to write_crash_dump
+             pass
+
     try:
+        # If we had an import error, we shouldn't even be here effectively,
+        # but let's handle the control flow.
+        if _IMPORT_ERROR:
+             raise _IMPORT_EXC_INFO[1] # Re-raise for the except block
+
         # Pass splash proc to app for cleanup
         ModernApp(page, splash_proc)
     except Exception:
@@ -175,21 +243,36 @@ def main(page: ft.Page):
             import subprocess
             subprocess.Popen(f'explorer "{dump_folder}"')
 
-        def copy_dump_path(e):
+        def open_dump_file(e):
+            import os
             try:
-                page.set_clipboard(str(dump_file))
+                os.startfile(dump_file)
+            except Exception:
+                pass
+
+        def copy_dump_path(e):
+            path_str = str(dump_file)
+            # 1. Try Flet Clipboard
+            try:
+                page.set_clipboard(path_str)
                 page.show_snack_bar(ft.SnackBar(ft.Text("Path copied to clipboard!")))
+                page.update()
+            except Exception:
+                pass
+
+            # 2. Force Windows Clipboard (cmd /c check)
+            try:
+                import subprocess
+                cmd = f'echo {path_str} | clip'
+                subprocess.run(cmd, shell=True)
             except Exception:
                 pass
 
         def close_app(e):
-            try:
-                if hasattr(page, "window"):
-                    page.window.close()
-                else:
-                    page.window_destroy()
-            except Exception:
-                sys.exit(0)
+            import ctypes
+            # Nuclear option: Win32 ExitProcess
+            # This cannot be blocked or ignored by Python/Flet
+            ctypes.windll.kernel32.ExitProcess(1)
 
         # Show error message with dump location - centered
         page.clean()
@@ -199,14 +282,20 @@ def main(page: ft.Page):
                     ft.Icon(ft.Icons.ERROR_OUTLINE_ROUNDED, color="RED", size=80),
                     ft.Text("SwitchCraft Initialization Error", size=28, weight=ft.FontWeight.BOLD),
                     ft.Container(height=10),
-                    ft.Text("A critical error occurred during startup. Details saved to:", size=16),
-                    ft.Text(str(dump_file), size=12, selectable=True, color="BLUE_400", italic=True),
+                    ft.Text(f"A critical error occurred during startup.\nDetails saved to log file.", size=16, text_align="center"),
+                    ft.Text(str(dump_file), size=12, selectable=True, color="BLUE_400", weight="bold"),
                     ft.Container(height=20),
                     ft.Row([
                         ft.ElevatedButton(
-                            "Open Folder",
+                            "Open Dump Folder",
                             icon=ft.Icons.FOLDER_OPEN,
                             on_click=open_dump_folder,
+                            style=ft.ButtonStyle(color="WHITE", bgcolor="BLUE_700")
+                        ),
+                        ft.ElevatedButton(
+                            "Open Dump File",
+                            icon=ft.Icons.DESCRIPTION,
+                            on_click=open_dump_file,
                             style=ft.ButtonStyle(color="WHITE", bgcolor="BLUE_700")
                         ),
                         ft.ElevatedButton(
@@ -220,7 +309,7 @@ def main(page: ft.Page):
                             on_click=close_app,
                             style=ft.ButtonStyle(color="WHITE", bgcolor="RED_700")
                         ),
-                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=20),
+                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=20, wrap=True),
                     ft.Container(height=30),
                     ft.Divider(color="GREY_800"),
                     ft.Text("Error Details:", size=14, weight=ft.FontWeight.W_500, color="GREY_400"),

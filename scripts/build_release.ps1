@@ -192,6 +192,18 @@ function Run-PyInstaller {
     }
 }
 
+# --- 0. PREPARE ASSETS ---
+Write-Host "`nGenerating Bundled Addons..." -ForegroundColor Cyan
+try {
+    if ($IsWinBuild) {
+        python src/generate_addons.py
+    } else {
+        python3 src/generate_addons.py
+    }
+} catch {
+    Write-Warning "Failed to generate addons: $_"
+}
+
 # --- 1. BUILD MODERN (Flet) ---
 if ($Modern) {
     $Spec = "switchcraft_modern.spec"

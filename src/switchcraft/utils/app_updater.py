@@ -101,6 +101,9 @@ class UpdateChecker:
                candidates.sort(key=self._sort_key, reverse=True)
                best_cand_ver, best_cand_data, _ = candidates[0]
                self._populate_fields(best_cand_ver, best_cand_data)
+               # Return the LATEST REMOTE version so UI shows it, even if no update needed
+               return False, best_cand_ver, best_cand_data
+
             return False, self.current_version, None
 
         # Sort candidates to find the "best" one.

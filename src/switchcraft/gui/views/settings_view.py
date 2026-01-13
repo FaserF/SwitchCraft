@@ -5,7 +5,7 @@ import json
 from tkinter import messagebox
 from switchcraft.utils.i18n import i18n
 from switchcraft.utils.config import SwitchCraftConfig
-from switchcraft.utils.updater import UpdateChecker
+from switchcraft.utils.app_updater import UpdateChecker
 from switchcraft import __version__
 from pathlib import Path
 

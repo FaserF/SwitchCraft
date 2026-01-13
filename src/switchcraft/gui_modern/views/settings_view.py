@@ -5,7 +5,7 @@ import json
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 from switchcraft import __version__
-from switchcraft.utils.updater import UpdateChecker
+from switchcraft.utils.app_updater import UpdateChecker
 from switchcraft.services.auth_service import AuthService
 from switchcraft.services.sync_service import SyncService
 
@@ -51,8 +51,9 @@ class ModernSettingsView(ft.Column):
             self.current_content.content = ft.Text(f"Error loading settings: {e}", color="red")
 
     def did_mount(self):
-        # Trigger async checks after mount
-        if hasattr(self, "_check_updates"):
+        # Trigger async checks after mount IF NOT cached
+        cached = getattr(self.app_page, "update_check_result", None)
+        if hasattr(self, "_check_updates") and (not cached or not cached.get("checked")):
              self._check_updates(None, only_changelog=True)
         # Check for policy-managed settings
         self._check_managed_settings()
@@ -222,8 +223,23 @@ class ModernSettingsView(ft.Column):
         )
         channel.on_change = lambda e: self._on_channel_change(e.control.value)
 
-        self.changelog_text = ft.Markdown(i18n.get("update_loading_changelog") or "Loading changelog...")
-        self.latest_version_text = ft.Text(i18n.get("unknown") or "Unknown")
+        # Check for cached update result
+        cached = getattr(self.app_page, "update_check_result", None)
+        initial_changelog = i18n.get("update_loading_changelog") or "Loading changelog..."
+        initial_latest = i18n.get("unknown") or "Unknown"
+
+        if cached and cached.get("checked"):
+            ver = cached.get("version")
+            data = cached.get("data")
+            note = (data.get("body") if data else None) or "No changelog available."
+            initial_latest = ver if ver else initial_latest
+            if cached.get("error"):
+                 initial_changelog = f"Update check failed: {cached.get('error')}"
+            else:
+                 initial_changelog = f"**{i18n.get('latest_version') or 'Latest Version'}:** {ver}\n\n{note}"
+
+        self.changelog_text = ft.Markdown(initial_changelog)
+        self.latest_version_text = ft.Text(initial_latest)
 
         check_btn = ft.ElevatedButton(i18n.get("check_updates") or "Check for Updates", icon=ft.Icons.REFRESH, on_click=self._check_updates)
 
@@ -254,9 +270,20 @@ class ModernSettingsView(ft.Column):
 
     def _build_deployment_tab(self):
         # Code Signing Section
+        sign_enabled = bool(SwitchCraftConfig.get_value("SignScripts", False))
+
+        # Validate if cert actually exists
+        saved_thumb = SwitchCraftConfig.get_value("CodeSigningCertThumbprint", "")
+        saved_cert_path = SwitchCraftConfig.get_value("CodeSigningCertPath", "")
+
+        if sign_enabled and not saved_thumb and not saved_cert_path:
+            # Config says enabled, but no cert configured -> Disable it to be safe and match UI reality
+            sign_enabled = False
+            SwitchCraftConfig.set_user_preference("SignScripts", False)
+
         sign_sw = ft.Switch(
             label=i18n.get("settings_enable_signing") or "Enable Code Signing",
-            value=bool(SwitchCraftConfig.get_value("SignScripts", False)),
+            value=sign_enabled,
         )
         sign_sw.on_change = lambda e: self._on_signing_toggle(e.control.value)
 
@@ -345,6 +372,14 @@ class ModernSettingsView(ft.Column):
             spacing=15
         )
 
+    def _on_debug_toggle(self, e):
+        """Toggle debug logging."""
+        val = e.control.value
+        SwitchCraftConfig.set_user_preference("DebugMode", val)
+        from switchcraft.utils.logging_handler import get_session_handler
+        get_session_handler().set_debug_mode(val)
+        self._show_snack(f"Debug Mode {'Enabled' if val else 'Disabled'}", "ORANGE" if val else "GREEN")
+
     def _build_help_tab(self):
         links = ft.Row([
             ft.ElevatedButton(i18n.get("help_github_repo") or "GitHub Repo", icon=ft.Icons.CODE, url="https://github.com/FaserF/SwitchCraft"),
@@ -353,6 +388,13 @@ class ModernSettingsView(ft.Column):
         ])
 
         logs_btn = ft.ElevatedButton(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs)
+
+        # Debug Toggle
+        debug_sw = ft.Switch(
+            label="Enable Debug Logging",
+            value=SwitchCraftConfig.is_debug_mode(),
+            on_change=self._on_debug_toggle
+        )
 
         # GitHub Issue Reporter with pre-filled body
         def open_issue_reporter(e):
@@ -421,6 +463,7 @@ class ModernSettingsView(ft.Column):
             controls=[
                 ft.Text(i18n.get("help_title") or "Help & Resources", size=24, weight=ft.FontWeight.BOLD),
                 links,
+                ft.Row([logs_btn, debug_sw]),
                 ft.Divider(),
                 ft.Text(i18n.get("help_troubleshooting") or "Troubleshooting", size=18, weight=ft.FontWeight.BOLD),
                 ft.Text(i18n.get("help_shared_settings_msg") or "Settings are shared across all SwitchCraft editions (Modern, Legacy, and CLI).", size=12, italic=True),
@@ -484,7 +527,11 @@ class ModernSettingsView(ft.Column):
 
     def _on_lang_change(self, val):
         SwitchCraftConfig.set_user_preference("Language", val)
-        self._show_snack(i18n.get("restart_required_msg") or "Language changed. Please restart app.")
+        # Attempt to reload i18n strings? i18n is static usually.
+        # But we can try to reload the UI.
+        self._show_snack(i18n.get("restart_required_msg") or "Language changed. Please restart app.", "ORANGE")
+        # Trigger page update just in case
+        self.app_page.update()
 
     def _on_theme_change(self, val):
         SwitchCraftConfig.set_user_preference("Theme", val)
@@ -619,12 +666,16 @@ class ModernSettingsView(ft.Column):
                 self._show_snack(f"{i18n.get('import_failed') or 'Import Failed'}: {ex}", "RED")
 
     def _export_logs(self, e):
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"SwitchCraft_Debug_{timestamp}.log"
+
         from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
-        path = FilePickerHelper.save_file(dialog_title=i18n.get("help_export_logs") or "Export Logs", file_name="logs.txt", allowed_extensions=["txt"])
+        path = FilePickerHelper.save_file(dialog_title=i18n.get("help_export_logs") or "Export Logs", file_name=filename, allowed_extensions=["log", "txt"])
         if path:
             from switchcraft.utils.logging_handler import get_session_handler
             if get_session_handler().export_logs(path):
-                self._show_snack(i18n.get("logs_exported") or "Logs Exported!")
+                self._show_snack(i18n.get("logs_exported") or f"Logs Exported to {path}")
             else:
                 self._show_snack(i18n.get("logs_export_failed") or "Log export failed.", "RED")
 
@@ -694,7 +745,7 @@ class ModernSettingsView(ft.Column):
 
         rows = []
         for addon in addons:
-            is_installed = AddonService.is_addon_installed(addon["id"])
+            is_installed = AddonService().is_addon_installed(addon["id"])
             status_color = "GREEN" if is_installed else "ORANGE"
             status_text = i18n.get("status_installed") or "Installed" if is_installed else i18n.get("status_not_installed") or "Not Installed"
 
@@ -732,11 +783,40 @@ class ModernSettingsView(ft.Column):
     def _install_addon(self, addon_id):
         """Install an addon from the official repository."""
         from switchcraft.services.addon_service import AddonService
+        import sys
+        import os
+        from pathlib import Path
 
         self._show_snack(f"{i18n.get('addon_installing') or 'Installing addon'} {addon_id}...", "BLUE")
 
+        # Resolve bundled path
+        if getattr(sys, 'frozen', False):
+             base_path = Path(sys._MEIPASS) / "assets" / "addons"
+        else:
+             # src/switchcraft/gui_modern/views/settings_view.py -> src/switchcraft/gui_modern/views -> src/switchcraft/gui_modern -> src/switchcraft -> src -> switchcraft/assets/addons?
+             # No: src/switchcraft/gui_modern/views/settings_view.py (level 0)
+             # level 1: views
+             # level 2: gui_modern
+             # level 3: switchcraft
+             # level 4: src
+             # assets is in src/switchcraft/assets
+             # so: parent(views) -> parent(gui_modern) -> parent(switchcraft) / assets / addons ??
+             # Wait. app.py is in gui_modern.
+             # settings_view.py is in gui_modern/views.
+             # So it is one level deeper than app.py.
+             # app.py used Path(__file__).parent.parent / "assets" / "addons" (parent of gui_modern is switchcraft).
+             # settings_view: parent(views).parent(gui_modern).parent(switchcraft)
+             base_path = Path(__file__).parent.parent.parent / "assets" / "addons"
+
+        zip_path = base_path / f"{addon_id}.zip"
+
         def _run():
-            if AddonService.install_addon(addon_id):
+            if not zip_path.exists():
+                 # TODO: Try online download if not bundled?
+                 self._show_snack(f"Addon source not found: {zip_path}", "RED")
+                 return
+
+            if AddonService().install_addon(str(zip_path)):
                 self._show_snack(f"{i18n.get('addon_install_success') or 'Addon installed successfully!'} ({addon_id})", "GREEN")
             else:
                 self._show_snack(f"{i18n.get('addon_install_failed') or 'Addon installation failed.'} ({addon_id})", "RED")

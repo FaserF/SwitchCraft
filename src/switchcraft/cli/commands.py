@@ -103,7 +103,7 @@ def winget():
 def winget_search(query):
     """Search for packages in Winget."""
     from switchcraft.services.addon_service import AddonService
-    winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+    winget_mod = AddonService().import_addon_module("winget", "utils.winget")
     if not winget_mod:
         print("[red]Winget addon not installed.[/red]")
         sys.exit(1)
@@ -129,7 +129,7 @@ def winget_search(query):
 def winget_install(pkg_id, scope):
     """Install a package via Winget."""
     from switchcraft.services.addon_service import AddonService
-    winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+    winget_mod = AddonService().import_addon_module("winget", "utils.winget")
     if not winget_mod:
         print("[red]Winget addon not installed.[/red]")
         sys.exit(1)
@@ -243,19 +243,30 @@ def addons():
     """Manage SwitchCraft addons."""
     pass
 
-@addons.command('list')
-def addons_list():
     """List available addons and installation status."""
     from switchcraft.services.addon_service import AddonService
     table = Table(title="SwitchCraft Addons")
     table.add_column("ID")
-    table.add_column("Package")
+    table.add_column("Name")
     table.add_column("Status")
 
-    for aid, pkg in AddonService.ADDONS.items():
-        installed = AddonService.is_addon_installed(aid)
-        status = "[green]Installed[/green]" if installed else "[yellow]Missing[/yellow]"
-        table.add_row(aid, pkg, status)
+    # Hardcoded known addons if ADDONS was intended to be a registry,
+    # but for now let's just list what is installed or capable.
+    # If the CLI expects a list of *available* addons to install, that's different.
+    # Assuming list_addons() lists installed ones? No, list_addons() scans the dir.
+
+    svc = AddonService()
+    installed = svc.list_addons()
+
+    if not installed:
+        print("[yellow]No addons installed.[/yellow]")
+        return
+
+    for addon in installed:
+        aid = addon.get("id")
+        name = addon.get("name")
+        table.add_row(aid, name, "[green]Installed[/green]")
+
     print(table)
 
 @addons.command('install')
@@ -280,7 +291,7 @@ def addons_install(addon_id):
              return False # Don't rely on browser flow in CLI
         return False
 
-    success = AddonService.install_addon(addon_id, prompt_callback=cli_prompt)
+    success = AddonService().install_addon(addon_id, prompt_callback=cli_prompt)
     if success:
         print(f"[green]Successfully installed {addon_id}[/green]")
     else:
@@ -342,7 +353,7 @@ def _run_analysis(filepath, output_json):
     winget_url = None
     if info.product_name:
         from switchcraft.services.addon_service import AddonService
-        winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+        winget_mod = AddonService().import_addon_module("winget", "utils.winget")
         if winget_mod:
             winget = winget_mod.WingetHelper()
             winget_url = winget.search_by_name(info.product_name)

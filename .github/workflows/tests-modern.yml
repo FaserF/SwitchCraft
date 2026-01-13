@@ -40,3 +40,4 @@ jobs:
       # We skip GUI tests that require a display if any, but our smoke tests should run fine headless
       run: |
         pytest tests/test_modern_gui.py
+        pytest tests/test_gui_views.py

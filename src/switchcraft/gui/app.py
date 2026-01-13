@@ -12,7 +12,7 @@ import ctypes
 
 from switchcraft.utils.logging_handler import setup_session_logging
 from switchcraft.utils.i18n import i18n
-from switchcraft.utils.updater import UpdateChecker
+from switchcraft.utils.app_updater import UpdateChecker
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.security import SecurityChecker
 from switchcraft import __version__

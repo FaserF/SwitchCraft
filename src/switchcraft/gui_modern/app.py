@@ -1,7 +1,9 @@
-import flet as ft
-from switchcraft import __version__
-from switchcraft.utils.i18n import i18n
-from switchcraft.utils.config import SwitchCraftConfig
+from pathlib import Path
+
+# ... (rest of imports)
+
+# ... imports continued
+# (Removing stray function)
 from switchcraft.gui_modern.views.script_upload_view import ScriptUploadView
 from switchcraft.gui_modern.views.macos_wizard_view import MacOSWizardView
 from switchcraft.services.notification_service import NotificationService
@@ -14,13 +16,14 @@ logger = logging.getLogger(__name__)
 class ModernApp:
     def __init__(self, page: ft.Page, splash_proc=None):
         self.page = page
+        self.page.switchcraft_app = self  # Store reference for views to access goto_tab
         self.page.clean()
         self.setup_page()
 
 
         # Notification Service
         self.notification_service = NotificationService()
-        self.notification_service.add_listener(self._on_notification_update)
+        # Listener added later after UI init
 
         # Addon Service
         self.addon_service = AddonService()
@@ -33,17 +36,28 @@ class ModernApp:
             tooltip=i18n.get("toggle_theme")
         )
 
-        # Notification button - simplified without Badge for Flet version compatibility
+        # Notification button
         self.notif_btn = ft.IconButton(
             icon=ft.Icons.NOTIFICATIONS,
             tooltip="Notifications",
             on_click=self._open_notifications
         )
 
+        # Now add listener
+        self.notification_service.add_listener(self._on_notification_update)
+
+        # Try to find logo for AppBar
+        logo_icon = ft.Icon(ft.Icons.INSTALL_DESKTOP, size=30)
+        # We will check path later? No, do it now.
+        # But setup_page does the path logic.
+        # Let's move path logic up or duplicate roughly for now, or just use Icon.
+        # User said "Main bar of the app... it worked before".
+
         self.page.appbar = ft.AppBar(
-            leading=ft.Icon(ft.Icons.INSTALL_DESKTOP, size=30),
+             # We will try to update this in setup_page if logo exists
+            leading=logo_icon,
             leading_width=40,
-            title=ft.Text(f"SwitchCraft v{__version__}", weight=ft.FontWeight.BOLD),
+            title=ft.Text("SwitchCraft", weight=ft.FontWeight.BOLD),
             center_title=False,
             bgcolor="SURFACE_VARIANT",
             actions=[
@@ -81,32 +95,57 @@ class ModernApp:
             except Exception:
                 pass
 
-
-        # Perform deferred UI building.
-        # User requested visible loading screen. Since Flet execution here is linear during init,
-        # we add a small sleep to ensure the "Loading..." ring is perceived.
-        # User requested visible loading screen. Since Flet execution here is linear during init,
-        # we add a small sleep to ensure the "Loading..." ring is perceived.
         time.sleep(1.5)
 
         # View cache - keeps views in memory to preserve state between tab switches
         self._view_cache = {}
 
+        # Auto-install bundled addons on first start
+        self._install_bundled_addons()
+
         self.build_ui()
 
     def setup_page(self):
-        self.page.title = f"SwitchCraft v{__version__}"
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        self.page.title = f"SwitchCraft v{__version__} (Build {timestamp})"
         # Parse theme
         theme_pref = SwitchCraftConfig.get_value("Theme", "System")
         self.page.theme_mode = ft.ThemeMode.DARK if theme_pref == "Dark" else ft.ThemeMode.LIGHT if theme_pref == "Light" else ft.ThemeMode.SYSTEM
         self.page.padding = 0
 
-        # Set window properties using Flet 0.70+ API
         try:
             self.page.window.min_width = 1200
             self.page.window.min_height = 800
-            self.page.window.prevent_close = True
-            self.page.window.on_event = self.window_event
+
+            # For Flet 0.80.1, use on_window_event or on_close handler
+            # Prefer on_resized/on_event pattern if available
+            try:
+                self.page.window.on_event = self.window_event
+            except AttributeError:
+                pass
+
+            # Try new style event binding (Flet >= 0.21)
+            try:
+                self.page.on_window_event = self.window_event
+            except AttributeError:
+                pass
+
+            # Jump List (Windows Quick Actions)
+            self.page.window.jump_list = [
+                ft.JumpListItem(
+                    text="Packaging Wizard",
+                    icon="images/switchcraft_logo.ico",
+                    arguments="--wizard",
+                    description="Open Packaging Wizard"
+                ),
+                ft.JumpListItem(
+                    text="All-in-One Analyzer",
+                    icon="images/switchcraft_logo.ico",
+                    arguments="--analyzer",
+                    description="Open Installer Analyzer"
+                ),
+            ]
 
             # Set window icon (requires .ico file)
             import os
@@ -114,11 +153,15 @@ class ModernApp:
             if getattr(sys, 'frozen', False):
                 base_path = sys._MEIPASS
             else:
-                base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                # src/switchcraft/gui_modern/app.py -> src/switchcraft/gui_modern -> src/switchcraft -> src -> root
+                base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
                 base_path = os.path.join(base_path, "images")
             ico_path = os.path.join(base_path, "switchcraft_logo.ico")
             if os.path.exists(ico_path):
                 self.page.window.icon = ico_path
+                # Update AppBar logo
+                self.page.appbar.leading = ft.Image(src=ico_path, width=30, height=30)
+                self.page.appbar.update()
         except Exception as e:
             logger.debug(f"Window properties not available during setup: {e}")
 
@@ -127,6 +170,96 @@ class ModernApp:
             self.page.on_drop = self.handle_window_drop
 
         self.banner_container = ft.Container() # Placeholder
+
+        # Run Startup Update Check
+        self._check_startup_updates()
+
+        # Handle Jump List Arguments (Launch Flags)
+        import sys
+        if "--wizard" in sys.argv:
+            # We need to defer this until UI is built
+            self._pending_nav_index = 2 # Wizard index
+        elif "--analyzer" in sys.argv or "--all-in-one" in sys.argv:
+             self._pending_nav_index = 3 # Analyzer index (Wait, let me double check indices)
+        else:
+            self._pending_nav_index = None
+
+    def _check_startup_updates(self):
+        """Checks for updates in background and notifies user if available."""
+        from switchcraft.utils.app_updater import UpdateChecker
+        import threading
+
+        def _run():
+            try:
+                channel = SwitchCraftConfig.get_value("UpdateChannel", "stable")
+                checker = UpdateChecker(channel=channel)
+                has_update, version_str, update_data = checker.check_for_updates()
+
+                # Store results on page for Settings view to access
+                self.page.update_check_result = {
+                    "has_update": has_update,
+                    "version": version_str,
+                    "data": update_data,
+                    "checked": True
+                }
+
+                if has_update:
+                    def go_to_update(e):
+                        self.goto_tab(9)
+                        self.page.update()
+
+                    snack = ft.SnackBar(
+                        content=ft.Text(f"{i18n.get('update_available') or 'Update available'}: {version_str}"),
+                        action=i18n.get("btn_details") or "Details",
+                        on_action=go_to_update,
+                        duration=10000, # Show for 10 seconds
+                        bgcolor="BLUE"
+                    )
+                    self.page.snack_bar = snack
+                    snack.open = True
+                    self.page.update()
+            except Exception as e:
+                logger.error(f"Startup update check failed: {e}")
+                self.page.update_check_result = {"checked": True, "error": str(e)}
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _install_bundled_addons(self):
+        """Auto-install bundled addons (advanced, ai) on first start."""
+        try:
+            # Check for bundled addons in assets
+            import sys
+            if getattr(sys, 'frozen', False):
+                base_path = Path(sys._MEIPASS) / "assets" / "addons"
+            else:
+                 # src/switchcraft/gui_modern/app.py -> src/switchcraft/assets/addons
+                base_path = Path(__file__).parent.parent / "assets" / "addons"
+
+            if not base_path.exists():
+                logger.warning(f"Bundled addons directory not found: {base_path}")
+                return
+
+            addons_to_install = ["advanced", "ai"]
+
+            for addon_id in addons_to_install:
+                 if self.addon_service.is_addon_installed(addon_id):
+                     continue
+
+                 zip_path = base_path / f"{addon_id}.zip"
+                 if zip_path.exists():
+                     self.loading_text.value = f"Installing {addon_id} addon..."
+                     self.page.update()
+                     try:
+                        logger.info(f"Attempting to install bundled addon {addon_id} from {zip_path}")
+                        if self.addon_service.install_addon(str(zip_path)):
+                            logger.info(f"Bundled addon {addon_id} installed successfully.")
+                        else:
+                             logger.warning(f"Addon service returned False for {addon_id}")
+                     except Exception as ex:
+                        logger.error(f"Failed to install bundled addon {addon_id}: {ex}", exc_info=True)
+
+        except Exception as e:
+            logger.error(f"Error during bundled addon install: {e}")
 
     def toggle_theme(self, e):
         """Toggle between light and dark theme."""
@@ -140,17 +273,92 @@ class ModernApp:
             SwitchCraftConfig.set_user_preference("Theme", "Dark")
         self.page.update()
 
+    def _on_notification_update(self):
+        """Update notification icon based on unread count."""
+        if not hasattr(self, 'notif_btn') or not self.notif_btn:
+            return
+
+        try:
+            count = self.notification_service.get_unread_count()
+            if count > 0:
+                self.notif_btn.icon = ft.Icons.NOTIFICATIONS_ACTIVE
+                self.notif_btn.icon_color = "RED"
+                self.notif_btn.tooltip = f"{count} New Notifications"
+            else:
+                self.notif_btn.icon = ft.Icons.NOTIFICATIONS
+                self.notif_btn.icon_color = None
+                self.notif_btn.tooltip = "Notifications"
+            self.notif_btn.update()
+        except Exception as e:
+            logger.error(f"Error updating notification icon: {e}")
+
+    def _open_notifications(self, e):
+        """Show notifications dialog."""
+        notifs = self.notification_service.get_notifications()
+
+        def clear_all(e):
+            self.notification_service.clear_all()
+            self.page.close_dialog()
+            self._open_notifications(None)
+
+        def close_dlg(e):
+            self.page.close_dialog()
+            self.notification_service.mark_all_read()
+
+        list_items = []
+        if not notifs:
+            list_items.append(ft.Text("No notifications", italic=True, color="GREY"))
+        else:
+            for n in notifs:
+                icon = ft.Icons.INFO
+                color = "BLUE"
+                if n.get('type') == 'error': icon = ft.Icons.ERROR; color = "RED"
+                elif n.get('type') == 'success': icon = ft.Icons.CHECK_CIRCLE; color = "GREEN"
+                elif n.get('type') == 'warning': icon = ft.Icons.WARNING; color = "ORANGE"
+
+                ts = n.get('timestamp')
+                ts_str = ts.strftime("%H:%M") if ts else ""
+
+                list_items.append(
+                    ft.ListTile(
+                        leading=ft.Icon(icon, color=color),
+                        title=ft.Text(n.get('title', 'Notification'), weight=ft.FontWeight.BOLD),
+                        subtitle=ft.Text(n.get('message', '')),
+                        trailing=ft.Text(ts_str, size=10, color="GREY")
+                    )
+                )
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Notifications"),
+            content=ft.Column(list_items, height=300, width=400, scroll=ft.ScrollMode.AUTO),
+            actions=[
+                ft.TextButton("Clear All", on_click=clear_all, disabled=not notifs),
+                ft.TextButton("Close", on_click=close_dlg),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self.page.dialog = dlg
+        dlg.open = True
+        self.page.update()
+
     def window_event(self, e):
         """Handle window events, specifically closing."""
         if e.data == "close":
-            # Just close immediately for now, or add confirmation dialog here if desired
-            # Ensure any cleanup is done
-
-            # Reset prevent close to allow actual close, then destroy window
-            self.page.window.prevent_close = False
-            self.page.window.destroy()
-            # If using specialized cleanup:
-            # self.cleanup()
+            try:
+                # Handle Flet API evolution (old vs new properties)
+                if hasattr(self.page, "window"):
+                    self.page.window.prevent_close = False
+                    self.page.window.destroy()
+                elif hasattr(self.page, "window_prevent_close"):
+                    self.page.window_prevent_close = False
+                    self.page.window_destroy()
+                else:
+                    # Fallback for very old or very new Flet
+                    self.page.window_destroy()
+            except Exception as ex:
+                logger.error(f"Error handling close event: {ex}")
+                import os
+                os._exit(0)
 
     def setup_banner(self):
         from switchcraft.utils.i18n import i18n
@@ -172,8 +380,6 @@ class ModernApp:
             )
 
     def build_ui(self):
-
-
         destinations=[
                 ft.NavigationRailDestination(
                     icon=ft.Icons.HOME_OUTLINED, selected_icon=ft.Icons.HOME, label=i18n.get("nav_home")
@@ -224,10 +430,14 @@ class ModernApp:
                 ft.NavigationRailDestination(
                      icon=ft.Icons.PEOPLE_OUTLINED, selected_icon=ft.Icons.PEOPLE, label="Groups"
                 ),  # 15 Groups
-                ft.NavigationRailDestination(
-                     icon=ft.Icons.EXTENSION_OUTLINED, selected_icon=ft.Icons.EXTENSION, label="Addons"
-                ),  # 16 Addon Manager
             ]
+
+        # Re-define version for NavigationRail trailing
+        version_text = ft.Container(
+            content=ft.Text(f"v{__version__}", size=10, color="GREY_500", text_align="center"),
+            padding=ft.padding.only(bottom=10),
+            alignment=ft.Alignment(0, 0)
+        )
 
         # Load Dynamic Addons
         try:
@@ -247,48 +457,70 @@ class ModernApp:
             logger.error(f"Failed to load dynamic addons: {e}")
 
         # Navigation Rail
+        start_idx = self._pending_nav_index if self._pending_nav_index is not None else 0
+
         self.rail = ft.NavigationRail(
-            selected_index=0,
+            selected_index=start_idx,
             label_type=ft.NavigationRailLabelType.ALL,
             min_width=100,
             min_extended_width=200,
             group_alignment=-0.9,
             destinations=destinations,
             on_change=self.nav_change,
+            trailing=version_text,
+            expand=True
         )
+
+        # Safety guard for destinations
+        if not self.rail.destinations:
+            logger.error("NavigationRail has no destinations! Adding fallback.")
+            self.rail.destinations = [
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.ERROR, label="Error Loading Menu"
+                )
+            ]
+
 
         # Content Area
-
         self.content = ft.Column(expand=True)
 
-        # Load Home by default
-        self._load_home()
-        from switchcraft.gui_modern.views.home_view import ModernHomeView
-        self.content = ft.Column(
-            expand=True,
-            controls=[
-                ModernHomeView(self.page, on_navigate=self.goto_tab)
-            ],
-        )
+        if start_idx == 0:
+            # Load Home by default
+            from switchcraft.gui_modern.views.home_view import ModernHomeView
+            self.content.controls.append(ModernHomeView(self.page, on_navigate=self.goto_tab))
+        else:
+             # Load pending tab
+             self.goto_tab(start_idx)
 
         # Add Banner if needed
         self.setup_banner()
 
         self.page.clean()
         self.page.add(
-            ft.Column([
-                ft.Row(
-                    controls=[
-                        self.rail,
-                        ft.VerticalDivider(width=1),
+            ft.Row(
+                controls=[
+                    # Navigation Rail in a Container - no scroll, fixed width
+                    # CrossAxisAlignment.STRETCH from Row gives bounded height
+                    ft.Container(
+                        content=ft.Column(
+                            controls=[self.rail],
+                            scroll=ft.ScrollMode.AUTO,
+                            expand=True,
+                            spacing=0
+                        ),
+                        width=120,
+                        alignment=ft.Alignment.top_center
+                    ),
+                    ft.VerticalDivider(width=1),
+                    ft.Column([
                         ft.Container(content=self.content, expand=True, padding=20),
-                    ],
-                    expand=True,
-                ),
-                self.banner_container # Add banner at bottom
-            ], expand=True)
+                        self.banner_container  # Add banner at bottom
+                    ], expand=True),
+                ],
+                expand=True,
+                vertical_alignment=ft.CrossAxisAlignment.STRETCH
+            )
         )
-        self.page.update()
 
     def _load_home(self):
         # This generic load home is replaced by ModernHomeView usage
@@ -325,10 +557,6 @@ class ModernApp:
 
         # 1. SHOW LOADING STATE IMMEDIATELY
         self.content.controls.clear()
-        # Use a temporary loading container, but now let's make it smarter if we want smooth usage.
-        # Actually, for smooth transitions, usage of AnimatedSwitcher is better than clearing controls.
-        # But `self.content` is a Column. Let's change `self.content` to be an AnimatedSwitcher in init?
-        # That would require refactoring `build_ui`.
 
         # For now, let's just fade in the new content
         loading_view = ft.Container(
@@ -360,7 +588,7 @@ class ModernApp:
             from switchcraft.gui_modern.views.home_view import ModernHomeView
             new_controls.append(ModernHomeView(self.page, on_navigate=self.goto_tab))
         elif idx == 1:
-            # Winget (Apps)
+            # Apps (Winget)
             try:
                 if 'winget' not in self._view_cache:
                     from switchcraft.gui_modern.views.winget_view import ModernWingetView
@@ -369,7 +597,7 @@ class ModernApp:
             except Exception as ex:
                 new_controls.append(ft.Text(f"Error loading Winget: {ex}", color="red"))
         elif idx == 2:
-            # Analyzer
+            # Analyze
             try:
                 if 'analyzer' not in self._view_cache:
                     from switchcraft.gui_modern.views.analyzer_view import ModernAnalyzerView
@@ -378,7 +606,7 @@ class ModernApp:
             except Exception as ex:
                 new_controls.append(ft.Text(f"Error loading Analyzer: {ex}", color="red"))
         elif idx == 3:
-            # Helper (Generate)
+            # Generate (Helper)
             try:
                 if 'helper' not in self._view_cache:
                     from switchcraft.gui_modern.views.helper_view import ModernHelperView
@@ -395,11 +623,11 @@ class ModernApp:
                 new_controls.append(ft.Text(f"Error loading Intune: {ex}", color="red"))
         elif idx == 5:
             # Intune Store
-             try:
-                 from switchcraft.gui_modern.views.intune_store_view import ModernIntuneStoreView
-                 new_controls.append(ModernIntuneStoreView(self.page))
-             except Exception as ex:
-                 new_controls.append(ft.Text(f"Error loading Intune Store: {ex}", color="red"))
+            try:
+                from switchcraft.gui_modern.views.intune_store_view import ModernIntuneStoreView
+                new_controls.append(ModernIntuneStoreView(self.page))
+            except Exception as ex:
+                new_controls.append(ft.Text(f"Error loading Intune Store: {ex}", color="red"))
         elif idx == 6:
             # Scripts
             try:
@@ -407,11 +635,11 @@ class ModernApp:
             except Exception as ex:
                 new_controls.append(ft.Text(f"Error loading Scripts: {ex}", color="red"))
         elif idx == 7:
-            # MacOS Wizard (NEW)
+            # MacOS
             try:
                 new_controls.append(MacOSWizardView(self.page))
             except Exception as ex:
-                new_controls.append(ft.Text(f"Error loading MacOS Wizard: {ex}", color="red"))
+                new_controls.append(ft.Text(f"Error loading MacOS: {ex}", color="red"))
         elif idx == 8:
             # History
             try:
@@ -426,50 +654,57 @@ class ModernApp:
                 new_controls.append(ModernSettingsView(self.page))
             except Exception as ex:
                 new_controls.append(ft.Text(f"Error loading Settings: {ex}", color="red"))
-        elif idx == 10: # Wizard
+        elif idx == 10:
+            # Wizard
             try:
                 from switchcraft.gui_modern.views.packaging_wizard_view import PackagingWizardView
                 new_controls.append(PackagingWizardView(self.page))
             except Exception as ex:
                 new_controls.append(ft.Text(f"Error loading Wizard: {ex}", color="red"))
-        elif idx == 11:  # Tester
+        elif idx == 11:
+            # Tester
             try:
                 from switchcraft.gui_modern.views.detection_tester_view import DetectionTesterView
                 new_controls.append(DetectionTesterView(self.page))
             except Exception as ex:
                 new_controls.append(ft.Text(f"Error loading Tester: {ex}", color="red"))
-        elif idx == 12:  # Stacks
+        elif idx == 12:
+            # Stacks
             try:
                 from switchcraft.gui_modern.views.stack_manager_view import StackManagerView
                 new_controls.append(StackManagerView(self.page))
             except Exception as ex:
                 new_controls.append(ft.Text(f"Error loading Stacks: {ex}", color="red"))
-        elif idx == 13:  # Dashboard
+        elif idx == 13:
+            # Dashboard
             try:
                 from switchcraft.gui_modern.views.dashboard_view import DashboardView
                 new_controls.append(DashboardView(self.page))
             except Exception as ex:
                 new_controls.append(ft.Text(f"Error loading Dashboard: {ex}", color="red"))
-        elif idx == 14:  # Library
+        elif idx == 14:
+            # Library
             try:
                 from switchcraft.gui_modern.views.library_view import LibraryView
                 new_controls.append(LibraryView(self.page))
             except Exception as ex:
                 new_controls.append(ft.Text(f"Error loading Library: {ex}", color="red"))
-        elif idx == 15:  # Groups
+        elif idx == 15:
+            # Groups
             try:
                 from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
                 new_controls.append(GroupManagerView(self.page))
             except Exception as ex:
                 new_controls.append(ft.Text(f"Error loading Groups: {ex}", color="red"))
-        elif idx == 16: # Addon Manager
+        elif idx == 16:
+            # Addon Manager
             try:
                 from switchcraft.gui_modern.views.addon_manager_view import AddonManagerView
                 new_controls.append(AddonManagerView(self.page))
             except Exception as ex:
-                 new_controls.append(ft.Text(f"Error loading Addon Manager: {ex}", color="red"))
+                new_controls.append(ft.Text(f"Error loading Addon Manager: {ex}", color="red"))
         else:
-            # Dynamic Addons
+            # Dynamic Addons (start at idx 17)
             dynamic_idx = idx - 17
             if 0 <= dynamic_idx < len(self.dynamic_addons):
                 addon = self.dynamic_addons[dynamic_idx]
@@ -477,9 +712,9 @@ class ModernApp:
                     view_class = self.addon_service.load_addon_view(addon['id'])
                     new_controls.append(view_class(self.page))
                 except Exception as ex:
-                     new_controls.append(ft.Text(f"Error loading addon {addon.get('name')}: {ex}", color="red"))
+                    new_controls.append(ft.Text(f"Error loading addon {addon.get('name')}: {ex}", color="red"))
             else:
-                 new_controls.append(ft.Text("Unknown Tab", color="red"))
+                new_controls.append(ft.Text("Unknown Tab", color="red"))
 
 
         # 3. SWAP CONTENT with Fade In
@@ -501,13 +736,23 @@ class ModernApp:
         fade_container.update()
 
     def _on_notification_update(self):
-        count = self.notification_service.get_unread_count()
-        if count > 0:
-            self.notif_badge.text = str(count)
-            self.notif_badge.visible = True
-        else:
-            self.notif_badge.visible = False
-        self.notif_badge.update()
+        """Update notification icon based on unread count."""
+        if not hasattr(self, 'notif_btn') or not self.notif_btn:
+             return
+
+        try:
+             count = self.notification_service.get_unread_count()
+             if count > 0:
+                 self.notif_btn.icon = ft.Icons.NOTIFICATIONS_ACTIVE
+                 self.notif_btn.icon_color = "RED"
+                 self.notif_btn.tooltip = f"{count} New Notifications"
+             else:
+                 self.notif_btn.icon = ft.Icons.NOTIFICATIONS
+                 self.notif_btn.icon_color = None
+                 self.notif_btn.tooltip = "Notifications"
+             self.notif_btn.update()
+        except Exception as e:
+             logger.error(f"Error updating notification icon: {e}")
 
     def _open_notifications(self, e):
         # Build Drawer Content
@@ -551,14 +796,21 @@ class ModernApp:
                 *items
             ],
         )
-        self.page.open(drawer)
+
+        # Robust Drawer Opening
+        if hasattr(self.page, "open"):
+             # For Flet < 0.21
+             self.page.open(drawer)
+        else:
+             # For Flet >= 0.21
+             self.page.end_drawer = drawer
+             drawer.open = True
+             self.page.update()
+
         self.notification_service.mark_all_read()
 
     def _mark_read(self, nid):
         self.notification_service.mark_read(nid)
-        # Refresh drawer? Or just let it be.
-        # Drawer is static once opened unless we use stateful content.
-        # For simple mark read, we handle it in service, app updates badge.
         pass
 
     def _show_restart_countdown(self):
@@ -571,31 +823,24 @@ class ModernApp:
         self.page.dialog = dlg
         dlg.open = True
         self.page.update()
-
-        # In a real scenario we'd trigger a restart of process,
-        # but here we just show message or close.
-        # Flet window.close() closes the app.
         time.sleep(2)
-        # For now just close, user has to reopen.
-        # Process restart is tricky without external launcher.
         self.page.window.destroy()
-
 
     def _clear_all_notifications(self, drawer):
         self.notification_service.clear_all()
-        self.page.close(drawer)
+        # Close Drawer
+        if hasattr(self.page, "close"):
+            self.page.close(drawer)
+        else:
+            drawer.open = False
+            self.page.update()
+        # Re-open empty? No, just close.
 
 def main(page: ft.Page):
     """Entry point for Flet app."""
     # Add restart method to page for injection if needed, or pass app instance.
     app = ModernApp(page)
-    # Monkey patch page to have access to app restart logic?
-    # Better: Views should accept 'app' instance or page should store logic.
-    # Current Views accept 'page'. We can add '_show_restart_countdown' to page object dynamically if needed,
-    # but clean way is views taking app.
-    # Since we didn't refactor all views signature, we'll monkeypatch page for backward compat in this refactor.
     page._show_restart_countdown = app._show_restart_countdown
-
 
 if __name__ == "__main__":
     ft.run(main)

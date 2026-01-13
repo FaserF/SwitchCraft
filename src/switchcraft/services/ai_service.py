@@ -4,7 +4,7 @@ from switchcraft.services.addon_service import AddonService
 logger = logging.getLogger(__name__)
 
 # Try to import the real service from the addon
-_real_module = AddonService.import_addon_module("ai", "service")
+_real_module = AddonService().import_addon_module("ai", "service")
 
 if _real_module:
     SwitchCraftAI = _real_module.SwitchCraftAI

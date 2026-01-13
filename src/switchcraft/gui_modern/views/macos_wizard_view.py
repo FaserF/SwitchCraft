@@ -49,8 +49,6 @@ class MacOSWizardView(ft.Column):
             multiline=True,
             min_lines=10,
             max_lines=15,
-            text_size=12,
-            font_family="Consolas",
             read_only=False
         )
 
