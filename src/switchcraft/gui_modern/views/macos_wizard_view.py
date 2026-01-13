@@ -2,8 +2,6 @@ import flet as ft
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
 import logging
-from pathlib import Path
-import os
 
 logger = logging.getLogger(__name__)
 

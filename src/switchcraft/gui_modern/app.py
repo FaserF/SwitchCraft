@@ -8,7 +8,6 @@ from switchcraft.services.notification_service import NotificationService
 from switchcraft.services.addon_service import AddonService
 import logging
 import time
-from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 

@@ -5,8 +5,6 @@ import os
 from pathlib import Path
 import winreg
 import win32api
-from pathlib import Path
-import winreg
 
 logger = logging.getLogger(__name__)
 

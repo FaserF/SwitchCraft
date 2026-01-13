@@ -1,8 +1,6 @@
 import flet as ft
 import logging
 import threading
-import shutil
-from pathlib import Path
 
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper

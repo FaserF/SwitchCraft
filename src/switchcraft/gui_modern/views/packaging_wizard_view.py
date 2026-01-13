@@ -2,13 +2,10 @@ import flet as ft
 import logging
 import threading
 import requests
-import shutil
 import tempfile
-import os
 from pathlib import Path
 
 from switchcraft.controllers.analysis_controller import AnalysisController
-from switchcraft.services.intune_service import IntuneService
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.utils.config import SwitchCraftConfig
@@ -821,7 +818,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                          app_info["productCode"] = info.product_code
                          app_info["productVersion"] = info.product_version
                 else:
-                    app_info["installCommandLine"] = f"powershell.exe -ExecutionPolicy Bypass -File install.ps1"
+                    app_info["installCommandLine"] = "powershell.exe -ExecutionPolicy Bypass -File install.ps1"
                     app_info["uninstallCommandLine"] = "cmd /c echo Uninstall not implemented"
 
                     # Detection
