@@ -11,7 +11,7 @@ class SkeletonContainer(ft.Container):
             width=width,
             height=height,
             border_radius=border_radius,
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+            bgcolor="SURFACE_CONTAINER_HIGHEST",
             expand=expand,
             animate_opacity=ft.Animation(800, ft.AnimationCurve.EASE_IN_OUT),
         )

@@ -69,7 +69,7 @@ def ModernHistoryView(page: ft.Page):
                 ft.ElevatedButton(i18n.get("btn_load") or "Load", on_click=lambda e: show_snack(f"{i18n.get('loading') or 'Loading'} {filename}..."))
             ]),
             padding=10,
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST if hasattr(ft.Colors, "SURFACE_CONTAINER_HIGHEST") else ft.Colors.GREY_900,
+            bgcolor="SURFACE_CONTAINER_HIGHEST" if hasattr(getattr(ft, "colors", None), "SURFACE_CONTAINER_HIGHEST") else "GREY_900",
             border_radius=5
         )
 

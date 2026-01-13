@@ -26,7 +26,7 @@ class StackManagerView(ft.Column):
 
         self.controls = [
             ft.Text("Project Stacks", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text("Manage collections of apps for batch deployment.", size=16, color=ft.Colors.GREY),
+            ft.Text("Manage collections of apps for batch deployment.", size=16, color="GREY"),
             ft.Divider(),
             ft.Row([
                 # Left: Stack List
@@ -38,7 +38,7 @@ class StackManagerView(ft.Column):
                             self.stack_name_field,
                             ft.IconButton(ft.Icons.ADD, on_click=self._add_stack)
                         ]),
-                        ft.Container(content=self.stack_list, expand=True, bgcolor=ft.Colors.BLACK26, border_radius=5)
+                        ft.Container(content=self.stack_list, expand=True, bgcolor="BLACK26", border_radius=5)
                     ]),
                 ),
                 ft.VerticalDivider(width=1),
@@ -52,13 +52,13 @@ class StackManagerView(ft.Column):
                             ft.IconButton(ft.Icons.ADD_TO_PHOTOS, tooltip="Add App", on_click=self._add_item_to_stack)
                         ]),
                         ft.Container(
-                            content=self.stack_content_list, expand=True, bgcolor=ft.Colors.BLACK26, border_radius=5
+                            content=self.stack_content_list, expand=True, bgcolor="BLACK26", border_radius=5
                         ),
                         ft.Row([
                             ft.ElevatedButton("Save Stack", icon=ft.Icons.SAVE, on_click=self._save_stacks_action),
                             ft.ElevatedButton(
                                 "Deploy Stack (Simulated)", icon=ft.Icons.ROCKET_LAUNCH,
-                                bgcolor=ft.Colors.RED_700, color=ft.Colors.WHITE, on_click=self._deploy_stack
+                                bgcolor="RED_700", color="WHITE", on_click=self._deploy_stack
                             )
                         ])
                     ])
@@ -82,11 +82,11 @@ class StackManagerView(ft.Column):
                 json.dump(self.stacks, f, indent=4)
         except (OSError, IOError) as e:
             logger.error(f"Failed to save stacks: {e}")
-            self._show_snack(f"Failed to save: {e}", ft.Colors.RED)
+            self._show_snack(f"Failed to save: {e}", "RED")
 
     def _save_stacks_action(self, e):
         self._save_stacks()
-        self._show_snack("Stacks saved!", ft.Colors.GREEN)
+        self._show_snack("Stacks saved!", "GREEN")
 
     def _refresh_stack_list(self):
         self.stack_list.controls.clear()
@@ -106,7 +106,7 @@ class StackManagerView(ft.Column):
         if not name:
             return
         if name in self.stacks:
-            self._show_snack("Stack exists!", ft.Colors.RED)
+            self._show_snack("Stack exists!", "RED")
             return
 
         self.stacks[name] = []
@@ -127,7 +127,7 @@ class StackManagerView(ft.Column):
 
     def _select_stack(self, name):
         if name not in self.stacks:
-            self._show_snack("Selected stack not found", ft.Colors.RED)
+            self._show_snack("Selected stack not found", "RED")
             return
         self.current_stack = name
         items = self.stacks[name]
@@ -146,7 +146,7 @@ class StackManagerView(ft.Column):
 
     def _add_item_to_stack(self, e):
         if not self.current_stack:
-            self._show_snack("Select a stack first", ft.Colors.RED)
+            self._show_snack("Select a stack first", "RED")
             return
 
         val = self.new_item_field.value
@@ -165,7 +165,7 @@ class StackManagerView(ft.Column):
 
     def _deploy_stack(self, e):
         if not self.current_stack or not self.stacks[self.current_stack]:
-            self._show_snack("Stack empty or not selected", ft.Colors.RED)
+            self._show_snack("Stack empty or not selected", "RED")
             return
 
         # Simulation
@@ -180,7 +180,7 @@ class StackManagerView(ft.Column):
         dlg.open = True
         self.app_page.update()
 
-    def _show_snack(self, msg, color=ft.Colors.GREEN):
+    def _show_snack(self, msg, color="GREEN"):
         try:
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True

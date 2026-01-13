@@ -38,8 +38,8 @@ class GroupManagerView(ft.Column):
         self.delete_btn = ft.ElevatedButton(
             "Delete Selected",
             icon=ft.Icons.DELETE_FOREVER,
-            bgcolor=ft.Colors.RED,
-            color=ft.Colors.WHITE,
+            bgcolor="RED",
+            color="WHITE",
             disabled=True,
             on_click=self._confirm_delete
         )
@@ -63,10 +63,10 @@ class GroupManagerView(ft.Column):
                 ft.DataColumn(ft.Text("Type")),
             ],
             rows=[],
-            border=ft.border.all(1, ft.Colors.GREY_400),
-            vertical_lines=ft.border.BorderSide(1, ft.Colors.GREY_400),
-            horizontal_lines=ft.border.BorderSide(1, ft.Colors.GREY_400),
-            heading_row_color=ft.Colors.BLACK12,
+            border=ft.border.all(1, "GREY_400"),
+            vertical_lines=ft.border.BorderSide(1, "GREY_400"),
+            horizontal_lines=ft.border.BorderSide(1, "GREY_400"),
+            heading_row_color="BLACK12",
         )
 
         self.list_container = ft.Column([self.dt], scroll=ft.ScrollMode.AUTO, expand=True)
@@ -74,7 +74,7 @@ class GroupManagerView(ft.Column):
         # Main Layout
         self.controls = [
             ft.Text("Entra Group Manager", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text("Manage your Microsoft Entra ID (Azure AD) groups.", color=ft.Colors.GREY),
+            ft.Text("Manage your Microsoft Entra ID (Azure AD) groups.", color="GREY"),
             ft.Divider(),
             header,
             ft.Divider(),
@@ -87,7 +87,7 @@ class GroupManagerView(ft.Column):
         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
 
         if not all([tenant, client, secret]):
-            self._show_snack("Please configure Intune Credentials in Settings", ft.Colors.RED)
+            self._show_snack("Please configure Intune Credentials in Settings", "RED")
             return
 
         self.list_container.disabled = True
@@ -101,7 +101,7 @@ class GroupManagerView(ft.Column):
                 self._update_table()
             except Exception as e:
                 logger.error(f"Failed to load groups: {e}")
-                self._show_snack(f"Error loading groups: {e}", ft.Colors.RED)
+                self._show_snack(f"Error loading groups: {e}", "RED")
             finally:
                 self.list_container.disabled = False
                 self.update()
@@ -161,17 +161,17 @@ class GroupManagerView(ft.Column):
             if not name_field.value:
                 return
             if not self.token:
-                self._show_snack("Not connected to Intune", ft.Colors.RED)
+                self._show_snack("Not connected to Intune", "RED")
                 return
 
             def _bg():
                 try:
                     self.intune_service.create_group(self.token, name_field.value, desc_field.value)
-                    self._show_snack(f"Group '{name_field.value}' created!", ft.Colors.GREEN)
+                    self._show_snack(f"Group '{name_field.value}' created!", "GREEN")
                     self.app_page.close_dialog()
                     self._load_data()
                 except Exception as ex:
-                    self._show_snack(f"Creation failed: {ex}", ft.Colors.RED)
+                    self._show_snack(f"Creation failed: {ex}", "RED")
 
             threading.Thread(target=_bg, daemon=True).start()
 
@@ -180,7 +180,7 @@ class GroupManagerView(ft.Column):
             content=ft.Column([name_field, desc_field], height=150),
             actions=[
                 ft.TextButton("Cancel", on_click=close_dlg),
-                ft.ElevatedButton("Create", on_click=create, bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE)
+                ft.ElevatedButton("Create", on_click=create, bgcolor="BLUE", color="WHITE")
             ],
         )
         self.app_page.dialog = dlg
@@ -197,17 +197,17 @@ class GroupManagerView(ft.Column):
         def delete(e):
             grp_id = self.selected_group['id']
             if not self.token:
-                self._show_snack("Not connected to Intune", ft.Colors.RED)
+                self._show_snack("Not connected to Intune", "RED")
                 return
             def _bg():
                 try:
                     self.intune_service.delete_group(self.token, grp_id)
-                    self._show_snack("Group deleted.", ft.Colors.GREEN)
+                    self._show_snack("Group deleted.", "GREEN")
                     self.app_page.close_dialog()
                     self.selected_group = None
                     self._load_data()
                 except Exception as ex:
-                    self._show_snack(f"Deletion failed: {ex}", ft.Colors.RED)
+                    self._show_snack(f"Deletion failed: {ex}", "RED")
             threading.Thread(target=_bg, daemon=True).start()
 
         dlg = ft.AlertDialog(
@@ -215,7 +215,7 @@ class GroupManagerView(ft.Column):
             content=ft.Text(f"Are you sure you want to delete '{self.selected_group.get('displayName')}'? This cannot be undone."),
             actions=[
                 ft.TextButton("Cancel", on_click=close_dlg),
-                ft.ElevatedButton("Delete", on_click=delete, bgcolor=ft.Colors.RED, color=ft.Colors.WHITE)
+                ft.ElevatedButton("Delete", on_click=delete, bgcolor="RED", color="WHITE")
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
@@ -223,7 +223,7 @@ class GroupManagerView(ft.Column):
         dlg.open = True
         self.app_page.update()
 
-    def _show_snack(self, msg, color=ft.Colors.GREEN):
+    def _show_snack(self, msg, color="GREEN"):
         try:
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True

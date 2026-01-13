@@ -45,7 +45,7 @@ class ModernApp:
             leading_width=40,
             title=ft.Text(f"SwitchCraft v{__version__}", weight=ft.FontWeight.BOLD),
             center_title=False,
-            bgcolor=ft.Colors.SURFACE_VARIANT,
+            bgcolor="SURFACE_VARIANT",
             actions=[
                 self.notif_btn,
                 self.theme_icon,
@@ -160,8 +160,8 @@ class ModernApp:
             default_text = f"You are using a {('Development' if 'dev' in version_lower else 'Beta')} Build ({__version__}). Bugs may occur."
             text = i18n.get(key, version=__version__, default=default_text)
 
-            bg_color = ft.Colors.RED if "dev" in version_lower else ft.Colors.AMBER
-            text_color = ft.Colors.WHITE if "dev" in version_lower else ft.Colors.BLACK
+            bg_color = "RED" if "dev" in version_lower else "AMBER"
+            text_color = "WHITE" if "dev" in version_lower else "BLACK"
 
             self.banner_container = ft.Container(
                 content=ft.Text(text, color=text_color, weight="bold", text_align="center"),
@@ -519,16 +519,16 @@ class ModernApp:
         else:
             for n in notifs:
                 icon = ft.Icons.INFO
-                color = ft.Colors.BLUE
+                color = "BLUE"
                 if n["type"] == "success":
                     icon = ft.Icons.CHECK_CIRCLE
-                    color = ft.Colors.GREEN
+                    color = "GREEN"
                 elif n["type"] == "warning":
                     icon = ft.Icons.WARNING
-                    color = ft.Colors.ORANGE
+                    color = "ORANGE"
                 elif n["type"] == "error":
                     icon = ft.Icons.ERROR
-                    color = ft.Colors.RED
+                    color = "RED"
 
                 items.append(
                     ft.ListTile(

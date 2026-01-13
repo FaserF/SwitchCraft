@@ -67,22 +67,22 @@ class DetectionTesterView(ft.Column):
         self.check_btn = ft.ElevatedButton(
             "Test Detection",
             icon=ft.Icons.PLAY_ARROW,
-            bgcolor=ft.Colors.GREEN,
-            color=ft.Colors.WHITE,
+            bgcolor="GREEN",
+            color="WHITE",
             on_click=self._run_check
         )
 
         self.result_area = ft.Container(
             padding=20,
             border_radius=10,
-            bgcolor=ft.Colors.BLACK,
+            bgcolor="BLACK",
             visible=False,
             width=500
         )
 
         self.controls = [
             ft.Text("Live Detection Tester", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text("Verify your Intune detection rules locally before uploading.", size=16, color=ft.Colors.GREY),
+            ft.Text("Verify your Intune detection rules locally before uploading.", size=16, color="GREY"),
             ft.Container(height=20),
             ft.Row([self.rule_type, self.operator_dd, self.path_field]),
             self.script_field,
@@ -320,14 +320,14 @@ class DetectionTesterView(ft.Column):
     def _display_result(self, detected, message):
         self.result_area.visible = True
         icon = ft.Icons.CHECK_CIRCLE if detected else ft.Icons.CANCEL
-        color = ft.Colors.GREEN if detected else ft.Colors.RED
+        color = "GREEN" if detected else "RED"
 
         self.result_area.content = ft.Row([
             ft.Icon(icon, color=color, size=40),
             ft.Column([
                 ft.Text("DETECTED" if detected else "NOT DETECTED", size=20, weight=ft.FontWeight.BOLD, color=color),
-                ft.Text(message, color=ft.Colors.WHITE)
+                ft.Text(message, color="WHITE")
             ])
         ])
-        self.result_area.bgcolor = ft.Colors.GREEN_900 if detected else ft.Colors.RED_900
+        self.result_area.bgcolor = "GREEN_900" if detected else "RED_900"
         self.update()

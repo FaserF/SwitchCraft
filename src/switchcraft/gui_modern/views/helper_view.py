@@ -37,7 +37,7 @@ def ModernHelperView(page: ft.Page):
     )
 
     def add_message(sender, text, is_user=False, is_error=False):
-        bg_color = ft.Colors.BLUE_900 if is_user else (ft.Colors.RED_900 if is_error else ft.Colors.GREEN_900)
+        bg_color = "BLUE_900" if is_user else ("RED_900" if is_error else "GREEN_900")
 
         chat_history.controls.append(
             ft.Container(
@@ -94,14 +94,14 @@ def ModernHelperView(page: ft.Page):
 
     return ft.Column([
         ft.Row([
-            ft.Icon(ft.Icons.SMART_TOY, size=30, color=ft.Colors.BLUE),
+            ft.Icon(ft.Icons.SMART_TOY, size=30, color="BLUE"),
             ft.Text(i18n.get("ai_helper") or "AI Helper", size=24, weight=ft.FontWeight.BOLD),
         ]),
         ft.Divider(),
         ft.Container(
             content=chat_history,
             expand=True,
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST if hasattr(ft.Colors, "SURFACE_CONTAINER_HIGHEST") else ft.Colors.GREY_900,
+            bgcolor="SURFACE_CONTAINER_HIGHEST" if hasattr(getattr(ft, "colors", None), "SURFACE_CONTAINER_HIGHEST") else "GREY_900",
             border_radius=10,
             padding=10
         ),

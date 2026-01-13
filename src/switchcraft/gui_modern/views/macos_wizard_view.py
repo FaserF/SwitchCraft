@@ -20,7 +20,7 @@ class MacOSWizardView(ft.Column):
     def _init_ui(self):
         self.controls = [
             ft.Text("MacOS Package Wizard", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text("Deploy DMG/PKG files via Intune Shell Scripts", size=16, color=ft.Colors.GREY),
+            ft.Text("Deploy DMG/PKG files via Intune Shell Scripts", size=16, color="GREY"),
             ft.Divider(),
             self._build_content()
         ]
@@ -57,8 +57,8 @@ class MacOSWizardView(ft.Column):
         self.upload_btn = ft.ElevatedButton(
             "Upload to Intune",
             icon=ft.Icons.CLOUD_UPLOAD,
-            bgcolor=ft.Colors.GREEN,
-            color=ft.Colors.WHITE,
+            bgcolor="GREEN",
+            color="WHITE",
             disabled=True,
             on_click=self._upload_to_intune
         )
@@ -86,7 +86,7 @@ class MacOSWizardView(ft.Column):
         name = self.app_name.value
         # Basic validation
         if not url or not name:
-            self._show_snack("URL and App Name are required", ft.Colors.RED)
+            self._show_snack("URL and App Name are required", "RED")
             return
 
         # Template for DMG/PKG installation
@@ -151,7 +151,7 @@ exit 0
         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
 
         if not all([tenant, client, secret]):
-            self._show_snack("Intune Credentials missing in Settings", ft.Colors.RED)
+            self._show_snack("Intune Credentials missing in Settings", "RED")
             return
 
         self.status_txt.value = "Uploading..."
@@ -168,10 +168,10 @@ exit 0
                     self.preview_field.value
                 )
                 self.status_txt.value = "Success! Script Uploaded to MacOS > Shell Scripts."
-                self.status_txt.color = ft.Colors.GREEN
+                self.status_txt.color = "GREEN"
             except Exception as ex:
                 self.status_txt.value = f"Error: {ex}"
-                self.status_txt.color = ft.Colors.RED
+                self.status_txt.color = "RED"
             finally:
                 self.upload_btn.disabled = False
                 self.update()
@@ -179,7 +179,7 @@ exit 0
         import threading
         threading.Thread(target=_bg, daemon=True).start()
 
-    def _show_snack(self, msg, color=ft.Colors.GREEN):
+    def _show_snack(self, msg, color="GREEN"):
         try:
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True

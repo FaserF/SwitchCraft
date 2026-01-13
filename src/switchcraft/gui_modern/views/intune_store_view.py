@@ -38,7 +38,7 @@ class ModernIntuneStoreView(ft.Column):
             ], expand=True),
             width=350,
             padding=10,
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST if hasattr(ft.Colors, "SURFACE_CONTAINER_HIGHEST") else ft.Colors.GREY_900,
+            bgcolor="SURFACE_CONTAINER_HIGHEST" if hasattr(getattr(ft, "colors", None), "SURFACE_CONTAINER_HIGHEST") else "GREY_900",
             border_radius=10
         )
 
@@ -47,7 +47,7 @@ class ModernIntuneStoreView(ft.Column):
             content=self.details_area,
             expand=True,
             padding=20,
-            bgcolor=ft.Colors.BLACK12,
+            bgcolor="BLACK12",
             border_radius=10
         )
 
@@ -60,9 +60,9 @@ class ModernIntuneStoreView(ft.Column):
              self.controls = [
                 ft.Container(
                     content=ft.Column([
-                        ft.Icon(ft.Icons.LOCK_RESET_ROUNDED, size=80, color=ft.Colors.ORANGE_400),
+                        ft.Icon(ft.Icons.LOCK_RESET_ROUNDED, size=80, color="ORANGE_400"),
                         ft.Text(i18n.get("intune_not_configured") or "Intune is not configured", size=28, weight="bold", text_align=ft.TextAlign.CENTER),
-                        ft.Text(i18n.get("intune_config_hint") or "Please configure Microsoft Graph API credentials in Settings.", size=16, color=ft.Colors.GREY_400, text_align=ft.TextAlign.CENTER),
+                        ft.Text(i18n.get("intune_config_hint") or "Please configure Microsoft Graph API credentials in Settings.", size=16, color="GREY_400", text_align=ft.TextAlign.CENTER),
                         ft.Container(height=20),
                         ft.ElevatedButton(
                             i18n.get("tab_settings") or "Go to Settings",

@@ -58,7 +58,7 @@ class PackagingWizardView(ft.Column):
         return ft.Row(self.steps_indicators, alignment=ft.MainAxisAlignment.CENTER, spacing=20)
 
     def _create_step_indicator(self, index, label, icon):
-        color = ft.Colors.BLUE if index == self.current_step else ft.Colors.GREY
+        color = "BLUE" if index == self.current_step else "GREY"
         return ft.Column([
             ft.Icon(icon, color=color, size=30),
             ft.Text(label, color=color, size=12)
@@ -67,11 +67,11 @@ class PackagingWizardView(ft.Column):
     def _update_stepper(self):
         for i, indicator in enumerate(self.steps_indicators):
             if i < self.current_step:
-                color = ft.Colors.GREEN
+                color = "GREEN"
             elif i == self.current_step:
-                color = ft.Colors.BLUE
+                color = "BLUE"
             else:
-                color = ft.Colors.GREY
+                color = "GREY"
             indicator.controls[0].color = color
             indicator.controls[1].color = color
         self.update()
@@ -81,7 +81,7 @@ class PackagingWizardView(ft.Column):
             "Previous", on_click=self._prev_step, disabled=True
         )
         self.btn_next = ft.ElevatedButton(
-            "Next", on_click=self._next_step, bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE
+            "Next", on_click=self._next_step, bgcolor="BLUE", color="WHITE"
         )
         return ft.Row(
             [self.btn_prev, ft.Container(expand=True), self.btn_next],
@@ -134,13 +134,13 @@ class PackagingWizardView(ft.Column):
             self.packaging_mode = self.mode_radio.value
 
             if not self.installer_path:
-                self._show_snack("Please select a file first", ft.Colors.RED)
+                self._show_snack("Please select a file first", "RED")
                 return
 
             # Validate LOB
             if self.packaging_mode == "lob":
                 if not self.installer_path.lower().endswith(".msi"):
-                     self._show_snack("LOB Mode requires an .msi file", ft.Colors.RED)
+                     self._show_snack("LOB Mode requires an .msi file", "RED")
                      return
 
         elif self.current_step == 1:
@@ -157,14 +157,14 @@ class PackagingWizardView(ft.Column):
         elif self.current_step == 3:
             # Check package
             if not self.package_path or not Path(self.package_path).exists():
-                self._show_snack("Package creation failed or not executed", ft.Colors.RED)
+                self._show_snack("Package creation failed or not executed", "RED")
                 return
 
         if self.current_step < 4:
             self._load_step(self.current_step + 1)
         else:
             # Finish
-            self._show_snack("Wizard Completed!", ft.Colors.GREEN)
+            self._show_snack("Wizard Completed!", "GREEN")
 
     def _step_select_ui(self):
         self.mode_radio = ft.RadioGroup(
@@ -180,9 +180,9 @@ class PackagingWizardView(ft.Column):
         # Tab 1: Local File
         local_content = ft.Container(
             content=ft.Column([
-                ft.Icon(ft.Icons.FILE_UPLOAD, size=60, color=ft.Colors.BLUE_400),
+                ft.Icon(ft.Icons.FILE_UPLOAD, size=60, color="BLUE_400"),
                 ft.Text("Select Installer", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text("Supported: .exe, .msi", color=ft.Colors.GREY),
+                ft.Text("Supported: .exe, .msi", color="GREY"),
                 ft.Container(height=20),
                 ft.ElevatedButton("Browse File...", icon=ft.Icons.FOLDER_OPEN, on_click=self._pick_file),
                 ft.Container(height=10),
@@ -199,9 +199,9 @@ class PackagingWizardView(ft.Column):
 
         url_content = ft.Container(
             content=ft.Column([
-                ft.Icon(ft.Icons.CLOUD_DOWNLOAD, size=60, color=ft.Colors.ORANGE_400),
+                ft.Icon(ft.Icons.CLOUD_DOWNLOAD, size=60, color="ORANGE_400"),
                 ft.Text("Download from Web", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text("Enter a direct link to an .exe or .msi file", color=ft.Colors.GREY),
+                ft.Text("Enter a direct link to an .exe or .msi file", color="GREY"),
                 ft.Container(height=20),
                 ft.Row([self.url_field, ft.ElevatedButton("Download", icon=ft.Icons.DOWNLOAD, on_click=self._start_download)]),
                 ft.Container(height=10),
@@ -233,7 +233,7 @@ class PackagingWizardView(ft.Column):
         self.autopilot_btn = ft.OutlinedButton(
             "Auto-Pilot (Magic Mode) 🪄",
             icon=ft.Icons.AUTO_FIX_HIGH,
-            style=ft.ButtonStyle(color=ft.Colors.PURPLE_200),
+            style=ft.ButtonStyle(color="PURPLE_200"),
             on_click=self._run_autopilot
         )
 
@@ -285,11 +285,11 @@ class PackagingWizardView(ft.Column):
                 self.installer_path = str(target_path)
                 self.file_text.value = str(target_path) # sync with other tab
                 self.download_status.value = f"Downloaded: {filename}"
-                self.download_status.color = ft.Colors.GREEN
+                self.download_status.color = "GREEN"
                 self.download_progress.visible = False
             except Exception as ex:
                 self.download_status.value = f"Error: {ex}"
-                self.download_status.color = ft.Colors.RED
+                self.download_status.color = "RED"
                 self.download_progress.visible = False
 
             self.update()
@@ -357,9 +357,9 @@ class PackagingWizardView(ft.Column):
              self._generate_script_content()
 
         sign_status = ft.Row([
-            ft.Icon(ft.Icons.VERIFIED_USER, color=ft.Colors.GREEN if self.signing_cert else ft.Colors.GREY),
+            ft.Icon(ft.Icons.VERIFIED_USER, color="GREEN" if self.signing_cert else "GREY"),
             ft.Text(f"Auto-Signing: {'Enabled' if self.signing_cert else 'Disabled (No Cert Configured)'}",
-                    color=ft.Colors.GREEN if self.signing_cert else ft.Colors.GREY)
+                    color="GREEN" if self.signing_cert else "GREY")
         ])
 
         return ft.Column([
@@ -403,7 +403,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
              return True
         except Exception as e:
-            self._show_snack(f"Failed to save script: {e}", ft.Colors.RED)
+            self._show_snack(f"Failed to save script: {e}", "RED")
             return False
 
     def _sign_script(self, path):
@@ -418,15 +418,15 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
             # If stored in LocalMachine, change path. Config should ideally specify.
 
             subprocess.run(cmd, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
-            self._show_snack("Script Signed Successfully!", ft.Colors.GREEN)
+            self._show_snack("Script Signed Successfully!", "GREEN")
         except Exception as e:
             logger.error(f"Signing failed: {e}")
-            self._show_snack(f"Signing Warning: {e}", ft.Colors.ORANGE)
+            self._show_snack(f"Signing Warning: {e}", "ORANGE")
 
     def _step_package_ui(self):
         self.pkg_status = ft.Text("Ready to package.", size=16)
         self.pkg_btn = ft.ElevatedButton(
-            "Start Packaging", on_click=self._run_packaging, bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE
+            "Start Packaging", on_click=self._run_packaging, bgcolor="GREEN", color="WHITE"
         )
         return ft.Column([
             ft.Text("Create Intune Package (.intunewin)", size=20, weight=ft.FontWeight.BOLD),
@@ -459,13 +459,13 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                 if pkg.exists():
                     self.package_path = str(pkg)
                     self.pkg_status.value = f"Success: {pkg.name}"
-                    self.pkg_status.color = ft.Colors.GREEN
+                    self.pkg_status.color = "GREEN"
                 else:
                     self.pkg_status.value = "Failed: .intunewin not found"
-                    self.pkg_status.color = ft.Colors.RED
+                    self.pkg_status.color = "RED"
             except Exception as ex:
                 self.pkg_status.value = f"Error: {ex}"
-                self.pkg_status.color = ft.Colors.RED
+                self.pkg_status.color = "RED"
             finally:
                 self.pkg_btn.disabled = False
                 self.update()
@@ -520,7 +520,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         secret = self.txt_secret.value
 
         if not all([tenant, client, secret]):
-            self._show_snack("Please fill all credentials", ft.Colors.RED)
+            self._show_snack("Please fill all credentials", "RED")
             return
 
         self.upload_status.value = "Authenticating..."
@@ -533,11 +533,11 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                 ok, msg = self.intune_service.verify_graph_permissions(token)
                 if not ok:
                     self.upload_status.value = f"Permission Error: {msg}"
-                    self.upload_status.color = ft.Colors.RED
+                    self.upload_status.color = "RED"
                 else:
                      self.token = token # Store for upload
                      self.upload_status.value = "Connected! Ready to upload."
-                     self.upload_status.color = ft.Colors.GREEN
+                     self.upload_status.color = "GREEN"
                      self.btn_upload.disabled = False
 
                      # Save valid creds
@@ -546,7 +546,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                      SwitchCraftConfig.set_secret("IntuneClientSecret", secret) # Use set_secret if available, else standard?
             except Exception as ex:
                 self.upload_status.value = f"Auth Failed: {ex}"
-                self.upload_status.color = ft.Colors.RED
+                self.upload_status.color = "RED"
             self.update()
 
         threading.Thread(target=_bg, daemon=True).start()
@@ -569,7 +569,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
     def _on_search_supersedence(self, e):
         if not hasattr(self, 'token'):
-             self._show_snack("Connect to Intune first", ft.Colors.RED)
+             self._show_snack("Connect to Intune first", "RED")
              return
 
         query = self.search_supersede_field.value
@@ -605,7 +605,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
     def _run_upload(self, e):
         if not hasattr(self, 'token'):
-            self._show_snack("Not authenticated", ft.Colors.RED)
+            self._show_snack("Not authenticated", "RED")
             return
 
         self.upload_status.value = "Starting upload..."
@@ -656,7 +656,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
             if detection_rules:
                 app_info["detectionRules"] = detection_rules
             else:
-                self._show_snack("Warning: No detection rules generated (Win32)", ft.Colors.ORANGE)
+                self._show_snack("Warning: No detection rules generated (Win32)", "ORANGE")
 
         self.update()
 
@@ -693,10 +693,10 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                     )
 
                 self.upload_status.value = "Upload Complete! App is now in Intune."
-                self.upload_status.color = ft.Colors.GREEN
+                self.upload_status.color = "GREEN"
             except Exception as ex:
                 self.upload_status.value = f"Upload Error: {ex}"
-                self.upload_status.color = ft.Colors.RED
+                self.upload_status.color = "RED"
             finally:
                 self.btn_upload.disabled = False
                 self.update()
@@ -712,7 +712,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         4. Upload
         """
         if not self.installer_path:
-             self._show_snack("Please select a file first", ft.Colors.RED)
+             self._show_snack("Please select a file first", "RED")
              return
 
         # Check creds
@@ -720,10 +720,10 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         client = SwitchCraftConfig.get_value("IntuneClientID")
         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
         if not all([tenant, client, secret]):
-             self._show_snack("Intune Credentials missing in Settings", ft.Colors.RED)
+             self._show_snack("Intune Credentials missing in Settings", "RED")
              return
 
-        self._show_snack("Starting Auto-Pilot...", ft.Colors.PURPLE)
+        self._show_snack("Starting Auto-Pilot...", "PURPLE")
 
         # We need a progress dialog or overlying status
         self.autopilot_dlg = ft.AlertDialog(
@@ -845,7 +845,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
         threading.Thread(target=_bg, daemon=True).start()
 
-    def _show_snack(self, msg, color=ft.Colors.GREEN):
+    def _show_snack(self, msg, color="GREEN"):
         try:
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True

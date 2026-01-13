@@ -38,7 +38,7 @@ class ModernWingetView(ft.Row):
         # State
         self.search_results = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
         self.details_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
-        self.results_count = ft.Text("", size=12, color=ft.Colors.GREY_500)
+        self.results_count = ft.Text("", size=12, color="GREY_500")
 
         # Filter dropdown
         self.filter_dropdown = ft.Dropdown(
@@ -68,7 +68,7 @@ class ModernWingetView(ft.Row):
 
         btn_search = ft.IconButton(
             icon=ft.Icons.SEARCH_ROUNDED,
-            icon_color=ft.Colors.BLUE_400,
+            icon_color="BLUE_400",
             tooltip=i18n.get("search") or "Search",
             on_click=self._run_search
         )
@@ -88,7 +88,7 @@ class ModernWingetView(ft.Row):
             ], expand=True),
             width=420,
             padding=15,
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST if hasattr(ft.Colors, "SURFACE_CONTAINER_HIGHEST") else ft.Colors.GREY_900,
+            bgcolor="SURFACE_CONTAINER_HIGHEST" if hasattr(getattr(ft, "colors", None), "SURFACE_CONTAINER_HIGHEST") else "GREY_900",
             border_radius=15
         )
 
@@ -103,9 +103,9 @@ class ModernWingetView(ft.Row):
         self.search_results.controls.append(
             ft.Container(
                 content=ft.Column([
-                    ft.Icon(ft.Icons.SEARCH, size=40, color=ft.Colors.GREY_600),
+                    ft.Icon(ft.Icons.SEARCH, size=40, color="GREY_600"),
                     ft.Text(i18n.get("winget_search_instruction") or "Enter a search term to start.",
-                            color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER)
+                            color="GREY_600", text_align=ft.TextAlign.CENTER)
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 padding=20,
                 alignment=ft.Alignment(0, 0)
@@ -127,7 +127,7 @@ class ModernWingetView(ft.Row):
                 content=ft.Column([
                     ft.ProgressRing(width=40, height=40),
                     ft.Text(i18n.get("winget_searching") or "Searching...", size=16),
-                    ft.Text(f"'{query}'", size=12, color=ft.Colors.GREY_500)
+                    ft.Text(f"'{query}'", size=12, color="GREY_500")
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                 alignment=ft.Alignment(0, 0),
                 expand=True,
@@ -158,9 +158,9 @@ class ModernWingetView(ft.Row):
                     self.search_results.controls.append(
                         ft.Container(
                             content=ft.Column([
-                                ft.Icon(ft.Icons.WARNING, color=ft.Colors.ORANGE, size=40),
-                                ft.Text(i18n.get("winget_search_timeout") or "Search is taking too long...", color=ft.Colors.ORANGE),
-                                ft.Text(i18n.get("winget_search_timeout_hint") or "Try a more specific search term.", size=12, color=ft.Colors.GREY_500)
+                                ft.Icon(ft.Icons.WARNING, color="ORANGE", size=40),
+                                ft.Text(i18n.get("winget_search_timeout") or "Search is taking too long...", color="ORANGE"),
+                                ft.Text(i18n.get("winget_search_timeout_hint") or "Try a more specific search term.", size=12, color="GREY_500")
                             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                             alignment=ft.Alignment(0, 0),
                             padding=40
@@ -182,8 +182,8 @@ class ModernWingetView(ft.Row):
                 self.search_results.controls.append(
                     ft.Container(
                         content=ft.Column([
-                            ft.Icon(ft.Icons.ERROR, color=ft.Colors.RED, size=40),
-                            ft.Text(f"Error: {ex}", color=ft.Colors.RED)
+                            ft.Icon(ft.Icons.ERROR, color="RED", size=40),
+                            ft.Text(f"Error: {ex}", color="RED")
                         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                         alignment=ft.Alignment(0, 0),
                         padding=40
@@ -263,8 +263,8 @@ class ModernWingetView(ft.Row):
         version = info.get('Version', 'Unknown')
         self.details_area.controls.append(
             ft.Container(
-                content=ft.Text(f"v{version}", color=ft.Colors.WHITE, size=12),
-                bgcolor=ft.Colors.BLUE_700,
+                content=ft.Text(f"v{version}", color="WHITE", size=12),
+                bgcolor="BLUE_700",
                 padding=ft.Padding(8, 4, 8, 4),
                 border_radius=4,
                 margin=ft.Margin(0, 8, 0, 8)
@@ -291,7 +291,7 @@ class ModernWingetView(ft.Row):
             pub_text = publisher or author
             self.details_area.controls.append(
                 ft.Row([
-                    ft.Icon(ft.Icons.BUSINESS, size=16, color=ft.Colors.GREY_500),
+                    ft.Icon(ft.Icons.BUSINESS, size=16, color="GREY_500"),
                     ft.Text("Publisher: ", weight=ft.FontWeight.BOLD, size=14),
                     ft.Text(pub_text, size=14)
                 ], spacing=4)
@@ -302,7 +302,7 @@ class ModernWingetView(ft.Row):
         license_url = info.get('LicenseUrl') or info.get('license url')
         if license_val or license_url:
             license_row = [
-                ft.Icon(ft.Icons.GAVEL, size=16, color=ft.Colors.GREY_500),
+                ft.Icon(ft.Icons.GAVEL, size=16, color="GREY_500"),
                 ft.Text("License: ", weight=ft.FontWeight.BOLD, size=14),
             ]
             if license_url:
@@ -324,8 +324,8 @@ class ModernWingetView(ft.Row):
                 if tag:
                     tag_chips.append(
                         ft.Container(
-                            content=ft.Text(tag, size=11, color=ft.Colors.BLUE_700),
-                            bgcolor=ft.Colors.BLUE_50 if hasattr(ft.Colors, 'BLUE_50') else ft.Colors.BLUE_900,
+                            content=ft.Text(tag, size=11, color="BLUE_700"),
+                            bgcolor="BLUE_50" if hasattr(getattr(ft, "colors", None), "BLUE_50") else "BLUE_900",
                             padding=ft.Padding(8, 4, 8, 4),
                             border_radius=12
                         )
@@ -334,7 +334,7 @@ class ModernWingetView(ft.Row):
                 self.details_area.controls.append(ft.Container(height=8))
                 self.details_area.controls.append(
                     ft.Row([
-                        ft.Icon(ft.Icons.LABEL, size=16, color=ft.Colors.GREY_500),
+                        ft.Icon(ft.Icons.LABEL, size=16, color="GREY_500"),
                         ft.Text("Tags: ", weight=ft.FontWeight.BOLD, size=14),
                     ], spacing=4)
                 )
@@ -350,7 +350,7 @@ class ModernWingetView(ft.Row):
         if homepage:
             self.details_area.controls.append(
                 ft.Row([
-                    ft.Icon(ft.Icons.HOME, size=16, color=ft.Colors.BLUE_400),
+                    ft.Icon(ft.Icons.HOME, size=16, color="BLUE_400"),
                     ft.TextButton(content=ft.Text("Homepage"), on_click=lambda e, url=homepage: self._open_url(url))
                 ], spacing=4)
             )
@@ -360,7 +360,7 @@ class ModernWingetView(ft.Row):
         if pub_url:
             self.details_area.controls.append(
                 ft.Row([
-                    ft.Icon(ft.Icons.BUSINESS, size=16, color=ft.Colors.BLUE_400),
+                    ft.Icon(ft.Icons.BUSINESS, size=16, color="BLUE_400"),
                     ft.TextButton(content=ft.Text("Publisher Website"), on_click=lambda e, url=pub_url: self._open_url(url))
                 ], spacing=4)
             )
@@ -370,7 +370,7 @@ class ModernWingetView(ft.Row):
         if privacy_url:
             self.details_area.controls.append(
                 ft.Row([
-                    ft.Icon(ft.Icons.PRIVACY_TIP, size=16, color=ft.Colors.BLUE_400),
+                    ft.Icon(ft.Icons.PRIVACY_TIP, size=16, color="BLUE_400"),
                     ft.TextButton(content=ft.Text("Privacy Policy"), on_click=lambda e, url=privacy_url: self._open_url(url))
                 ], spacing=4)
             )
@@ -380,7 +380,7 @@ class ModernWingetView(ft.Row):
         if release_notes_url:
             self.details_area.controls.append(
                 ft.Row([
-                    ft.Icon(ft.Icons.NEW_RELEASES, size=16, color=ft.Colors.BLUE_400),
+                    ft.Icon(ft.Icons.NEW_RELEASES, size=16, color="BLUE_400"),
                     ft.TextButton(content=ft.Text("Release Notes"), on_click=lambda e, url=release_notes_url: self._open_url(url))
                 ], spacing=4)
             )
@@ -403,7 +403,7 @@ class ModernWingetView(ft.Row):
         if manifest:
             self.details_area.controls.append(
                 ft.Row([
-                    ft.Icon(ft.Icons.CODE, size=16, color=ft.Colors.BLUE_400),
+                    ft.Icon(ft.Icons.CODE, size=16, color="BLUE_400"),
                     ft.TextButton(content=ft.Text("View Manifest on GitHub"), on_click=lambda e, url=manifest: self._open_url(url))
                 ], spacing=4)
             )
@@ -414,7 +414,7 @@ class ModernWingetView(ft.Row):
             winstall_url = f"https://winstall.app/apps/{pkg_id}"
             self.details_area.controls.append(
                 ft.Row([
-                    ft.Icon(ft.Icons.WEB, size=16, color=ft.Colors.PURPLE_400),
+                    ft.Icon(ft.Icons.WEB, size=16, color="PURPLE_400"),
                     ft.TextButton(content=ft.Text("View on winstall.app"), on_click=lambda e, url=winstall_url: self._open_url(url))
                 ], spacing=4)
             )
@@ -422,20 +422,20 @@ class ModernWingetView(ft.Row):
         self.details_area.controls.append(ft.Divider())
 
         # Actions
-        btn_copy = ft.ElevatedButton("Copy Command", icon=ft.Icons.COPY, bgcolor=ft.Colors.GREY_700, color=ft.Colors.WHITE)
+        btn_copy = ft.ElevatedButton("Copy Command", icon=ft.Icons.COPY, bgcolor="GREY_700", color="WHITE")
         btn_copy.on_click = lambda e, i=info: self._copy_install_command(i)
 
-        btn_local = ft.ElevatedButton("Install Locally", icon=ft.Icons.DOWNLOAD, bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE)
+        btn_local = ft.ElevatedButton("Install Locally", icon=ft.Icons.DOWNLOAD, bgcolor="GREEN", color="WHITE")
         btn_local.on_click = self._install_local
 
-        btn_deploy = ft.ElevatedButton("Deploy / Package...", icon=ft.Icons.CLOUD_UPLOAD, bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE)
+        btn_deploy = ft.ElevatedButton("Deploy / Package...", icon=ft.Icons.CLOUD_UPLOAD, bgcolor="BLUE", color="WHITE")
         btn_deploy.on_click = lambda e: self._open_deploy_menu(info)
 
         self.details_area.controls.append(ft.Row([btn_copy, btn_local, btn_deploy], wrap=True, spacing=8))
 
         # Tip
         self.details_area.controls.append(ft.Container(height=20))
-        self.details_area.controls.append(ft.Text("Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color=ft.Colors.GREY, italic=True))
+        self.details_area.controls.append(ft.Text("Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color="GREY", italic=True))
 
         self.update()
 
@@ -444,7 +444,7 @@ class ModernWingetView(ft.Row):
         pkg_id = info.get('Id', '')
         command = f"winget install --id {pkg_id} --accept-package-agreements --accept-source-agreements"
         self._copy_to_clipboard(command)
-        self._show_snack(f"Copied: {command}", ft.Colors.GREEN_700)
+        self._show_snack(f"Copied: {command}", "GREEN_700")
 
     def _open_url(self, url: str):
         """Open URL in default browser."""
@@ -478,19 +478,19 @@ class ModernWingetView(ft.Row):
                 ft.Container(height=10),
 
                 ft.ElevatedButton("Winget-AutoUpdate (WAU)", icon=ft.Icons.UPDATE,
-                    style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE),
+                    style=ft.ButtonStyle(bgcolor="GREEN", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_wau(info)], width=250),
                 ft.Text("Best for keeping apps updated automatically.", size=12, italic=True),
 
                 ft.Container(height=5),
                 ft.ElevatedButton("Download & Package", icon=ft.Icons.ARCHIVE,
-                    style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE),
+                    style=ft.ButtonStyle(bgcolor="BLUE", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_package(info)], width=250),
                 ft.Text("Download installer and prepare for Intune.", size=12, italic=True),
 
                 ft.Container(height=5),
                 ft.ElevatedButton("Create Install Script", icon=ft.Icons.CODE,
-                    style=ft.ButtonStyle(bgcolor=ft.Colors.GREY_700, color=ft.Colors.WHITE),
+                    style=ft.ButtonStyle(bgcolor="GREY_700", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_script(info)], width=250),
                 ft.Text("Generate PowerShell script for deployment.", size=12, italic=True),
             ], height=300, width=400, alignment=ft.MainAxisAlignment.CENTER),
@@ -512,7 +512,7 @@ class ModernWingetView(ft.Row):
         import subprocess
 
         pkg_id = info.get('Id')
-        self._show_snack(f"Downloading {pkg_id} for packaging...", ft.Colors.BLUE)
+        self._show_snack(f"Downloading {pkg_id} for packaging...", "BLUE")
 
         def _bg():
             try:
@@ -536,15 +536,15 @@ class ModernWingetView(ft.Row):
                     dest = dest_dir / installer.name
                     shutil.copy(installer, dest)
 
-                    self._show_snack(f"Downloaded to {dest}", ft.Colors.GREEN)
+                    self._show_snack(f"Downloaded to {dest}", "GREEN")
                     # TODO: Maybe auto-switch to Analyzer?
                 else:
-                    self._show_snack("Download success but no installer found?", ft.Colors.ORANGE)
+                    self._show_snack("Download success but no installer found?", "ORANGE")
 
                 shutil.rmtree(tmp_dir)
 
             except Exception as ex:
-                self._show_snack(f"Download failed: {ex}", ft.Colors.RED)
+                self._show_snack(f"Download failed: {ex}", "RED")
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -560,11 +560,11 @@ class ModernWingetView(ft.Row):
 
         def _run():
             import subprocess
-            self._show_snack(f"Starting install for {pkg_id}...", ft.Colors.BLUE)
+            self._show_snack(f"Starting install for {pkg_id}...", "BLUE")
             try:
                 subprocess.Popen(f'start cmd /k "{cmd}"', shell=True)
             except Exception as ex:
-                self._show_snack(f"Failed to start install: {ex}", ft.Colors.RED)
+                self._show_snack(f"Failed to start install: {ex}", "RED")
 
         _run()
 
@@ -603,11 +603,11 @@ exit $err
             try:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(script_content)
-                self._show_snack(f"Script saved to {path}", ft.Colors.GREEN)
+                self._show_snack(f"Script saved to {path}", "GREEN")
             except Exception as ex:
-                self._show_snack(f"Save failed: {ex}", ft.Colors.RED)
+                self._show_snack(f"Save failed: {ex}", "RED")
 
-    def _show_snack(self, msg, color=ft.Colors.GREEN):
+    def _show_snack(self, msg, color="GREEN"):
         try:
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True

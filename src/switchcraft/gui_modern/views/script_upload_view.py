@@ -21,7 +21,7 @@ class ScriptUploadView(ft.Column):
         # UI Components
         self.controls = [
             ft.Text("Script Management Center", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text("Upload PowerShell & Remediation Scripts directly to Intune", size=16, color=ft.Colors.GREY),
+            ft.Text("Upload PowerShell & Remediation Scripts directly to Intune", size=16, color="GREY"),
             ft.Divider(),
             self._build_tabs()
         ]
@@ -76,7 +76,7 @@ class ScriptUploadView(ft.Column):
 
     def _upload_ps_script(self, e):
         if not self.script_path or not self.ps_name.value:
-            self._show_snack("Name and Script File are required", ft.Colors.RED)
+            self._show_snack("Name and Script File are required", "RED")
             return
 
         # Check Credentials
@@ -85,7 +85,7 @@ class ScriptUploadView(ft.Column):
         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
 
         if not all([tenant, client, secret]):
-            self._show_snack("Intune Credentials missing in Settings", ft.Colors.RED)
+            self._show_snack("Intune Credentials missing in Settings", "RED")
             return
 
         self.ps_status.value = "Uploading..."
@@ -103,10 +103,10 @@ class ScriptUploadView(ft.Column):
                 )
 
                 self.ps_status.value = "Success! Script Created."
-                self.ps_status.color = ft.Colors.GREEN
+                self.ps_status.color = "GREEN"
             except Exception as ex:
                 self.ps_status.value = f"Error: {ex}"
-                self.ps_status.color = ft.Colors.RED
+                self.ps_status.color = "RED"
             finally:
                 self.ps_btn_upload.disabled = False
                 self.update()
@@ -167,7 +167,7 @@ class ScriptUploadView(ft.Column):
 
     def _upload_rem_script(self, e):
         if not self.rem_name.value or not self.detect_path or not self.remediate_path:
-            self._show_snack("Name, Detection and Remediation scripts are required", ft.Colors.RED)
+            self._show_snack("Name, Detection and Remediation scripts are required", "RED")
             return
 
         # Check Credentials
@@ -176,7 +176,7 @@ class ScriptUploadView(ft.Column):
         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
 
         if not all([tenant, client, secret]):
-            self._show_snack("Intune Credentials missing in Settings", ft.Colors.RED)
+            self._show_snack("Intune Credentials missing in Settings", "RED")
             return
 
         self.rem_status.value = "Uploading..."
@@ -197,10 +197,10 @@ class ScriptUploadView(ft.Column):
                 )
 
                 self.rem_status.value = "Success! Remediation Created."
-                self.rem_status.color = ft.Colors.GREEN
+                self.rem_status.color = "GREEN"
             except Exception as ex:
                 self.rem_status.value = f"Error: {ex}"
-                self.rem_status.color = ft.Colors.RED
+                self.rem_status.color = "RED"
             finally:
                 self.rem_btn_upload.disabled = False
                 self.update()
@@ -208,7 +208,7 @@ class ScriptUploadView(ft.Column):
         import threading
         threading.Thread(target=_bg, daemon=True).start()
 
-    def _show_snack(self, msg, color=ft.Colors.GREEN):
+    def _show_snack(self, msg, color="GREEN"):
         try:
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True

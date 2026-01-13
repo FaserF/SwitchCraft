@@ -107,22 +107,22 @@ class LibraryView(ft.Column):
 
         return ft.Container(
             content=ft.Column([
-                ft.Icon(ft.Icons.INVENTORY_2_OUTLINED, size=40, color=ft.Colors.BLUE_200),
+                ft.Icon(ft.Icons.INVENTORY_2_OUTLINED, size=40, color="BLUE_200"),
                 ft.Text(filename, weight=ft.FontWeight.BOLD, no_wrap=True, tooltip=filename),
-                ft.Text(f"{product} v{ver}", size=12, color=ft.Colors.GREY, no_wrap=True),
+                ft.Text(f"{product} v{ver}", size=12, color="GREY", no_wrap=True),
                 ft.Container(expand=True),
                 ft.Row([
-                    ft.Text(dt, size=10, color=ft.Colors.GREY_500),
-                    ft.Icon(ft.Icons.CHECK_CIRCLE, size=14, color=ft.Colors.GREEN)
+                    ft.Text(dt, size=10, color="GREY_500"),
+                    ft.Icon(ft.Icons.CHECK_CIRCLE, size=14, color="GREEN")
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
             ]),
-            bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.WHITE)),
+            bgcolor="WHITE,0.1",
+            border=ft.Border.all(1, "WHITE,0.1"),
             border_radius=10,
             padding=15,
             on_hover=lambda e: self._on_tile_hover(e)
         )
 
     def _on_tile_hover(self, e):
-        e.control.bgcolor = ft.Colors.with_opacity(0.2, ft.Colors.WHITE) if e.data == "true" else ft.Colors.with_opacity(0.1, ft.Colors.WHITE)
+        e.control.bgcolor = "WHITE,0.2" if e.data == "true" else "WHITE,0.1"
         e.control.update()

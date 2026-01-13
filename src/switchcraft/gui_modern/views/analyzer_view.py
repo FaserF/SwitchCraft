@@ -31,7 +31,7 @@ class ModernAnalyzerView(ft.Column):
 
         # UI Components
         self.drop_text = ft.Text(i18n.get("drag_drop") or "Drag & Drop Installer Here", size=20, weight=ft.FontWeight.BOLD)
-        self.status_text = ft.Text(i18n.get("ready") or "Ready", size=16, color=ft.Colors.GREY)
+        self.status_text = ft.Text(i18n.get("ready") or "Ready", size=16, color="GREY")
         self.progress_bar = ft.ProgressBar(width=400, visible=False)
         self.addon_warning = ft.Container(visible=False)
 
@@ -41,12 +41,12 @@ class ModernAnalyzerView(ft.Column):
                  self.start_analysis(path)
 
         def on_drag_enter(e):
-            self.drop_zone.border = ft.Border.all(4, ft.Colors.BLUE_400)
+            self.drop_zone.border = ft.Border.all(4, "BLUE_400")
             self.drop_text.value = "Release to analyze!"
             self.update()
 
         def on_drag_leave(e):
-            self.drop_zone.border = ft.Border.all(2, ft.Colors.BLUE_700)
+            self.drop_zone.border = ft.Border.all(2, "BLUE_700")
             self.drop_text.value = i18n.get("drag_drop") or "Drag & Drop Installer Here"
             self.update()
 
@@ -63,25 +63,25 @@ class ModernAnalyzerView(ft.Column):
         self.drop_zone = ft.Container(
             content=ft.Column(
                 [
-                    ft.Icon(ft.Icons.AUTO_AWESOME, size=60, color=ft.Colors.AMBER_400),
+                    ft.Icon(ft.Icons.AUTO_AWESOME, size=60, color="AMBER_400"),
                     self.drop_text,
-                    ft.Text("Click to browse or Drag & Drop (Windows)", size=12, color=ft.Colors.GREY_400),
+                    ft.Text("Click to browse or Drag & Drop (Windows)", size=12, color="GREY_400"),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             ),
             width=float("inf"),
             height=180,
-            border=ft.Border.all(2, ft.Colors.BLUE_700),
+            border=ft.Border.all(2, "BLUE_700"),
             border_radius=15,
             gradient=ft.LinearGradient(
                 begin=ft.Alignment(-1, -1),
                 end=ft.Alignment(1, 1),
-                colors=[ft.Colors.BLUE_900, ft.Colors.DEEP_PURPLE_900],
+                colors=["BLUE_900", "DEEP_PURPLE_900"],
             ),
             alignment=ft.Alignment(0, 0),
             on_click=on_drop_click,
-            on_hover=lambda e: setattr(self.drop_zone, "border", ft.Border.all(4, ft.Colors.BLUE_400) if e.data == "true" else ft.Border.all(2, ft.Colors.BLUE_700)) or self.update(),
+            on_hover=lambda e: setattr(self.drop_zone, "border", ft.Border.all(4, "BLUE_400") if e.data == "true" else ft.Border.all(2, "BLUE_700")) or self.update(),
             padding=20
         )
 
@@ -90,7 +90,7 @@ class ModernAnalyzerView(ft.Column):
         self.controls = [
                 ft.Row([
                     ft.Text("Installer Analyzer", size=32, weight=ft.FontWeight.BOLD),
-                    ft.Icon(ft.Icons.ANALYTICS, size=32, color=ft.Colors.BLUE_400)
+                    ft.Icon(ft.Icons.ANALYTICS, size=32, color="BLUE_400")
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 ft.Divider(height=2, thickness=1),
                 self.addon_warning,
@@ -112,19 +112,19 @@ class ModernAnalyzerView(ft.Column):
         if not AddonService.is_addon_installed("advanced"):
             self.addon_warning.content = ft.Container(
                 content=ft.Row([
-                    ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, color=ft.Colors.WHITE, size=30),
+                    ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, color="WHITE", size=30),
                     ft.Column([
-                        ft.Text(i18n.get("analyzer_addon_warning") or "Advanced Analysis Addon is missing!", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                        ft.Text("Standard detection will be limited.", size=12, color=ft.Colors.WHITE70),
+                        ft.Text(i18n.get("analyzer_addon_warning") or "Advanced Analysis Addon is missing!", weight=ft.FontWeight.BOLD, color="WHITE"),
+                        ft.Text("Standard detection will be limited.", size=12, color="WHITE70"),
                     ], expand=True),
                     ft.ElevatedButton(
                         i18n.get("analyzer_addon_install") or "Install Now",
-                        color=ft.Colors.WHITE,
-                        bgcolor=ft.Colors.RED_700,
+                        color="WHITE",
+                        bgcolor="RED_700",
                         on_click=self._install_advanced_addon
                     )
                 ], alignment=ft.MainAxisAlignment.START, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                bgcolor=ft.Colors.RED_900,
+                bgcolor="RED_900",
                 padding=15,
                 border_radius=10,
                 margin=ft.margin.only(bottom=15)
@@ -140,10 +140,10 @@ class ModernAnalyzerView(ft.Column):
         def _run():
             success = AddonService.install_addon("advanced")
             if success:
-                self._show_snack("Addon installed! Please restart SwitchCraft.", ft.Colors.GREEN)
+                self._show_snack("Addon installed! Please restart SwitchCraft.", "GREEN")
                 self.addon_warning.visible = False
             else:
-                self._show_snack("Installation failed. Check logs.", ft.Colors.RED)
+                self._show_snack("Installation failed. Check logs.", "RED")
             e.control.disabled = False
             e.control.text = i18n.get("analyzer_addon_install") or "Install Now"
             self.update()
@@ -176,7 +176,7 @@ class ModernAnalyzerView(ft.Column):
             except Exception as ex:
                 logger.exception("Analysis failed")
                 self.status_text.value = f"Error: {ex}"
-                self.status_text.color = ft.Colors.RED
+                self.status_text.color = "RED"
                 self.progress_bar.visible = False
                 self.analyzing = False
                 self.update()
@@ -189,7 +189,7 @@ class ModernAnalyzerView(ft.Column):
         info = result.info
 
         if result.error:
-             self.results_column.controls.append(ft.Text(f"Analysis Error: {result.error}", color=ft.Colors.RED, size=16))
+             self.results_column.controls.append(ft.Text(f"Analysis Error: {result.error}", color="RED", size=16))
              self.update()
              return
 
@@ -222,10 +222,10 @@ class ModernAnalyzerView(ft.Column):
             self.results_column.controls.append(
                 ft.Container(
                     content=ft.Column([
-                        ft.Row([ft.Icon(ft.Icons.ERROR_OUTLINE, color=ft.Colors.WHITE), ft.Text("SILENT INSTALLATION DISABLED", weight=ft.FontWeight.BOLD)], alignment=ft.MainAxisAlignment.CENTER),
-                        ft.Text(f"Reason: {result.silent_disabled_info.get('reason', 'Unknown')}", color=ft.Colors.WHITE),
+                        ft.Row([ft.Icon(ft.Icons.ERROR_OUTLINE, color="WHITE"), ft.Text("SILENT INSTALLATION DISABLED", weight=ft.FontWeight.BOLD)], alignment=ft.MainAxisAlignment.CENTER),
+                        ft.Text(f"Reason: {result.silent_disabled_info.get('reason', 'Unknown')}", color="WHITE"),
                     ]),
-                    bgcolor=ft.Colors.RED_900, padding=10, border_radius=5
+                    bgcolor="RED_900", padding=10, border_radius=5
                 )
             )
 
@@ -233,24 +233,24 @@ class ModernAnalyzerView(ft.Column):
             self.results_column.controls.append(
                 ft.Container(
                     content=ft.Column([
-                        ft.Row([ft.Icon(ft.Icons.INFO_OUTLINE, color=ft.Colors.WHITE), ft.Text("7-ZIP SFX DETECTED", weight=ft.FontWeight.BOLD)]),
+                        ft.Row([ft.Icon(ft.Icons.INFO_OUTLINE, color="WHITE"), ft.Text("7-ZIP SFX DETECTED", weight=ft.FontWeight.BOLD)]),
                         ft.Text(i18n.get("sfx_notice_msg") or "This is a self-extracting archive. Silent switches might apply to the wrapper or the content inside.", size=12),
                     ]),
-                    bgcolor=ft.Colors.BLUE_900, padding=10, border_radius=5
+                    bgcolor="BLUE_900", padding=10, border_radius=5
                 )
             )
 
         # 4. Primary Actions (All-in-One, Test Locally)
         action_buttons = ft.Row([
-            ft.ElevatedButton("Auto Deploy (All-in-One)", icon=ft.Icons.AUTO_FIX_HIGH, bgcolor=ft.Colors.RED_700, color=ft.Colors.WHITE, on_click=lambda _: self._run_all_in_one_flow(result)),
-            ft.ElevatedButton("Test Locally (Admin)", icon=ft.Icons.PLAY_ARROW, bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE, on_click=lambda _: self._run_local_test_action(info.file_path, info.install_switches)),
+            ft.ElevatedButton("Auto Deploy (All-in-One)", icon=ft.Icons.AUTO_FIX_HIGH, bgcolor="RED_700", color="WHITE", on_click=lambda _: self._run_all_in_one_flow(result)),
+            ft.ElevatedButton("Test Locally (Admin)", icon=ft.Icons.PLAY_ARROW, bgcolor="GREEN_700", color="WHITE", on_click=lambda _: self._run_local_test_action(info.file_path, info.install_switches)),
             ft.ElevatedButton("Winget Manifest", icon=ft.Icons.DESCRIPTION, on_click=lambda _: self._open_manifest_dialog(info)),
         ], wrap=True)
         self.results_column.controls.append(action_buttons)
 
         # 5. Silent Installation Parameters
         switches_str = " ".join(info.install_switches) if info.install_switches else "None detected"
-        color = ft.Colors.GREEN if info.install_switches else ft.Colors.ORANGE
+        color = "GREEN" if info.install_switches else "ORANGE"
 
         self.results_column.controls.append(
             ft.Container(
@@ -258,7 +258,7 @@ class ModernAnalyzerView(ft.Column):
                     ft.Text("Silent Install Parameters", weight=ft.FontWeight.BOLD),
                     ft.TextField(value=switches_str, read_only=True, text_style=ft.TextStyle(color=color, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=switches_str: self._copy_to_clipboard(s))),
                 ]),
-                padding=10, bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST, border_radius=5
+                padding=10, bgcolor="SURFACE_CONTAINER_HIGHEST", border_radius=5
             )
         )
 
@@ -268,10 +268,10 @@ class ModernAnalyzerView(ft.Column):
             self.results_column.controls.append(
                 ft.Container(
                     content=ft.Column([
-                        ft.Text("Silent Uninstall Parameters", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_400),
-                        ft.TextField(value=un_switches, read_only=True, text_style=ft.TextStyle(color=ft.Colors.RED_200, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=un_switches: self._copy_to_clipboard(s))),
+                        ft.Text("Silent Uninstall Parameters", weight=ft.FontWeight.BOLD, color="RED_400"),
+                        ft.TextField(value=un_switches, read_only=True, text_style=ft.TextStyle(color="RED_200", font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=un_switches: self._copy_to_clipboard(s))),
                     ]),
-                    padding=10, bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST, border_radius=5
+                    padding=10, bgcolor="SURFACE_CONTAINER_HIGHEST", border_radius=5
                 )
             )
 
@@ -291,7 +291,7 @@ class ModernAnalyzerView(ft.Column):
         # 9. Nested Data (ExpansionTile)
         if result.nested_data and result.nested_data.get("nested_executables"):
             nested_panel = ft.ExpansionTile(
-                title=ft.Text("Nested Installers / SFX Content", color=ft.Colors.CYAN, weight=ft.FontWeight.BOLD),
+                title=ft.Text("Nested Installers / SFX Content", color="CYAN", weight=ft.FontWeight.BOLD),
                 subtitle=ft.Text(f"Found {len(result.nested_data['nested_executables'])} items inside", size=12),
                 controls=[]
             )
@@ -330,8 +330,8 @@ class ModernAnalyzerView(ft.Column):
                 title=ft.Text("Brute Force Analysis Log"),
                 controls=[
                     ft.Container(
-                        content=ft.Text(result.brute_force_data, font_family="Consolas", color=ft.Colors.GREEN_400, size=11),
-                        bgcolor=ft.Colors.BLACK, padding=10, width=float("inf")
+                        content=ft.Text(result.brute_force_data, font_family="Consolas", color="GREEN_400", size=11),
+                        bgcolor="BLACK", padding=10, width=float("inf")
                     )
                 ]
             )
@@ -342,11 +342,11 @@ class ModernAnalyzerView(ft.Column):
             self.results_column.controls.append(
                 ft.Container(
                     content=ft.Row([
-                        ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN),
+                        ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN"),
                         ft.Text("Matches Winget Package!", weight=ft.FontWeight.BOLD, expand=True),
                         ft.TextButton("View on Web", on_click=lambda _: webbrowser.open(result.winget_url))
                     ]),
-                    padding=10, bgcolor=ft.Colors.GREEN_900, border_radius=5
+                    padding=10, bgcolor="GREEN_900", border_radius=5
                 )
             )
 
@@ -372,14 +372,14 @@ class ModernAnalyzerView(ft.Column):
         if known:
             k_list = ft.Column(spacing=2)
             for p, e in known:
-                k_list.controls.append(ft.Text(f"• {p}: {e}", size=12, color=ft.Colors.GREEN_200))
+                k_list.controls.append(ft.Text(f"• {p}: {e}", size=12, color="GREEN_200"))
             controls.append(k_list)
 
         if unknown:
             u_text = ", ".join(unknown)
-            controls.append(ft.Text(f"Unknown: {u_text}", size=11, color=ft.Colors.GREY_400, italic=True))
+            controls.append(ft.Text(f"Unknown: {u_text}", size=11, color="GREY_400", italic=True))
 
-        return ft.Container(content=ft.Column(controls, spacing=5), padding=10, bgcolor=ft.Colors.BLACK45, border_radius=5)
+        return ft.Container(content=ft.Column(controls, spacing=5), padding=10, bgcolor="BLACK45", border_radius=5)
 
     def _cleanup_temp(self, nested_data):
         from switchcraft.analyzers.universal import UniversalAnalyzer
@@ -390,7 +390,7 @@ class ModernAnalyzerView(ft.Column):
         for d in dirs:
             if d:
                 ua.cleanup_temp_dir(d)
-        self._show_snack("Cleanup complete.", ft.Colors.GREEN)
+        self._show_snack("Cleanup complete.", "GREEN")
 
     def _on_click_create_script(self, e):
         if not self.current_info:
@@ -431,15 +431,15 @@ class ModernAnalyzerView(ft.Column):
             tmpl_path = SwitchCraftConfig.get_value("CustomTemplatePath")
             gen = TemplateGenerator(tmpl_path)
             if gen.generate(context, path):
-                self._show_snack(f"Script saved to {path}", ft.Colors.GREEN)
+                self._show_snack(f"Script saved to {path}", "GREEN")
                 # Optional: Sign
                 if SwitchCraftConfig.get_value("SignScripts", False):
                      if SigningService.sign_script(path):
-                         self._show_snack("Script signed successfully!", ft.Colors.GREEN)
+                         self._show_snack("Script signed successfully!", "GREEN")
                      else:
-                         self._show_snack("Signing failed (check logs)", ft.Colors.ORANGE)
+                         self._show_snack("Signing failed (check logs)", "ORANGE")
             else:
-                 self._show_snack("Failed to generate script", ft.Colors.RED)
+                 self._show_snack("Failed to generate script", "RED")
 
     def _run_all_in_one_flow(self, result: AnalysisResult):
         # info unused here
@@ -455,7 +455,7 @@ class ModernAnalyzerView(ft.Column):
             content=ft.Text(i18n.get("confirm_automation_msg") or "This will generate a script, test it, and upload to Intune. Continue?"),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
-                ft.ElevatedButton("Start Flow", bgcolor=ft.Colors.RED_700, color=ft.Colors.WHITE, on_click=start_flow),
+                ft.ElevatedButton("Start Flow", bgcolor="RED_700", color="WHITE", on_click=start_flow),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
@@ -475,7 +475,7 @@ class ModernAnalyzerView(ft.Column):
                     ft.ProgressBar(width=600),
                     ft.Container(
                         content=ft.Column([log_text], scroll=ft.ScrollMode.AUTO),
-                        height=300, bgcolor=ft.Colors.BLACK, padding=10, border_radius=5
+                        height=300, bgcolor="BLACK", padding=10, border_radius=5
                     )
                 ], spacing=10),
                 width=600
@@ -587,16 +587,16 @@ class ModernAnalyzerView(ft.Column):
             try:
                 ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", cmd_exec, cmd_params, str(path_obj.parent), 1)
                 if int(ret) <= 32:
-                    self._show_snack(f"Failed to start process (Code {ret})", ft.Colors.RED)
+                    self._show_snack(f"Failed to start process (Code {ret})", "RED")
             except Exception as ex:
-                self._show_snack(str(ex), ft.Colors.RED)
+                self._show_snack(str(ex), "RED")
 
         local_dlg = ft.AlertDialog(
             title=ft.Text("Run Test Locally"),
             content=ft.Text(f"Do you want to run the installer locally?\n\nFile: {Path(file_path).name}\n\nWARNING: This will execute with Admin rights."),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(local_dlg, "open", False)),
-                ft.ElevatedButton("Run Now (Admin)", bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE, on_click=on_confirm),
+                ft.ElevatedButton("Run Now (Admin)", bgcolor="GREEN_700", color="WHITE", on_click=on_confirm),
             ],
         )
         self.app_page.dialog = local_dlg
@@ -605,7 +605,7 @@ class ModernAnalyzerView(ft.Column):
 
     def _open_manifest_dialog(self, info):
         # Placeholder for Winget Manifest Creation (Similar to Legacy)
-        self._show_snack("Winget Manifest Creation not yet fully ported, but coming soon!", ft.Colors.BLUE)
+        self._show_snack("Winget Manifest Creation not yet fully ported, but coming soon!", "BLUE")
 
     def _show_detailed_parameters(self, result: AnalysisResult):
         info = result.info
@@ -618,7 +618,7 @@ class ModernAnalyzerView(ft.Column):
                 content=ft.Column([
                     ft.Text(result.brute_force_data or "No raw data available.", font_family="Consolas", size=10),
                 ], scroll=ft.ScrollMode.AUTO),
-                height=300, bgcolor=ft.Colors.BLACK, padding=10, border_radius=5, width=float("inf")
+                height=300, bgcolor="BLACK", padding=10, border_radius=5, width=float("inf")
             )
         ], scroll=ft.ScrollMode.AUTO, tight=True)
 
@@ -640,14 +640,14 @@ class ModernAnalyzerView(ft.Column):
         output = source
         setup_file = installer.name
 
-        self._show_snack("Creating .intunewin package...", ft.Colors.BLUE)
+        self._show_snack("Creating .intunewin package...", "BLUE")
 
         def _bg():
             try:
                 self.intune_service.create_intunewin(str(source), setup_file, str(output), quiet=True)
-                self._show_snack("Package Created Successfully!", ft.Colors.GREEN)
+                self._show_snack("Package Created Successfully!", "GREEN")
             except Exception as ex:
-                self._show_snack(f"Packaging Failed: {ex}", ft.Colors.RED)
+                self._show_snack(f"Packaging Failed: {ex}", "RED")
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -675,16 +675,16 @@ class ModernAnalyzerView(ft.Column):
         try:
             import pyperclip
             pyperclip.copy(text)
-            self._show_snack("Copied to clipboard!", ft.Colors.GREEN_700)
+            self._show_snack("Copied to clipboard!", "GREEN_700")
         except ImportError:
             try:
                 import subprocess
                 subprocess.run(['clip'], input=text.encode('utf-8'), check=True)
-                self._show_snack("Copied to clipboard!", ft.Colors.GREEN_700)
+                self._show_snack("Copied to clipboard!", "GREEN_700")
             except Exception:
-                self._show_snack("Failed to copy", ft.Colors.RED)
+                self._show_snack("Failed to copy", "RED")
 
-    def _show_snack(self, msg, color=ft.Colors.GREEN):
+    def _show_snack(self, msg, color="GREEN"):
         try:
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True

@@ -16,26 +16,26 @@ class ModernHomeView(ft.Container):
     def _create_card(self, title, subtitle, icon, target_idx):
         return ft.Container(
             content=ft.Column([
-                ft.Icon(icon, size=40, color=ft.Colors.BLUE_200),
-                ft.Text(title, size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                ft.Text(subtitle, size=12, color=ft.Colors.WHITE70, text_align=ft.TextAlign.CENTER),
+                ft.Icon(icon, size=40, color="BLUE_200"),
+                ft.Text(title, size=20, weight=ft.FontWeight.BOLD, color="WHITE"),
+                ft.Text(subtitle, size=12, color="WHITE70", text_align=ft.TextAlign.CENTER),
                 ft.ElevatedButton("Open",
-                    color=ft.Colors.WHITE,
-                    bgcolor=ft.Colors.WHITE12,
+                    color="WHITE",
+                    bgcolor="WHITE12",
                     on_click=lambda _: self.on_navigate(target_idx) if self.on_navigate else None
                 )
             ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             width=220,
             height=250,
             padding=20,
-            bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
+            bgcolor="WHITE,0.1",
             border_radius=15,
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.2, ft.Colors.WHITE)),
+            border=ft.Border.all(1, "WHITE,0.2"),
             blur=ft.Blur(10, ft.BlurTileMode.MIRROR),
             shadow=ft.BoxShadow(
                 spread_radius=1,
                 blur_radius=15,
-                color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
+                color="BLACK,0.3",
                 offset=ft.Offset(0, 5),
             ),
             animate_scale=ft.Animation(300, ft.AnimationCurve.EASE_OUT_BACK),
@@ -49,9 +49,9 @@ class ModernHomeView(ft.Container):
             ft.Container(
             content=ft.Column([
                 ft.Text(i18n.get("welcome_title") or "SwitchCraft Modern", size=48, weight=ft.FontWeight.BOLD,
-                        color=ft.Colors.WHITE, text_align=ft.TextAlign.CENTER),
+                        color="WHITE", text_align=ft.TextAlign.CENTER),
                 ft.Text(i18n.get("welcome_subtitle") or "Your All-in-One Utility for App Deployment & Analysis",
-                        size=18, italic=True, color=ft.Colors.BLUE_200, text_align=ft.TextAlign.CENTER),
+                        size=18, italic=True, color="BLUE_200", text_align=ft.TextAlign.CENTER),
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             alignment=ft.Alignment(0, 0)
         ),

@@ -38,7 +38,7 @@ class ModernSettingsView(ft.Column):
             self.nav_row.controls.append(btn)
 
         self.controls = [
-            ft.Container(content=self.nav_row, height=60, padding=5, bgcolor=ft.Colors.GREY_800),
+            ft.Container(content=self.nav_row, height=60, padding=5, bgcolor="GREY_800"),
             ft.Divider(height=1, thickness=1),
             self.current_content
         ]
@@ -62,13 +62,13 @@ class ModernSettingsView(ft.Column):
             if builder_func:
                 self.current_content.content = builder_func()
             else:
-                self.current_content.content = ft.Text("Error: Tab builder missing", color=ft.Colors.RED)
+                self.current_content.content = ft.Text("Error: Tab builder missing", color="RED")
         except Exception as e:
             logger.error(f"Failed to build tab: {e}")
             self.current_content.content = ft.Column([
-                ft.Icon(ft.Icons.ERROR, color=ft.Colors.RED, size=40),
-                ft.Text(f"Error loading tab: {e}", color=ft.Colors.RED),
-                ft.Text("Check logs for details.", size=12, color=ft.Colors.GREY)
+                ft.Icon(ft.Icons.ERROR, color="RED", size=40),
+                ft.Text(f"Error loading tab: {e}", color="RED"),
+                ft.Text("Check logs for details.", size=12, color="GREY")
             ])
 
         try:
@@ -147,10 +147,10 @@ class ModernSettingsView(ft.Column):
         )
 
     def _build_cloud_sync_section(self):
-        self.sync_status_text = ft.Text(i18n.get("sync_checking_status") or "Checking status...", color=ft.Colors.GREY)
+        self.sync_status_text = ft.Text(i18n.get("sync_checking_status") or "Checking status...", color="GREY")
         self.sync_actions = ft.Row(visible=False)
         self.login_btn = ft.ElevatedButton(i18n.get("btn_login_github") or "Login with GitHub", icon=ft.Icons.LOGIN, on_click=self._start_github_login)
-        self.logout_btn = ft.ElevatedButton(i18n.get("btn_logout") or "Logout", icon=ft.Icons.LOGOUT, on_click=self._logout_github, color=ft.Colors.RED)
+        self.logout_btn = ft.ElevatedButton(i18n.get("btn_logout") or "Logout", icon=ft.Icons.LOGOUT, on_click=self._logout_github, color="RED")
 
         self._update_sync_ui(update=False)
 
@@ -166,7 +166,7 @@ class ModernSettingsView(ft.Column):
             user = AuthService.get_user_info()
             name = user.get("login", "Unknown") if user else "Unknown"
             self.sync_status_text.value = f"{i18n.get('logged_in_as') or 'Logged in as'}: {name}"
-            self.sync_status_text.color = ft.Colors.GREEN
+            self.sync_status_text.color = "GREEN"
             self.login_btn.visible = False
             self.sync_actions.visible = True
 
@@ -176,7 +176,7 @@ class ModernSettingsView(ft.Column):
             self.sync_actions.controls = [btn_up, btn_down, self.logout_btn]
         else:
             self.sync_status_text.value = i18n.get("sync_not_logged_in") or "Not logged in."
-            self.sync_status_text.color = ft.Colors.GREY
+            self.sync_status_text.color = "GREY"
             self.login_btn.visible = True
             self.sync_actions.visible = False
         if update and self.page:
@@ -243,7 +243,7 @@ class ModernSettingsView(ft.Column):
                 ft.Text(i18n.get("changelog") or "Changelog", size=18, weight=ft.FontWeight.BOLD),
                 ft.Container(
                     content=self.changelog_text,
-                    bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                    bgcolor="SURFACE_CONTAINER_HIGHEST",
                     padding=10,
                     border_radius=5
                 )
@@ -265,7 +265,7 @@ class ModernSettingsView(ft.Column):
 
         cert_display = saved_thumb if saved_thumb else (saved_cert_path if saved_cert_path else (i18n.get("cert_not_configured") or "Not Configured"))
 
-        self.cert_status_text = ft.Text(cert_display, color=ft.Colors.GREEN if (saved_thumb or saved_cert_path) else ft.Colors.GREY)
+        self.cert_status_text = ft.Text(cert_display, color="GREEN" if (saved_thumb or saved_cert_path) else "GREY")
 
         cert_auto_btn = ft.ElevatedButton(
             i18n.get("btn_auto_detect_cert") or "Auto-Detect",
@@ -280,7 +280,7 @@ class ModernSettingsView(ft.Column):
         cert_reset_btn = ft.ElevatedButton(
             i18n.get("btn_reset") or "Reset",
             icon=ft.Icons.DELETE,
-            bgcolor=ft.Colors.RED_900 if hasattr(ft.Colors, "RED_900") else ft.Colors.RED,
+            bgcolor="RED_900" if hasattr(getattr(ft, "colors", None), "RED_900") else "RED",
             on_click=self._reset_signing_cert
         )
 
@@ -293,7 +293,7 @@ class ModernSettingsView(ft.Column):
 
         # Template Section
         template_display = SwitchCraftConfig.get_value("CustomTemplatePath", "") or (i18n.get("template_default") or "(Default)")
-        self.template_status_text = ft.Text(template_display, color=ft.Colors.GREY if "(Default)" in template_display else ft.Colors.GREEN)
+        self.template_status_text = ft.Text(template_display, color="GREY" if "(Default)" in template_display else "GREEN")
 
         template_browse_btn = ft.ElevatedButton(
             i18n.get("btn_browse") or "Browse",
@@ -320,23 +320,23 @@ class ModernSettingsView(ft.Column):
             controls=[
                 ft.Text(i18n.get("deployment_title") or "Deployment Settings", size=24, weight=ft.FontWeight.BOLD),
                 # Code Signing
-                ft.Text(i18n.get("settings_hdr_signing") or "Code Signing", size=18, color=ft.Colors.BLUE),
+                ft.Text(i18n.get("settings_hdr_signing") or "Code Signing", size=18, color="BLUE"),
                 sign_sw,
                 ft.Row([ft.Text(i18n.get("lbl_active_cert") or "Active Certificate:"), self.cert_status_text]),
                 ft.Row([cert_auto_btn, cert_browse_btn, cert_reset_btn]),
                 ft.Divider(),
                 # Paths
-                ft.Text(i18n.get("settings_hdr_directories") or "Paths", size=18, color=ft.Colors.BLUE),
+                ft.Text(i18n.get("settings_hdr_directories") or "Paths", size=18, color="BLUE"),
                 git_path,
                 ft.Divider(),
                 # Templates
-                ft.Text(i18n.get("settings_hdr_template") or "PowerShell Template", size=18, color=ft.Colors.BLUE),
+                ft.Text(i18n.get("settings_hdr_template") or "PowerShell Template", size=18, color="BLUE"),
                 ft.Row([ft.Text(i18n.get("lbl_custom_template") or "Active Template:"), self.template_status_text]),
                 ft.Row([template_browse_btn, template_reset_btn]),
-                ft.Text(i18n.get("template_help") or "Select a custom .ps1 template. Leave empty for default.", size=11, color=ft.Colors.GREY),
+                ft.Text(i18n.get("template_help") or "Select a custom .ps1 template. Leave empty for default.", size=11, color="GREY"),
                 ft.Divider(),
                 # Intune
-                ft.Text(i18n.get("settings_hdr_intune_api") or "Microsoft Intune API", size=18, color=ft.Colors.BLUE),
+                ft.Text(i18n.get("settings_hdr_intune_api") or "Microsoft Intune API", size=18, color="BLUE"),
                 tenant,
                 client,
                 secret
@@ -363,7 +363,7 @@ class ModernSettingsView(ft.Column):
         issue_btn = ft.ElevatedButton(
             i18n.get("help_report_issue_prefilled") or "Report Issue (with Logs)",
             icon=ft.Icons.BUG_REPORT,
-            bgcolor=ft.Colors.GREY_800,
+            bgcolor="GREY_800",
             on_click=open_issue_reporter
         )
 
@@ -401,18 +401,18 @@ class ModernSettingsView(ft.Column):
 
         danger_zone = ft.Container(
             content=ft.Column([
-                ft.Text(i18n.get("help_danger_zone") or "Danger Zone", color=ft.Colors.RED, weight=ft.FontWeight.BOLD),
-                ft.Text(i18n.get("help_danger_zone_desc") or "Irreversible actions. Proceed with caution.", color=ft.Colors.GREY, size=12),
+                ft.Text(i18n.get("help_danger_zone") or "Danger Zone", color="RED", weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("help_danger_zone_desc") or "Irreversible actions. Proceed with caution.", color="GREY", size=12),
                 ft.ElevatedButton(
                     i18n.get("help_factory_reset") or "Factory Reset (Delete All Data)",
                     icon=ft.Icons.DELETE_FOREVER,
-                    bgcolor=ft.Colors.RED_900 if hasattr(ft.Colors, "RED_900") else ft.Colors.RED,
-                    color=ft.Colors.WHITE,
+                    bgcolor="RED_900" if hasattr(getattr(ft, "colors", None), "RED_900") else "RED",
+                    color="WHITE",
                     on_click=self._on_factory_reset_click
                 )
             ]),
             padding=10,
-            border=ft.Border.all(1, ft.Colors.RED),
+            border=ft.Border.all(1, "RED"),
             border_radius=5,
             margin=ft.margin.only(top=20)
         )
@@ -433,7 +433,7 @@ class ModernSettingsView(ft.Column):
                 self.debug_log_text,
                 danger_zone,
                 ft.Divider(),
-                ft.Text(f"{i18n.get('about_version') or 'Version'}: {__version__}", color=ft.Colors.GREY)
+                ft.Text(f"{i18n.get('about_version') or 'Version'}: {__version__}", color="GREY")
             ],
             padding=20,
             spacing=15
@@ -448,12 +448,12 @@ class ModernSettingsView(ft.Column):
             self.app_page.dialog.open = False
             try:
                 SwitchCraftConfig.delete_all_application_data()
-                self._show_snack("Reset Complete. App will close.", ft.Colors.GREEN)
+                self._show_snack("Reset Complete. App will close.", "GREEN")
                 import time
                 time.sleep(2)
                 self.app_page.window.destroy()
             except Exception as ex:
-                self._show_snack(f"Reset Failed: {ex}", ft.Colors.RED)
+                self._show_snack(f"Reset Failed: {ex}", "RED")
             self.app_page.update()
 
         def cancel_reset(e):
@@ -461,10 +461,10 @@ class ModernSettingsView(ft.Column):
             self.app_page.update()
 
         dlg = ft.AlertDialog(
-            title=ft.Text(i18n.get("help_reset_confirm_title") or "Confirm Factory Reset", color=ft.Colors.RED),
+            title=ft.Text(i18n.get("help_reset_confirm_title") or "Confirm Factory Reset", color="RED"),
             content=ft.Text(i18n.get("help_reset_confirm_msg") or "Are you SURE? This will delete all settings, secrets, and local data.\nThis action cannot be undone."),
             actions=[
-                ft.TextButton(i18n.get("btn_yes_delete_all") or "Yes, Delete Everything", on_click=confirm_reset, style=ft.ButtonStyle(color=ft.Colors.RED)),
+                ft.TextButton(i18n.get("btn_yes_delete_all") or "Yes, Delete Everything", on_click=confirm_reset, style=ft.ButtonStyle(color="RED")),
                 ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=cancel_reset)
             ],
             actions_alignment=ft.MainAxisAlignment.END,
@@ -506,9 +506,9 @@ class ModernSettingsView(ft.Column):
                      if has_update:
                          # Use SnackBar action logic if needed, but for compatibility keep it simple or implement action support in helper
                          # For now simple message
-                         self._show_snack(f"{i18n.get('update_available') or 'Update available'}: {version_str}", ft.Colors.BLUE)
+                         self._show_snack(f"{i18n.get('update_available') or 'Update available'}: {version_str}", "BLUE")
                      else:
-                         self._show_snack(i18n.get("no_update_found") or "No updates available.", ft.Colors.GREY)
+                         self._show_snack(i18n.get("no_update_found") or "No updates available.", "GREY")
                      self.app_page.update()
 
             except Exception as ex:
@@ -554,7 +554,7 @@ class ModernSettingsView(ft.Column):
                 title=ft.Text("GitHub Login"),
                 content=ft.Column([
                     ft.Text("Please visit:"),
-                    ft.Text(flow.get("verification_uri"), color=ft.Colors.BLUE),
+                    ft.Text(flow.get("verification_uri"), color="BLUE"),
                     ft.Text("And enter code:"),
                     ft.Text(flow.get("user_code"), size=24, weight=ft.FontWeight.BOLD),
                 ], height=150),
@@ -569,9 +569,9 @@ class ModernSettingsView(ft.Column):
             if token:
                 AuthService.save_token(token)
                 self._update_sync_ui()
-                self._show_snack(i18n.get("login_success") or "Login Successful!", ft.Colors.GREEN)
+                self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
             else:
-                self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", ft.Colors.RED)
+                self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
             self.app_page.update()
 
 
@@ -584,17 +584,17 @@ class ModernSettingsView(ft.Column):
     def _sync_up(self, e):
         def _run():
             if SyncService.sync_up():
-                self._show_snack(i18n.get("sync_success_up") or "Sync Up Successful", ft.Colors.GREEN)
+                self._show_snack(i18n.get("sync_success_up") or "Sync Up Successful", "GREEN")
             else:
-                self._show_snack(i18n.get("sync_failed") or "Sync Up Failed", ft.Colors.RED)
+                self._show_snack(i18n.get("sync_failed") or "Sync Up Failed", "RED")
         threading.Thread(target=_run, daemon=True).start()
 
     def _sync_down(self, e):
         def _run():
              if SyncService.sync_down():
-                 self._show_snack(i18n.get("sync_success_down") or "Sync Down Successful. Restart app.", ft.Colors.GREEN)
+                 self._show_snack(i18n.get("sync_success_down") or "Sync Down Successful. Restart app.", "GREEN")
              else:
-                 self._show_snack(i18n.get("sync_failed") or "Sync Down Failed", ft.Colors.RED)
+                 self._show_snack(i18n.get("sync_failed") or "Sync Down Failed", "RED")
         threading.Thread(target=_run, daemon=True).start()
 
     def _export_settings(self, e):
@@ -614,9 +614,9 @@ class ModernSettingsView(ft.Column):
                 with open(path, "r") as f:
                     data = json.load(f)
                 SwitchCraftConfig.import_preferences(data)
-                self._show_snack(i18n.get("import_success") or "Settings Imported. Please Restart.", ft.Colors.GREEN)
+                self._show_snack(i18n.get("import_success") or "Settings Imported. Please Restart.", "GREEN")
             except Exception as ex:
-                self._show_snack(f"{i18n.get('import_failed') or 'Import Failed'}: {ex}", ft.Colors.RED)
+                self._show_snack(f"{i18n.get('import_failed') or 'Import Failed'}: {ex}", "RED")
 
     def _export_logs(self, e):
         from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
@@ -626,9 +626,9 @@ class ModernSettingsView(ft.Column):
             if get_session_handler().export_logs(path):
                 self._show_snack(i18n.get("logs_exported") or "Logs Exported!")
             else:
-                self._show_snack(i18n.get("logs_export_failed") or "Log export failed.", ft.Colors.RED)
+                self._show_snack(i18n.get("logs_export_failed") or "Log export failed.", "RED")
 
-    def _show_snack(self, msg, color=ft.Colors.GREEN):
+    def _show_snack(self, msg, color="GREEN"):
         try:
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True
@@ -653,7 +653,7 @@ class ModernSettingsView(ft.Column):
                 # For now, just log - actual widget disabling would require tracking references
                 # We can add a banner or snackbar notification
                 try:
-                    self._show_snack(f"⚠️ {i18n.get('setting_managed') or 'Some settings are managed by policy.'}", ft.Colors.ORANGE)
+                    self._show_snack(f"⚠️ {i18n.get('setting_managed') or 'Some settings are managed by policy.'}", "ORANGE")
                     break  # Only show one snackbar
                 except Exception:
                     pass
@@ -695,13 +695,13 @@ class ModernSettingsView(ft.Column):
         rows = []
         for addon in addons:
             is_installed = AddonService.is_addon_installed(addon["id"])
-            status_color = ft.Colors.GREEN if is_installed else ft.Colors.ORANGE
+            status_color = "GREEN" if is_installed else "ORANGE"
             status_text = i18n.get("status_installed") or "Installed" if is_installed else i18n.get("status_not_installed") or "Not Installed"
 
             row = ft.Row([
                 ft.Column([
                     ft.Text(addon["name"], weight=ft.FontWeight.BOLD),
-                    ft.Text(addon["desc"], size=11, color=ft.Colors.GREY)
+                    ft.Text(addon["desc"], size=11, color="GREY")
                 ], expand=True),
                 ft.Text(status_text, color=status_color),
                 ft.ElevatedButton(
@@ -733,13 +733,13 @@ class ModernSettingsView(ft.Column):
         """Install an addon from the official repository."""
         from switchcraft.services.addon_service import AddonService
 
-        self._show_snack(f"{i18n.get('addon_installing') or 'Installing addon'} {addon_id}...", ft.Colors.BLUE)
+        self._show_snack(f"{i18n.get('addon_installing') or 'Installing addon'} {addon_id}...", "BLUE")
 
         def _run():
             if AddonService.install_addon(addon_id):
-                self._show_snack(f"{i18n.get('addon_install_success') or 'Addon installed successfully!'} ({addon_id})", ft.Colors.GREEN)
+                self._show_snack(f"{i18n.get('addon_install_success') or 'Addon installed successfully!'} ({addon_id})", "GREEN")
             else:
-                self._show_snack(f"{i18n.get('addon_install_failed') or 'Addon installation failed.'} ({addon_id})", ft.Colors.RED)
+                self._show_snack(f"{i18n.get('addon_install_failed') or 'Addon installation failed.'} ({addon_id})", "RED")
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -751,9 +751,9 @@ class ModernSettingsView(ft.Column):
         path = FilePickerHelper.pick_file(allowed_extensions=["zip"])
         if path:
             if AddonService.install_addon_from_zip(path):
-                self._show_snack(i18n.get("addon_install_success") or "Addon installed! Please restart.", ft.Colors.GREEN)
+                self._show_snack(i18n.get("addon_install_success") or "Addon installed! Please restart.", "GREEN")
             else:
-                self._show_snack(i18n.get("addon_install_failed") or "Failed to install addon.", ft.Colors.RED)
+                self._show_snack(i18n.get("addon_install_failed") or "Failed to install addon.", "RED")
 
     def _import_addon_from_url(self, e):
         """Import and install an addon from a URL."""
@@ -766,13 +766,13 @@ class ModernSettingsView(ft.Column):
         def do_import(e):
             url = url_field.value
             if not url or not url.strip():
-                self._show_snack(i18n.get("err_url_empty") or "Please enter a URL.", ft.Colors.RED)
+                self._show_snack(i18n.get("err_url_empty") or "Please enter a URL.", "RED")
                 return
 
             self.app_page.dialog.open = False
             self.app_page.update()
 
-            self._show_snack(f"{i18n.get('addon_downloading') or 'Downloading addon'}...", ft.Colors.BLUE)
+            self._show_snack(f"{i18n.get('addon_downloading') or 'Downloading addon'}...", "BLUE")
 
             def _run():
                 import tempfile
@@ -789,9 +789,9 @@ class ModernSettingsView(ft.Column):
 
                     # Try to install
                     if AddonService.install_addon_from_zip(tmp_path):
-                        self._show_snack(i18n.get("addon_install_success") or "Addon installed! Please restart.", ft.Colors.GREEN)
+                        self._show_snack(i18n.get("addon_install_success") or "Addon installed! Please restart.", "GREEN")
                     else:
-                        self._show_snack(i18n.get("addon_install_failed") or "Failed to install addon. Invalid structure?", ft.Colors.RED)
+                        self._show_snack(i18n.get("addon_install_failed") or "Failed to install addon. Invalid structure?", "RED")
 
                     # Cleanup
                     try:
@@ -801,7 +801,7 @@ class ModernSettingsView(ft.Column):
 
                 except Exception as ex:
                     logger.error(f"Failed to download addon from URL: {ex}")
-                    self._show_snack(f"{i18n.get('addon_download_failed') or 'Download failed'}: {ex}", ft.Colors.RED)
+                    self._show_snack(f"{i18n.get('addon_download_failed') or 'Download failed'}: {ex}", "RED")
 
             threading.Thread(target=_run, daemon=True).start()
 
@@ -814,11 +814,11 @@ class ModernSettingsView(ft.Column):
             content=ft.Column([
                 ft.Text(i18n.get("dlg_import_addon_url_desc") or "Enter the URL to a .zip addon file:"),
                 url_field,
-                ft.Text(i18n.get("addon_custom_warning_msg") or "Only install addons from trusted sources.", size=11, color=ft.Colors.ORANGE, italic=True)
+                ft.Text(i18n.get("addon_custom_warning_msg") or "Only install addons from trusted sources.", size=11, color="ORANGE", italic=True)
             ], tight=True, height=120),
             actions=[
                 ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=cancel),
-                ft.ElevatedButton(i18n.get("btn_import") or "Import", on_click=do_import, bgcolor=ft.Colors.GREEN)
+                ft.ElevatedButton(i18n.get("btn_import") or "Import", on_click=do_import, bgcolor="GREEN")
             ],
             actions_alignment=ft.MainAxisAlignment.END
         )
@@ -851,7 +851,7 @@ class ModernSettingsView(ft.Column):
 
             proc = subprocess.run(cmd, capture_output=True, text=True, startupinfo=startupinfo)
             if proc.returncode != 0 or not proc.stdout.strip():
-                self._show_snack(i18n.get("cert_not_found") or "No code signing certificates found.", ft.Colors.ORANGE)
+                self._show_snack(i18n.get("cert_not_found") or "No code signing certificates found.", "ORANGE")
                 return
 
             import json
@@ -860,7 +860,7 @@ class ModernSettingsView(ft.Column):
                 data = [data]
 
             if len(data) == 0:
-                self._show_snack(i18n.get("cert_not_found") or "No code signing certificates found.", ft.Colors.ORANGE)
+                self._show_snack(i18n.get("cert_not_found") or "No code signing certificates found.", "ORANGE")
             elif len(data) == 1:
                 cert = data[0]
                 thumb = cert.get("Thumbprint", "")
@@ -868,9 +868,9 @@ class ModernSettingsView(ft.Column):
                 SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", thumb)
                 SwitchCraftConfig.set_user_preference("CodeSigningCertPath", "")
                 self.cert_status_text.value = f"{subj} ({thumb[:8]}...)"
-                self.cert_status_text.color = ft.Colors.GREEN
+                self.cert_status_text.color = "GREEN"
                 self.update()
-                self._show_snack(f"{i18n.get('cert_auto_detected') or 'Certificate auto-detected'}: {subj}", ft.Colors.GREEN)
+                self._show_snack(f"{i18n.get('cert_auto_detected') or 'Certificate auto-detected'}: {subj}", "GREEN")
             else:
                 # Multiple certs - just use the first one for now (could show a picker)
                 cert = data[0]
@@ -878,13 +878,13 @@ class ModernSettingsView(ft.Column):
                 subj = cert.get("Subject", "").split(",")[0]
                 SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", thumb)
                 self.cert_status_text.value = f"{subj} ({thumb[:8]}...)"
-                self.cert_status_text.color = ft.Colors.GREEN
+                self.cert_status_text.color = "GREEN"
                 self.update()
-                self._show_snack(f"{i18n.get('cert_auto_detected_multi') or 'Multiple certs found, using first'}: {subj}", ft.Colors.BLUE)
+                self._show_snack(f"{i18n.get('cert_auto_detected_multi') or 'Multiple certs found, using first'}: {subj}", "BLUE")
 
         except Exception as ex:
             logger.error(f"Cert auto-detect failed: {ex}")
-            self._show_snack(f"{i18n.get('cert_detect_failed') or 'Cert detection failed'}: {ex}", ft.Colors.RED)
+            self._show_snack(f"{i18n.get('cert_detect_failed') or 'Cert detection failed'}: {ex}", "RED")
 
     def _browse_signing_cert(self, e):
         """Browse for a .pfx certificate file."""
@@ -895,18 +895,18 @@ class ModernSettingsView(ft.Column):
             SwitchCraftConfig.set_user_preference("CodeSigningCertPath", path)
             SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", "")
             self.cert_status_text.value = path
-            self.cert_status_text.color = ft.Colors.GREEN
+            self.cert_status_text.color = "GREEN"
             self.update()
-            self._show_snack(i18n.get("cert_file_selected") or "Certificate file selected.", ft.Colors.GREEN)
+            self._show_snack(i18n.get("cert_file_selected") or "Certificate file selected.", "GREEN")
 
     def _reset_signing_cert(self, e):
         """Reset code signing certificate configuration."""
         SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", "")
         SwitchCraftConfig.set_user_preference("CodeSigningCertPath", "")
         self.cert_status_text.value = i18n.get("cert_not_configured") or "Not Configured"
-        self.cert_status_text.color = ft.Colors.GREY
+        self.cert_status_text.color = "GREY"
         self.update()
-        self._show_snack(i18n.get("cert_reset") or "Certificate configuration reset.", ft.Colors.GREY)
+        self._show_snack(i18n.get("cert_reset") or "Certificate configuration reset.", "GREY")
 
     # --- Template Helpers ---
 
@@ -918,14 +918,14 @@ class ModernSettingsView(ft.Column):
         if path:
             SwitchCraftConfig.set_user_preference("CustomTemplatePath", path)
             self.template_status_text.value = path
-            self.template_status_text.color = ft.Colors.GREEN
+            self.template_status_text.color = "GREEN"
             self.update()
-            self._show_snack(i18n.get("template_selected") or "Template selected.", ft.Colors.GREEN)
+            self._show_snack(i18n.get("template_selected") or "Template selected.", "GREEN")
 
     def _reset_template(self, e):
         """Reset to default template."""
         SwitchCraftConfig.set_user_preference("CustomTemplatePath", "")
         self.template_status_text.value = i18n.get("template_default") or "(Default)"
-        self.template_status_text.color = ft.Colors.GREY
+        self.template_status_text.color = "GREY"
         self.update()
-        self._show_snack(i18n.get("template_reset") or "Template reset to default.", ft.Colors.GREY)
+        self._show_snack(i18n.get("template_reset") or "Template reset to default.", "GREY")

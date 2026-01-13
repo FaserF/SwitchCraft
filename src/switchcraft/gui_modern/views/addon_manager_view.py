@@ -28,8 +28,8 @@ class AddonManagerView(ft.Column):
         self.delete_btn = ft.ElevatedButton(
             "Delete Selected",
             icon=ft.Icons.DELETE,
-            bgcolor=ft.Colors.RED,
-            color=ft.Colors.WHITE,
+            bgcolor="RED",
+            color="WHITE",
             disabled=True,
             on_click=self._confirm_delete
         )
@@ -43,17 +43,17 @@ class AddonManagerView(ft.Column):
                 ft.DataColumn(ft.Text("Author")),
             ],
             rows=[],
-            border=ft.border.all(1, ft.Colors.GREY_400),
-            vertical_lines=ft.border.BorderSide(1, ft.Colors.GREY_400),
-            horizontal_lines=ft.border.BorderSide(1, ft.Colors.GREY_400),
-            heading_row_color=ft.Colors.BLACK12,
+            border=ft.border.all(1, "GREY_400"),
+            vertical_lines=ft.border.BorderSide(1, "GREY_400"),
+            horizontal_lines=ft.border.BorderSide(1, "GREY_400"),
+            heading_row_color="BLACK12",
         )
 
         self.list_container = ft.Column([self.dt], scroll=ft.ScrollMode.AUTO, expand=True)
 
         self.controls = [
             ft.Text("Addon Manager", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text(" Extend functionality with custom addons.", color=ft.Colors.GREY),
+            ft.Text(" Extend functionality with custom addons.", color="GREY"),
             ft.Divider(),
             ft.Row([self.refresh_btn, self.install_btn, ft.Container(expand=True), self.delete_btn]),
             ft.Divider(),
@@ -110,10 +110,10 @@ class AddonManagerView(ft.Column):
         def _bg():
             try:
                 self.addon_service.install_addon(path)
-                self._show_snack("Addon installed successfully!", ft.Colors.GREEN)
+                self._show_snack("Addon installed successfully!", "GREEN")
                 self._load_data()
             except Exception as e:
-                self._show_snack(f"Install failed: {e}", ft.Colors.RED)
+                self._show_snack(f"Install failed: {e}", "RED")
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -129,14 +129,14 @@ class AddonManagerView(ft.Column):
             def _bg():
                 try:
                     if self.addon_service.delete_addon(aid) is False:
-                         self._show_snack("Delete failed (File in use?)", ft.Colors.RED)
+                         self._show_snack("Delete failed (File in use?)", "RED")
                     else:
-                        self._show_snack("Addon deleted.", ft.Colors.GREEN)
+                        self._show_snack("Addon deleted.", "GREEN")
                         self.selected_addon = None
                         self.app_page.close_dialog()
                         self._load_data()
                 except Exception as ex:
-                     self._show_snack(f"Delete failed: {ex}", ft.Colors.RED)
+                     self._show_snack(f"Delete failed: {ex}", "RED")
             threading.Thread(target=_bg, daemon=True).start()
 
         dlg = ft.AlertDialog(
@@ -144,14 +144,14 @@ class AddonManagerView(ft.Column):
             content=ft.Text(f"Delete addon '{self.selected_addon.get('name')}'?"),
             actions=[
                 ft.TextButton("Cancel", on_click=close_dlg),
-                ft.ElevatedButton("Delete", on_click=delete, bgcolor=ft.Colors.RED, color=ft.Colors.WHITE)
+                ft.ElevatedButton("Delete", on_click=delete, bgcolor="RED", color="WHITE")
             ]
         )
         self.app_page.dialog = dlg
         dlg.open = True
         self.app_page.update()
 
-    def _show_snack(self, msg, color=ft.Colors.GREEN):
+    def _show_snack(self, msg, color="GREEN"):
         try:
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True

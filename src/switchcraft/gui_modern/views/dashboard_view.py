@@ -29,10 +29,10 @@ class DashboardView(ft.Column):
 
     def _build_stats_row(self):
         return ft.Row([
-            self._stat_card("Analyzed", str(self.stats["analyzed"]), ft.Icons.ANALYTICS, ft.Colors.BLUE),
-            self._stat_card("Packaged", str(self.stats["packaged"]), ft.Icons.INVENTORY_2, ft.Colors.ORANGE),
-            self._stat_card("Deployed", str(self.stats["deployed"]), ft.Icons.ROCKET_LAUNCH, ft.Colors.GREEN),
-            self._stat_card("Errors", str(self.stats["errors"]), ft.Icons.ERROR_OUTLINE, ft.Colors.RED),
+            self._stat_card("Analyzed", str(self.stats["analyzed"]), ft.Icons.ANALYTICS, "BLUE"),
+            self._stat_card("Packaged", str(self.stats["packaged"]), ft.Icons.INVENTORY_2, "ORANGE"),
+            self._stat_card("Deployed", str(self.stats["deployed"]), ft.Icons.ROCKET_LAUNCH, "GREEN"),
+            self._stat_card("Errors", str(self.stats["errors"]), ft.Icons.ERROR_OUTLINE, "RED"),
         ], alignment=ft.MainAxisAlignment.SPACE_EVENLY)
 
     def _stat_card(self, label, value, icon, color):
@@ -41,10 +41,10 @@ class DashboardView(ft.Column):
                 ft.Icon(icon, color=color, size=40),
                 ft.Column([
                     ft.Text(value, size=24, weight=ft.FontWeight.BOLD),
-                    ft.Text(label, size=14, color=ft.Colors.GREY)
+                    ft.Text(label, size=14, color="GREY")
                 ])
             ]),
-            bgcolor=ft.Colors.BLACK26,
+            bgcolor="BLACK26",
             padding=20,
             border_radius=10,
             width=200
@@ -57,13 +57,13 @@ class DashboardView(ft.Column):
                 ft.Text("Weekly Activity", weight=ft.FontWeight.BOLD, size=18),
                 ft.BarChart(
                     bar_groups=[
-                        ft.BarChartGroup(x=0, bar_rods=[ft.BarChartRod(from_y=0, to_y=5, color=ft.Colors.BLUE)]),
-                        ft.BarChartGroup(x=1, bar_rods=[ft.BarChartRod(from_y=0, to_y=8, color=ft.Colors.BLUE)]),
-                        ft.BarChartGroup(x=2, bar_rods=[ft.BarChartRod(from_y=0, to_y=3, color=ft.Colors.BLUE)]),
-                        ft.BarChartGroup(x=3, bar_rods=[ft.BarChartRod(from_y=0, to_y=12, color=ft.Colors.BLUE)]),
-                        ft.BarChartGroup(x=4, bar_rods=[ft.BarChartRod(from_y=0, to_y=7, color=ft.Colors.BLUE)]),
+                        ft.BarChartGroup(x=0, bar_rods=[ft.BarChartRod(from_y=0, to_y=5, color="BLUE")]),
+                        ft.BarChartGroup(x=1, bar_rods=[ft.BarChartRod(from_y=0, to_y=8, color="BLUE")]),
+                        ft.BarChartGroup(x=2, bar_rods=[ft.BarChartRod(from_y=0, to_y=3, color="BLUE")]),
+                        ft.BarChartGroup(x=3, bar_rods=[ft.BarChartRod(from_y=0, to_y=12, color="BLUE")]),
+                        ft.BarChartGroup(x=4, bar_rods=[ft.BarChartRod(from_y=0, to_y=7, color="BLUE")]),
                     ],
-                    border=ft.border.all(1, ft.Colors.GREY_400),
+                    border=ft.border.all(1, "GREY_400"),
                     left_axis=ft.ChartAxis(labels_size=40, title=ft.Text("Count")),
                     bottom_axis=ft.ChartAxis(
                         labels=[
@@ -75,8 +75,8 @@ class DashboardView(ft.Column):
                         ],
                         labels_size=32,
                     ),
-                    horizontal_grid_lines=ft.ChartGridLines(color=ft.Colors.GREY_800, width=1, dash_pattern=[3, 3]),
-                    tooltip_bgcolor=ft.Colors.GREY_900,
+                    horizontal_grid_lines=ft.ChartGridLines(color="GREY_800", width=1, dash_pattern=[3, 3]),
+                    tooltip_bgcolor="GREY_900",
                     max_y=15,
                     interactive=True,
                     expand=True
@@ -84,7 +84,7 @@ class DashboardView(ft.Column):
             ]),
             expand=True,
             padding=20,
-            bgcolor=ft.Colors.BLACK12,
+            bgcolor="BLACK12",
             border_radius=10
         )
 
@@ -102,13 +102,13 @@ class DashboardView(ft.Column):
                         subtitle=ft.Text("Yesterday, 2:30 PM")
                     ),
                     ft.ListTile(
-                        leading=ft.Icon(ft.Icons.ERROR, color=ft.Colors.RED), title=ft.Text("Failed Adobe Reader"),
+                        leading=ft.Icon(ft.Icons.ERROR, color="RED"), title=ft.Text("Failed Adobe Reader"),
                         subtitle=ft.Text("Yesterday, 11:00 AM")
                     ),
                 ], expand=True)
             ]),
             width=350,
             padding=20,
-            bgcolor=ft.Colors.BLACK12,
+            bgcolor="BLACK12",
             border_radius=10
         )
