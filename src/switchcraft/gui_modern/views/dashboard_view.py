@@ -1,6 +1,6 @@
 import flet as ft
 from switchcraft.services.history_service import HistoryService
-from collections import Counter, defaultdict
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 class DashboardView(ft.Column):

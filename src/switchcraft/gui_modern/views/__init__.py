@@ -38,7 +38,7 @@ except Exception as e:
 
 try:
     from .pacakging_wizard_view import PackagingWizardView
-except Exception as e:
+except Exception:
     # Try correct spelling if typo existed? No, user report says 'packaging_wizard_view'.
     try:
         from .packaging_wizard_view import PackagingWizardView

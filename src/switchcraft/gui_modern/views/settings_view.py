@@ -784,7 +784,6 @@ class ModernSettingsView(ft.Column):
         """Install an addon from the official repository."""
         from switchcraft.services.addon_service import AddonService
         import sys
-        import os
         from pathlib import Path
 
         self._show_snack(f"{i18n.get('addon_installing') or 'Installing addon'} {addon_id}...", "BLUE")

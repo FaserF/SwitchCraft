@@ -4,7 +4,6 @@ import sys
 import shutil
 from pathlib import Path
 from datetime import datetime
-from logging.handlers import RotatingFileHandler
 
 # Constants
 MAX_LOG_FILES = 7
@@ -146,6 +145,5 @@ def setup_session_logging(root_logger=None):
     # Config might not be ready yet.
     # But usually setup_session_logging is called early.
     # We can check env var or args here too as fallback.
-    import sys
     if '--debug' in sys.argv:
         handler.set_debug_mode(True)

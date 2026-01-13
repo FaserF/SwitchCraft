@@ -282,7 +282,7 @@ def main(page: ft.Page):
                     ft.Icon(ft.Icons.ERROR_OUTLINE_ROUNDED, color="RED", size=80),
                     ft.Text("SwitchCraft Initialization Error", size=28, weight=ft.FontWeight.BOLD),
                     ft.Container(height=10),
-                    ft.Text(f"A critical error occurred during startup.\nDetails saved to log file.", size=16, text_align="center"),
+                    ft.Text("A critical error occurred during startup.\nDetails saved to log file.", size=16, text_align="center"),
                     ft.Text(str(dump_file), size=12, selectable=True, color="BLUE_400", weight="bold"),
                     ft.Container(height=20),
                     ft.Row([

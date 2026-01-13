@@ -1,4 +1,3 @@
-import os
 import zipfile
 import json
 from pathlib import Path

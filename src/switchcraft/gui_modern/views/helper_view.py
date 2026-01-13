@@ -1,7 +1,6 @@
 import flet as ft
 import threading
 import logging
-from switchcraft.services.addon_service import AddonService
 
 logger = logging.getLogger(__name__)
 
