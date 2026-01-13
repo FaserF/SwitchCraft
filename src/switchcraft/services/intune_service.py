@@ -3,6 +3,7 @@ import logging
 import os
 import subprocess
 import requests
+import base64
 from pathlib import Path
 import zipfile
 from typing import Optional, Callable
@@ -399,3 +400,301 @@ class IntuneService:
         escaped_query = query.replace("'", "''")
         filter_str = f"contains(displayName, '{escaped_query}')"
         return self.list_apps(token, filter_query=filter_str)
+
+    def upload_powershell_script(self, token, name, description, script_content, run_as_account="system"):
+        """
+        Uploads a PowerShell script to Intune (Device Management Script).
+        run_as_account: 'system' or 'user'
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        base_url = "https://graph.microsoft.com/beta/deviceManagement/deviceManagementScripts"
+
+        # Script content must be base64 encoded
+        encoded_script = base64.b64encode(script_content.encode('utf-8')).decode('utf-8')
+
+        payload = {
+            "@odata.type": "#microsoft.graph.deviceManagementScript",
+            "displayName": name,
+            "description": description,
+            "scriptContent": encoded_script,
+            "runAsAccount": run_as_account,
+            "enforceSignatureCheck": False,
+            "runAs32Bit": False
+        }
+
+        try:
+            resp = requests.post(base_url, headers=headers, json=payload, timeout=30)
+            resp.raise_for_status()
+            logger.info(f"Uploaded PowerShell Script: {name}")
+            return resp.json()
+        except Exception as e:
+            logger.error(f"Failed to upload PS script: {e}")
+            raise e
+
+    def upload_remediation_script(self, token, name, description, detection_content, remediation_content, run_as_account="system"):
+        """
+        Uploads a Remediation Script (Proactive Remediation) to Intune.
+        Requires valid detection and remediation scripts.
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        base_url = "https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts"
+
+        enc_detection = base64.b64encode(detection_content.encode('utf-8')).decode('utf-8')
+        enc_remediation = base64.b64encode(remediation_content.encode('utf-8')).decode('utf-8')
+
+        payload = {
+            "@odata.type": "#microsoft.graph.deviceHealthScript",
+            "displayName": name,
+            "description": description,
+            "detectionScriptContent": enc_detection,
+            "remediationScriptContent": enc_remediation,
+            "runAsAccount": run_as_account,
+            "enforceSignatureCheck": False,
+            "runAs32Bit": False,
+            "isGlobalScript": False
+        }
+
+        try:
+            resp = requests.post(base_url, headers=headers, json=payload, timeout=30)
+            resp.raise_for_status()
+            logger.info(f"Uploaded Remediation Script: {name}")
+            return resp.json()
+        except Exception as e:
+            # Check for license errors common with Remediations
+            logger.error(f"Failed to upload Remediation: {e}")
+            raise e
+
+    def upload_macos_shell_script(self, token, name, description, script_content, run_as_account="system"):
+        """
+        Uploads a Shell Script for macOS (deviceManagementScript).
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        # Note: Endpoint for macOS scripts is slightly different or shared.
+        # Actually it's deviceShellScripts for macOS in some API versions, or shared deviceManagementScripts with distinct styling.
+        # Graph beta: /deviceManagement/deviceShellScripts
+        base_url = "https://graph.microsoft.com/beta/deviceManagement/deviceShellScripts"
+
+        encoded_script = base64.b64encode(script_content.encode('utf-8')).decode('utf-8')
+
+        payload = {
+            "@odata.type": "#microsoft.graph.deviceShellScript",
+            "displayName": name,
+            "description": description,
+            "scriptContent": encoded_script,
+            "runAsAccount": run_as_account, # 'system' or 'user'
+            "retryCount": 3,
+            "blockExecutionNotifications": True,
+            "executionFrequency": "PT15M", # Example P15M = 15 min? Or standard ISO duration.
+            # actually usually simple execution is once.
+        }
+
+        try:
+            resp = requests.post(base_url, headers=headers, json=payload, timeout=30)
+            resp.raise_for_status()
+            logger.info(f"Uploaded MacOS Shell Script: {name}")
+            return resp.json()
+        except Exception as e:
+            logger.error(f"Failed to upload MacOS Shell Script: {e}")
+            raise e
+
+    def upload_mobile_lob_app(self, token, msi_path, app_info=None, progress_callback=None):
+        """
+        Uploads a Line-of-Business (LOB) MSI directly to Intune.
+        Does NOT wrap as .intunewin.
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        base_url = "https://graph.microsoft.com/beta/deviceAppManagement"
+
+        msi_path = Path(msi_path)
+        if not msi_path.exists():
+            raise FileNotFoundError(f"MSI not found: {msi_path}")
+
+        file_size = msi_path.stat().st_size
+        file_name = msi_path.name
+
+        try:
+            # 1. Create MobileApp Entity
+            # For MSI LOB, use 'microsoft.graph.windowsMobileMSI'
+            if progress_callback: progress_callback(0.1, "Creating App Entry...")
+
+            # Basic defaults if not provided
+            default_info = {
+                "@odata.type": "#microsoft.graph.windowsMobileMSI",
+                "displayName": app_info.get("displayName", file_name),
+                "description": app_info.get("description", "Uploaded by SwitchCraft"),
+                "publisher": app_info.get("publisher", "Unknown"),
+                "owner": "",
+                "developer": "",
+                "notes": "",
+                "fileName": file_name,
+                "size": file_size,
+                "productCode": app_info.get("productCode"), # Critical for MSI
+                "productVersion": app_info.get("productVersion"), # Critical for MSI
+                "identityVersion": app_info.get("productVersion"),
+                "ignoreVersionDetection": False,
+                "commandLine": app_info.get("installCommandLine", "/q"),
+            }
+            # Merge provided info
+            if app_info:
+                # remove incompatible keys if any
+                pass
+
+            # Create App
+            create_resp = requests.post(f"{base_url}/mobileApps", headers=headers, json=default_info, timeout=30)
+            create_resp.raise_for_status()
+            app_data = create_resp.json()
+            app_id = app_data['id']
+            logger.info(f"Created LOB App: {app_id}")
+
+            # 2. Create Content Version
+            if progress_callback: progress_callback(0.2, "Creating Content Version...")
+            cv_payload = {
+                "@odata.type": "#microsoft.graph.mobileAppContent",
+            }
+            cv_resp = requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions", headers=headers, json=cv_payload, timeout=30)
+            cv_resp.raise_for_status()
+            cv_data = cv_resp.json()
+            cv_id = cv_data['id']
+
+            # 3. Create Content File Entry
+            # For LOB, we don't need encryption info usually, but depends on endpoint.
+            # windowsMobileMSI uses simple file upload usually?
+            # Actually, standard flow: create file -> get upload URL -> upload -> commit.
+            file_payload = {
+                "@odata.type": "#microsoft.graph.mobileAppContentFile",
+                "name": file_name,
+                "size": file_size,
+                "sizeEncrypted": file_size, # Not encrypted by us
+                "manifest": None,
+                "isDependency": False
+            }
+
+            file_resp = requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/files", headers=headers, json=file_payload, timeout=30)
+            file_resp.raise_for_status()
+            file_data = file_resp.json()
+            file_id = file_data['id']
+            upload_url = file_data['uploadUrl']
+
+            # 4. Upload File
+            if progress_callback: progress_callback(0.4, "Uploading MSI...")
+
+            with open(msi_path, 'rb') as f:
+                 blob_headers = {"x-ms-blob-type": "BlockBlob"}
+                 put_resp = requests.put(upload_url, headers=blob_headers, data=f, timeout=300)
+                 put_resp.raise_for_status()
+
+            # 5. Commit File
+            if progress_callback: progress_callback(0.8, "Committing File...")
+            commit_file = {
+                "fileEncryptionInfo": None
+            }
+            # For unencrypted content, sometimes encryptionInfo is omitted or null.
+            requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/files/{file_id}/commit", headers=headers, json=commit_file, timeout=60).raise_for_status()
+
+            # 6. Commit Content Version
+            if progress_callback: progress_callback(0.9, "Finalizing App...")
+            requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/commit", headers=headers, json={}, timeout=60).raise_for_status()
+
+            if progress_callback: progress_callback(1.0, "Success!")
+            return app_id
+
+        except Exception as e:
+            logger.error(f"LOB Upload failed: {e}")
+            raise e
+
+    def add_supersedence(self, token, child_app_id, parent_app_id, uninstall_prev=True):
+        """
+        Sets child_app to supersede parent_app.
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        base_url = "https://graph.microsoft.com/beta/deviceAppManagement/mobileAppRelationships"
+
+        # Correct Payload for Supersedence
+        payload = {
+            "@odata.type": "#microsoft.graph.mobileAppSupersedence",
+            "targetId": parent_app_id,
+            "sourceId": child_app_id,
+            "isSupersedence": True,
+            "supersedenceType": "replace" if uninstall_prev else "update"
+        }
+
+        try:
+            resp = requests.post(base_url, headers=headers, json=payload, timeout=30)
+            resp.raise_for_status()
+            logger.info(f"Supersedence added: {child_app_id} -> {parent_app_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to add supersedence: {e}")
+            raise e
+
+    def search_apps(self, token, query):
+        """
+        Search for mobileApps by name.
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        clean_query = query.replace("'", "''")
+        # Note: contains filter might not be supported on all properties or endpoints for mobileApps
+        # startswith is safer, or plain list and filter client side if list is small.
+        # But let's try contains on displayName.
+        url = f"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?$filter=contains(displayName, '{clean_query}')&$select=id,displayName,publisher,appVersion"
+
+        try:
+            resp = requests.get(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            return resp.json().get('value', [])
+        except Exception as e:
+            logger.error(f"App search failed: {e}")
+            return []
+
+    def list_groups(self, token, filter_query=None):
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        url = "https://graph.microsoft.com/v1.0/groups"
+        if filter_query:
+            url += f"?$filter={filter_query}"
+
+        try:
+            resp = requests.get(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            return resp.json().get('value', [])
+        except Exception as e:
+            logger.error(f"Failed to list groups: {e}")
+            raise e
+
+    def create_group(self, token, name, description, group_types=[]):
+        """
+        Creates a new group.
+        group_types: ["Unified"] for M365, [] for Security.
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        url = "https://graph.microsoft.com/v1.0/groups"
+
+        payload = {
+            "displayName": name,
+            "description": description,
+            "mailEnabled": False,
+            "securityEnabled": True,
+            "mailNickname": name.replace(" ", "").lower(),
+            "groupTypes": group_types
+        }
+
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=30)
+            resp.raise_for_status()
+            logger.info(f"Created group: {name}")
+            return resp.json()
+        except Exception as e:
+            logger.error(f"Failed to create group: {e}")
+            raise e
+
+    def delete_group(self, token, group_id):
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        url = f"https://graph.microsoft.com/v1.0/groups/{group_id}"
+
+        try:
+            resp = requests.delete(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            logger.info(f"Deleted group: {group_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete group: {e}")
+            raise e

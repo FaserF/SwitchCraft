@@ -1,0 +1,12 @@
+[
+    {
+        "app_name": "Example App",
+        "product_name": "Example Product",
+        "version": "1.0.0",
+        "installer_type": "msi",
+        "silent_switch": "/qn",
+        "setup_file": "setup.msi",
+        "contributor": "SwitchCraftBot",
+        "added_at": "2024-01-01T00:00:00"
+    }
+]

@@ -1,0 +1,48 @@
+name: Process Switch Submission
+
+on:
+  issues:
+    types: [opened, labeled]
+
+jobs:
+  process-switch:
+    if: contains(github.event.issue.labels.*.name, 'automation')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Extract Issue Body
+        run: echo "${{ github.event.issue.body }}" > issue_body.txt
+
+      - name: Process Issue Data
+        id: process
+        run: |
+          python scripts/process_issue_ops.py issue_body.txt
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "feat(community): add new switch for issue #${{ github.event.issue.number }}"
+          title: "feat(community): Add Switch from Issue #${{ github.event.issue.number }}"
+          body: |
+            This PR adds a new silent switch based on Issue #${{ github.event.issue.number }}.
+
+            **Contributor**: @${{ github.actor }}
+            **Manual Review Required**: Please verify the switch logic.
+
+            Closes #${{ github.event.issue.number }}
+          branch: "add-switch-${{ github.event.issue.number }}"
+          base: main
+          delete-branch: true

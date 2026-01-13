@@ -7,7 +7,10 @@ class InstallerInfo:
     installer_type: str = "Unknown"
     product_name: Optional[str] = None
     product_version: Optional[str] = None
+    product_version: Optional[str] = None
     manufacturer: Optional[str] = None
+    product_code: Optional[str] = None  # MSI GUID
+    install_path: Optional[str] = None  # Inferred Install Path
     install_switches: List[str] = field(default_factory=list)
     uninstall_switches: List[str] = field(default_factory=list)
     properties: Dict[str, str] = field(default_factory=dict)

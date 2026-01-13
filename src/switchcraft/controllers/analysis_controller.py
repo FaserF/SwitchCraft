@@ -8,10 +8,12 @@ from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.exe import ExeAnalyzer
 from switchcraft.analyzers.macos import MacOSAnalyzer
 from switchcraft.analyzers.universal import UniversalAnalyzer
+from switchcraft.services.community_db_service import CommunityDBService
 from switchcraft.models import InstallerInfo
 from switchcraft.utils.config import SwitchCraftConfig
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class AnalysisResult:
@@ -20,7 +22,9 @@ class AnalysisResult:
     brute_force_data: Optional[str] = None
     nested_data: Optional[Dict] = None
     silent_disabled_info: Optional[Dict] = None
+    community_match: bool = False
     error: Optional[str] = None
+
 
 class AnalysisController:
     """
@@ -31,7 +35,9 @@ class AnalysisController:
     def __init__(self, ai_service=None):
         self.ai_service = ai_service
 
-    def analyze_file(self, file_path_str: str, progress_callback: Callable[[float, str, Optional[float]], None] = None) -> AnalysisResult:
+    def analyze_file(
+        self, file_path_str: str, progress_callback: Callable[[float, str, Optional[float]], None] = None
+    ) -> AnalysisResult:
         """
         Runs the full analysis pipeline on the given file.
 
@@ -111,16 +117,40 @@ class AnalysisController:
 
                 # Callback adapter for nested extraction
                 def nested_progress_handler(pct, message, _=None):
-                     global_pct = 0.5 + (pct / 100 * 0.4)
-                     elapsed = time.time() - start_time
-                     eta = 0
-                     if global_pct > 0.1:
-                         total_est = elapsed / global_pct
-                         eta = max(0, total_est - elapsed)
-                     report(global_pct, message, eta)
+                    global_pct = 0.5 + (pct / 100 * 0.4)
+                    elapsed = time.time() - start_time
+                    eta = 0
+                    if global_pct > 0.1:
+                        total_est = elapsed / global_pct
+                        eta = max(0, total_est - elapsed)
+                    report(global_pct, message, eta)
 
                 nested_data = uni.extract_and_analyze_nested(path, progress_callback=nested_progress_handler)
                 report(0.9, "Deep Analysis Complete")
+
+            community_match = False
+            # Phase 3.5: Community DB Lookup (Enhancement)
+            report(0.9, "Checking Community DB...")
+            try:
+                db = CommunityDBService()
+                # Try hash first
+                db_switches = db.get_switches_by_hash(path)
+                if not db_switches:
+                    # Fallback to name
+                    db_switches = db.get_switches_by_name(path)
+
+                if db_switches:
+                    if not info.install_switches:
+                        info.install_switches = db_switches
+                        community_match = True
+                    else:
+                        # Merge? Or just flag that we found alternatives?
+                        # For now, let's append if completely different?
+                        # Simpler: If analyzer found nothing, use DB.
+                        # If analyzer found something, maybe trust analyzer?
+                        pass
+            except Exception as e:
+                logger.error(f"Community DB Lookup failed: {e}")
 
             # Phase 4: Winget Search
             report(0.9, "Searching Winget...")
@@ -158,7 +188,8 @@ class AnalysisController:
                 winget_url=winget_url,
                 brute_force_data=brute_force_data,
                 nested_data=nested_data,
-                silent_disabled_info=silent_disabled
+                silent_disabled_info=silent_disabled,
+                community_match=community_match
             )
 
         except Exception as e:

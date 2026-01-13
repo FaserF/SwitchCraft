@@ -40,6 +40,7 @@ class MsiAnalyzer(BaseAnalyzer):
             info.product_version = info.properties.get("ProductVersion")
             info.manufacturer = info.properties.get("Manufacturer")
             product_code = info.properties.get("ProductCode")
+            info.product_code = product_code
 
             if product_code:
                  # Standard MSI uninstall string

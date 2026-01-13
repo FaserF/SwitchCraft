@@ -1,0 +1,76 @@
+name: Suggest a New Switch
+description: Submit a known silent switch for an application installer.
+title: "[SWITCH] <App Name> <Version>"
+labels: ["new-switch", "automation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for contributing to the community database!
+        Please fill out the details below accurately.
+
+  - type: input
+    id: app_name
+    attributes:
+      label: Application Name
+      description: The name of the software (e.g., Google Chrome).
+      placeholder: Google Chrome
+    validations:
+      required: true
+
+  - type: input
+    id: product_name
+    attributes:
+      label: Product Name (Internal)
+      description: If known, internal product name. Otherwise same as App Name.
+      placeholder: Google Chrome
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The version this switch was tested on.
+      placeholder: 120.0.6099.109
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installer_type
+    attributes:
+      label: Installer Type
+      options:
+        - msi
+        - exe
+        - inno
+        - nsis
+        - installshield
+        - wise
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: setup_file
+    attributes:
+      label: Setup Filename
+      description: The name of the installer file (e.g. chrome_installer.exe).
+      placeholder: chrome_installer.exe
+    validations:
+      required: true
+
+  - type: input
+    id: silent_switch
+    attributes:
+      label: Silent Switch
+      description: The command line argument for silent installation.
+      placeholder: /silent /install
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional Notes
+      description: Any other details or caveats?
