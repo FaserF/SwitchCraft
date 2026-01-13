@@ -101,9 +101,30 @@ class ModernApp:
         self.page.theme_mode = ft.ThemeMode.DARK if theme_pref == "Dark" else ft.ThemeMode.LIGHT if theme_pref == "Light" else ft.ThemeMode.SYSTEM
         self.page.padding = 0
 
-        # Note: Window properties (min_width, min_height, prevent_close, on_event)
-        # cannot be reliably set during initialization in PyInstaller builds.
-        # These are left to Flet defaults.
+        # Set window properties using Flet 0.70+ API
+        try:
+            self.page.window.min_width = 1200
+            self.page.window.min_height = 800
+            self.page.window.prevent_close = True
+            self.page.window.on_event = self.window_event
+
+            # Set window icon (requires .ico file)
+            import os
+            import sys
+            if getattr(sys, 'frozen', False):
+                base_path = sys._MEIPASS
+            else:
+                base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                base_path = os.path.join(base_path, "images")
+            ico_path = os.path.join(base_path, "switchcraft_logo.ico")
+            if os.path.exists(ico_path):
+                self.page.window.icon = ico_path
+        except Exception as e:
+            logger.debug(f"Window properties not available during setup: {e}")
+
+        # Enable Global Drag & Drop
+        if hasattr(self.page, "on_drop"):
+            self.page.on_drop = self.handle_window_drop
 
         self.banner_container = ft.Container() # Placeholder
 

@@ -41,6 +41,29 @@ if __name__ == "__main__":
 # Now do heavy imports
 import flet as ft # noqa: E402
 
+# Flet Colors compatibility patch
+# Flet 0.80+ removed ft.Colors in favor of ft.colors (lowercase)
+# Check if ft.Colors is broken and patch it if needed
+try:
+    _ = ft.Colors.RED  # Test if Colors works
+except AttributeError:
+    # ft.Colors is broken, patch it to use ft.colors
+    if hasattr(ft, 'colors'):
+        ft.Colors = ft.colors
+
+# Flet Alignment compatibility patch
+try:
+    _ = ft.alignment.center
+except AttributeError:
+    # ft.alignment.center is missing, patch it
+    if hasattr(ft, 'Alignment'):
+        if not hasattr(ft, 'alignment') or ft.alignment is None:
+            class DummyAlignment: pass
+            ft.alignment = DummyAlignment()
+        ft.alignment.center = ft.Alignment(0, 0)
+    elif hasattr(ft, 'alignment') and hasattr(ft.alignment, 'CENTER'):
+        ft.alignment.center = ft.alignment.CENTER
+
 from switchcraft.gui_modern.app import ModernApp  # noqa: E402
 from switchcraft.utils.logging_handler import setup_session_logging  # noqa: E402
 
@@ -52,10 +75,13 @@ def write_crash_dump(exc_info):
     import traceback
     from datetime import datetime
     from pathlib import Path
-
-    # Write to user's home directory or temp
-    dump_dir = Path.home() / "SwitchCraft_Logs"
-    dump_dir.mkdir(exist_ok=True)
+    # Use standard SwitchCraft AppData location
+    app_data = os.getenv('APPDATA')
+    if app_data:
+        dump_dir = Path(app_data) / "FaserF" / "SwitchCraft" / "Logs"
+    else:
+        dump_dir = Path.home() / ".switchcraft" / "Logs"
+    dump_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     dump_file = dump_dir / f"crash_dump_{timestamp}.txt"
@@ -82,16 +108,49 @@ def main(page: ft.Page):
         ModernApp(page, splash_proc)
     except Exception:
         dump_file = write_crash_dump(sys.exc_info())
-        # Show error message with dump location
+        dump_folder = str(dump_file.parent)
+
+        def open_dump_folder(e):
+            import subprocess
+            subprocess.Popen(f'explorer "{dump_folder}"')
+
+        def copy_dump_path(e):
+            page.set_clipboard(str(dump_file))
+            page.show_snack_bar(ft.SnackBar(ft.Text("Path copied to clipboard!")))
+
+        # Show error message with dump location - centered
         page.clean()
         page.add(
-            ft.Column([
-                ft.Icon(ft.Icons.ERROR, color=ft.Colors.RED, size=60),
-                ft.Text("SwitchCraft encountered an error", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text(f"Crash dump saved to:", size=14),
-                ft.Text(str(dump_file), size=12, selectable=True, color=ft.Colors.BLUE),
-                ft.Text(f"\nError: {sys.exc_info()[1]}", size=14, color=ft.Colors.RED),
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER)
+            ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.ERROR_OUTLINE_ROUNDED, color=ft.Colors.RED, size=80),
+                    ft.Text("SwitchCraft Initialization Error", size=28, weight=ft.FontWeight.BOLD),
+                    ft.Container(height=10),
+                    ft.Text("A critical error occurred during startup. Details saved to:", size=16),
+                    ft.Text(str(dump_file), size=12, selectable=True, color=ft.Colors.BLUE_400, italic=True),
+                    ft.Container(height=20),
+                    ft.Row([
+                        ft.ElevatedButton(
+                            "Open Folder",
+                            icon=ft.Icons.FOLDER_OPEN,
+                            on_click=open_dump_folder,
+                            style=ft.ButtonStyle(color=ft.Colors.WHITE, bgcolor=ft.Colors.BLUE_700)
+                        ),
+                        ft.ElevatedButton(
+                            "Copy Path",
+                            icon=ft.Icons.COPY,
+                            on_click=copy_dump_path
+                        ),
+                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=20),
+                    ft.Container(height=30),
+                    ft.Divider(color=ft.Colors.GREY_800),
+                    ft.Text("Error Details:", size=14, weight=ft.FontWeight.W_500, color=ft.Colors.GREY_400),
+                    ft.Text(f"{sys.exc_info()[1]}", size=14, color=ft.Colors.RED_400, italic=True),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                alignment=ft.Alignment(0, 0),
+                expand=True,
+                padding=50,
+            )
         )
         page.update()
 

@@ -358,18 +358,17 @@ class SwitchCraftConfig:
         Factory Reset: Deletes all user data, configuration, and secrets.
         1. Deletes Registry Key (HKCU\\Software\\FaserF\\SwitchCraft)
         2. Deletes all known secrets from Keyring
+        3. Deletes Data Folder (%APPDATA%\\FaserF\\SwitchCraft) - Logs, History, etc.
+        4. Deletes Addons Folder (%USERPROFILE%\\.switchcraft)
         """
-        if sys.platform != 'win32':
-            return
+        import shutil
+        from pathlib import Path
 
+        logger.warning("Initiating Factory Reset...")
+
+        # 1. Delete Secrets (Keyring)
         try:
-            import winreg
             import keyring
-
-            logger.warning("Initiating Factory Reset...")
-
-            # 1. Delete Secrets
-            # We must manually list them as keyring doesn't support list easily across backends
             known_secrets = [
                 "SwitchCraft_GitHub_Token",
                 "AIKey",
@@ -382,32 +381,54 @@ class SwitchCraftConfig:
                     logger.debug(f"Deleted secret: {s}")
                 except Exception:
                     pass
+            logger.info("Keyring secrets deleted.")
+        except Exception as e:
+            logger.error(f"Failed to delete secrets: {e}")
 
-            # 2. Delete Registry Tree
-            # winreg.DeleteKey doesn't do recursive delete on Windows (unlike shell),
-            # but usually for preferences we only have values under the main key.
-            # If we add subkeys later, we need a recursive delete function.
-            # For now, let's assume flat structure or implement simple recursive delete.
-            def delete_subkeys(key_handle):
-                 while True:
-                    try:
-                        subkey = winreg.EnumKey(key_handle, 0)
-                        with winreg.OpenKey(key_handle, subkey, 0, winreg.KEY_ALL_ACCESS) as sk:
-                            delete_subkeys(sk)
-                        winreg.DeleteKey(key_handle, subkey)
-                    except OSError:
-                        break
-
+        # 2. Delete Registry Tree (Windows only)
+        if sys.platform == 'win32':
             try:
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH, 0, winreg.KEY_ALL_ACCESS) as key:
-                    delete_subkeys(key)
-                winreg.DeleteKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH)
-                logger.info("Registry preferences deleted.")
-            except FileNotFoundError:
-                pass # Already gone
-            except Exception as e:
-                logger.error(f"Failed to delete registry keys: {e}")
+                import winreg
+                def delete_subkeys(key_handle):
+                    while True:
+                        try:
+                            subkey = winreg.EnumKey(key_handle, 0)
+                            with winreg.OpenKey(key_handle, subkey, 0, winreg.KEY_ALL_ACCESS) as sk:
+                                delete_subkeys(sk)
+                            winreg.DeleteKey(key_handle, subkey)
+                        except OSError:
+                            break
 
-        except Exception as ex:
-             logger.error(f"Factory reset failed: {ex}")
-             raise
+                try:
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH, 0, winreg.KEY_ALL_ACCESS) as key:
+                        delete_subkeys(key)
+                    winreg.DeleteKey(winreg.HKEY_CURRENT_USER, cls.PREFERENCE_PATH)
+                    logger.info("Registry preferences deleted.")
+                except FileNotFoundError:
+                    pass
+                except Exception as e:
+                    logger.error(f"Failed to delete registry keys: {e}")
+            except Exception as e:
+                logger.error(f"Registry operation failed: {e}")
+
+        # 3. Delete Data Folder (%APPDATA%\FaserF\SwitchCraft)
+        try:
+            app_data = os.getenv('APPDATA')
+            if app_data:
+                data_path = Path(app_data) / "FaserF" / "SwitchCraft"
+                if data_path.exists():
+                    shutil.rmtree(data_path, ignore_errors=True)
+                    logger.info(f"Data folder deleted: {data_path}")
+        except Exception as e:
+            logger.error(f"Failed to delete data folder: {e}")
+
+        # 4. Delete Addons Folder (%USERPROFILE%\.switchcraft)
+        try:
+            addons_path = Path.home() / ".switchcraft"
+            if addons_path.exists():
+                shutil.rmtree(addons_path, ignore_errors=True)
+                logger.info(f"Addons folder deleted: {addons_path}")
+        except Exception as e:
+            logger.error(f"Failed to delete addons folder: {e}")
+
+        logger.info("Factory Reset complete.")

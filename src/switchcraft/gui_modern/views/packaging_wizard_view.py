@@ -188,7 +188,7 @@ class PackagingWizardView(ft.Column):
                 ft.Container(height=10),
                 self.file_text
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            alignment=ft.alignment.center,
+            alignment=ft.Alignment(0, 0),
             padding=20
         )
 
@@ -208,7 +208,7 @@ class PackagingWizardView(ft.Column):
                 self.download_progress,
                 self.download_status
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            alignment=ft.alignment.center,
+            alignment=ft.Alignment(0, 0),
             padding=20
         )
 

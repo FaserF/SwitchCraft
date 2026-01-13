@@ -2,11 +2,16 @@
 
 SwitchCraft uses the Windows Registry to store user settings and configuration.
 
-## Registry Path
+## Registry Hierarchy
 
-```
-HKEY_CURRENT_USER\Software\FaserF\SwitchCraft
-```
+SwitchCraft reads configuration from several locations in order of precedence:
+
+1. **Machine Policy** (`HKLM\Software\Policies\FaserF\SwitchCraft`) - Set via GPO/Intune.
+2. **User Policy** (`HKCU\Software\Policies\FaserF\SwitchCraft`) - Set via GPO/Intune.
+3. **User Preference** (`HKCU\Software\FaserF\SwitchCraft`) - Default user settings via UI.
+4. **Machine Preference** (`HKLM\Software\FaserF\SwitchCraft`) - Machine-wide defaults.
+
+Individual settings are merged, with higher-level objects (Policies) overwriting lower-level settings (Preferences).
 
 ## Registry Values
 

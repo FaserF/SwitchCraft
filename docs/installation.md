@@ -70,3 +70,28 @@ Download the latest release from [GitHub Releases](https://github.com/FaserF/Swi
 
 > [!TIP]
 > Run SwitchCraft as Administrator to enable local installation testing features.
+
+---
+
+## Data Storage Locations
+
+SwitchCraft stores configuration and user data in the following locations.
+
+### Windows
+
+| Type | Location |
+| :--- | :--- |
+| **User Preferences** | `HKCU\Software\FaserF\SwitchCraft` |
+| **GPO/Intune Policies** | `HKCU\Software\Policies\FaserF\SwitchCraft` |
+| **Analysis History** | `%APPDATA%\FaserF\SwitchCraft\history.json` |
+| **Logs / Crash Dumps** | `%APPDATA%\FaserF\SwitchCraft\Logs\` |
+| **Addons** | `%USERPROFILE%\.switchcraft\addons\` |
+| **Secrets (API Keys)** | Windows Credential Manager (under "SwitchCraft") |
+
+### Linux / macOS
+
+| Type | Location |
+| :--- | :--- |
+| **Addons** | `~/.switchcraft/addons/` |
+| **Logs** | `~/.switchcraft/Logs/` |
+| **Secrets** | System Keyring (libsecret/Keychain) |

@@ -133,12 +133,38 @@ Yes! SwitchCraft can generate PowerShell scripts that use Winget on the target d
 - Try disabling "Extract and analyze nested files" in Settings
 - Ensure 7-Zip is installed for faster extraction
 
-### How do I get debug logs?
+### How do I get logs?
 
-1. Enable **Debug Mode** in Settings > Advanced
-2. Reproduce the issue
-3. Logs are saved to `%TEMP%\SwitchCraft\`
-4. [Open an issue](https://github.com/FaserF/SwitchCraft/issues) with the log attached
+1. Enable **Debug Mode** in Settings > Advanced.
+2. Reproduce the issue.
+3. Logs are saved to `%APPDATA%\FaserF\SwitchCraft\Logs\` on Windows, or `~/.switchcraft/Logs/` on Linux/macOS.
+4. If the app crashes at startup, it automatically generates a **Crash Dump** in the same folder.
+5. In the Modern UI crash screen, you can click **"Copy Path"** or **"Open Folder"** to quickly find the log.
+6. [Open an issue](https://github.com/FaserF/SwitchCraft/issues) with the log attached.
+
+---
+
+## Data Management
+
+### Where does SwitchCraft store my data?
+
+SwitchCraft is designed to be as clean as possible. It stores data in:
+- **Registry**: User settings and preferences.
+- **AppData**: History and logs.
+- **Keyring**: API keys and secrets (encrypted via system).
+- **Home Directory**: Addons and custom extensions.
+
+See the [Installation Guide](/installation#data-storage-locations) for the full list of paths.
+
+### What does "Factory Reset" do?
+
+The Factory Reset option in Settings is a **total wipe** of SwitchCraft data. It will:
+1. Delete all Registry keys in `HKCU\Software\FaserF\SwitchCraft`.
+2. Purge all secrets and API keys from the system keyring.
+3. Delete the history and logs folder.
+4. Delete all installed addons.
+
+After a Factory Reset, the next launch will feel like a fresh installation.
 
 ---
 

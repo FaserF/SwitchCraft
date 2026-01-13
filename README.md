@@ -101,6 +101,55 @@ SwitchCraft provides multiple editions to suit different environments.
 
 ---
 
+## 🔧 Troubleshooting
+
+### Crash Dumps & Logs
+If SwitchCraft encounters a startup error, it automatically saves a crash dump with detailed information.
+
+| Platform | Location |
+| :--- | :--- |
+| **Windows** | `%APPDATA%\FaserF\SwitchCraft\Logs\crash_dump_<timestamp>.txt` |
+| **Linux/macOS** | `~/.switchcraft/Logs/crash_dump_<timestamp>.txt` |
+
+When reporting issues, please attach the crash dump file to help with debugging.
+
+---
+
+## 📂 Data Storage Locations
+
+SwitchCraft stores data in the following locations. This is useful for backup, cleanup, or troubleshooting.
+
+### Windows
+
+| Type | Location | Description |
+| :--- | :--- | :--- |
+| **User Preferences** | `HKCU\Software\FaserF\SwitchCraft` | Theme, language, settings (Registry) |
+| **Machine Preferences** | `HKLM\Software\FaserF\SwitchCraft` | Admin-configured defaults (Registry) |
+| **GPO/Intune Policies** | `HKCU\Software\Policies\FaserF\SwitchCraft` | Enforced user policies (Registry) |
+| **Machine Policies** | `HKLM\Software\Policies\FaserF\SwitchCraft` | Enforced machine policies (Registry) |
+| **Analysis History** | `%APPDATA%\FaserF\SwitchCraft\history.json` | Last 100 analyzed files |
+| **Crash Dumps** | `%APPDATA%\FaserF\SwitchCraft\Logs\*.txt` | Error diagnostics |
+| **Addons** | `%USERPROFILE%\.switchcraft\addons\` | Installed addon extensions |
+| **Secrets (API Keys)** | Windows Credential Manager | Stored under "SwitchCraft" (secure keyring) |
+| **IntuneWinAppUtil** | App working directory or configured path | Downloaded on first Intune package creation |
+
+### Linux / macOS
+
+| Type | Location | Description |
+| :--- | :--- | :--- |
+| **Addons** | `~/.switchcraft/addons/` | Installed addon extensions |
+| **Logs** | `~/.switchcraft/Logs/` | Crash dumps and diagnostics |
+| **Secrets** | System Keyring (libsecret/Keychain) | API keys stored securely |
+
+### Factory Reset
+To completely remove all SwitchCraft data, use **Settings → Factory Reset** which:
+1. Deletes the Registry key at `HKCU\Software\FaserF\SwitchCraft`.
+2. Removes all secrets from the system keyring.
+3. Deletes the data folder at `%APPDATA%\FaserF\SwitchCraft` (Logs, History, Cache).
+4. Deletes the addons folder at `%USERPROFILE%\.switchcraft`.
+
+When reporting issues, please attach the crash dump file to help with debugging.
+
 ## 📚 Documentation
 
 ## 🛠️ Building from Source
