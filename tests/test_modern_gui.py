@@ -1,5 +1,7 @@
+
 import pytest
 import flet as ft
+import importlib
 from switchcraft.gui_modern.app import ModernApp
 
 def test_modern_app_import():
@@ -39,15 +41,23 @@ def test_modern_app_instantiation():
 
 def test_view_imports():
     """Ensure all view modules can be imported."""
-    from switchcraft.gui_modern.views import (
-        home_view,
-        analyzer_view,
-        helper_view,
-        winget_view,
-        intune_view,
-        intune_store_view,
-        history_view,
-        settings_view
-    )
-    assert home_view is not None
-    assert analyzer_view is not None
+    view_names = [
+        "home_view",
+        "analyzer_view",
+        "helper_view",
+        "winget_view",
+        "intune_view",
+        "intune_store_view",
+        "history_view",
+        "settings_view",
+        "packaging_wizard_view",
+        "detection_tester_view",
+        "stack_manager_view",
+        "dashboard_view",
+        "library_view",
+    ]
+    for view_name in view_names:
+        try:
+            importlib.import_module(f"switchcraft.gui_modern.views.{view_name}")
+        except ImportError as e:
+            pytest.fail(f"Failed to import view '{view_name}': {e}")

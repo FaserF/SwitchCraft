@@ -4,7 +4,13 @@ from switchcraft.services.addon_service import AddonService
 logger = logging.getLogger(__name__)
 
 # Try to import the real analyzer from the addon
-_real_module = AddonService.import_addon_module("advanced", "analyzers.universal")
+# Try to import the real analyzer from the addon
+try:
+    _service = AddonService()
+    _real_module = _service.import_addon_module("advanced", "analyzers.universal")
+except Exception as e:
+    logger.warning(f"Failed to load advanced analyzer: {e}")
+    _real_module = None
 
 if _real_module:
     UniversalAnalyzer = _real_module.UniversalAnalyzer

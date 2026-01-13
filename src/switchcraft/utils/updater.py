@@ -64,7 +64,7 @@ class UpdateChecker:
 
         try:
             curr_parsed = version.parse(self.current_version)
-        except:
+        except Exception:
             # Fallback for non-standard versions like 'dev-xxxx'
             curr_parsed = version.Version("0.0.0")
 
@@ -86,7 +86,7 @@ class UpdateChecker:
                      v_cand = version.parse(ver)
                      if v_cand > curr_parsed:
                          is_newer = True
-                 except:
+                 except Exception:
                      # If parsing fails, but it's different from current, maybe it's newer?
                      # But safer to just ignore if we can't parse.
                      pass
@@ -119,7 +119,7 @@ class UpdateChecker:
 
         try:
             v = version.parse(ver_str)
-        except:
+        except Exception:
             v = version.Version("0.0.0")
 
         # Channel tie-breaker: Stable (2) > Beta (1) > Dev (0)

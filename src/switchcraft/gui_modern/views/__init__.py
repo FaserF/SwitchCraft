@@ -1,0 +1,13 @@
+from .home_view import ModernHomeView as ModernHomeView
+from .analyzer_view import ModernAnalyzerView as ModernAnalyzerView
+from .helper_view import ModernHelperView as ModernHelperView
+from .winget_view import ModernWingetView as ModernWingetView
+from .intune_view import ModernIntuneView as ModernIntuneView
+from .intune_store_view import ModernIntuneStoreView as ModernIntuneStoreView
+from .history_view import ModernHistoryView as ModernHistoryView
+from .settings_view import ModernSettingsView as ModernSettingsView
+from .packaging_wizard_view import PackagingWizardView as PackagingWizardView
+from .detection_tester_view import DetectionTesterView as DetectionTesterView
+from .stack_manager_view import StackManagerView as StackManagerView
+from .dashboard_view import DashboardView as DashboardView
+from .library_view import LibraryView as LibraryView

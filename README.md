@@ -34,7 +34,12 @@ SwitchCraft is primarily designed for **Windows** environments. While the applic
 - **Advanced Wrapper Support**: Identification of nested installers and extraction of silent switches.
 - **Batch Processing**: Drag & Drop multiple files to analyze them sequentially.
 - **Analysis History**: Keep track of your last 100 analyzed installers.
+- **Community Database**: Integrated lookup for known silent switches when local analysis fails.
+- **Project Stacks**: Group applications into named stacks for one-click batch deployment.
+- **Interactive Dashboard**: Visual overview of your packaging activity, statistics, and recent actions.
 - **Script Signing**: Automatically sign generated PowerShell scripts with your Code Signing Certificate.
+- **Packaging Wizard**: End-to-End workflow from installer to Intune upload in 5 steps.
+- **Live Detection Tester**: Verify intended Registry, File, or MSI detection rules locally before uploading.
 
 ### 📦 Store & Deployment
 - **Winget Store Integration**: Search, analyze, and deploy applications from the official Microsoft repository.
@@ -53,7 +58,21 @@ SwitchCraft is primarily designed for **Windows** environments. While the applic
 
 ---
 
-## 📦 Release Artifacts & Variants
+ ## 🤝 Contributing to the Community Database
+
+ SwitchCraft maintains a crowdsourced database of silent switches to help everyone package apps faster.
+
+ **How to contribute:**
+ 1. Go to the [Issues](https://github.com/FaserF/SwitchCraft/issues) tab.
+ 2. Click **New Issue**.
+ 3. Select **"Suggest a New Switch"**.
+ 4. Fill out the form with the App Name, Version, and Silent Switch.
+
+ Once submitted, our automated system will validate the switch and create a Pull Request to merge it into the main database! 🚀
+
+ ---
+
+ ## 📦 Release Artifacts & Variants
 
 SwitchCraft provides multiple editions to suit different environments.
 

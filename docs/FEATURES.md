@@ -8,6 +8,10 @@
 - **🔔 Notification System**: Get native desktop alerts when analysis completes or packages are created
 - **✍️ Script Signing**: Automatically sign generated PowerShell scripts with your code-signing certificate (auto-detected or PFX)
 - **⚔️ Automatic Brute Force**: Runs 15+ help argument variations to discover switches
+- **🧩 Project Stacks**: Group applications into named stacks for one-click batch deployment
+- **📊 Interactive Dashboard**: Visual overview of your packaging activity, statistics, and recent actions
+- **📚 My Library**: Personal history of analyzed and packaged applications with search and filter capabilities
+- **👥 Community Database**: Crowdsourced database of silent switches with automated IssueOps contributions
 - **🌐 Multi-Language**: English and German interface
 
 ## 🎯 Supported Installer Types

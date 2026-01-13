@@ -39,7 +39,7 @@ if __name__ == "__main__":
     start_splash()
 
 # Now do heavy imports
-import flet as ft
+import flet as ft # noqa: E402
 
 from switchcraft.gui_modern.app import ModernApp
 from switchcraft.utils.logging_handler import setup_session_logging
