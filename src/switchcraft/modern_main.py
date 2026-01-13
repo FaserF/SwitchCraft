@@ -61,7 +61,7 @@ def write_crash_dump(exc_info):
     dump_file = dump_dir / f"crash_dump_{timestamp}.txt"
 
     with open(dump_file, "w", encoding="utf-8") as f:
-        f.write(f"SwitchCraft Crash Dump\n")
+        f.write("SwitchCraft Crash Dump\n")
         f.write(f"Time: {datetime.now().isoformat()}\n")
         f.write(f"Python: {sys.version}\n")
         f.write(f"Platform: {sys.platform}\n")
@@ -88,7 +88,7 @@ def main(page: ft.Page):
             ft.Column([
                 ft.Icon(ft.Icons.ERROR, color=ft.Colors.RED, size=60),
                 ft.Text("SwitchCraft encountered an error", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text(f"Crash dump saved to:", size=14),
+                ft.Text("Crash dump saved to:", size=14),
                 ft.Text(str(dump_file), size=12, selectable=True, color=ft.Colors.BLUE),
                 ft.Text(f"\nError: {sys.exc_info()[1]}", size=14, color=ft.Colors.RED),
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER)
