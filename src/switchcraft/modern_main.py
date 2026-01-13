@@ -90,7 +90,7 @@ def write_crash_dump(exc_info):
     dump_file = dump_dir / f"crash_dump_{timestamp}.txt"
 
     with open(dump_file, "w", encoding="utf-8") as f:
-        f.write(f"SwitchCraft Crash Dump\n")
+        f.write("SwitchCraft Crash Dump\n")
         f.write(f"Time: {datetime.now().isoformat()}\n")
         f.write(f"Python: {sys.version}\n")
         f.write(f"Platform: {sys.platform}\n")
