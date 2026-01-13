@@ -33,14 +33,10 @@ class ModernApp:
             tooltip=i18n.get("toggle_theme")
         )
 
-        self.notif_badge = ft.Badge(
-            content=ft.Icon(ft.Icons.NOTIFICATIONS),
-            text="0",
-            visible=False
-        )
-
+        # Notification button - simplified without Badge for Flet version compatibility
         self.notif_btn = ft.IconButton(
-            content=self.notif_badge,
+            icon=ft.Icons.NOTIFICATIONS,
+            tooltip="Notifications",
             on_click=self._open_notifications
         )
 
@@ -104,19 +100,24 @@ class ModernApp:
         theme_pref = SwitchCraftConfig.get_value("Theme", "System")
         self.page.theme_mode = ft.ThemeMode.DARK if theme_pref == "Dark" else ft.ThemeMode.LIGHT if theme_pref == "Light" else ft.ThemeMode.SYSTEM
         self.page.padding = 0
-        try:
-            self.page.window_prevent_close = True  # Handle custom close
-            self.page.on_window_event = self.window_event
-            self.page.window.min_width = 1200
-            self.page.window.min_height = 800
-        except Exception:
-            pass
 
-        # Enable Global Drag & Drop (Safety check for older Flet)
-        if hasattr(self.page, "on_drop"):
-            self.page.on_drop = self.handle_window_drop
+        # Note: Window properties (min_width, min_height, prevent_close, on_event)
+        # cannot be reliably set during initialization in PyInstaller builds.
+        # These are left to Flet defaults.
 
         self.banner_container = ft.Container() # Placeholder
+
+    def toggle_theme(self, e):
+        """Toggle between light and dark theme."""
+        if self.page.theme_mode == ft.ThemeMode.DARK:
+            self.page.theme_mode = ft.ThemeMode.LIGHT
+            self.theme_icon.icon = ft.Icons.DARK_MODE
+            SwitchCraftConfig.set_user_preference("Theme", "Light")
+        else:
+            self.page.theme_mode = ft.ThemeMode.DARK
+            self.theme_icon.icon = ft.Icons.LIGHT_MODE
+            SwitchCraftConfig.set_user_preference("Theme", "Dark")
+        self.page.update()
 
     def window_event(self, e):
         """Handle window events, specifically closing."""
@@ -124,13 +125,11 @@ class ModernApp:
             # Just close immediately for now, or add confirmation dialog here if desired
             # Ensure any cleanup is done
 
-            # Reset prevent close to allow actual close on next attempt if needed,
-            # or just force close the page/process.
-            self.page.window_prevent_close = False
-            self.page.window.close()
+            # Reset prevent close to allow actual close, then destroy window
+            self.page.window.prevent_close = False
+            self.page.window.destroy()
             # If using specialized cleanup:
             # self.cleanup()
-            # sys.exit(0) # optional force quit
 
     def setup_banner(self):
         from switchcraft.utils.i18n import i18n
@@ -558,7 +557,7 @@ class ModernApp:
         time.sleep(2)
         # For now just close, user has to reopen.
         # Process restart is tricky without external launcher.
-        self.page.window.close()
+        self.page.window.destroy()
 
 
     def _clear_all_notifications(self, drawer):

@@ -451,7 +451,7 @@ class ModernSettingsView(ft.Column):
                 self._show_snack("Reset Complete. App will close.", ft.Colors.GREEN)
                 import time
                 time.sleep(2)
-                self.app_page.window.close()
+                self.app_page.window.destroy()
             except Exception as ex:
                 self._show_snack(f"Reset Failed: {ex}", ft.Colors.RED)
             self.app_page.update()
@@ -796,7 +796,7 @@ class ModernSettingsView(ft.Column):
                     # Cleanup
                     try:
                         os.remove(tmp_path)
-                    except:
+                    except Exception:
                         pass
 
                 except Exception as ex:

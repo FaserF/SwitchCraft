@@ -397,7 +397,7 @@ class ModernWingetView(ft.Row):
                     manifest = f"https://github.com/microsoft/winget-pkgs/tree/master/manifests/{first_char}/{publisher_part}/{parts[1]}"
                 else:
                     manifest = f"https://github.com/microsoft/winget-pkgs/tree/master/manifests/{pkg_id[0].lower()}/{pkg_id}"
-            except:
+            except (IndexError, ValueError):
                 pass
 
         if manifest:
@@ -612,5 +612,5 @@ exit $err
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True
             self.app_page.update()
-        except:
+        except Exception:
              pass

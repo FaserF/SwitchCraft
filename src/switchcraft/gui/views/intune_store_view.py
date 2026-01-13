@@ -97,8 +97,9 @@ class IntuneStoreView(ctk.CTkFrame):
                     apps = self.intune_service.list_apps(token)
 
                 self.after(0, lambda: self._update_list(apps))
-            except Exception:
-                self.after(0, lambda: self._show_error(str(ex)))
+            except Exception as e:
+                err_msg = str(e)
+                self.after(0, lambda msg=err_msg: self._show_error(msg))
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -136,7 +137,8 @@ class IntuneStoreView(ctk.CTkFrame):
         self.lbl_details_title.configure(text=app.get("displayName", "Unknown"))
 
         def add_row(lbl, val):
-            if not val: return
+            if not val:
+                return
             f = ctk.CTkFrame(self.details_content, fg_color="transparent")
             f.pack(fill="x", pady=1)
             ctk.CTkLabel(f, text=f"{lbl}:", font=ctk.CTkFont(weight="bold"), width=100, anchor="w").pack(side="left")

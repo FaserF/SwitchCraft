@@ -356,7 +356,7 @@ class SwitchCraftConfig:
     def delete_all_application_data(cls):
         """
         Factory Reset: Deletes all user data, configuration, and secrets.
-        1. Deletes Registry Key (HKCU\Software\FaserF\SwitchCraft)
+        1. Deletes Registry Key (HKCU\\Software\\FaserF\\SwitchCraft)
         2. Deletes all known secrets from Keyring
         """
         if sys.platform != 'win32':

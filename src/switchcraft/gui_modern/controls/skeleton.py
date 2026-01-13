@@ -35,7 +35,8 @@ class SkeletonContainer(ft.Container):
                 # Note: modifying properties from thread is generally safe in Flet if .update() handles it,
                 # but idiomatic way is often page.run_task or similar.
                 # Here we just toggle and update.
-                if self.aborted: break
+                if self.aborted:
+                    break
 
                 # Check control status before update if possible, or try/except
                 try:
@@ -47,7 +48,8 @@ class SkeletonContainer(ft.Container):
 
                 # Sleep in chunks to allow faster exit
                 for _ in range(8): # 0.8s
-                    if self.aborted: break
+                    if self.aborted:
+                        break
                     time.sleep(0.1)
 
         threading.Thread(target=_loop, daemon=True).start()

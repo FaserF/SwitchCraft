@@ -9,7 +9,12 @@ block_cipher = None
 # MANUAL COLLECTION for Modern
 # We need switchcraft.* and flet
 hidden_imports = ['flet', 'flet_desktop', 'defusedxml', 'winotify', 'switchcraft.utils', 'switchcraft.utils.config', 'switchcraft.gui', 'switchcraft.gui_modern']
-hidden_imports += collect_submodules('switchcraft')
+
+# Collect submodules but exclude addon modules that are not part of core
+all_submodules = collect_submodules('switchcraft')
+# Filter out modules that were moved to addons or don't exist
+excluded_modules = ['switchcraft.utils.winget', 'switchcraft.gui.views.ai_view', 'switchcraft_winget', 'switchcraft_ai', 'switchcraft_advanced']
+hidden_imports += [m for m in all_submodules if not any(m.startswith(ex) for ex in excluded_modules)]
 
 src_root = os.path.abspath('src')
 if src_root not in sys.path:
@@ -17,6 +22,7 @@ if src_root not in sys.path:
 
 datas = [
     ('images/switchcraft_logo.png', '.'),
+    ('images/switchcraft_logo.ico', '.'),
     ('src/switchcraft/assets', 'assets'),
 ]
 
@@ -58,6 +64,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='images/switchcraft_logo.png',
+    icon='images/switchcraft_logo.ico',
     version='file_version_info.txt'
 )

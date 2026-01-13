@@ -224,7 +224,7 @@ class WingetView(ctk.CTkFrame):
                      manifest_url = f"https://github.com/microsoft/winget-pkgs/tree/master/manifests/{first_char}/{publisher.replace('.', '/')}/{parts[1]}"
                  else:
                      manifest_url = f"https://github.com/microsoft/winget-pkgs/tree/master/manifests/{pkg_id[0].lower()}/{pkg_id}"
-             except:
+             except (IndexError, ValueError):
                  pass
 
         add_row("Manifest URL", manifest_url, link=True)

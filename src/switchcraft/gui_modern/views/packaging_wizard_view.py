@@ -573,7 +573,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
              return
 
         query = self.search_supersede_field.value
-        if not query: return
+        if not query:
+            return
 
         self.supersede_status.value = "Searching..."
         self.update()
@@ -804,7 +805,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
                 if self.packaging_mode == "lob":
                     switches = "/q"
-                    if info.install_switches: switches = " ".join(info.install_switches)
+                    if info.install_switches:
+                        switches = " ".join(info.install_switches)
                     app_info["installCommandLine"] = switches
                     if info.product_code:
                          app_info["productCode"] = info.product_code
