@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 
 def parse_issue_body(body):
@@ -11,9 +12,9 @@ def parse_issue_body(body):
     """
     data = {}
 
-    # Regex to capture "### Label\n\nValue"
-    # Matches: ### <Label>\n\n<Value> ... until next ###
-    pattern = re.compile(r"###\s+(.+?)\s*\n\s*(.+?)(?=\n###|\Z)", re.DOTALL)
+    # Regex to capture "### Label\n\nValue" (Value can be empty)
+    # Matches: ### <Label>\n\n<Value> ... until next ### or end
+    pattern = re.compile(r"###\s+(.+?)\s*\n\s*(.*?)(?=\n###|\Z)", re.DOTALL)
 
     matches = pattern.findall(body)
 
@@ -61,15 +62,15 @@ def update_db(new_entry):
             sys.exit(1)
 
     # Add metadata
-    new_entry["added_at"] = "pending-merge" # In real action, could use current time
+    new_entry["added_at"] = "pending-merge"
+    new_entry["contributor"] = new_entry.get("contributor", "SwitchCraftBot")
 
     # Check for duplicate (naive check)
     for entry in db:
         if (entry.get("app_name") == new_entry.get("app_name") and
             entry.get("version") == new_entry.get("version")):
             print("Entry already exists for this version.")
-            # We might want to update it instead? For now, skip.
-            sys.exit(0)
+            sys.exit(78)  # POSIX: configuration error - signals workflow to skip PR creation
 
     db.append(new_entry)
 
@@ -79,8 +80,6 @@ def update_db(new_entry):
     print(f"Successfully added {new_entry['app_name']}")
 
 if __name__ == "__main__":
-    # In GitHub Actions, the issue body comes from env var or file
-    # We will assume it is passed as a file path argument
     if len(sys.argv) < 2:
         print("Usage: python process_issue_ops.py <path_to_issue_body.txt>")
         sys.exit(1)

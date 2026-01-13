@@ -3,8 +3,17 @@ import logging
 import subprocess
 import os
 from pathlib import Path
-import winreg
-import win32api
+import sys
+
+# Windows-specific imports (lazy loaded when needed)
+winreg = None
+win32api = None
+if sys.platform == 'win32':
+    try:
+        import winreg
+        import win32api
+    except ImportError:
+        pass  # Will show error when feature is used
 
 logger = logging.getLogger(__name__)
 
@@ -232,12 +241,17 @@ class DetectionTesterView(ft.Column):
                  return True, f"File Exists. Version: {current_ver_str}"
 
             # Simple comparison logic (needs proper version parsing)
-            # Normalizing to list of ints for comparison
+            # Normalizing to list of ints for comparison with zero padding
             def parse_ver(v_str):
                 return [int(x) for x in v_str.split('.')]
 
             curr_v_list = parse_ver(current_ver_str)
             target_v_list = parse_ver(target_version)
+
+            # Pad lists to equal length
+            max_len = max(len(curr_v_list), len(target_v_list))
+            curr_v_list += [0] * (max_len - len(curr_v_list))
+            target_v_list += [0] * (max_len - len(target_v_list))
 
             # operator
             match = False
@@ -257,6 +271,7 @@ class DetectionTesterView(ft.Column):
     def _check_script(self, script_content):
         # Run script in temp file
         import tempfile
+        temp_path = None
         try:
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".ps1") as f:
                 f.write(script_content)
@@ -280,8 +295,6 @@ class DetectionTesterView(ft.Column):
 
             res = subprocess.run(cmd, capture_output=True, text=True, startupinfo=startupinfo)
 
-            os.remove(temp_path)
-
             stdout = res.stdout.strip()
             stderr = res.stderr.strip()
             exit_code = res.returncode
@@ -296,6 +309,13 @@ class DetectionTesterView(ft.Column):
 
         except Exception as e:
             return False, f"Script Execution Error: {e}"
+        finally:
+            # Ensure temp file is always cleaned up
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
 
     def _display_result(self, detected, message):
         self.result_area.visible = True

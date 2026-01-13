@@ -34,6 +34,7 @@ class AnalysisController:
 
     def __init__(self, ai_service=None):
         self.ai_service = ai_service
+        self.community_db = CommunityDBService()
 
     def analyze_file(
         self, file_path_str: str, progress_callback: Callable[[float, str, Optional[float]], None] = None
@@ -132,23 +133,19 @@ class AnalysisController:
             # Phase 3.5: Community DB Lookup (Enhancement)
             report(0.9, "Checking Community DB...")
             try:
-                db = CommunityDBService()
-                # Try hash first
-                db_switches = db.get_switches_by_hash(path)
+                # Use cached service instance
+                db_switches = self.community_db.get_switches_by_hash(path)
                 if not db_switches:
                     # Fallback to name
-                    db_switches = db.get_switches_by_name(path)
+                    db_switches = self.community_db.get_switches_by_name(path.name)
 
                 if db_switches:
                     if not info.install_switches:
                         info.install_switches = db_switches
                         community_match = True
                     else:
-                        # Merge? Or just flag that we found alternatives?
-                        # For now, let's append if completely different?
-                        # Simpler: If analyzer found nothing, use DB.
-                        # If analyzer found something, maybe trust analyzer?
-                        pass
+                        # Log if we found alternatives but ignored them because analyzer succeeded
+                        logger.info(f"Community DB found alternative switches: {db_switches}, but using analyzer result: {info.install_switches}")
             except Exception as e:
                 logger.error(f"Community DB Lookup failed: {e}")
 

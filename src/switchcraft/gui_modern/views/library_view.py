@@ -83,9 +83,9 @@ class LibraryView(ft.Column):
 
             # Mock status for now since history doesn't strictly track "Packaged" vs "Analyzed"
             # In real impl, we'd check item fields.
-            # item_status = item.get('status', 'Analyzed')
-            # if self.status_filter != "All" and self.status_filter != item_status:
-            #     continue
+            item_status = item.get('status', 'Analyzed')
+            if self.status_filter != "All" and self.status_filter != item_status:
+                continue
 
             filtered.append(item)
 
@@ -102,7 +102,7 @@ class LibraryView(ft.Column):
 
         try:
             dt = datetime.fromisoformat(ts).strftime("%Y-%m-%d")
-        except:
+        except ValueError:
             dt = ts
 
         return ft.Container(
@@ -120,5 +120,9 @@ class LibraryView(ft.Column):
             border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.WHITE)),
             border_radius=10,
             padding=15,
-            on_hover=lambda e: setattr(e.control, "bgcolor", ft.Colors.with_opacity(0.2, ft.Colors.WHITE) if e.data == "true" else ft.Colors.with_opacity(0.1, ft.Colors.WHITE)) or e.control.update()
+            on_hover=lambda e: self._on_tile_hover(e)
         )
+
+    def _on_tile_hover(self, e):
+        e.control.bgcolor = ft.Colors.with_opacity(0.2, ft.Colors.WHITE) if e.data == "true" else ft.Colors.with_opacity(0.1, ft.Colors.WHITE)
+        e.control.update()

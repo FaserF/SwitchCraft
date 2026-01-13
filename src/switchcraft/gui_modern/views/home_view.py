@@ -22,7 +22,7 @@ class ModernHomeView(ft.Container):
                 ft.ElevatedButton("Open",
                     color=ft.Colors.WHITE,
                     bgcolor=ft.Colors.WHITE12,
-                    on_click=lambda _: on_navigate(target_idx) if on_navigate else None
+                    on_click=lambda _: self.on_navigate(target_idx) if self.on_navigate else None
                 )
             ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             width=220,
@@ -57,9 +57,9 @@ class ModernHomeView(ft.Container):
         ),
 
         ft.Row([
-            create_card(i18n.get("home_card_analyzer_title") or "Analyzer", i18n.get("home_card_analyzer_desc") or "Deep Scan Installers", ft.Icons.SEARCH, 1),
-            create_card(i18n.get("home_card_ai_title") or "AI Helper", i18n.get("home_card_ai_desc") or "AI Powered Support", ft.Icons.SMART_TOY, 2),
-            create_card(i18n.get("home_card_winget_title") or "Winget", i18n.get("home_card_winget_desc") or "Browse App Store", ft.Icons.SHOP_TWO, 3),
+            create_card(i18n.get("home_card_analyzer_title") or "Analyzer", i18n.get("home_card_analyzer_desc") or "Deep Scan Installers", ft.Icons.SEARCH, 2),
+            create_card(i18n.get("home_card_ai_title") or "AI Helper", i18n.get("home_card_ai_desc") or "AI Powered Support", ft.Icons.SMART_TOY, 3), # 3 = Generate
+            create_card(i18n.get("home_card_winget_title") or "Winget", i18n.get("home_card_winget_desc") or "Browse App Store", ft.Icons.SHOP_TWO, 1),
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=30),
 
         ft.Container(height=40),
@@ -70,15 +70,15 @@ class ModernHomeView(ft.Container):
                 i18n.get("home_card_intune_desc") or "Prep for Deployment",
                 ft.Icons.CLOUD_UPLOAD, 4
             ),
-            create_card("Dashboard", "Your Statistics", ft.Icons.DASHBOARD, 11),
-            create_card("Stacks", "Batch Deployments", ft.Icons.LAYERS, 10),
-            create_card("Live Check", "Test Detection Rules", ft.Icons.RULE, 9),
-            create_card("Wizard", "End-to-End Packaging", ft.Icons.AUTO_FIX_HIGH, 8),  # Idx 8 for Wizard
+            create_card("Dashboard", "Your Statistics", ft.Icons.DASHBOARD, 13),
+            create_card("Stacks", "Batch Deployments", ft.Icons.LAYERS, 12),
+            create_card("Live Check", "Test Detection Rules", ft.Icons.RULE, 11),
+            create_card("Wizard", "End-to-End Packaging", ft.Icons.AUTO_FIX_HIGH, 10),
             create_card(
                 i18n.get("home_card_settings_title") or "Settings",
                 i18n.get("home_card_settings_desc") or "Configure App",
-                ft.Icons.SETTINGS, 7
-            ),  # Fixed Settings Index
+                ft.Icons.SETTINGS, 9
+            ),
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=30),
 
     ], expand=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.AUTO)

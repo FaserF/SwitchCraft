@@ -118,7 +118,8 @@ class AddonManagerView(ft.Column):
         threading.Thread(target=_bg, daemon=True).start()
 
     def _confirm_delete(self, e):
-        if not self.selected_addon: return
+        if not self.selected_addon:
+            return
 
         def close_dlg(e):
             self.app_page.close_dialog()
@@ -127,11 +128,13 @@ class AddonManagerView(ft.Column):
             aid = self.selected_addon['id']
             def _bg():
                 try:
-                    self.addon_service.delete_addon(aid)
-                    self._show_snack("Addon deleted.", ft.Colors.GREEN)
-                    self.selected_addon = None
-                    self.app_page.close_dialog()
-                    self._load_data()
+                    if self.addon_service.delete_addon(aid) is False:
+                         self._show_snack("Delete failed (File in use?)", ft.Colors.RED)
+                    else:
+                        self._show_snack("Addon deleted.", ft.Colors.GREEN)
+                        self.selected_addon = None
+                        self.app_page.close_dialog()
+                        self._load_data()
                 except Exception as ex:
                      self._show_snack(f"Delete failed: {ex}", ft.Colors.RED)
             threading.Thread(target=_bg, daemon=True).start()

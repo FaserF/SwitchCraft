@@ -54,7 +54,8 @@ class AddonService:
                              addon_path = d
                              manifest_data = data
                              break
-                 except: pass
+                 except (FileNotFoundError, json.JSONDecodeError):
+                     pass
 
         if not addon_path:
             raise FileNotFoundError(f"Addon {addon_id} not found")
@@ -79,6 +80,51 @@ class AddonService:
         except Exception as e:
             logger.error(f"Failed to load addon {addon_id}: {e}")
             raise e
+
+    def import_addon_module(self, addon_id, module_name):
+        """
+        Attempts to import a specific module from an addon.
+        Returns the module object or None if not found/error.
+        """
+        # Find addon path
+        addon_path = None
+        for d in self.addons_dir.iterdir():
+            if d.is_dir() and (d / "manifest.json").exists():
+                 try:
+                     with open(d / "manifest.json") as f:
+                         data = json.load(f)
+                         if data.get("id") == addon_id:
+                             addon_path = d
+                             break
+                 except (FileNotFoundError, json.JSONDecodeError):
+                     pass
+
+        if not addon_path:
+            return None
+
+        # Resolve file path from module name (dotted)
+        # e.g. "analyzers.universal" -> "analyzers/universal.py"
+        rel_path = module_name.replace(".", "/") + ".py"
+        file_path = addon_path / rel_path
+
+        if not file_path.exists():
+            # Try as package (dir/__init__.py)
+            rel_path = module_name.replace(".", "/") + "/__init__.py"
+            file_path = addon_path / rel_path
+            if not file_path.exists():
+                return None
+
+        try:
+            name = f"addons.{addon_id}.{module_name}"
+            spec = importlib.util.spec_from_file_location(name, file_path)
+            if not spec or not spec.loader:
+                return None
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+        except Exception as e:
+            logger.error(f"Failed to import addon module {name}: {e}")
+            return None
 
     def install_addon(self, zip_path):
         """
@@ -106,7 +152,8 @@ class AddonService:
                 with z.open("manifest.json") as f:
                     data = json.load(f)
                     addon_id = data.get("id")
-                    if not addon_id: raise Exception("Invalid manifest: missing id")
+                    if not addon_id:
+                        raise Exception("Invalid manifest: missing id")
 
                 # Extract
                 target = self.addons_dir / addon_id
@@ -114,7 +161,26 @@ class AddonService:
                     shutil.rmtree(target) # Overwrite
                 target.mkdir()
 
-                z.extractall(target)
+                target.mkdir()
+
+                # Secure extraction
+                for member in z.infolist():
+                    # Resolve the target path for this member
+                    file_path = (target / member.filename).resolve()
+
+                    # Ensure the resolved path starts with the target directory (prevent Zip Slip)
+                    if not str(file_path).startswith(str(target.resolve())):
+                        logger.error(f"Security Alert: Attempted Zip Slip with {member.filename}")
+                        continue
+
+                    # Create parent directories
+                    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+                    # Extract file
+                    if not member.is_dir():
+                        with z.open(member, 'r') as source, open(file_path, 'wb') as dest:
+                            shutil.copyfileobj(source, dest)
+
                 logger.info(f"Installed addon: {addon_id}")
                 return True
         except Exception as e:
@@ -131,5 +197,6 @@ class AddonService:
                          if data.get("id") == addon_id:
                              shutil.rmtree(d)
                              return True
-                 except: pass
+                 except (FileNotFoundError, json.JSONDecodeError, OSError):
+                     pass
          return False

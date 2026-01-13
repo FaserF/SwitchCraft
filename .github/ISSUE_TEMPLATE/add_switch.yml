@@ -74,3 +74,5 @@ body:
     attributes:
       label: Additional Notes
       description: Any other details or caveats?
+    validations:
+      required: false

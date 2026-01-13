@@ -1,7 +1,7 @@
 import flet as ft
 import logging
 
-logger = logging.getLogger(__name__)
+
 
 
 class DashboardView(ft.Column):

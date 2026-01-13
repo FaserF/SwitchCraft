@@ -24,28 +24,30 @@ class SkeletonContainer(ft.Container):
         self.aborted = True
 
     def _animate(self):
-        if self.aborted:
-            return
+        if hasattr(self, "_loop_started") and self._loop_started:
+             return
 
-        # Simple pulsing opacity animation
-        self.opacity = 0.5 if self.opacity == 1.0 else 1.0
-        self.update()
+        self._loop_started = True
 
-        # Schedule next frame
-        if not self.aborted:
-            # We can't use time.sleep in main thread or it blocks.
-            # But creating threads for every skeleton might be heavy.
-            # Flet animations handle the transition, we just need to toggle states.
-            # We can use a delayed timer if available, or a background thread loop for the signal.
-            # Since Flet doesn't have a built-in "setInterval" exposed easily to controls without page,
-            # we rely on the animation completion.
-            # However, Flet doesn't have an "on_animation_end" event for individual controls easily accessible here.
-            # A simple background thread loop for the life of the component is one way,
-            # but let's try a safer recursive threading approach to avoid blocking.
+        def _loop():
+            while not self.aborted:
+                # Simple pulsing opacity animation
+                # Note: modifying properties from thread is generally safe in Flet if .update() handles it,
+                # but idiomatic way is often page.run_task or similar.
+                # Here we just toggle and update.
+                if self.aborted: break
 
-            def _loop():
-                time.sleep(0.8)
-                if not self.aborted:
-                    self._animate()
+                # Check control status before update if possible, or try/except
+                try:
+                    self.opacity = 0.5 if self.opacity == 1.0 else 1.0
+                    self.update()
+                except Exception:
+                    # Control might be detached or page closed
+                    break
 
-            threading.Thread(target=_loop, daemon=True).start()
+                # Sleep in chunks to allow faster exit
+                for _ in range(8): # 0.8s
+                    if self.aborted: break
+                    time.sleep(0.1)
+
+        threading.Thread(target=_loop, daemon=True).start()

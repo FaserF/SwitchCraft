@@ -3,6 +3,8 @@ import logging
 import threading
 import requests
 import tempfile
+import os
+import subprocess
 from pathlib import Path
 
 from switchcraft.controllers.analysis_controller import AnalysisController
@@ -26,9 +28,7 @@ class PackagingWizardView(ft.Column):
         self.analysis_result = None
         self.generated_script_path = None
         self.package_path = None
-        self.package_path = None
         self.upload_info = {}
-        self.signing_cert = SwitchCraftConfig.get_value("SigningCertThumbprint")
         self.signing_cert = SwitchCraftConfig.get_value("SigningCertThumbprint")
         self.packaging_mode = "win32" # win32 or lob
         self.supersede_app_id = None # ID of app to superseded
@@ -201,7 +201,7 @@ class PackagingWizardView(ft.Column):
         url_content = ft.Container(
             content=ft.Column([
                 ft.Icon(ft.Icons.CLOUD_DOWNLOAD, size=60, color=ft.Colors.ORANGE_400),
-                ft.Text("Download form Web", size=24, weight=ft.FontWeight.BOLD),
+                ft.Text("Download from Web", size=24, weight=ft.FontWeight.BOLD),
                 ft.Text("Enter a direct link to an .exe or .msi file", color=ft.Colors.GREY),
                 ft.Container(height=20),
                 ft.Row([self.url_field, ft.ElevatedButton("Download", icon=ft.Icons.DOWNLOAD, on_click=self._start_download)]),
@@ -213,7 +213,7 @@ class PackagingWizardView(ft.Column):
             padding=20
         )
 
-        return ft.Tabs(
+        tabs = ft.Tabs(
             selected_index=0,
             animation_duration=300,
             tabs=[
@@ -267,7 +267,7 @@ class PackagingWizardView(ft.Column):
                 temp_dir.mkdir(parents=True, exist_ok=True)
                 target_path = temp_dir / filename
 
-                with requests.get(url, stream=True) as r:
+                with requests.get(url, stream=True, timeout=30) as r:
                     r.raise_for_status()
                     total_length = r.headers.get('content-length')
 
@@ -280,7 +280,6 @@ class PackagingWizardView(ft.Column):
                              for data in r.iter_content(chunk_size=4096):
                                  dl += len(data)
                                  f.write(data)
-                                 # Update progress? Flet might lag if updated too often
                                  # self.download_progress.value = dl / total_length
                                  # self.update()
 
@@ -372,9 +371,6 @@ class PackagingWizardView(ft.Column):
         ])
 
     def _generate_script_content(self):
-        # ... existing generation logic ...
-        # For brevity, reusing the basic generation from ScriptView if not imported
-        # But we have AnalysisResult
         info = self.analysis_result.info if self.analysis_result else None
         installer = Path(self.installer_path).name if self.installer_path else "installer.exe"
 
@@ -511,7 +507,6 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
             self.txt_app_name,
             self.txt_publisher,
             self.txt_desc,
-            self.txt_desc,
             ft.Divider(),
             ft.Text("Supersedence (Upgrade)", weight=ft.FontWeight.BOLD),
             self._build_supersedence_ui(),
@@ -606,9 +601,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         self.supersede_status.value = f"Selected ID: {self.supersede_app_id}"
         self.update()
 
-    def _run_upload(self, e):
-        # Override to include supersedence logic at the end
-        pass # Replaced by below logic via tool
+
 
     def _run_upload(self, e):
         if not hasattr(self, 'token'):

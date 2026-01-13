@@ -89,7 +89,8 @@ class ModernApp:
         # Perform deferred UI building.
         # User requested visible loading screen. Since Flet execution here is linear during init,
         # we add a small sleep to ensure the "Loading..." ring is perceived.
-        import time
+        # User requested visible loading screen. Since Flet execution here is linear during init,
+        # we add a small sleep to ensure the "Loading..." ring is perceived.
         time.sleep(1.5)
 
         # View cache - keeps views in memory to preserve state between tab switches
@@ -116,6 +117,20 @@ class ModernApp:
             self.page.on_drop = self.handle_window_drop
 
         self.banner_container = ft.Container() # Placeholder
+
+    def window_event(self, e):
+        """Handle window events, specifically closing."""
+        if e.data == "close":
+            # Just close immediately for now, or add confirmation dialog here if desired
+            # Ensure any cleanup is done
+
+            # Reset prevent close to allow actual close on next attempt if needed,
+            # or just force close the page/process.
+            self.page.window_prevent_close = False
+            self.page.window.close()
+            # If using specialized cleanup:
+            # self.cleanup()
+            # sys.exit(0) # optional force quit
 
     def setup_banner(self):
         from switchcraft.utils.i18n import i18n
@@ -510,7 +525,7 @@ class ModernApp:
                 ft.Container(height=12),
                 ft.Row([
                     ft.Text("Notifications", size=20, weight=ft.FontWeight.BOLD),
-                    ft.TextButton("Clear All", on_click=lambda _: [self.notification_service.clear_all(), self.page.close(drawer)])
+                    ft.TextButton("Clear All", on_click=lambda _: self._clear_all_notifications(drawer))
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, run_spacing=10),
                 ft.Divider(),
                 *items
@@ -545,6 +560,10 @@ class ModernApp:
         # Process restart is tricky without external launcher.
         self.page.window.close()
 
+
+    def _clear_all_notifications(self, drawer):
+        self.notification_service.clear_all()
+        self.page.close(drawer)
 
 def main(page: ft.Page):
     """Entry point for Flet app."""

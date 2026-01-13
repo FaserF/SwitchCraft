@@ -76,9 +76,13 @@ class StackManagerView(ft.Column):
             return {}
 
     def _save_stacks(self):
-        self.stacks_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.stacks_file, "w") as f:
-            json.dump(self.stacks, f, indent=4)
+        try:
+            self.stacks_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.stacks_file, "w") as f:
+                json.dump(self.stacks, f, indent=4)
+        except (OSError, IOError) as e:
+            logger.error(f"Failed to save stacks: {e}")
+            self._show_snack(f"Failed to save: {e}", ft.Colors.RED)
 
     def _save_stacks_action(self, e):
         self._save_stacks()
@@ -122,6 +126,9 @@ class StackManagerView(ft.Column):
                 self.update()
 
     def _select_stack(self, name):
+        if name not in self.stacks:
+            self._show_snack("Selected stack not found", ft.Colors.RED)
+            return
         self.current_stack = name
         items = self.stacks[name]
         self.stack_content_list.controls.clear()

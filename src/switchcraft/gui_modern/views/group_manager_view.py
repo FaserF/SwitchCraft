@@ -13,6 +13,7 @@ class GroupManagerView(ft.Column):
         self.intune_service = IntuneService()
         self.groups = []
         self.filtered_groups = []
+        self.token = None  # Initialize token
 
         # State
         self.selected_group = None
@@ -157,7 +158,11 @@ class GroupManagerView(ft.Column):
         desc_field = ft.TextField(label="Description")
 
         def create(e):
-            if not name_field.value: return
+            if not name_field.value:
+                return
+            if not self.token:
+                self._show_snack("Not connected to Intune", ft.Colors.RED)
+                return
 
             def _bg():
                 try:
@@ -183,13 +188,17 @@ class GroupManagerView(ft.Column):
         self.app_page.update()
 
     def _confirm_delete(self, e):
-        if not self.selected_group: return
+        if not self.selected_group:
+            return
 
         def close_dlg(e):
             self.app_page.close_dialog()
 
         def delete(e):
             grp_id = self.selected_group['id']
+            if not self.token:
+                self._show_snack("Not connected to Intune", ft.Colors.RED)
+                return
             def _bg():
                 try:
                     self.intune_service.delete_group(self.token, grp_id)

@@ -23,7 +23,9 @@ jobs:
           python-version: '3.11'
 
       - name: Extract Issue Body
-        run: echo "${{ github.event.issue.body }}" > issue_body.txt
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: printf "%s" "$ISSUE_BODY" > issue_body.txt
 
       - name: Process Issue Data
         id: process

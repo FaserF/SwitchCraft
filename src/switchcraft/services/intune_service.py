@@ -410,7 +410,10 @@ class IntuneService:
         base_url = "https://graph.microsoft.com/beta/deviceManagement/deviceManagementScripts"
 
         # Script content must be base64 encoded
-        encoded_script = base64.b64encode(script_content.encode('utf-8')).decode('utf-8')
+        if isinstance(script_content, bytes):
+            encoded_script = base64.b64encode(script_content).decode('utf-8')
+        else:
+            encoded_script = base64.b64encode(script_content.encode('utf-8')).decode('utf-8')
 
         payload = {
             "@odata.type": "#microsoft.graph.deviceManagementScript",
@@ -429,7 +432,7 @@ class IntuneService:
             return resp.json()
         except Exception as e:
             logger.error(f"Failed to upload PS script: {e}")
-            raise e
+            raise
 
     def upload_remediation_script(self, token, name, description, detection_content, remediation_content, run_as_account="system"):
         """
@@ -439,8 +442,15 @@ class IntuneService:
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         base_url = "https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts"
 
-        enc_detection = base64.b64encode(detection_content.encode('utf-8')).decode('utf-8')
-        enc_remediation = base64.b64encode(remediation_content.encode('utf-8')).decode('utf-8')
+        if isinstance(detection_content, bytes):
+             enc_detection = base64.b64encode(detection_content).decode('utf-8')
+        else:
+             enc_detection = base64.b64encode(detection_content.encode('utf-8')).decode('utf-8')
+
+        if isinstance(remediation_content, bytes):
+             enc_remediation = base64.b64encode(remediation_content).decode('utf-8')
+        else:
+             enc_remediation = base64.b64encode(remediation_content.encode('utf-8')).decode('utf-8')
 
         payload = {
             "@odata.type": "#microsoft.graph.deviceHealthScript",
@@ -462,7 +472,7 @@ class IntuneService:
         except Exception as e:
             # Check for license errors common with Remediations
             logger.error(f"Failed to upload Remediation: {e}")
-            raise e
+            raise
 
     def upload_macos_shell_script(self, token, name, description, script_content, run_as_account="system"):
         """
@@ -515,9 +525,12 @@ class IntuneService:
         try:
             # 1. Create MobileApp Entity
             # For MSI LOB, use 'microsoft.graph.windowsMobileMSI'
-            if progress_callback: progress_callback(0.1, "Creating App Entry...")
+            if progress_callback:
+                progress_callback(0.1, "Creating App Entry...")
 
             # Basic defaults if not provided
+            # Basic defaults if not provided
+            app_info = app_info or {}
             default_info = {
                 "@odata.type": "#microsoft.graph.windowsMobileMSI",
                 "displayName": app_info.get("displayName", file_name),
@@ -534,10 +547,12 @@ class IntuneService:
                 "ignoreVersionDetection": False,
                 "commandLine": app_info.get("installCommandLine", "/q"),
             }
+
             # Merge provided info
-            if app_info:
-                # remove incompatible keys if any
-                pass
+            allowed_keys = ["displayName", "description", "publisher", "productCode", "productVersion", "installCommandLine"]
+            for k, v in app_info.items():
+                if k in allowed_keys:
+                    default_info[k] = v
 
             # Create App
             create_resp = requests.post(f"{base_url}/mobileApps", headers=headers, json=default_info, timeout=30)
@@ -547,7 +562,8 @@ class IntuneService:
             logger.info(f"Created LOB App: {app_id}")
 
             # 2. Create Content Version
-            if progress_callback: progress_callback(0.2, "Creating Content Version...")
+            if progress_callback:
+                progress_callback(0.2, "Creating Content Version...")
             cv_payload = {
                 "@odata.type": "#microsoft.graph.mobileAppContent",
             }
@@ -576,7 +592,8 @@ class IntuneService:
             upload_url = file_data['uploadUrl']
 
             # 4. Upload File
-            if progress_callback: progress_callback(0.4, "Uploading MSI...")
+            if progress_callback:
+                progress_callback(0.4, "Uploading MSI...")
 
             with open(msi_path, 'rb') as f:
                  blob_headers = {"x-ms-blob-type": "BlockBlob"}
@@ -584,23 +601,27 @@ class IntuneService:
                  put_resp.raise_for_status()
 
             # 5. Commit File
-            if progress_callback: progress_callback(0.8, "Committing File...")
-            commit_file = {
-                "fileEncryptionInfo": None
-            }
-            # For unencrypted content, sometimes encryptionInfo is omitted or null.
+            if progress_callback:
+                progress_callback(0.8, "Committing File...")
+
+            commit_file = {}
+            # Omit fileEncryptionInfo entirely for unencrypted content
+            # (or some endpoints might require it to be absent, not null)
+
             requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/files/{file_id}/commit", headers=headers, json=commit_file, timeout=60).raise_for_status()
 
             # 6. Commit Content Version
-            if progress_callback: progress_callback(0.9, "Finalizing App...")
+            if progress_callback:
+                progress_callback(0.9, "Finalizing App...")
             requests.post(f"{base_url}/mobileApps/{app_id}/contentVersions/{cv_id}/commit", headers=headers, json={}, timeout=60).raise_for_status()
 
-            if progress_callback: progress_callback(1.0, "Success!")
+            if progress_callback:
+                progress_callback(1.0, "Success!")
             return app_id
 
         except Exception as e:
             logger.error(f"LOB Upload failed: {e}")
-            raise e
+            raise
 
     def add_supersedence(self, token, child_app_id, parent_app_id, uninstall_prev=True):
         """
@@ -614,7 +635,7 @@ class IntuneService:
             "@odata.type": "#microsoft.graph.mobileAppSupersedence",
             "targetId": parent_app_id,
             "sourceId": child_app_id,
-            "isSupersedence": True,
+            "targetType": "parent",
             "supersedenceType": "replace" if uninstall_prev else "update"
         }
 
@@ -625,54 +646,54 @@ class IntuneService:
             return True
         except Exception as e:
             logger.error(f"Failed to add supersedence: {e}")
-            raise e
+            raise
 
-    def search_apps(self, token, query):
-        """
-        Search for mobileApps by name.
-        """
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-        clean_query = query.replace("'", "''")
-        # Note: contains filter might not be supported on all properties or endpoints for mobileApps
-        # startswith is safer, or plain list and filter client side if list is small.
-        # But let's try contains on displayName.
-        url = f"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?$filter=contains(displayName, '{clean_query}')&$select=id,displayName,publisher,appVersion"
 
-        try:
-            resp = requests.get(url, headers=headers, timeout=30)
-            resp.raise_for_status()
-            return resp.json().get('value', [])
-        except Exception as e:
-            logger.error(f"App search failed: {e}")
-            return []
+
 
     def list_groups(self, token, filter_query=None):
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         url = "https://graph.microsoft.com/v1.0/groups"
+        params = {}
         if filter_query:
-            url += f"?$filter={filter_query}"
+            params["$filter"] = filter_query
 
         try:
-            resp = requests.get(url, headers=headers, timeout=30)
-            resp.raise_for_status()
-            return resp.json().get('value', [])
+            all_groups = []
+            while url:
+                resp = requests.get(url, headers=headers, params=params, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
+                all_groups.extend(data.get('value', []))
+
+                # Check for pagination
+                url = data.get('@odata.nextLink')
+                params = None # Query params are part of nextLink
+
+            return all_groups
         except Exception as e:
             logger.error(f"Failed to list groups: {e}")
-            raise e
+            raise
 
-    def create_group(self, token, name, description, group_types=[]):
+    def create_group(self, token, name, description, group_types=None):
         """
         Creates a new group.
-        group_types: ["Unified"] for M365, [] for Security.
+        group_types: ["Unified"] for M365, [] or None for Security.
         """
+        if group_types is None:
+            group_types = []
+
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         url = "https://graph.microsoft.com/v1.0/groups"
+
+        # M365 groups require mailEnabled=True, securityEnabled=False
+        is_m365 = "Unified" in group_types
 
         payload = {
             "displayName": name,
             "description": description,
-            "mailEnabled": False,
-            "securityEnabled": True,
+            "mailEnabled": is_m365,
+            "securityEnabled": not is_m365,
             "mailNickname": name.replace(" ", "").lower(),
             "groupTypes": group_types
         }
@@ -684,7 +705,7 @@ class IntuneService:
             return resp.json()
         except Exception as e:
             logger.error(f"Failed to create group: {e}")
-            raise e
+            raise
 
     def delete_group(self, token, group_id):
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}

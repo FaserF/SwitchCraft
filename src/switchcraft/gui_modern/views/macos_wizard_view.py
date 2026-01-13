@@ -86,8 +86,8 @@ class MacOSWizardView(ft.Column):
         name = self.app_name.value
         # Basic validation
         if not url or not name:
-             self._show_snack("URL and App Name are required", ft.Colors.RED)
-             return
+            self._show_snack("URL and App Name are required", ft.Colors.RED)
+            return
 
         # Template for DMG/PKG installation
         # Simple Logic: Download -> Mount/Install -> Cleanup
@@ -151,8 +151,8 @@ exit 0
         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
 
         if not all([tenant, client, secret]):
-             self._show_snack("Intune Credentials missing in Settings", ft.Colors.RED)
-             return
+            self._show_snack("Intune Credentials missing in Settings", ft.Colors.RED)
+            return
 
         self.status_txt.value = "Uploading..."
         self.upload_btn.disabled = True
@@ -181,8 +181,8 @@ exit 0
 
     def _show_snack(self, msg, color=ft.Colors.GREEN):
         try:
-             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-             self.app_page.snack_bar.open = True
-             self.app_page.update()
+            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
+            self.app_page.snack_bar.open = True
+            self.app_page.update()
         except:
             pass

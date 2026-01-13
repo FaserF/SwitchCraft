@@ -57,5 +57,7 @@ def test_view_imports():
         "library_view",
     ]
     for view_name in view_names:
-        module = importlib.import_module(f"switchcraft.gui_modern.views.{view_name}")
-        assert module is not None
+        try:
+            importlib.import_module(f"switchcraft.gui_modern.views.{view_name}")
+        except ImportError as e:
+            pytest.fail(f"Failed to import view '{view_name}': {e}")

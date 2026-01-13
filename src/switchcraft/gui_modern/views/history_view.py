@@ -15,7 +15,7 @@ def ModernHistoryView(page: ft.Page):
              page.snack_bar = ft.SnackBar(ft.Text(msg))
              page.snack_bar.open = True
              page.update()
-        except:
+        except Exception:
              pass
 
     def load_history():
@@ -23,7 +23,7 @@ def ModernHistoryView(page: ft.Page):
         loading.visible = True
         try:
             page.update()
-        except:
+        except Exception:
             pass
 
         # Load synchronously - history file is small and local, no need for threading
@@ -46,7 +46,7 @@ def ModernHistoryView(page: ft.Page):
                 list_view.controls.append(create_tile(item))
         try:
             page.update()
-        except:
+        except Exception:
             pass
 
     def create_tile(item):

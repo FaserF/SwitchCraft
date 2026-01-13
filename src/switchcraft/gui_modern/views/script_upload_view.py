@@ -85,8 +85,8 @@ class ScriptUploadView(ft.Column):
         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
 
         if not all([tenant, client, secret]):
-             self._show_snack("Intune Credentials missing in Settings", ft.Colors.RED)
-             return
+            self._show_snack("Intune Credentials missing in Settings", ft.Colors.RED)
+            return
 
         self.ps_status.value = "Uploading..."
         self.ps_btn_upload.disabled = True
@@ -94,7 +94,6 @@ class ScriptUploadView(ft.Column):
 
         def _bg():
             try:
-                msg = ""
                 token = self.intune_service.authenticate(tenant, client, secret)
                 with open(self.script_path, "r", encoding="utf-8") as f:
                     content = f.read()
@@ -177,8 +176,8 @@ class ScriptUploadView(ft.Column):
         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
 
         if not all([tenant, client, secret]):
-             self._show_snack("Intune Credentials missing in Settings", ft.Colors.RED)
-             return
+            self._show_snack("Intune Credentials missing in Settings", ft.Colors.RED)
+            return
 
         self.rem_status.value = "Uploading..."
         self.rem_btn_upload.disabled = True
@@ -186,7 +185,6 @@ class ScriptUploadView(ft.Column):
 
         def _bg():
             try:
-                msg = ""
                 token = self.intune_service.authenticate(tenant, client, secret)
 
                 with open(self.detect_path, "r", encoding="utf-8") as f:

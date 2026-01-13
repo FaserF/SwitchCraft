@@ -63,7 +63,7 @@ SwitchCraft is primarily designed for **Windows** environments. While the applic
  SwitchCraft maintains a crowdsourced database of silent switches to help everyone package apps faster.
 
  **How to contribute:**
- 1. Go to the [Issues](../../issues) tab.
+ 1. Go to the [Issues](https://github.com/FaserF/SwitchCraft/issues) tab.
  2. Click **New Issue**.
  3. Select **"Suggest a New Switch"**.
  4. Fill out the form with the App Name, Version, and Silent Switch.

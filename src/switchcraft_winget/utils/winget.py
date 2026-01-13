@@ -5,6 +5,7 @@ import requests
 import time
 from pathlib import Path
 from typing import Optional, List, Dict
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -312,7 +313,7 @@ class WingetHelper:
                  return []
 
              # Skip any leading empty lines/garbage
-             lines = [l for l in proc.stdout.splitlines() if l.strip()]
+             lines = [line for line in proc.stdout.splitlines() if line.strip()]
              logger.debug(f"Winget CLI fallback lines: {len(lines)}")
              if len(lines) < 2:
                  logger.debug(f"Winget CLI output too short: {proc.stdout}")
@@ -331,7 +332,8 @@ class WingetHelper:
                  logger.debug("Failed to find Winget table header. Trying smart split on all lines.")
                  results = []
                  for line in lines:
-                    if "---" in line: continue
+                    if "---" in line:
+                        continue
                     parts = re.split(r'\s{2,}', line.strip())
                     if len(parts) >= 3 and "." in parts[1]: # IDs usually have dots
                         results.append({
@@ -346,7 +348,7 @@ class WingetHelper:
 
              # Locate column starts
              # We look for "ID" (case insensitive) and "Version" as anchors
-             import re
+
 
              # Robust ID anchor
              match_id = re.search(r'\bID\b', header, re.IGNORECASE)

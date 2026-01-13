@@ -10,7 +10,7 @@ class CommunityDBService:
     def __init__(self):
         # In a real scenario, this would fetch from a CDN or API.
         # For now, we simulate a local DB.
-        self.db_path = Path("data/community_switches.json")
+        self.db_path = Path("src/switchcraft/data/community/switches.json")
         self.db = self._load_db()
 
     def _load_db(self):
@@ -54,8 +54,12 @@ class CommunityDBService:
         return None
 
     def _get_hash(self, filepath):
-        h = hashlib.sha256()
-        with open(filepath, "rb") as f:
-            while chunk := f.read(8192):
-                h.update(chunk)
-        return h.hexdigest()
+        try:
+            h = hashlib.sha256()
+            with open(filepath, "rb") as f:
+                while chunk := f.read(8192):
+                    h.update(chunk)
+            return h.hexdigest()
+        except (OSError, IOError) as e:
+            logger.warning(f"Could not hash file {filepath}: {e}")
+            return None
