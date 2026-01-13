@@ -3,7 +3,6 @@ import logging
 import threading
 import requests
 import tempfile
-import os
 import subprocess
 from pathlib import Path
 
