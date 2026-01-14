@@ -15,7 +15,7 @@ class CrashDumpView(ft.Container):
             controls=[
                 ft.Icon(ft.Icons.ERROR_OUTLINE, color="RED_400", size=64),
                 ft.Text("Something went wrong", size=32, weight=ft.FontWeight.BOLD, color="WHITE"),
-                ft.Text(f"An unexpected error occurred while loading this view.", size=16, color="GREY_400"),
+                ft.Text("An unexpected error occurred while loading this view.", size=16, color="GREY_400"),
                 ft.Container(height=20),
                 ft.Container(
                     content=ft.Column([
@@ -48,7 +48,6 @@ class CrashDumpView(ft.Container):
     def _reload_app(self, page):
         import sys
         import subprocess
-        import os
 
         page.clean()
         page.add(ft.Text("Reloading...", size=20))

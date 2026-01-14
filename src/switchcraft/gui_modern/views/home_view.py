@@ -1,5 +1,4 @@
 import flet as ft
-from switchcraft.utils.i18n import i18n
 import datetime
 
 class ModernHomeView(ft.Container):

@@ -1,6 +1,4 @@
 import flet as ft
-import threading
-import time
 
 class HoverSidebar(ft.Stack):
     def __init__(self, app, destinations, on_navigate):
