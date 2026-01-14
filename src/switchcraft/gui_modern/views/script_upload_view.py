@@ -93,7 +93,7 @@ class ScriptUploadView(ft.Column):
             min_lines=2,
             border_radius=8
         )
-        self.ps_file_btn = ft.ElevatedButton(
+        self.ps_file_btn = ft.Button(
             i18n.get("select_script_file") or "Select Script (.ps1)...",
             icon=ft.Icons.FILE_OPEN,
             on_click=self._pick_ps_file
@@ -112,7 +112,7 @@ class ScriptUploadView(ft.Column):
             value="system",
             width=200
         )
-        self.ps_btn_upload = ft.ElevatedButton(
+        self.ps_btn_upload = ft.Button(
             i18n.get("upload_script") or "Upload Script",
             icon=ft.Icons.CLOUD_UPLOAD,
             bgcolor="BLUE_700",
@@ -207,7 +207,7 @@ class ScriptUploadView(ft.Column):
             border_radius=8
         )
 
-        self.det_file_btn = ft.ElevatedButton(
+        self.det_file_btn = ft.Button(
             i18n.get("select_detection_script") or "Select Detection (.ps1)...",
             icon=ft.Icons.SEARCH,
             on_click=self._pick_det_file
@@ -218,7 +218,7 @@ class ScriptUploadView(ft.Column):
             color="GREY_500"
         )
 
-        self.rem_file_btn = ft.ElevatedButton(
+        self.rem_file_btn = ft.Button(
             i18n.get("select_remediation_script") or "Select Remediation (.ps1)...",
             icon=ft.Icons.HEALING,
             on_click=self._pick_rem_file
@@ -238,7 +238,7 @@ class ScriptUploadView(ft.Column):
             value="system",
             width=200
         )
-        self.rem_btn_upload = ft.ElevatedButton(
+        self.rem_btn_upload = ft.Button(
             i18n.get("upload_remediation") or "Upload Remediation",
             icon=ft.Icons.CLOUD_UPLOAD,
             bgcolor="BLUE_700",
@@ -384,7 +384,7 @@ class ScriptUploadView(ft.Column):
                 self.github_pat,
                 ft.Row([
                     self.github_path,
-                    ft.ElevatedButton(
+                    ft.Button(
                         i18n.get("browse_repo") or "Browse Repo",
                         icon=ft.Icons.FOLDER_OPEN,
                         on_click=self._browse_github_repo
@@ -400,12 +400,12 @@ class ScriptUploadView(ft.Column):
                 ),
                 ft.Container(height=10),
                 ft.Row([
-                    ft.ElevatedButton(
+                    ft.Button(
                         i18n.get("import_selected") or "Import Selected",
                         icon=ft.Icons.DOWNLOAD,
                         on_click=self._import_github_scripts
                     ),
-                    ft.ElevatedButton(
+                    ft.Button(
                         i18n.get("deploy_to_intune") or "Deploy to Intune",
                         icon=ft.Icons.CLOUD_UPLOAD,
                         bgcolor="BLUE_700",

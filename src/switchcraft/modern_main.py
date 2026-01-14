@@ -345,24 +345,24 @@ def main(page: ft.Page):
                     ft.Text(str(dump_file), size=12, selectable=True, color="BLUE_400", weight="bold"),
                     ft.Container(height=20),
                     ft.Row([
-                        ft.ElevatedButton(
+                        ft.Button(
                             "Open Dump Folder",
                             icon=ft.Icons.FOLDER_OPEN,
                             on_click=open_dump_folder,
                             style=ft.ButtonStyle(color="WHITE", bgcolor="BLUE_700")
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             "Open Dump File",
                             icon=ft.Icons.DESCRIPTION,
                             on_click=open_dump_file,
                             style=ft.ButtonStyle(color="WHITE", bgcolor="BLUE_700")
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             "Copy Path",
                             icon=ft.Icons.COPY,
                             on_click=copy_dump_path
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             "Close App",
                             icon=ft.Icons.CLOSE,
                             on_click=close_app,

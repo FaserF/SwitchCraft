@@ -466,7 +466,7 @@ class ModernApp:
 
                      dlg.actions.clear()
                      dlg.actions.append(ft.TextButton("No, thanks", on_click=close_wizard))
-                     dlg.actions.append(ft.ElevatedButton("Install Optional", on_click=install_optional))
+                     dlg.actions.append(ft.Button("Install Optional", on_click=install_optional))
                      dlg.update()
                 else:
                      content.controls.append(ft.Text(f"Failed to install base: {msg}", color="RED"))
@@ -487,7 +487,7 @@ class ModernApp:
             content=content,
             actions=[
                 ft.TextButton("Skip", on_click=close_wizard),
-                ft.ElevatedButton("Install Essential", on_click=start_setup)
+                ft.Button("Install Essential", on_click=start_setup)
             ],
             modal=True,
         )

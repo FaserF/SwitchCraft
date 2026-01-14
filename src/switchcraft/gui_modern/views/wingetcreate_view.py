@@ -307,14 +307,14 @@ class WingetCreateView(ft.Column):
 
                 # Buttons
                 ft.Row([
-                    ft.ElevatedButton(
+                    ft.Button(
                         i18n.get("generate_manifest") or "Generate Manifest",
                         icon=ft.Icons.BUILD,
                         bgcolor="BLUE_700",
                         color="WHITE",
                         on_click=self._generate_new_manifest
                     ),
-                    ft.ElevatedButton(
+                    ft.Button(
                         i18n.get("validate_manifest") or "Validate",
                         icon=ft.Icons.CHECK_CIRCLE,
                         on_click=self._validate_manifest
@@ -417,7 +417,7 @@ class WingetCreateView(ft.Column):
 
                 # Buttons
                 ft.Row([
-                    ft.ElevatedButton(
+                    ft.Button(
                         i18n.get("update_manifest") or "Update Manifest",
                         icon=ft.Icons.UPDATE,
                         bgcolor="GREEN_700",

@@ -29,7 +29,7 @@ class GroupManagerView(ft.Column):
                         ft.Text(i18n.get("intune_not_configured") or "Intune is not configured", size=28, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
                         ft.Text(i18n.get("intune_config_hint") or "Please configure Microsoft Graph API credentials in Settings.", size=16, color="GREY_400", text_align=ft.TextAlign.CENTER),
                         ft.Container(height=20),
-                        ft.ElevatedButton(
+                        ft.Button(
                             i18n.get("tab_settings") or "Go to Settings",
                             icon=ft.Icons.SETTINGS,
                             on_click=self._go_to_settings
@@ -55,10 +55,10 @@ class GroupManagerView(ft.Column):
         )
 
         self.refresh_btn = ft.IconButton(ft.Icons.REFRESH, on_click=lambda _: self._load_data())
-        self.create_btn = ft.ElevatedButton(i18n.get("btn_create_group") or "Create Group", icon=ft.Icons.ADD, on_click=self._show_create_dialog)
+        self.create_btn = ft.Button(i18n.get("btn_create_group") or "Create Group", icon=ft.Icons.ADD, on_click=self._show_create_dialog)
 
         self.delete_toggle = ft.Switch(label=i18n.get("enable_delete_mode") or "Enable Deletion (Danger Zone)", value=False, on_change=self._toggle_delete_mode)
-        self.delete_btn = ft.ElevatedButton(
+        self.delete_btn = ft.Button(
             i18n.get("btn_delete_selected") or "Delete Selected",
             icon=ft.Icons.DELETE_FOREVER,
             bgcolor="RED",
@@ -231,7 +231,7 @@ class GroupManagerView(ft.Column):
             content=ft.Column([name_field, desc_field], height=150),
             actions=[
                 ft.TextButton("Cancel", on_click=close_dlg),
-                ft.ElevatedButton("Create", on_click=create, bgcolor="BLUE", color="WHITE")
+                ft.Button("Create", on_click=create, bgcolor="BLUE", color="WHITE")
             ],
         )
         self.app_page.dialog = dlg
@@ -266,7 +266,7 @@ class GroupManagerView(ft.Column):
             content=ft.Text(f"Are you sure you want to delete '{self.selected_group.get('displayName')}'? This cannot be undone."),
             actions=[
                 ft.TextButton("Cancel", on_click=close_dlg),
-                ft.ElevatedButton("Delete", on_click=delete, bgcolor="RED", color="WHITE")
+                ft.Button("Delete", on_click=delete, bgcolor="RED", color="WHITE")
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )

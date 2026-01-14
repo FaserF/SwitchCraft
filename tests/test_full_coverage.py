@@ -94,6 +94,7 @@ def test_config_defaults():
 
 @patch("winreg.OpenKey")
 def test_addon_detection(mock_open_key):
+    pytest.importorskip("winreg")
     """Test registry detection for advanced addon."""
     # This is tricky to test on non-windows or without registry,
     # but we can verify it doesn't crash on import/usage

@@ -102,3 +102,13 @@ build_debug/switchcraft_modern/base_library.zip
 build_debug/switchcraft_modern/PYZ-00.pyz
 /build_debug
 i18n_output.txt
+inspect_tabs.py
+inspect_out.txt
+inspect_flet.py
+flet_inspect_2.py
+flet_inspect.py
+fix_deprecations.py
+button_inspect.txt
+test_flet_controls.py
+test_tabs.py
+test_tabs_2.py

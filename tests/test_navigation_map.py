@@ -32,6 +32,7 @@ def app_instance(monkeypatch):
     page = MagicMock(spec=ft.Page)
     page.clean = MagicMock()
     page.add = MagicMock()
+    page.open = MagicMock()
     # Mock window object
     page.window = MagicMock()
     page.window.jump_list = []

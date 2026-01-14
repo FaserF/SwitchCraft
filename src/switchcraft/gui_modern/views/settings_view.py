@@ -32,7 +32,7 @@ class ModernSettingsView(ft.Column):
 
         self.nav_row = ft.Row(scroll=ft.ScrollMode.AUTO, height=50)
         for i, (name, icon, func) in enumerate(self.tab_defs):
-            btn = ft.ElevatedButton(
+            btn = ft.Button(
                 content=ft.Row([ft.Icon(icon), ft.Text(name)]),
                 on_click=lambda e, f=func: self._switch_tab(f),
                 style=ft.ButtonStyle(
@@ -117,8 +117,8 @@ class ModernSettingsView(ft.Column):
         ai_config = self._build_ai_config_section()
 
         # Export/Import buttons
-        btn_export = ft.ElevatedButton(i18n.get("btn_export_settings") or "Export Settings", icon=ft.Icons.UPLOAD_FILE, on_click=self._export_settings)
-        btn_import = ft.ElevatedButton(i18n.get("btn_import_settings") or "Import Settings", icon=ft.Icons.FILE_DOWNLOAD, on_click=self._import_settings)
+        btn_export = ft.Button(i18n.get("btn_export_settings") or "Export Settings", icon=ft.Icons.UPLOAD_FILE, on_click=self._export_settings)
+        btn_import = ft.Button(i18n.get("btn_import_settings") or "Import Settings", icon=ft.Icons.FILE_DOWNLOAD, on_click=self._import_settings)
 
         export_row = ft.Row([btn_export, btn_import])
 
@@ -135,7 +135,7 @@ class ModernSettingsView(ft.Column):
                 ai_config,
                 ft.Divider(),
                 ft.Row([
-                    ft.ElevatedButton("Test Notification", icon=ft.Icons.NOTIFICATIONS_ACTIVE, on_click=self._send_test_notification),
+                    ft.Button("Test Notification", icon=ft.Icons.NOTIFICATIONS_ACTIVE, on_click=self._send_test_notification),
                     export_row
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
             ],
@@ -146,8 +146,8 @@ class ModernSettingsView(ft.Column):
     def _build_cloud_sync_section(self):
         self.sync_status_text = ft.Text(i18n.get("sync_checking_status") or "Checking status...", color="GREY")
         self.sync_actions = ft.Row(visible=False)
-        self.login_btn = ft.ElevatedButton(i18n.get("btn_login_github") or "Login with GitHub", icon=ft.Icons.LOGIN, on_click=self._start_github_login)
-        self.logout_btn = ft.ElevatedButton(i18n.get("btn_logout") or "Logout", icon=ft.Icons.LOGOUT, on_click=self._logout_github, color="RED")
+        self.login_btn = ft.Button(i18n.get("btn_login_github") or "Login with GitHub", icon=ft.Icons.LOGIN, on_click=self._start_github_login)
+        self.logout_btn = ft.Button(i18n.get("btn_logout") or "Logout", icon=ft.Icons.LOGOUT, on_click=self._logout_github, color="RED")
 
         self._update_sync_ui(update=False)
 
@@ -167,8 +167,8 @@ class ModernSettingsView(ft.Column):
             self.login_btn.visible = False
             self.sync_actions.visible = True
 
-            btn_up = ft.ElevatedButton(i18n.get("btn_sync_up") or "Sync Up", icon=ft.Icons.CLOUD_UPLOAD, on_click=self._sync_up)
-            btn_down = ft.ElevatedButton(i18n.get("btn_sync_down") or "Sync Down", icon=ft.Icons.CLOUD_DOWNLOAD, on_click=self._sync_down)
+            btn_up = ft.Button(i18n.get("btn_sync_up") or "Sync Up", icon=ft.Icons.CLOUD_UPLOAD, on_click=self._sync_up)
+            btn_down = ft.Button(i18n.get("btn_sync_down") or "Sync Down", icon=ft.Icons.CLOUD_DOWNLOAD, on_click=self._sync_down)
 
             self.sync_actions.controls = [btn_up, btn_down, self.logout_btn]
         else:
@@ -237,7 +237,7 @@ class ModernSettingsView(ft.Column):
         self.changelog_text = ft.Markdown(initial_changelog)
         self.latest_version_text = ft.Text(initial_latest)
 
-        check_btn = ft.ElevatedButton(i18n.get("check_updates") or "Check for Updates", icon=ft.Icons.REFRESH, on_click=self._check_updates)
+        check_btn = ft.Button(i18n.get("check_updates") or "Check for Updates", icon=ft.Icons.REFRESH, on_click=self._check_updates)
 
         return ft.ListView(
             controls=[
@@ -289,17 +289,17 @@ class ModernSettingsView(ft.Column):
 
         self.cert_status_text = ft.Text(cert_display, color="GREEN" if (saved_thumb or saved_cert_path) else "GREY")
 
-        cert_auto_btn = ft.ElevatedButton(
+        cert_auto_btn = ft.Button(
             i18n.get("btn_auto_detect_cert") or "Auto-Detect",
             icon=ft.Icons.SEARCH,
             on_click=self._auto_detect_signing_cert
         )
-        cert_browse_btn = ft.ElevatedButton(
+        cert_browse_btn = ft.Button(
             i18n.get("btn_browse_cert") or "Browse .pfx",
             icon=ft.Icons.FOLDER_OPEN,
             on_click=self._browse_signing_cert
         )
-        cert_reset_btn = ft.ElevatedButton(
+        cert_reset_btn = ft.Button(
             i18n.get("btn_reset") or "Reset",
             icon=ft.Icons.DELETE,
             bgcolor="RED_900" if hasattr(getattr(ft, "colors", None), "RED_900") else "RED",
@@ -317,12 +317,12 @@ class ModernSettingsView(ft.Column):
         template_display = SwitchCraftConfig.get_value("CustomTemplatePath", "") or (i18n.get("template_default") or "(Default)")
         self.template_status_text = ft.Text(template_display, color="GREY" if "(Default)" in template_display else "GREEN")
 
-        template_browse_btn = ft.ElevatedButton(
+        template_browse_btn = ft.Button(
             i18n.get("btn_browse") or "Browse",
             icon=ft.Icons.FOLDER_OPEN,
             on_click=self._browse_template
         )
-        template_reset_btn = ft.ElevatedButton(
+        template_reset_btn = ft.Button(
             i18n.get("btn_reset") or "Reset",
             icon=ft.Icons.REFRESH,
             on_click=self._reset_template
@@ -343,7 +343,7 @@ class ModernSettingsView(ft.Column):
         self.raw_client_field = client
         self.raw_secret_field = secret
 
-        test_btn = ft.ElevatedButton(
+        test_btn = ft.Button(
             "Test Connection",
             icon=ft.Icons.CHECK_CIRCLE,
             on_click=self._test_graph_connection
@@ -393,12 +393,12 @@ class ModernSettingsView(ft.Column):
 
     def _build_help_tab(self):
         links = ft.Row([
-            ft.ElevatedButton(i18n.get("help_github_repo") or "GitHub Repo", icon=ft.Icons.CODE, url="https://github.com/FaserF/SwitchCraft"),
-            ft.ElevatedButton(i18n.get("help_report_issue") or "Report Issue", icon=ft.Icons.BUG_REPORT, url="https://github.com/FaserF/SwitchCraft/issues"),
-            ft.ElevatedButton(i18n.get("help_documentation") or "Documentation", icon=ft.Icons.BOOK, url="https://switchcraft.fabiseitz.de"),
+            ft.Button(i18n.get("help_github_repo") or "GitHub Repo", icon=ft.Icons.CODE, url="https://github.com/FaserF/SwitchCraft"),
+            ft.Button(i18n.get("help_report_issue") or "Report Issue", icon=ft.Icons.BUG_REPORT, url="https://github.com/FaserF/SwitchCraft/issues"),
+            ft.Button(i18n.get("help_documentation") or "Documentation", icon=ft.Icons.BOOK, url="https://switchcraft.fabiseitz.de"),
         ])
 
-        logs_btn = ft.ElevatedButton(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs)
+        logs_btn = ft.Button(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs)
 
         # Debug Toggle
         debug_sw = ft.Switch(
@@ -413,7 +413,7 @@ class ModernSettingsView(ft.Column):
             import webbrowser
             webbrowser.open(get_session_handler().get_github_issue_link())
 
-        issue_btn = ft.ElevatedButton(
+        issue_btn = ft.Button(
             i18n.get("help_report_issue_prefilled") or "Report Issue (with Logs)",
             icon=ft.Icons.BUG_REPORT,
             bgcolor="GREY_800",
@@ -439,7 +439,7 @@ class ModernSettingsView(ft.Column):
             self.debug_log_text.visible = self.debug_console_visible
             self.update()
 
-        debug_toggle_btn = ft.ElevatedButton(
+        debug_toggle_btn = ft.Button(
             i18n.get("show_debug_console") or "Show Debug Console",
             icon=ft.Icons.TERMINAL,
             on_click=toggle_debug_console
@@ -456,7 +456,7 @@ class ModernSettingsView(ft.Column):
             content=ft.Column([
                 ft.Text(i18n.get("help_danger_zone") or "Danger Zone", color="RED", weight=ft.FontWeight.BOLD),
                 ft.Text(i18n.get("help_danger_zone_desc") or "Irreversible actions. Proceed with caution.", color="GREY", size=12),
-                ft.ElevatedButton(
+                ft.Button(
                     i18n.get("help_factory_reset") or "Factory Reset (Delete All Data)",
                     icon=ft.Icons.DELETE_FOREVER,
                     bgcolor="RED_900" if hasattr(getattr(ft, "colors", None), "RED_900") else "RED",
@@ -479,7 +479,7 @@ class ModernSettingsView(ft.Column):
                 ft.Text(i18n.get("help_troubleshooting") or "Troubleshooting", size=18, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
                 ft.Text(i18n.get("help_shared_settings_msg") or "Settings are shared across all SwitchCraft editions (Modern, Legacy, and CLI).", size=12, italic=True, text_align=ft.TextAlign.CENTER),
                 ft.Row([
-                    ft.ElevatedButton(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs),
+                    ft.Button(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs),
                     issue_btn
                 ], alignment=ft.MainAxisAlignment.CENTER),
                 ft.Divider(),
@@ -730,7 +730,7 @@ class ModernSettingsView(ft.Column):
             ),
             actions=[
                 ft.TextButton(i18n.get("btn_later") or "Later", on_click=skip_restart),
-                ft.ElevatedButton(
+                ft.Button(
                     i18n.get("btn_restart_now") or "Restart Now",
                     on_click=do_restart,
                     bgcolor="BLUE_700",
@@ -881,7 +881,7 @@ class ModernSettingsView(ft.Column):
                     ft.Text(addon["desc"], size=11, color="GREY")
                 ], expand=True),
                 ft.Text(status_text, color=status_color),
-                ft.ElevatedButton(
+                ft.Button(
                     i18n.get("btn_install") or "Install" if not is_installed else i18n.get("btn_reinstall") or "Reinstall",
                     icon=ft.Icons.DOWNLOAD,
                     on_click=lambda e, aid=addon["id"]: self._install_addon(aid),
@@ -891,14 +891,14 @@ class ModernSettingsView(ft.Column):
             rows.append(row)
 
         # Custom upload button
-        upload_btn = ft.ElevatedButton(
+        upload_btn = ft.Button(
             i18n.get("btn_upload_custom_addon") or "Upload Custom Addon (.zip)",
             icon=ft.Icons.UPLOAD_FILE,
             on_click=self._upload_custom_addon
         )
 
         # Import from URL button
-        url_import_btn = ft.ElevatedButton(
+        url_import_btn = ft.Button(
             i18n.get("btn_import_addon_url") or "Import from URL",
             icon=ft.Icons.LINK,
             on_click=self._import_addon_from_url
@@ -1023,7 +1023,7 @@ class ModernSettingsView(ft.Column):
             ], tight=True, height=120),
             actions=[
                 ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=cancel),
-                ft.ElevatedButton(i18n.get("btn_import") or "Import", on_click=do_import, bgcolor="GREEN")
+                ft.Button(i18n.get("btn_import") or "Import", on_click=do_import, bgcolor="GREEN")
             ],
             actions_alignment=ft.MainAxisAlignment.END
         )

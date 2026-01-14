@@ -27,8 +27,8 @@ class AddonManagerView(ft.Column):
     def _init_ui(self):
         # Header
         self.refresh_btn = ft.IconButton(ft.Icons.REFRESH, on_click=lambda _: self._load_data())
-        self.install_btn = ft.ElevatedButton("Install Addon (.zip)", icon=ft.Icons.UPLOAD_FILE, on_click=self._pick_zip)
-        self.delete_btn = ft.ElevatedButton(
+        self.install_btn = ft.Button("Install Addon (.zip)", icon=ft.Icons.UPLOAD_FILE, on_click=self._pick_zip)
+        self.delete_btn = ft.Button(
             "Delete Selected",
             icon=ft.Icons.DELETE,
             bgcolor="RED",
@@ -152,7 +152,7 @@ class AddonManagerView(ft.Column):
             content=ft.Text(f"Delete addon '{self.selected_addon.get('name')}'?"),
             actions=[
                 ft.TextButton("Cancel", on_click=close_dlg),
-                ft.ElevatedButton("Delete", on_click=delete, bgcolor="RED", color="WHITE")
+                ft.Button("Delete", on_click=delete, bgcolor="RED", color="WHITE")
             ]
         )
         self.app_page.dialog = dlg

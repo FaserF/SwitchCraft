@@ -87,10 +87,10 @@ class PackagingWizardView(ft.Column):
             self.update()
 
     def _build_nav_buttons(self):
-        self.btn_prev = ft.ElevatedButton(
+        self.btn_prev = ft.Button(
             "Previous", on_click=self._prev_step, disabled=True
         )
-        self.btn_next = ft.ElevatedButton(
+        self.btn_next = ft.Button(
             "Next", on_click=self._next_step, bgcolor="BLUE", color="WHITE"
         )
         return ft.Row(
@@ -197,7 +197,7 @@ class PackagingWizardView(ft.Column):
                 ft.Text("Select Installer", size=24, weight=ft.FontWeight.BOLD),
                 ft.Text("Supported: .exe, .msi", color="GREY"),
                 ft.Container(height=20),
-                ft.ElevatedButton("Browse File...", icon=ft.Icons.FOLDER_OPEN, on_click=self._pick_file),
+                ft.Button("Browse File...", icon=ft.Icons.FOLDER_OPEN, on_click=self._pick_file),
                 ft.Container(height=10),
                 self.file_text
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
@@ -216,7 +216,7 @@ class PackagingWizardView(ft.Column):
                 ft.Text("Download from Web", size=24, weight=ft.FontWeight.BOLD),
                 ft.Text("Enter a direct link to an .exe or .msi file", color="GREY"),
                 ft.Container(height=20),
-                ft.Row([self.url_field, ft.ElevatedButton("Download", icon=ft.Icons.DOWNLOAD, on_click=self._start_download)]),
+                ft.Row([self.url_field, ft.Button("Download", icon=ft.Icons.DOWNLOAD, on_click=self._start_download)]),
                 ft.Container(height=10),
                 self.download_progress,
                 self.download_status
@@ -460,7 +460,7 @@ class PackagingWizardView(ft.Column):
             ft.Text("Review & Edit Script", size=20, weight=ft.FontWeight.BOLD),
             sign_status,
             self.script_field,
-            ft.ElevatedButton("Regenerate", on_click=lambda _: self._generate_script_content())
+            ft.Button("Regenerate", on_click=lambda _: self._generate_script_content())
         ], scroll=ft.ScrollMode.AUTO)
 
     def _generate_script_content(self):
@@ -519,7 +519,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
     def _step_package_ui(self):
         self.pkg_status = ft.Text("Ready to package.", size=16)
-        self.pkg_btn = ft.ElevatedButton(
+        self.pkg_btn = ft.Button(
             "Start Packaging", on_click=self._run_packaging, bgcolor="GREEN", color="WHITE"
         )
         return ft.Column([
@@ -586,8 +586,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         self.txt_desc = ft.TextField(label="Description", value=f"Packaged by SwitchCraft based on {Path(self.installer_path).name if self.installer_path else 'installer'}", multiline=True)
 
         self.upload_status = ft.Text("Waiting for authentication...", italic=True)
-        self.btn_upload = ft.ElevatedButton("Upload to Intune", on_click=self._run_upload, icon=ft.Icons.CLOUD_UPLOAD, disabled=True)
-        self.btn_connect = ft.ElevatedButton("Connect", on_click=self._connect_intune)
+        self.btn_upload = ft.Button("Upload to Intune", on_click=self._run_upload, icon=ft.Icons.CLOUD_UPLOAD, disabled=True)
+        self.btn_connect = ft.Button("Connect", on_click=self._connect_intune)
 
         return ft.Column([
             ft.Text("Upload to Microsoft Intune", size=20, weight=ft.FontWeight.BOLD),

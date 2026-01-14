@@ -95,7 +95,7 @@ class MacOSWizardView(ft.Column):
                 weight=ft.FontWeight.BOLD
             ),
             ft.Container(height=10),
-            ft.ElevatedButton(
+            ft.Button(
                 i18n.get("browse_file") or "Browse...",
                 icon=ft.Icons.FILE_OPEN,
                 on_click=self._pick_local_file
@@ -144,7 +144,7 @@ class MacOSWizardView(ft.Column):
         )
 
         # Generate button
-        self.gen_btn = ft.ElevatedButton(
+        self.gen_btn = ft.Button(
             i18n.get("generate_installer_script") or "Generate Installer Script",
             icon=ft.Icons.BUILD,
             bgcolor="BLUE_700",
@@ -164,7 +164,7 @@ class MacOSWizardView(ft.Column):
         )
 
         # Upload button
-        self.upload_btn = ft.ElevatedButton(
+        self.upload_btn = ft.Button(
             i18n.get("upload_to_intune") or "Upload to Intune",
             icon=ft.Icons.CLOUD_UPLOAD,
             bgcolor="GREEN_700",

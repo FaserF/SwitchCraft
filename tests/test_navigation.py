@@ -10,6 +10,7 @@ def mock_app():
     page.clean = MagicMock()
     page.add = MagicMock()
     page.update = MagicMock()
+    page.open = MagicMock()
     app = ModernApp(page)
     # Mock services/sidebar to avoid side effects
     app.addon_service = MagicMock()

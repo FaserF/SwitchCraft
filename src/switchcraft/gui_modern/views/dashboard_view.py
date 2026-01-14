@@ -107,7 +107,7 @@ class DashboardView(ft.Column):
                         bgcolor=color,
                         width=30,
                         height=height_pct,
-                        border_radius=ft.border_radius.only(top_left=4, top_right=4),
+                        border_radius=ft.BorderRadius.only(top_left=4, top_right=4),
                         tooltip=f"{day}: {val}"
                     ),
                     ft.Text(day, size=10, color="GREY")

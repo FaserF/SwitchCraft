@@ -274,7 +274,7 @@ class LibraryView(ft.Column):
             ], tight=True, spacing=10),
             actions=[
                 ft.TextButton(i18n.get("btn_cancel") or "Close", on_click=lambda e: self.app_page.close(dlg)),
-                ft.ElevatedButton(
+                ft.Button(
                     i18n.get("open_folder") or "Open Folder",
                     icon=ft.Icons.FOLDER_OPEN,
                     on_click=lambda e: (self.app_page.close(dlg), self._open_folder(path))

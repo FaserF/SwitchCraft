@@ -84,9 +84,9 @@ class TestAddonService:
             # We must force backslashes in arcname
             # Note: switchcraft_winget/utils/winget.py -> switchcraft_winget\utils\winget.py
             # But the content should be a valid pkg structure
-            z.writestr('switchcraft_winget\\__init__.py', '')
-            z.writestr('switchcraft_winget\\utils\\__init__.py', '')
-            z.writestr('switchcraft_winget\\utils\\winget.py', 'print("ok")')
+            z.writestr('switchcraft_winget/__init__.py', '')
+            z.writestr('switchcraft_winget/utils/__init__.py', '')
+            z.writestr('switchcraft_winget/utils/winget.py', 'print("ok")')
             import json
             z.writestr('manifest.json', json.dumps({"id": "winget", "name": "Winget"}))
 

@@ -34,7 +34,7 @@ def ModernHelperView(page: ft.Page):
             ft.Text(i18n.get("addon_missing_msg_ai") or "The AI Addon is not installed or failed to load.", color="orange", text_align=ft.TextAlign.CENTER),
             ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=12, color="grey", text_align=ft.TextAlign.CENTER),
             ft.Container(height=10),
-            ft.ElevatedButton(
+            ft.Button(
                 i18n.get("btn_go_to_addons") or "Go to Addon Manager",
                 icon=ft.Icons.EXTENSION,
                 bgcolor="BLUE_700",
@@ -70,7 +70,7 @@ def ModernHelperView(page: ft.Page):
                     ]),
                     bgcolor=bg_color,
                     padding=15,
-                    border_radius=ft.border_radius.only(
+                    border_radius=ft.BorderRadius.only(
                         top_left=15, top_right=15,
                         bottom_left=15 if not is_user else 0,
                         bottom_right=15 if is_user else 0

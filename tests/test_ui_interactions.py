@@ -17,6 +17,7 @@ def mock_page():
     # Init empty dialogs
     page.dialog = None
     page.snack_bar = None
+    page.open = MagicMock() # Fix for Flet 0.21+ dialogs
 
     # Mock window object
     page.window = MagicMock()
@@ -30,7 +31,14 @@ def mock_page():
 def find_buttons(control):
     buttons = []
     # Check if it's a button
-    if isinstance(control, (ft.ElevatedButton, ft.FilledButton, ft.TextButton, ft.IconButton, ft.OutlinedButton)):
+    # Note: ElevatedButton is deprecated, but we check for it if present
+    button_types = (ft.FilledButton, ft.TextButton, ft.IconButton, ft.OutlinedButton)
+    if hasattr(ft, "ElevatedButton"):
+        button_types += (ft.ElevatedButton,)
+    if hasattr(ft, "Button"):
+        button_types += (ft.Button,)
+
+    if isinstance(control, button_types):
         buttons.append(control)
 
     # Recurse
@@ -39,6 +47,14 @@ def find_buttons(control):
             buttons.extend(find_buttons(child))
     elif hasattr(control, "content") and control.content:
         buttons.extend(find_buttons(control.content))
+
+    # Handle TabBar tabs
+    if isinstance(control, ft.TabBar) and control.tabs:
+        for tab in control.tabs:
+             # Tabs usually have content if they are TabBarView, but Tab control has content/label
+             # We just traverse Tab children? Tab doesn't have children usually unless it stores content
+             # Wait, Tab has 'content' or 'icon' etc.
+             pass
 
     return buttons
 
@@ -81,7 +97,7 @@ def test_settings_view_buttons(mock_page):
             label = "Unknown"
             if hasattr(btn, "text") and btn.text:
                 label = btn.text
-            elif hasattr(btn, "label") and btn.label: # TextField
+            elif hasattr(btn, "label") and btn.label: # TextField check? No button usually doesn't have label but Tab does.
                  label = btn.label
             elif hasattr(btn, "content"):
                 if isinstance(btn.content, str):
@@ -382,6 +398,8 @@ def test_settings_view_entra_test_connection(mock_page):
         try:
             from switchcraft.gui_modern.views.settings_view import ModernSettingsView
             view = ModernSettingsView(mock_page, initial_tab_index=2)
+            # IMPORTANT: Mock update to prevent "Control must be added to page" error
+            view.update = MagicMock()
         except Exception as e:
              log(f"CRITICAL: SettingsView init failed: {e}")
              pytest.fail(f"SettingsView init failed: {e}")
@@ -389,7 +407,13 @@ def test_settings_view_entra_test_connection(mock_page):
         # Helper to find items
         def find_all_buttons_and_inputs(control):
             items = []
-            if isinstance(control, (ft.ElevatedButton, ft.FilledButton, ft.TextButton, ft.IconButton, ft.OutlinedButton, ft.TextField)):
+            button_types = (ft.FilledButton, ft.TextButton, ft.IconButton, ft.OutlinedButton, ft.TextField)
+            if hasattr(ft, "ElevatedButton"):
+                button_types += (ft.ElevatedButton,)
+            if hasattr(ft, "Button"):
+                button_types += (ft.Button,)
+
+            if isinstance(control, button_types):
                 items.append(control)
 
             # Recursive traversal
@@ -399,16 +423,12 @@ def test_settings_view_entra_test_connection(mock_page):
             if hasattr(control, "content") and control.content:
                 children.append(control.content)
 
-            # Handle Tabs
-            if isinstance(control, ft.Tabs) and control.tabs:
-                for tab in control.tabs:
-                    if tab.content:
-                        children.append(tab.content)
-            # Handle Tab (if passed directly, though unlikely)
-            if isinstance(control, ft.Tab) and control.content:
-                children.append(control.content)
+            # Handle TabBar
+            if isinstance(control, ft.TabBar) and control.tabs:
+                children.extend(control.tabs)
 
-            # SettingsView uses ListView controls which are in .controls
+            # Handle Tabs (Old alias compatibility check?)
+            # No, assume Flet 0.80.1, we traverse content.
 
             for child in children:
                 items.extend(find_all_buttons_and_inputs(child))

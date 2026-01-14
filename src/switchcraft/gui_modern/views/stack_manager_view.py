@@ -112,12 +112,12 @@ class StackManagerView(ft.Column):
                 ),
                 ft.Container(height=15),
                 ft.Row([
-                    ft.ElevatedButton(
+                    ft.Button(
                         i18n.get("save_stack") or "Save Stack",
                         icon=ft.Icons.SAVE,
                         on_click=self._save_stacks_action
                     ),
-                    ft.ElevatedButton(
+                    ft.Button(
                         i18n.get("deploy_stack") or "Deploy Stack",
                         icon=ft.Icons.ROCKET_LAUNCH,
                         bgcolor="BLUE_700",
@@ -317,7 +317,7 @@ class StackManagerView(ft.Column):
             ], tight=True),
             actions=[
                 ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda e: self.app_page.close(dlg)),
-                ft.ElevatedButton(
+                ft.Button(
                     i18n.get("btn_deploy") or "Deploy",
                     bgcolor="BLUE_700",
                     color="WHITE",

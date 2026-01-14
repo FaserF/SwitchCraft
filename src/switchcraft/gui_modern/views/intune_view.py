@@ -18,7 +18,7 @@ class ModernIntuneView(ft.Column):
 
         # Check Tool Availability
         if not self.intune_service.is_tool_available():
-            btn_dl = ft.ElevatedButton(i18n.get("btn_download_tool") or "Download Intune Tool")
+            btn_dl = ft.Button(i18n.get("btn_download_tool") or "Download Intune Tool")
             btn_dl.on_click = lambda e: self._show_snack("Download feature coming soon")
 
             self.controls = [
@@ -94,7 +94,7 @@ class ModernIntuneView(ft.Column):
             btn = ft.IconButton(ft.Icons.FOLDER_OPEN, on_click=lambda e: pick_folder(e, field))
             return ft.Row([field, btn])
 
-        btn_create = ft.ElevatedButton(
+        btn_create = ft.Button(
             i18n.get("btn_create_intunewin") or "Create .intunewin",
             bgcolor="GREEN_700",
             color="WHITE",
@@ -133,7 +133,7 @@ class ModernIntuneView(ft.Column):
         self.up_uninstall_cmd = ft.TextField(label=i18n.get("lbl_uninstall_cmd") or "Uninstall Command")
 
         self.up_status = ft.Text(i18n.get("status_not_connected") or "Not connected", color="GREY")
-        self.btn_upload = ft.ElevatedButton(
+        self.btn_upload = ft.Button(
             i18n.get("btn_upload_intune") or "Upload to Intune",
             icon=ft.Icons.CLOUD_UPLOAD,
             disabled=True,
@@ -143,7 +143,7 @@ class ModernIntuneView(ft.Column):
         # Supersedence UI
         self.search_supersede_field = ft.TextField(label=i18n.get("lbl_search_replace") or "Search App to Replace/Update", height=40, expand=True)
         self.supersede_options = ft.Dropdown(label=i18n.get("lbl_select_app") or "Select App", options=[], visible=False)
-        self.supersede_copy_btn = ft.ElevatedButton(
+        self.supersede_copy_btn = ft.Button(
             i18n.get("btn_copy_metadata") or "Copy Metadata",
             icon=ft.Icons.COPY,
             disabled=True,
@@ -176,7 +176,7 @@ class ModernIntuneView(ft.Column):
                     self.update()
             threading.Thread(target=_bg, daemon=True).start()
 
-        btn_connect = ft.ElevatedButton(i18n.get("btn_connect") or "Connect", on_click=connect)
+        btn_connect = ft.Button(i18n.get("btn_connect") or "Connect", on_click=connect)
 
         # Supersedence Logic
         def search_apps(e):
@@ -336,7 +336,7 @@ class ModernIntuneView(ft.Column):
                 dlg = ft.AlertDialog(
                     title=ft.Text(i18n.get("package_created_title") or "Package Created!", color="GREEN"),
                     content=ft.Text(f"{i18n.get('location')}: {output_file}"),
-                    actions=[ft.ElevatedButton(i18n.get("open_folder") or "Open Folder", on_click=open_folder)]
+                    actions=[ft.Button(i18n.get("open_folder") or "Open Folder", on_click=open_folder)]
                 )
                 self.app_page.open(dlg)
 

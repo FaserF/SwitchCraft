@@ -65,7 +65,7 @@ class ModernIntuneStoreView(ft.Column):
                         ft.Text(i18n.get("intune_not_configured") or "Intune is not configured", size=28, weight="bold", text_align=ft.TextAlign.CENTER),
                         ft.Text(i18n.get("intune_config_hint") or "Please configure Microsoft Graph API credentials in Settings.", size=16, color="GREY_400", text_align=ft.TextAlign.CENTER),
                         ft.Container(height=20),
-                        ft.ElevatedButton(
+                        ft.Button(
                             i18n.get("tab_settings") or "Go to Settings",
                             icon=ft.Icons.SETTINGS,
                             on_click=lambda _: self._switch_to_settings()
@@ -192,7 +192,7 @@ class ModernIntuneStoreView(ft.Column):
         self.details_area.controls.append(ft.Container(height=20))
         self.details_area.controls.append(
             ft.Row([
-                ft.ElevatedButton(
+                ft.Button(
                     i18n.get("btn_deploy_package") or "Deploy / Package...",
                     icon=ft.Icons.CLOUD_UPLOAD,
                     bgcolor="BLUE",
