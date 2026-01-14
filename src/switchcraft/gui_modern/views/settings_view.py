@@ -93,7 +93,7 @@ class ModernSettingsView(ft.Column):
         # Language
         lang_dd = ft.Dropdown(
             label=i18n.get("settings_language") or "Language",
-            value=SwitchCraftConfig.get_value("Language", "en"),
+            value=SwitchCraftConfig.get_value("Language", i18n.language),
             options=[
                 ft.dropdown.Option("en", "English"),
                 ft.dropdown.Option("de", "Deutsch"),
@@ -133,7 +133,10 @@ class ModernSettingsView(ft.Column):
                 ft.Divider(),
                 ai_config,
                 ft.Divider(),
-                export_row
+                ft.Row([
+                    ft.ElevatedButton("Test Notification", icon=ft.Icons.NOTIFICATIONS_ACTIVE, on_click=self._send_test_notification),
+                    export_row
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
             ],
             padding=20,
             spacing=15,
@@ -683,6 +686,27 @@ class ModernSettingsView(ft.Column):
             self.app_page.update()
         except Exception:
              pass
+
+    def _on_lang_change(self, val):
+        from switchcraft.utils.config import SwitchCraftConfig
+        from switchcraft.utils.i18n import i18n
+        SwitchCraftConfig.set_user_preference("Language", val)
+        # Ask app to restart
+        if hasattr(self.app_page, "_show_restart_countdown"):
+            self.app_page._show_restart_countdown()
+        else:
+            self._show_snack(i18n.get("restart_required") or "Language changed. Please restart app.", "ORANGE")
+
+    def _send_test_notification(self, e):
+        from switchcraft.services.notification_service import NotificationService
+        ns = NotificationService()
+        ns.add_notification(
+            title="Test Notification",
+            message="This is a test notification from Settings! It should trigger a Windows Toast.",
+            type="info", # Default info, but forced system notify
+            notify_system=True
+        )
+        self._show_snack("Test notification sent!", "GREEN")
 
     def _check_managed_settings(self):
         """

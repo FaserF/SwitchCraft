@@ -117,25 +117,31 @@ class ModernAnalyzerView(ft.Column):
 
 
 
-        self.results_column = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True, spacing=15)
+        self.results_column = ft.Column(expand=False, spacing=15)
 
         self.controls = [
-                ft.Row([
-                    ft.Text("Installer Analyzer", size=32, weight=ft.FontWeight.BOLD),
-                    ft.Icon(ft.Icons.ANALYTICS, size=32, color="BLUE_400")
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                ft.Divider(height=2, thickness=1),
-                self.addon_warning,
-                self.drop_zone,
-                ft.Container(
-                    content=ft.Column([
-                        self.status_text,
-                        self.progress_bar,
-                    ], spacing=5),
-                    margin=ft.margin.only(top=10)
-                ),
-                ft.Divider(height=2, thickness=1),
-                self.results_column,
+            ft.Container(
+                padding=20,
+                content=ft.Column([
+                    ft.Row([
+                        ft.Text(i18n.get("analyzer_view_title"), size=32, weight=ft.FontWeight.BOLD),
+                        ft.Icon(ft.Icons.ANALYTICS, size=32, color="BLUE_400")
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(height=2, thickness=1),
+                    self.addon_warning,
+                    self.drop_zone,
+                    ft.Container(
+                        content=ft.Column([
+                            self.status_text,
+                            self.progress_bar,
+                        ], spacing=5),
+                        margin=ft.margin.only(top=10)
+                    ),
+                    ft.Divider(height=2, thickness=1),
+                    self.results_column,
+                ], spacing=10, scroll=ft.ScrollMode.AUTO, expand=True),
+                expand=True
+            )
         ]
         self._check_addon()
 

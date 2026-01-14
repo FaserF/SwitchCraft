@@ -101,3 +101,4 @@ build_debug/switchcraft_modern/base_library.zip
 *.toc
 build_debug/switchcraft_modern/PYZ-00.pyz
 /build_debug
+i18n_output.txt

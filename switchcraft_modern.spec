@@ -10,6 +10,7 @@ block_cipher = None
 # We need switchcraft.* and flet
 hidden_imports = [
     'flet', 'flet_desktop', 'defusedxml', 'winotify', 'requests',
+    'xml.parsers.expat', 'pyexpat',
     'switchcraft.utils', 'switchcraft.utils.config', 'switchcraft.utils.app_updater',
     'switchcraft.gui', 'switchcraft.gui_modern',
     'switchcraft.controllers', 'switchcraft.services', 'switchcraft.gui_modern.utils',

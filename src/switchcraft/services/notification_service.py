@@ -2,6 +2,9 @@ import logging
 import uuid
 from datetime import datetime
 from typing import List, Dict, Callable
+import json
+import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -13,22 +16,76 @@ class NotificationService:
         if cls._instance is None:
             cls._instance = super(NotificationService, cls).__new__(cls)
             cls._instance.notifications = []
+            cls._instance._load_notifications()
         return cls._instance
 
-    def add_notification(self, title: str, message: str, type: str = "info"):
+    def _get_storage_path(self):
+        app_data = os.getenv('APPDATA')
+        if app_data:
+             path = Path(app_data) / "FaserF" / "SwitchCraft" / "notifications.json"
+        else:
+             path = Path.home() / ".switchcraft" / "notifications.json"
+
+        # Ensure dir exists
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _load_notifications(self):
+        try:
+            path = self._get_storage_path()
+            if path.exists():
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    # Restore timestamp objects
+                    for n in data:
+                        if isinstance(n.get("timestamp"), str):
+                            try:
+                                n["timestamp"] = datetime.fromisoformat(n["timestamp"])
+                            except:
+                                n["timestamp"] = datetime.now()
+                    self.notifications = data
+        except Exception as e:
+            logger.error(f"Failed to load notifications: {e}")
+
+    def _save_notifications(self):
+        try:
+            path = self._get_storage_path()
+            # Serialize dates
+            data_to_save = []
+            for n in self.notifications:
+                item = n.copy()
+                if isinstance(item.get("timestamp"), datetime):
+                    item["timestamp"] = item["timestamp"].isoformat()
+                data_to_save.append(item)
+
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data_to_save, f, indent=4)
+        except Exception as e:
+            logger.error(f"Failed to save notifications: {e}")
+
+    def add_notification(self, title: str, message: str, type: str = "info", notify_system: bool = None):
         """
         Adds a notification.
         type: info, success, warning, error
+        notify_system: If True, triggers OS toast (if supported by GUI).
+                       If None, defaults to True for 'error' and 'warning', False otherwise.
         """
+
+        # Determine priority/system notification
+        if notify_system is None:
+            notify_system = type in ["error", "warning"]
+
         notif = {
             "id": str(uuid.uuid4()),
             "title": title,
             "message": message,
             "type": type,
             "timestamp": datetime.now(),
-            "read": False
+            "read": False,
+            "notify_system": notify_system
         }
         self.notifications.insert(0, notif)
+        self._save_notifications()
         self._notify_listeners()
         return notif
 
@@ -37,15 +94,18 @@ class NotificationService:
             if n["id"] == notif_id:
                 n["read"] = True
                 break
+        self._save_notifications()
         self._notify_listeners()
 
     def mark_all_read(self):
         for n in self.notifications:
             n["read"] = True
+        self._save_notifications()
         self._notify_listeners()
 
     def clear_all(self):
         self.notifications.clear()
+        self._save_notifications()
         self._notify_listeners()
 
     def get_unread_count(self) -> int:

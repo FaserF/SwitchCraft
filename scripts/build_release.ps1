@@ -51,7 +51,8 @@ param (
     [switch]$Pip,
     [switch]$Addons,
     [switch]$Installer,
-    [switch]$All
+    [switch]$All,
+    [switch]$LocalDev
 )
 
 $ErrorActionPreference = "Stop"
@@ -127,13 +128,15 @@ Write-Host "------------------------------------------" -ForegroundColor Gray
 # --- Force Close SwitchCraft ---
 if ($IsWinBuild) {
     Write-Host "`nStopping any running SwitchCraft processes to prevent file locks..." -ForegroundColor Yellow
-    $Processes = Get-Process | Where-Object { $_.ProcessName -like "SwitchCraft*" -and $_.Id -ne $PID }
-    if ($Processes) {
-        $Processes | Stop-Process -Force
-        Write-Host "Killed $($Processes.Count) process(es)." -ForegroundColor Gray
-    }
-    else {
-        Write-Host "No active SwitchCraft processes found." -ForegroundColor Gray
+    # Use taskkill for more robust tree killing (/T) and forceful termination (/F)
+    # Redirect stderr to null to avoid noise if process not found
+    try {
+        taskkill /F /IM SwitchCraft.exe /T 2>&1 | Out-Null
+        taskkill /F /IM SwitchCraft-windows.exe /T 2>&1 | Out-Null
+        # Give it a second to release locks
+        Start-Sleep -Seconds 1
+    } catch {
+        # Ignore errors if process not found
     }
 }
 
@@ -199,18 +202,28 @@ function Run-PyInstaller {
 }
 
 # --- 0. PREPARE ASSETS ---
-Write-Host "`nGenerating Bundled Addons..." -ForegroundColor Cyan
-try {
-    if ($IsWinBuild) {
-        python src/generate_addons.py
+if ($LocalDev) {
+    Write-Host "`nGenerating Bundled Addons (Local Dev Mode)..." -ForegroundColor Cyan
+    try {
+        if ($IsWinBuild) {
+            python src/generate_addons.py
+        }
+        else {
+            python3 src/generate_addons.py
+        }
+        if ($LASTEXITCODE -ne 0) { throw "Addon generation failed with code $LASTEXITCODE" }
     }
-    else {
-        python3 src/generate_addons.py
+    catch {
+        Write-Warning "Failed to generate addons: $_"
     }
-    if ($LASTEXITCODE -ne 0) { throw "Addon generation failed with code $LASTEXITCODE" }
 }
-catch {
-    Write-Warning "Failed to generate addons: $_"
+else {
+    # Clean up bundled addons to ensure clean release build
+    $AddonAssetsDir = Join-Path $RepoRoot "src/switchcraft/assets/addons"
+    if (Test-Path $AddonAssetsDir) {
+        Write-Host "Cleaning bundled addons for Release Build..." -ForegroundColor Yellow
+        Remove-Item "$AddonAssetsDir\*.zip" -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # --- 1. BUILD MODERN (Flet) ---
@@ -330,3 +343,72 @@ if ($Legacy -and $IsWinBuild) {
 }
 
 Write-Host "`nBuild Process Complete!" -ForegroundColor Cyan
+
+# --- Notification ---
+if ($IsWinBuild) {
+    try {
+        $ToastTitle = "SwitchCraft Builder"
+        $ToastText = "Build completed successfully!"
+
+        # Use PowerShell BurntToast if available, else standard Import-Module or raw XML?
+        # Raw XML via Windows.UI.Notifications is standard on Win10/11 without extra modules.
+
+        $code = @"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Windows.Data.Xml.Dom;
+using Windows.UI.Notifications;
+
+namespace ToastNotify
+{
+    public class Toaster
+    {
+        public static void Show(string appId, string title, string message)
+        {
+            var template = ToastNotificationManager.GetTemplateContent(ToastTemplateType.ToastText02);
+            var textNodes = template.GetElementsByTagName("text");
+            textNodes[0].AppendChild(template.CreateTextNode(title));
+            textNodes[1].AppendChild(template.CreateTextNode(message));
+
+            var notifier = ToastNotificationManager.CreateToastNotifier(appId);
+            var notification = new ToastNotification(template);
+            notifier.Show(notification);
+        }
+    }
+}
+"@
+        # Try to compile C# snippet for Toast if not already loaded (Simple method)
+        # OR simpler: Just use New-BurntToastNotification if installed?
+        # User requested "via Powershell in Windows". The cleanest dependency-free way is minimal P/Invoke or just Audio.
+        # But let's try a simple visual method using 'msg' as backup or just sound:
+        [System.Console]::Beep(1000, 300)
+
+        # Attempt Toast via plain PS (Windows 10+)
+        $XmlString = @"
+<toast>
+  <visual>
+    <binding template=""ToastGeneric"">
+      <text>SwitchCraft Build</text>
+      <text>Build process finished successfully.</text>
+    </binding>
+  </visual>
+</toast>
+"@
+
+        $AppId = "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
+
+        $null = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+        $null = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
+
+        $Xml = [Windows.Data.Xml.Dom.XmlDocument]::new()
+        $Xml.LoadXml($XmlString)
+        $Toast = [Windows.UI.Notifications.ToastNotification]::new($Xml)
+        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($AppId).Show($Toast)
+
+    } catch {
+        Write-Warning "Could not trigger toast notification: $_"
+    }
+}
