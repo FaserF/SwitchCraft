@@ -13,7 +13,9 @@ hidden_imports = [
     'switchcraft.utils', 'switchcraft.utils.config', 'switchcraft.utils.app_updater',
     'switchcraft.gui', 'switchcraft.gui_modern',
     'switchcraft.controllers', 'switchcraft.services', 'switchcraft.gui_modern.utils',
+    'switchcraft.gui_modern.app',
     # Explicitly include all views for PyInstaller to find them
+    'switchcraft.gui_modern.views.crash_view',
     'switchcraft.gui_modern.views.packaging_wizard_view',
     'switchcraft.gui_modern.views.analyzer_view',
     'switchcraft.gui_modern.views.winget_view',
@@ -43,7 +45,7 @@ except Exception as e:
 # Collect all other submodules but exclude addon modules that are not part of core
 all_submodules = collect_submodules('switchcraft')
 # Filter out modules that were moved to addons or don't exist
-excluded_modules = ['switchcraft.utils.winget', 'switchcraft.gui.views.ai_view', 'switchcraft_winget', 'switchcraft_ai', 'switchcraft_advanced']
+excluded_modules = ['switchcraft.utils.winget', 'switchcraft.gui.views.ai_view', 'switchcraft_winget', 'switchcraft_ai', 'switchcraft_advanced', 'switchcraft.utils.updater']
 hidden_imports += [m for m in all_submodules if not any(m.startswith(ex) for ex in excluded_modules)]
 
 # Deduplicate

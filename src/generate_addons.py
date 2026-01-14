@@ -25,19 +25,43 @@ def create_addon(name, addon_id, files):
 
     print(f"Created {zip_path}")
 
-# AI Addon
-ai_service_code = """
+def main():
+    # AI Addon
+    ai_service_code = """
 class SwitchCraftAI:
     def __init__(self):
-        pass
+        self.ctx = {}
     def update_context(self, data):
-        pass
+        self.ctx = data
     def ask(self, query):
+        q = query.lower()
+        if "who are you" in q: return "I am SwitchCraft AI"
+        if "wer bist du" in q: return "Ich bin SwitchCraft AI"
+        if "silent" in q or "switches" in q:
+            sw = self.ctx.get("install_silent", "/S")
+            if "what" in q:
+                return f"detected these silent switches: {sw}"
+            return f"folgende Switches gefunden: {sw}"
         return f"Simulated Response: You asked '{query}'. (This is a local placeholder AI)"
 """
-create_addon("AI Assistant", "ai", {"service.py": ai_service_code})
+    create_addon("AI Assistant", "ai", {"service.py": ai_service_code})
 
-# Advanced Addon
-create_addon("Advanced Features", "advanced", {"start.txt": "Advanced features enabled"})
+    # Advanced Addon
+    create_addon("Advanced Features", "advanced", {"start.txt": "Advanced features enabled"})
 
-print("Done.")
+    # Winget Addon
+    # Bundle the local source file from utils/winget.py into the addon zip
+    winget_source = Path("src/switchcraft/utils/winget.py")
+    if winget_source.exists():
+        content = winget_source.read_text(encoding="utf-8")
+        create_addon("Winget Integration", "winget", {
+            "utils/winget.py": content,
+            "utils/__init__.py": "" # Make utils a package
+        })
+    else:
+        print("Warning: Winget source not found at src/switchcraft/utils/winget.py")
+
+    print("Done.")
+
+if __name__ == "__main__":
+    main()

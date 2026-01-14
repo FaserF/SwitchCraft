@@ -255,9 +255,9 @@ class GroupManagerView(ft.Column):
 
     def _has_credentials(self):
         """Check if Graph API credentials are configured."""
-        tenant_id = SwitchCraftConfig.get_value("GraphTenantId")
-        client_id = SwitchCraftConfig.get_value("GraphClientId")
-        client_secret = SwitchCraftConfig.get_secure_value("GraphClientSecret")
+        tenant_id = SwitchCraftConfig.get_value("IntuneTenantID")
+        client_id = SwitchCraftConfig.get_value("IntuneClientID")
+        client_secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
         return bool(tenant_id and client_id and client_secret)
 
     def _go_to_settings(self, e):

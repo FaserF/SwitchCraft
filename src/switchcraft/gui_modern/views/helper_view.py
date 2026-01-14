@@ -20,9 +20,9 @@ def ModernHelperView(page: ft.Page):
         from switchcraft.utils.i18n import i18n
 
         def go_to_addons(e):
-            # Navigate to Addon Manager (tab index 16)
+            # Navigate to Addon Manager (tab index 9 - Settings)
             if hasattr(page, 'switchcraft_app') and hasattr(page.switchcraft_app, 'goto_tab'):
-                page.switchcraft_app.goto_tab(16)
+                page.switchcraft_app.goto_tab(9)
             else:
                 page.snack_bar = ft.SnackBar(ft.Text("Please navigate to Addons tab manually"), bgcolor="ORANGE")
                 page.snack_bar.open = True
@@ -57,7 +57,7 @@ def ModernHelperView(page: ft.Page):
     )
 
     def add_message(sender, text, is_user=False, is_error=False):
-        bg_color = "SURFACE_VARIANT" if is_user else "PRIMARY_CONTAINER"
+        bg_color = "GREY_800" if is_user else "BLUE_900"
         text_color = "WHITE"
         align = ft.MainAxisAlignment.END if is_user else ft.MainAxisAlignment.START
 
@@ -106,7 +106,8 @@ def ModernHelperView(page: ft.Page):
                 if typing_indicator in chat_history.controls:
                     chat_history.controls.remove(typing_indicator)
                 add_message("AI Error", str(ex), is_user=False, is_error=True)
-            page.update()
+            if page:
+                page.update()
 
         threading.Thread(target=_get_response, daemon=True).start()
 

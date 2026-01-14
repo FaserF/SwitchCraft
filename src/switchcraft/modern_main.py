@@ -31,8 +31,8 @@ def start_splash():
                 env=env,
                 creationflags=creationflags
             )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Failed to start splash screen: {e}")
 
 # Start Splash IMMEDIATELY - before any heavy imports
 if __name__ == "__main__":
@@ -48,6 +48,7 @@ def patch_flet():
         if not hasattr(ft, "colors"):
             ft.colors = ft.Colors
     except Exception:
+        # Flet version likely compatible or different structure
         pass
 
     try:
@@ -55,7 +56,8 @@ def patch_flet():
     except AttributeError:
         if hasattr(ft, 'Alignment'):
             if not hasattr(ft, 'alignment') or ft.alignment is None:
-                class DummyAlignment: pass
+                class DummyAlignment:
+                    pass
                 ft.alignment = DummyAlignment()
             ft.alignment.center = ft.Alignment(0, 0)
         elif hasattr(ft, 'alignment') and hasattr(ft.alignment, 'CENTER'):
@@ -73,6 +75,7 @@ _IMPORT_EXC_INFO = None
 try:
     # Explicitly import updater to ensure PyInstaller bundles it
     import switchcraft.utils.app_updater # noqa: F401
+
     from switchcraft.gui_modern.app import ModernApp  # noqa: E402
     from switchcraft.utils.logging_handler import setup_session_logging  # noqa: E402
     # Setup session logging
@@ -110,14 +113,14 @@ def write_crash_dump(exc_info):
         try:
             from switchcraft import __version__
             f.write(f"App Version: {__version__}\n")
-        except:
+        except Exception:
              f.write("App Version: unknown\n")
 
         try:
              from switchcraft.utils.config import SwitchCraftConfig
              channel = SwitchCraftConfig.get_value("UpdateChannel", "stable")
              f.write(f"Update Channel: {channel}\n")
-        except:
+        except Exception:
              f.write("Update Channel: unknown\n")
 
         f.write("\n" + "="*60 + "\n")
@@ -263,8 +266,9 @@ def main(page: ft.Page):
             # 2. Force Windows Clipboard (cmd /c check)
             try:
                 import subprocess
-                cmd = f'echo {path_str} | clip'
-                subprocess.run(cmd, shell=True)
+                # Use shell=False and pass input via stdin to avoid injection
+                if sys.platform == "win32":
+                     subprocess.run(['clip'], input=path_str.encode('utf-8'), check=False)
             except Exception:
                 pass
 
@@ -272,7 +276,13 @@ def main(page: ft.Page):
             import ctypes
             # Nuclear option: Win32 ExitProcess
             # This cannot be blocked or ignored by Python/Flet
-            ctypes.windll.kernel32.ExitProcess(1)
+            if sys.platform == "win32":
+                try:
+                    ctypes.windll.kernel32.ExitProcess(1)
+                except Exception:
+                    sys.exit(1)
+            else:
+                 sys.exit(1)
 
         # Show error message with dump location - centered
         page.clean()
@@ -323,4 +333,4 @@ def main(page: ft.Page):
         page.update()
 
 if __name__ == "__main__":
-    ft.app(target=main)
+    ft.app(target=main, assets_dir="assets")

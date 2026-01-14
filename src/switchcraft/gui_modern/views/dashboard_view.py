@@ -60,8 +60,9 @@ class DashboardView(ft.Column):
                     dt = datetime.fromisoformat(ts).date()
                     if (today - dt).days < 5:
                         date_counts[dt] += 1
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Failed to parse date '{ts}': {e}")
 
         self.chart_data = []
         for i in range(4, -1, -1):
@@ -122,9 +123,12 @@ class DashboardView(ft.Column):
                 title = item.get("filename") or item.get("product") or "Unknown"
                 status = item.get("status", "Analyzed")
                 icon = ft.Icons.ANALYTICS
-                if status == "Packaged": icon = ft.Icons.INVENTORY_2
-                elif status == "Deployed": icon = ft.Icons.ROCKET_LAUNCH
-                elif status == "Error": icon = ft.Icons.ERROR
+                if status == "Packaged":
+                    icon = ft.Icons.INVENTORY_2
+                elif status == "Deployed":
+                    icon = ft.Icons.ROCKET_LAUNCH
+                elif status == "Error":
+                    icon = ft.Icons.ERROR
 
                 recent_list.append(
                     ft.ListTile(

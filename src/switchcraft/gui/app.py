@@ -49,12 +49,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.logo_image = None
         self.load_assets()
 
+
         # Pending update info (for "Update Later" feature)
         self.pending_update = None
-
-        # Initialize logo_image and load assets before building UI
-        self.logo_image = None
-        self.load_assets()
 
         # 1. Show Loading Screen immediately
         self.loading_frame = ctk.CTkFrame(self)
@@ -337,12 +334,6 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 # Re-setup logger to show error if possible (since we shut it down)
                 logging.basicConfig(level=logging.INFO)
                 logger.error(f"Restart failed: {e}")
-                messagebox.showerror("Error", "Could not restart automatically. Please restart manually.")
-
-            except Exception as e:
-                # Re-setup logger to show error if possible (since we shut it down)
-                logging.basicConfig(level=logging.INFO)
-                logging.getLogger(__name__).error(f"Restart failed: {e}")
                 messagebox.showerror("Error", "Could not restart automatically. Please restart manually.")
 
         CountdownDialog(

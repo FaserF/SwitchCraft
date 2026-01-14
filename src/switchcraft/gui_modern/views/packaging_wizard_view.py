@@ -216,24 +216,29 @@ class PackagingWizardView(ft.Column):
             padding=20
         )
 
+        # Tab Content Container
+        self.wizard_tab_body = ft.Container(content=local_content, padding=20)
+
+        def on_source_change(e):
+            idx = int(e.control.selected_index)
+            if idx == 0:
+                 self.wizard_tab_body.content = local_content
+            else:
+                 self.wizard_tab_body.content = url_content
+            self.wizard_tab_body.update()
+
         tabs = ft.Tabs(
+            content=self.wizard_tab_body,
+            length=2,
             selected_index=0,
             animation_duration=300,
-            tabs=[
-                ft.Tab(
-                    tab_content=ft.Row([ft.Icon(ft.Icons.COMPUTER), ft.Text("Local File")]),
-                    content=local_content
-                ),
-                ft.Tab(
-                    tab_content=ft.Row([ft.Icon(ft.Icons.LINK), ft.Text("Download URL")]),
-                    content=url_content
-                ),
-            ],
-                    content=url_content
-                ),
-            ],
-            expand=True
+            expand=True,
+            on_change=on_source_change
         )
+        tabs.tabs = [
+                ft.Tab(label="Local File", icon=ft.Icons.COMPUTER),
+                ft.Tab(label="Download URL", icon=ft.Icons.LINK),
+            ]
 
         self.autopilot_btn = ft.OutlinedButton(
             "Auto-Pilot (Magic Mode) 🪄",

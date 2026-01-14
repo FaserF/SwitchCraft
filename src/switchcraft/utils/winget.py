@@ -29,17 +29,21 @@ class WingetHelper:
             # We implemented a basic parser in earlier iterations, let's restore a simple one.
 
             # Using subprocess to run
-            result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=30)
             if result.returncode != 0:
                 logger.error(f"Winget search failed: {result.stderr}")
                 return []
 
             return self._parse_table(result.stdout)
+        except subprocess.TimeoutExpired:
+            logger.error("Winget search timed out")
+            return []
         except Exception as e:
             logger.error(f"Winget search error: {e}")
             return []
 
     def _parse_table(self, output):
+        import re
         lines = output.splitlines()
         results = []
         # Skip header/separator
@@ -52,21 +56,23 @@ class WingetHelper:
                 break
 
         for line in lines[start_idx:]:
-            if not line.strip(): continue
-            # Basic split - unreliable if name has spaces, but winget columns are fixed width usually?
-            # actually they are dynamic.
-            # better hack: take ID (last column usually? No, Source is last)
-            # Id is usually 2nd column.
-            # Name   Id    Version
-            # Split by 2+ spaces
-            parts = [p.strip() for p in line.split("  ") if p.strip()]
+            if not line.strip():
+                continue
+
+            # Use regex to split by 2 or more spaces
+            parts = re.split(r'\s{2,}', line.strip())
+
             if len(parts) >= 3:
                 results.append({
                     "Name": parts[0],
-                    "Id": parts[1] if len(parts)>1 else "",
-                    "Version": parts[2] if len(parts)>2 else "",
-                    "Source": parts[3] if len(parts)>3 else ""
+                    "Id": parts[1],
+                    "Version": parts[2],
+                    "Source": parts[3] if len(parts) > 3 else ""
                 })
+            else:
+                 # Fallback: maybe it's just ID and Version?
+                 # For now, just log debug.
+                 logger.debug(f"Skipping malformed line (parts={len(parts)}): {line}")
         return results
 
     def get_installed(self):
@@ -84,6 +90,8 @@ class WingetHelper:
         # Return Popen object or blocking result?
         # Views usually run this in thread.
         try:
-            return subprocess.run(cmd, capture_output=True, text=True, check=True)
+            return subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=300)
+        except subprocess.TimeoutExpired:
+            raise Exception("Install timed out (5 minutes)")
         except subprocess.CalledProcessError as e:
             raise Exception(f"Install failed: {e.stdout} {e.stderr}")

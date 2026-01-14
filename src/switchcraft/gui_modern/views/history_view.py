@@ -58,9 +58,8 @@ def ModernHistoryView(page: ft.Page):
         history_table.rows.clear()
 
         if not items:
-            # Maybe show placeholder or empty row?
-            # DataTable doesn't have an 'empty' state easily, so we can hide table and show text
-            # But let's just leave it empty with a snackbar or separate text
+            # Show empty state
+            show_snack(i18n.get("no_history") or "No history found.")
             pass
         else:
             for item in items:

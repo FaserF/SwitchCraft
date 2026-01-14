@@ -68,3 +68,10 @@ class NotificationService:
                 callback()
             except Exception as e:
                 logger.error(f"Error in notification listener: {e}")
+
+    # --- Legacy Static Method ---
+    @staticmethod
+    def set_app_window(window):
+        """Legacy: No-op for backwards compatibility with legacy GUI."""
+        logger.debug("NotificationService.set_app_window() called (legacy no-op)")
+        pass

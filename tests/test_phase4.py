@@ -22,7 +22,7 @@ class TestPhase4Features(unittest.TestCase):
         """Test NotificationService handles missing plyer gracefully."""
         # We can't easily test the visual notification, but we can call the method
         try:
-            NotificationService.send_notification("Test Title", "Test Message")
+            NotificationService().add_notification("Test Title", "Test Message")
             self.assertTrue(True) # Should not raise exception
         except Exception as e:
             self.fail(f"NotificationService raised exception: {e}")

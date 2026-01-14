@@ -37,3 +37,7 @@ else:
 
         def cleanup_temp_dir(self, path):
             pass
+
+        def _analyze_help_text(self, text):
+            """Stub for tests."""
+            return None, []

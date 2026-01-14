@@ -77,7 +77,8 @@ class AddonManagerView(ft.Column):
                 logger.error(f"Failed to list addons: {e}")
             finally:
                 self.list_container.disabled = False
-                if self.page: self.update()
+                if self.page:
+                    self.update()
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -96,7 +97,8 @@ class AddonManagerView(ft.Column):
                      selected=self.selected_addon == a
                  )
              )
-        if self.page: self.update()
+        if self.page:
+            self.update()
 
     def _on_select(self, selected, addon):
         if selected:
@@ -104,7 +106,8 @@ class AddonManagerView(ft.Column):
         else:
             self.selected_addon = None
         self.delete_btn.disabled = not self.selected_addon
-        if self.page: self.update()
+        if self.page:
+            self.update()
 
     def _pick_zip(self, e):
         path = FilePickerHelper.pick_file(allowed_extensions=["zip"])

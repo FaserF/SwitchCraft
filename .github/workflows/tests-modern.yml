@@ -6,12 +6,14 @@ on:
     paths:
       - 'src/switchcraft/gui_modern/**'
       - 'tests/test_modern_gui.py'
+      - 'tests/test_gui_views.py'
       - 'pyproject.toml'
   pull_request:
     branches: [ main ]
     paths:
       - 'src/switchcraft/gui_modern/**'
       - 'tests/test_modern_gui.py'
+      - 'tests/test_gui_views.py'
       - 'pyproject.toml'
   workflow_dispatch:
 

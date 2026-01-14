@@ -53,4 +53,5 @@ def test_hidden_imports_exist():
             pytest.fail(f"Error checking '{module_name}': {e}")
 
 if __name__ == "__main__":
-    test_hidden_imports_exist()
+    import sys
+    sys.exit(pytest.main(["-v", __file__]))

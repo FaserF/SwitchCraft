@@ -26,6 +26,16 @@ def mock_config():
         mock_get.return_value = "false"
         yield mock_get
 
+# Mock Services for isolation
+@pytest.fixture(autouse=True)
+def mock_subsystems():
+    with patch("switchcraft.services.history_service.HistoryService") as m_hist, \
+         patch("switchcraft.services.intune_service.IntuneService") as m_intune, \
+         patch("switchcraft.services.addon_service.AddonService") as m_addon, \
+         patch("switchcraft.services.auth_service.AuthService") as m_auth, \
+         patch("switchcraft.utils.app_updater.UpdateChecker") as m_update:
+        yield
+
 def test_instantiate_home_view(page):
     from switchcraft.gui_modern.views.home_view import ModernHomeView
     view = ModernHomeView(page)
@@ -33,70 +43,50 @@ def test_instantiate_home_view(page):
 
 def test_instantiate_dashboard_view(page):
     from switchcraft.gui_modern.views.dashboard_view import DashboardView
-    try:
-        view = DashboardView(page)
-    except Exception as e:
-        pytest.fail(f"DashboardView init failed: {e}")
+    view = DashboardView(page)
+    assert isinstance(view, ft.Column)
 
 def test_instantiate_analyzer_view(page):
     from switchcraft.gui_modern.views.analyzer_view import ModernAnalyzerView
-    try:
-        view = ModernAnalyzerView(page)
-    except Exception as e:
-        pytest.fail(f"AnalyzerView init failed: {e}")
+    view = ModernAnalyzerView(page)
+    assert isinstance(view, ft.Column)
 
 def test_instantiate_library_view(page):
     from switchcraft.gui_modern.views.library_view import LibraryView
-    try:
-        view = LibraryView(page)
-    except Exception as e:
-        pytest.fail(f"LibraryView init failed: {e}")
+    view = LibraryView(page)
+    assert isinstance(view, ft.Column)
 
 def test_instantiate_group_manager_view(page):
     from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
-    try:
-         view = GroupManagerView(page)
-    except Exception as e:
-        pytest.fail(f"GroupManagerView init failed: {e}")
+    view = GroupManagerView(page)
+    assert isinstance(view, ft.Column)
 
 def test_instantiate_addon_manager_view(page):
     from switchcraft.gui_modern.views.addon_manager_view import AddonManagerView
-    try:
-        view = AddonManagerView(page)
-    except Exception as e:
-        pytest.fail(f"AddonManagerView init failed: {e}")
+    view = AddonManagerView(page)
+    assert isinstance(view, ft.Column)
 
 def test_instantiate_settings_view(page):
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-    try:
-        view = ModernSettingsView(page)
-    except Exception as e:
-        pytest.fail(f"SettingsView init failed: {e}")
+    view = ModernSettingsView(page)
+    assert isinstance(view, ft.Column)
 
 def test_instantiate_intune_view(page):
     from switchcraft.gui_modern.views.intune_view import ModernIntuneView
-    try:
-        view = ModernIntuneView(page)
-    except Exception as e:
-        pytest.fail(f"IntuneView init failed: {e}")
+    view = ModernIntuneView(page)
+    assert isinstance(view, ft.Column)
 
 def test_instantiate_script_upload_view(page):
     from switchcraft.gui_modern.views.script_upload_view import ScriptUploadView
-    try:
-        view = ScriptUploadView(page)
-    except Exception as e:
-        pytest.fail(f"ScriptUploadView init failed: {e}")
+    view = ScriptUploadView(page)
+    assert isinstance(view, ft.Column)
 
 def test_instantiate_macos_wizard_view(page):
     from switchcraft.gui_modern.views.macos_wizard_view import MacOSWizardView
-    try:
-        view = MacOSWizardView(page)
-    except Exception as e:
-        pytest.fail(f"MacOSWizardView init failed: {e}")
+    view = MacOSWizardView(page)
+    assert isinstance(view, ft.Column)
 
 def test_instantiate_stack_manager_view(page):
     from switchcraft.gui_modern.views.stack_manager_view import StackManagerView
-    try:
-        view = StackManagerView(page)
-    except Exception as e:
-        pytest.fail(f"StackManagerView init failed: {e}")
+    view = StackManagerView(page)
+    assert isinstance(view, ft.Column)

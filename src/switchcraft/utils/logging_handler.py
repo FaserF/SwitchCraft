@@ -33,15 +33,6 @@ class SessionLogHandler(logging.Handler):
             self.current_log_path = log_dir / filename
 
             # Create FileHandler
-            # We don't use RotatingFileHandler for the *session* file itself in the traditional sense
-            # (splitting one session into multiple), but we could.
-            # The requirement is "Max 7 Log Files (pro Anwendungsstart)".
-            # So 7 *sessions*.
-            # Size limit: "cleanup if > 10MB". Maybe just stop writing or rollover?
-            # Let's use standard FileHandler but check size on emit?
-            # Or just use RotatingFileHandler with a huge size limit but we manage the files manually?
-            # Let's use a standard file handler for the session.
-
             self.file_handler = logging.FileHandler(self.current_log_path, encoding='utf-8')
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             self.file_handler.setFormatter(formatter)
@@ -52,18 +43,8 @@ class SessionLogHandler(logging.Handler):
     def _cleanup_old_logs(self, log_dir):
         """Keeps only the latest MAX_LOG_FILES."""
         try:
+            # Keep only the newest MAX_LOG_FILES
             files = sorted(log_dir.glob("SwitchCraft_Session_*.log"), key=os.path.getmtime, reverse=True)
-            if len(files) >= MAX_LOG_FILES:
-                for f in files[MAX_LOG_FILES-1:]: # Keep top 6, delete rest (start at index 6 which is 7th item)
-                     # Wait, index 0 is newest. 0..6 is 7 files.
-                     # So remove from index 7 onwards.
-                     # But we are about to create a NEW one. So we should only keep 6 existing ones?
-                     # Let's keep MAX - 1 to make room for the new one?
-                     # Or just clean up strictly.
-                     pass
-
-            # Robust cleanup: Delete anything older than the newest (MAX_LOG_FILES - 1)
-            # giving space for the new one to be the Nth.
             existing_to_keep = MAX_LOG_FILES - 1
             if len(files) > existing_to_keep:
                  for f in files[existing_to_keep:]:
@@ -73,6 +54,7 @@ class SessionLogHandler(logging.Handler):
                          pass
 
         except Exception as e:
+            # We use print here because logging might be broken or recursive
             print(f"Error cleaning old logs: {e}")
 
     def emit(self, record):
@@ -80,13 +62,20 @@ class SessionLogHandler(logging.Handler):
             # Check size limit
             try:
                 if self.current_log_path.stat().st_size > MAX_LOG_SIZE_BYTES:
-                     # Truncate or stop? User said "cleanup if > 10MB".
-                     # A simple approach: rollover. But for a single session, 10MB is huge.
-                     # Let's just stop logging to prevent disk fill or truncate.
-                     # Let's backup and truncate.
-                     # sophisticated: RotatingFileHandler.
-                     # let's just delegate to file_handler.
-                     pass
+                     # Rotate: Rename to .bak (overwrite) and restart
+                     self.file_handler.close()
+                     self.file_handler = None
+
+                     bak = self.current_log_path.with_suffix(".log.bak")
+                     if bak.exists():
+                        bak.unlink()
+                     self.current_log_path.rename(bak)
+
+                     # Re-init
+                     self.file_handler = logging.FileHandler(self.current_log_path, encoding='utf-8')
+                     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                     self.file_handler.setFormatter(formatter)
+                     self.file_handler.setLevel(self.level)
             except Exception:
                 pass
 
@@ -98,7 +87,8 @@ class SessionLogHandler(logging.Handler):
             return False
 
         try:
-            self.file_handler.flush()
+            if self.file_handler:
+                self.file_handler.flush()
             shutil.copy2(self.current_log_path, target_path)
             return True
         except Exception as e:
@@ -112,6 +102,41 @@ class SessionLogHandler(logging.Handler):
         self.setLevel(level)
         if self.file_handler:
             self.file_handler.setLevel(level)
+
+    def get_github_issue_link(self):
+        """Generates a GitHub issue link (template)."""
+        import platform
+        from switchcraft import __version__
+
+        base_url = "https://github.com/Starttoaster/SwitchCraft/issues/new"
+        try:
+            os_info = f"{platform.system()} {platform.release()} ({platform.version()})"
+            py_ver = platform.python_version()
+            body = f"""
+**Describe the bug**
+A clear description of what the bug is.
+
+**To Reproduce**
+Steps to reproduce the behavior.
+
+**Environment**
+- OS: {os_info}
+- Python: {py_ver}
+- SwitchCraft Version: {__version__}
+
+**Additional context**
+Add any other context about the problem here.
+"""
+            import urllib.parse
+            params = {
+                "title": f"[Bug]: Error in v{__version__}",
+                "body": body,
+                "labels": "bug"
+            }
+            query = urllib.parse.urlencode(params)
+            return f"{base_url}?{query}"
+        except Exception:
+            return base_url
 
 _session_handler = None
 
@@ -141,9 +166,5 @@ def setup_session_logging(root_logger=None):
     if handler not in root_logger.handlers:
         root_logger.addHandler(handler)
 
-    # Apply initial debug setting from config?
-    # Config might not be ready yet.
-    # But usually setup_session_logging is called early.
-    # We can check env var or args here too as fallback.
     if '--debug' in sys.argv:
         handler.set_debug_mode(True)

@@ -16,6 +16,14 @@ from switchcraft.services.intune_service import IntuneService
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 
+# Try to import flet_dropzone for native file DnD
+try:
+    import flet_dropzone as ftd
+    HAS_DROPZONE = True
+except ImportError:
+    HAS_DROPZONE = False
+    ftd = None
+
 logger = logging.getLogger(__name__)
 
 class ModernAnalyzerView(ft.Column):
@@ -24,6 +32,7 @@ class ModernAnalyzerView(ft.Column):
         self.app_page = page
         self.controller = AnalysisController()
         self.intune_service = IntuneService()
+        self.addon_service = AddonService()
         self.analyzing = False
 
         # State holder for current analysis info (needed for save callbacks)
@@ -60,31 +69,53 @@ class ModernAnalyzerView(ft.Column):
             on_drag_leave(None)
 
         # Enhanced Drop Zone matching Legacy aesthetic (Logo + Blue/Purple gradient)
-        self.drop_zone = ft.Container(
+        # Show DnD hint only if dropzone is available
+        drop_hint = "Click to browse or Drag & Drop" if HAS_DROPZONE else "Click to browse"
+
+        drop_container = ft.Container(
             content=ft.Column(
                 [
                     ft.Icon(ft.Icons.AUTO_AWESOME, size=60, color="AMBER_400"),
                     self.drop_text,
-                    ft.Text("Click to browse or Drag & Drop (Windows)", size=12, color="GREY_400"),
+                    ft.Text(drop_hint, size=12, color="GREY_400"),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             ),
             width=float("inf"),
             height=200,
-            border=ft.Border.all(2, "GREY_700"), # Dashed if possible? No, solid is fine but color matters.
+            border=ft.Border.all(2, "GREY_700"),
             border_radius=15,
-            # Explicitly set gradient with known hex codes if needed, but theme colors should work.
             gradient=ft.LinearGradient(
                 begin=ft.Alignment(-1, -1),
                 end=ft.Alignment(1, 1),
-                colors=["#0D47A1", "#311B92"], # Blue 900 to Deep Purple 900
+                colors=["#0D47A1", "#311B92"],
             ),
-            bgcolor=None, # Ensure gradient is visible
+            bgcolor=None,
             on_click=on_drop_click,
-            on_hover=lambda e: setattr(self.drop_zone, "border", ft.Border.all(4, "BLUE_400") if e.data == "true" else ft.Border.all(2, "BLUE_700")) or self.update(),
+            on_hover=lambda e: setattr(drop_container, "border", ft.Border.all(4, "BLUE_400") if e.data == "true" else ft.Border.all(2, "BLUE_700")) or self.update(),
             padding=20
         )
+
+        # Wrap with Dropzone if available for native file DnD
+        if HAS_DROPZONE and ftd:
+            def handle_dropzone_drop(e):
+                if e.files:
+                    for fpath in e.files:
+                        if fpath.lower().endswith((".exe", ".msi")):
+                            self.start_analysis(fpath)
+                            break
+
+            self.drop_zone = ftd.Dropzone(
+                content=drop_container,
+                on_dropped=handle_dropzone_drop,
+                on_entered=lambda e: setattr(drop_container, "border", ft.Border.all(4, "GREEN_400")) or self.update(),
+                on_exited=lambda e: setattr(drop_container, "border", ft.Border.all(2, "GREY_700")) or self.update(),
+            )
+        else:
+            self.drop_zone = drop_container
+
+
 
         self.results_column = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True, spacing=15)
 
@@ -110,7 +141,7 @@ class ModernAnalyzerView(ft.Column):
 
     def _check_addon(self):
         """Check if Advanced addon is installed and show warning if not."""
-        if not AddonService().is_addon_installed("advanced"):
+        if not self.addon_service.is_addon_installed("advanced"):
             self.addon_warning.content = ft.Container(
                 content=ft.Row([
                     ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, color="WHITE", size=30),
@@ -139,7 +170,21 @@ class ModernAnalyzerView(ft.Column):
         self.update()
 
         def _run():
-            success = AddonService().install_addon("advanced")
+            import sys
+            # Locate bundled addon
+            if getattr(sys, 'frozen', False):
+                 base = Path(sys._MEIPASS) / "assets" / "addons"
+            else:
+                 # src/switchcraft/gui_modern/views/analyzer_view.py -> src/switchcraft/assets/addons
+                 base = Path(__file__).parent.parent.parent / "assets" / "addons"
+
+            addon_zip = base / "advanced.zip"
+            if not addon_zip.exists():
+                 # Fallback/Error
+                 self._show_snack(f"Addon file not found: {addon_zip}", "RED")
+                 success = False
+            else:
+                 success = AddonService().install_addon(str(addon_zip))
             if success:
                 self._show_snack("Addon installed! Please restart SwitchCraft.", "GREEN")
                 self.addon_warning.visible = False
@@ -159,7 +204,12 @@ class ModernAnalyzerView(ft.Column):
         self.progress_bar.visible = True
         self.status_text.value = f"Analyzing {Path(filepath).name}..."
         self.results_column.controls.clear()
-        self.update()
+
+        # Sync with global progress
+        if hasattr(self.page, "switchcraft_app"):
+            self.page.switchcraft_app.set_progress(value=0, visible=True)
+        else:
+            self.update()
 
         def _run():
             try:
@@ -167,12 +217,20 @@ class ModernAnalyzerView(ft.Column):
                 def on_progress(pct, msg, eta=None):
                     self.status_text.value = f"{msg} ({int(pct*100)}%)"
                     self.progress_bar.value = pct
-                    self.update()
+                    if hasattr(self.page, "switchcraft_app"):
+                        self.page.switchcraft_app.set_progress(value=pct, visible=True)
+                    else:
+                        self.update()
 
                 result = self.controller.analyze_file(filepath, progress_callback=on_progress)
                 self.status_text.value = "Analysis Complete"
                 self.progress_bar.visible = False
                 self.analyzing = False
+
+                # Update global progress
+                if hasattr(self.page, "switchcraft_app"):
+                    self.page.switchcraft_app.set_progress(visible=False)
+
                 self._show_results(result)
             except Exception as ex:
                 logger.exception("Analysis failed")
@@ -180,7 +238,11 @@ class ModernAnalyzerView(ft.Column):
                 self.status_text.color = "RED"
                 self.progress_bar.visible = False
                 self.analyzing = False
-                self.update()
+
+                if hasattr(self.page, "switchcraft_app"):
+                    self.page.switchcraft_app.set_progress(visible=False)
+                else:
+                    self.update()
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -546,6 +608,7 @@ class ModernAnalyzerView(ft.Column):
                 log("\n--- Step 2: Creating Intune Package ---")
                 self.intune_service.create_intunewin(str(base_dir), script_path.name, str(base_dir), quiet=True)
                 log("Packaging complete.")
+                self._add_history_entry(info, "Packaged")
 
                 # Step 3: Upload
                 if SwitchCraftConfig.get_value("IntuneTenantID"):
@@ -571,6 +634,7 @@ class ModernAnalyzerView(ft.Column):
                     app_id = self.intune_service.upload_win32_app(token, pkg_path, app_meta, progress_callback=prog_cb)
                     log(f"\nSUCCESS! App ID: {app_id}")
                     NotificationService.send_notification("Intune Upload Success", f"Uploaded {info.product_name} to Intune.")
+                    self._add_history_entry(info, "Deployed")
                 else:
                     log("\nSkipping Intune Upload (No Tenant ID configured).")
 
@@ -707,3 +771,18 @@ class ModernAnalyzerView(ft.Column):
             self.app_page.update()
         except Exception:
              pass
+
+    def _add_history_entry(self, info, status):
+        try:
+            from switchcraft.services.history_service import HistoryService
+            h_service = HistoryService()
+            entry = {
+                "filename": Path(info.file_path).name,
+                "product": info.product_name or "Unknown",
+                "version": info.product_version or "Unknown",
+                "status": status,
+                "manufacturer": info.manufacturer
+            }
+            h_service.add_entry(entry)
+        except Exception as e:
+            logger.error(f"Failed to update history: {e}")
