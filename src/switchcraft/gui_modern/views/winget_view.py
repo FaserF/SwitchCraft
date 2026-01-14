@@ -16,7 +16,7 @@ class ModernWingetView(ft.Row):
         self.winget = None
 
         # Try to load helper
-        winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+        winget_mod = AddonService().import_addon_module("winget", "utils.winget")
         if winget_mod:
             try:
                 self.winget = winget_mod.WingetHelper()
@@ -26,14 +26,33 @@ class ModernWingetView(ft.Row):
         self.current_pkg = None
 
         if not self.winget:
+            def go_to_addons(e):
+                # Navigate to Addon Manager (tab index 16)
+                if hasattr(page, 'switchcraft_app') and hasattr(page.switchcraft_app, 'goto_tab'):
+                    page.switchcraft_app.goto_tab(16)
+                else:
+                    page.snack_bar = ft.SnackBar(ft.Text("Please navigate to Addons tab manually"), bgcolor="ORANGE")
+                    page.snack_bar.open = True
+                    page.update()
+
             self.controls = [
                 ft.Column([
-                    ft.Icon(ft.Icons.ERROR, color="red", size=50),
-                    ft.Text("Winget Addon not available.", size=20)
-                ], alignment=ft.MainAxisAlignment.CENTER, expand=True)
+                    ft.Icon(ft.Icons.EXTENSION_OFF, color="orange", size=50),
+                    ft.Text("Winget Addon not installed.", size=20, weight=ft.FontWeight.BOLD),
+                    ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=14, color="grey"),
+                    ft.Container(height=10),
+                    ft.ElevatedButton(
+                        i18n.get("btn_go_to_addons") or "Go to Addon Manager",
+                        icon=ft.Icons.EXTENSION,
+                        bgcolor="BLUE_700",
+                        color="WHITE",
+                        on_click=go_to_addons
+                    )
+                ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
             ]
             self.alignment = ft.MainAxisAlignment.CENTER
             return
+
 
         # State
         self.search_results = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)

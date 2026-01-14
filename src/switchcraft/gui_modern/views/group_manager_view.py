@@ -1,4 +1,5 @@
 import flet as ft
+from switchcraft.utils.i18n import i18n
 import logging
 import threading
 from switchcraft.services.intune_service import IntuneService
@@ -17,6 +18,27 @@ class GroupManagerView(ft.Column):
 
         # State
         self.selected_group = None
+
+        # Check for credentials first
+        if not self._has_credentials():
+            self.controls = [
+                ft.Container(
+                    content=ft.Column([
+                        ft.Icon(ft.Icons.LOCK_RESET_ROUNDED, size=80, color="ORANGE_400"),
+                        ft.Text(i18n.get("intune_not_configured") or "Intune is not configured", size=28, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
+                        ft.Text(i18n.get("intune_config_hint") or "Please configure Microsoft Graph API credentials in Settings.", size=16, color="GREY_400", text_align=ft.TextAlign.CENTER),
+                        ft.Container(height=20),
+                        ft.ElevatedButton(
+                            i18n.get("tab_settings") or "Go to Settings",
+                            icon=ft.Icons.SETTINGS,
+                            on_click=self._go_to_settings
+                        )
+                    ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    expand=True,
+                    alignment=ft.Alignment(0, 0)
+                )
+            ]
+            return
 
         # UI Components
         self._init_ui()
@@ -230,3 +252,27 @@ class GroupManagerView(ft.Column):
             self.app_page.update()
         except Exception:
             pass
+
+    def _has_credentials(self):
+        """Check if Graph API credentials are configured."""
+        tenant_id = SwitchCraftConfig.get_value("IntuneTenantID")
+        client_id = SwitchCraftConfig.get_value("IntuneClientID")
+        client_secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
+        return bool(tenant_id and client_id and client_secret)
+
+    def _go_to_settings(self, e):
+        """Navigate to Settings tab."""
+        try:
+            if hasattr(self.app_page, 'switchcraft_app'):
+                self.app_page.switchcraft_app.goto_tab(9)
+                return
+
+            for attr in dir(self.app_page):
+                if 'app' in attr.lower():
+                    app_ref = getattr(self.app_page, attr, None)
+                    if app_ref and hasattr(app_ref, 'goto_tab'):
+                        app_ref.goto_tab(9)  # Settings is at index 9
+                        return
+        except Exception:
+            pass
+        self._show_snack("Please navigate to Settings tab manually", "ORANGE")

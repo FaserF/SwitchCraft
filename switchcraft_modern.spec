@@ -8,13 +8,48 @@ block_cipher = None
 
 # MANUAL COLLECTION for Modern
 # We need switchcraft.* and flet
-hidden_imports = ['flet', 'flet_desktop', 'defusedxml', 'winotify', 'switchcraft.utils', 'switchcraft.utils.config', 'switchcraft.gui', 'switchcraft.gui_modern']
+hidden_imports = [
+    'flet', 'flet_desktop', 'defusedxml', 'winotify', 'requests',
+    'switchcraft.utils', 'switchcraft.utils.config', 'switchcraft.utils.app_updater',
+    'switchcraft.gui', 'switchcraft.gui_modern',
+    'switchcraft.controllers', 'switchcraft.services', 'switchcraft.gui_modern.utils',
+    'switchcraft.gui_modern.app',
+    # Explicitly include all views for PyInstaller to find them
+    'switchcraft.gui_modern.views.crash_view',
+    'switchcraft.gui_modern.views.packaging_wizard_view',
+    'switchcraft.gui_modern.views.analyzer_view',
+    'switchcraft.gui_modern.views.winget_view',
+    'switchcraft.gui_modern.views.home_view',
+    'switchcraft.gui_modern.views.intune_view',
+    'switchcraft.gui_modern.views.settings_view',
+    'switchcraft.gui_modern.views.history_view',
+    'switchcraft.gui_modern.views.script_upload_view',
+    'switchcraft.gui_modern.views.helper_view',
+    'switchcraft.gui_modern.views.macos_wizard_view',
+    'switchcraft.gui_modern.views.addon_manager_view',
+    'switchcraft.gui_modern.views.group_manager_view',
+    'switchcraft.gui_modern.views.stack_manager_view',
+    'switchcraft.gui_modern.views.detection_tester_view',
+    'switchcraft.gui_modern.views.intune_store_view',
+    'switchcraft.gui_modern.views.library_view',
+    'switchcraft.gui_modern.views.dashboard_view',
+]
 
-# Collect submodules but exclude addon modules that are not part of core
+# Collect everything from gui_modern.views explicitly to be safe
+try:
+    views_submodules = collect_submodules('switchcraft.gui_modern.views')
+    hidden_imports += views_submodules
+except Exception as e:
+    print(f"WARNING: Failed to collect view submodules: {e}")
+
+# Collect all other submodules but exclude addon modules that are not part of core
 all_submodules = collect_submodules('switchcraft')
 # Filter out modules that were moved to addons or don't exist
-excluded_modules = ['switchcraft.utils.winget', 'switchcraft.gui.views.ai_view', 'switchcraft_winget', 'switchcraft_ai', 'switchcraft_advanced']
+excluded_modules = ['switchcraft.utils.winget', 'switchcraft.gui.views.ai_view', 'switchcraft_winget', 'switchcraft_ai', 'switchcraft_advanced', 'switchcraft.utils.updater']
 hidden_imports += [m for m in all_submodules if not any(m.startswith(ex) for ex in excluded_modules)]
+
+# Deduplicate
+hidden_imports = list(set(hidden_imports))
 
 src_root = os.path.abspath('src')
 if src_root not in sys.path:

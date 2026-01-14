@@ -22,7 +22,8 @@ class StackManagerView(ft.Column):
         self.new_item_field = ft.TextField(label="App Name / Path", expand=True)
 
         # Build UI
-        self._refresh_stack_list()
+        # Note: _refresh_stack_list() is called in did_mount()
+
 
         self.controls = [
             ft.Text("Project Stacks", size=28, weight=ft.FontWeight.BOLD),
@@ -49,8 +50,9 @@ class StackManagerView(ft.Column):
                         ft.Text("Stack Content", weight=ft.FontWeight.BOLD),
                         ft.Row([
                             self.new_item_field,
+                            ft.Container(width=10), # Spacer
                             ft.IconButton(ft.Icons.ADD_TO_PHOTOS, tooltip="Add App", on_click=self._add_item_to_stack)
-                        ]),
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                         ft.Container(
                             content=self.stack_content_list, expand=True, bgcolor="BLACK26", border_radius=5
                         ),
@@ -65,6 +67,9 @@ class StackManagerView(ft.Column):
                 )
             ], expand=True)
         ]
+
+    def did_mount(self):
+        self._refresh_stack_list()
 
     def _load_stacks(self):
         if not self.stacks_file.exists():

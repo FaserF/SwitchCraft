@@ -7,13 +7,53 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Legacy compatibility: singleton instance for static method calls
+_addon_service_instance = None
+
+def _get_addon_service_instance():
+    global _addon_service_instance
+    if _addon_service_instance is None:
+        _addon_service_instance = AddonService()
+    return _addon_service_instance
+
 class AddonService:
     def __init__(self):
-        # Determine addons directory (e.g. adjacent to src or in user profile)
-        # For now using a dedicated folder in user home or adjacent to app
-        self.addons_dir = Path.home() / ".switchcraft" / "addons"
-        self.addons_dir.mkdir(parents=True, exist_ok=True)
+        # Use static method for directory to allow easier mocking
+        self.addons_dir = self.get_addon_dir()
         self.loaded_addons = {} # id -> module/class info
+
+    @staticmethod
+    def get_addon_dir():
+        """Returns the base directory for addons."""
+        path = Path.home() / ".switchcraft" / "addons"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @staticmethod
+    def read_manifest(addon_dir):
+        """Reads and validates the manifest.json file from an addon directory."""
+        manifest = addon_dir / "manifest.json"
+        if not manifest.exists():
+            return None
+
+        try:
+            with open(manifest, "r") as f:
+                data = json.load(f)
+                if "id" in data:
+                    return data
+        except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Error reading addon manifest at {addon_dir}: {e}")
+        return None
+
+    def _iter_addons(self):
+        """
+        Yields (path, manifest_data) for all valid addons found.
+        """
+        for d in self.addons_dir.iterdir():
+            if d.is_dir():
+                data = self.read_manifest(d)
+                if data:
+                    yield d, data
 
     def list_addons(self):
         """
@@ -21,19 +61,9 @@ class AddonService:
         Returns list of dicts.
         """
         addons = []
-        for d in self.addons_dir.iterdir():
-            if d.is_dir():
-                manifest = d / "manifest.json"
-                if manifest.exists():
-                    try:
-                        with open(manifest, "r") as f:
-                            data = json.load(f)
-                            # Basic validation
-                            if "id" in data and "name" in data:
-                                data["_path"] = str(d) # internal use
-                                addons.append(data)
-                    except Exception as e:
-                        logger.error(f"Error reading addon manifest at {d}: {e}")
+        for d, data in self._iter_addons():
+             data["_path"] = str(d) # internal use
+             addons.append(data)
         return addons
 
     def load_addon_view(self, addon_id):
@@ -45,17 +75,11 @@ class AddonService:
         addon_path = None
         manifest_data = None
 
-        for d in self.addons_dir.iterdir():
-            if d.is_dir() and (d / "manifest.json").exists():
-                 try:
-                     with open(d / "manifest.json") as f:
-                         data = json.load(f)
-                         if data.get("id") == addon_id:
-                             addon_path = d
-                             manifest_data = data
-                             break
-                 except (FileNotFoundError, json.JSONDecodeError):
-                     pass
+        for d, data in self._iter_addons():
+             if data.get("id") == addon_id:
+                 addon_path = d
+                 manifest_data = data
+                 break
 
         if not addon_path:
             raise FileNotFoundError(f"Addon {addon_id} not found")
@@ -88,16 +112,10 @@ class AddonService:
         """
         # Find addon path
         addon_path = None
-        for d in self.addons_dir.iterdir():
-            if d.is_dir() and (d / "manifest.json").exists():
-                 try:
-                     with open(d / "manifest.json") as f:
-                         data = json.load(f)
-                         if data.get("id") == addon_id:
-                             addon_path = d
-                             break
-                 except (FileNotFoundError, json.JSONDecodeError):
-                     pass
+        for d, data in self._iter_addons():
+             if data.get("id") == addon_id:
+                 addon_path = d
+                 break
 
         if not addon_path:
             return None
@@ -161,7 +179,7 @@ class AddonService:
                     shutil.rmtree(target) # Overwrite
                 target.mkdir()
 
-                target.mkdir()
+                # target.mkdir() was already called above
 
                 # Secure extraction
                 for member in z.infolist():
@@ -189,14 +207,53 @@ class AddonService:
 
     def delete_addon(self, addon_id):
          # Find and delete
-         for d in self.addons_dir.iterdir():
-            if d.is_dir() and (d / "manifest.json").exists():
+         addons = list(self._iter_addons())
+         for d, data in addons:
+             if data.get("id") == addon_id:
                  try:
-                     with open(d / "manifest.json") as f:
-                         data = json.load(f)
-                         if data.get("id") == addon_id:
-                             shutil.rmtree(d)
-                             return True
-                 except (FileNotFoundError, json.JSONDecodeError, OSError):
-                     pass
+                     shutil.rmtree(d)
+                     return True
+                 except OSError as e:
+                     logger.error(f"Failed to delete addon {addon_id} at {d}: {e}")
          return False
+
+    def is_addon_installed(self, addon_id):
+        """
+        Checks if an addon is installed by ID.
+        """
+        for _, data in self._iter_addons():
+            if data.get("id") == addon_id:
+                return True
+        return False
+
+    def uninstall_addon(self, addon_id):
+        """Legacy alias for delete_addon."""
+        return self.delete_addon(addon_id)
+
+    def _extract_and_install_zip(self, zip_content, pkg_name, is_source=False, auto_detect=False):
+        """Legacy method for tests."""
+        # Create a temp zip file and call install_addon
+        temp_zip = self.addons_dir / "_temp_install.zip"
+        with open(temp_zip, "wb") as f:
+            f.write(zip_content)
+        try:
+            return self.install_addon(str(temp_zip))
+        finally:
+            if temp_zip.exists():
+                temp_zip.unlink()
+
+    # --- Legacy Static Methods ---
+    @staticmethod
+    def register_addons():
+        """Legacy: No-op for backwards compatibility."""
+        pass
+
+    @staticmethod
+    def set_app_window(window):
+        """Legacy: No-op for backwards compatibility."""
+        pass
+
+    @staticmethod
+    def install_all_missing():
+        """Legacy: No-op for backwards compatibility."""
+        return True

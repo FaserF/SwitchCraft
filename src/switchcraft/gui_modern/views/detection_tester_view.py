@@ -34,8 +34,8 @@ class DetectionTesterView(ft.Column):
             ],
             value="File",
             label="Detection Type",
-            on_change=self._on_type_change
         )
+        self.rule_type.on_change = self._on_type_change
 
         # Input Fields
         self.path_field = ft.TextField(label="Path / Key / Code", expand=True)

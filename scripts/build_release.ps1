@@ -77,7 +77,8 @@ if ($All) {
         $Pip = $true
         $Addons = $true
         $Installer = $true
-    } else {
+    }
+    else {
         # Linux/Mac only support Modern GUI and CLI/Pip
         $Modern = $true
         $Cli = $true
@@ -104,19 +105,20 @@ if ($Legacy -and -not $IsWinBuild) {
 
 # --- Build Overview ---
 $BuildPlan = @(
-    @{ Name = "Modern GUI (Portable)"; Val = $Modern;    Param = "-Modern" },
-    @{ Name = "Legacy GUI (Portable)"; Val = $Legacy;    Param = "-Legacy" },
-    @{ Name = "CLI Tool";              Val = $Cli;       Param = "-Cli" },
-    @{ Name = "Addons (Zips)";         Val = $Addons;    Param = "-Addons" },
-    @{ Name = "Python Wheel";          Val = $Pip;       Param = "-Pip" },
-    @{ Name = "Windows Installers";    Val = $Installer; Param = "-Installer" }
+    @{ Name = "Modern GUI (Portable)"; Val = $Modern; Param = "-Modern" },
+    @{ Name = "Legacy GUI (Portable)"; Val = $Legacy; Param = "-Legacy" },
+    @{ Name = "CLI Tool"; Val = $Cli; Param = "-Cli" },
+    @{ Name = "Addons (Zips)"; Val = $Addons; Param = "-Addons" },
+    @{ Name = "Python Wheel"; Val = $Pip; Param = "-Pip" },
+    @{ Name = "Windows Installers"; Val = $Installer; Param = "-Installer" }
 )
 
 Write-Host "`nBuild Plan:" -ForegroundColor Gray
 foreach ($Target in $BuildPlan) {
     if ($Target.Val) {
         Write-Host "  [x] $($Target.Name.PadRight(25)) (via $($Target.Param))" -ForegroundColor White
-    } else {
+    }
+    else {
         Write-Host "  [ ] $($Target.Name.PadRight(25)) (hint: $($Target.Param))" -ForegroundColor Gray
     }
 }
@@ -129,7 +131,8 @@ if ($IsWinBuild) {
     if ($Processes) {
         $Processes | Stop-Process -Force
         Write-Host "Killed $($Processes.Count) process(es)." -ForegroundColor Gray
-    } else {
+    }
+    else {
         Write-Host "No active SwitchCraft processes found." -ForegroundColor Gray
     }
 }
@@ -177,19 +180,37 @@ function Run-PyInstaller {
         Write-Host "`nBuilding $Name..." -ForegroundColor Cyan
         try {
             if ($IsWinBuild) {
-                 python -m PyInstaller $SpecFile --noconfirm --clean
-            } else {
-                 python3 -m PyInstaller $SpecFile --noconfirm --clean
+                python -m PyInstaller $SpecFile --noconfirm --clean
+            }
+            else {
+                python3 -m PyInstaller $SpecFile --noconfirm --clean
             }
             if ($LASTEXITCODE -ne 0) { throw "$Name build failed with code $LASTEXITCODE" }
             Write-Host "Built $Name successfully." -ForegroundColor Green
-        } catch {
+        }
+        catch {
             Write-Error "Build Error ($Name): $_"
             exit 1
         }
-    } else {
+    }
+    else {
         Write-Error "Spec file not found: $SpecFile"
     }
+}
+
+# --- 0. PREPARE ASSETS ---
+Write-Host "`nGenerating Bundled Addons..." -ForegroundColor Cyan
+try {
+    if ($IsWinBuild) {
+        python src/generate_addons.py
+    }
+    else {
+        python3 src/generate_addons.py
+    }
+    if ($LASTEXITCODE -ne 0) { throw "Addon generation failed with code $LASTEXITCODE" }
+}
+catch {
+    Write-Warning "Failed to generate addons: $_"
 }
 
 # --- 1. BUILD MODERN (Flet) ---
@@ -207,11 +228,13 @@ if ($Modern) {
             Move-Item $Src $Dest -Force
             Write-Host "Modern Portable created: $Dest" -ForegroundColor Green
         }
-    } elseif ($IsLinBuild) {
+    }
+    elseif ($IsLinBuild) {
         $Src = Join-Path $DistDir "SwitchCraft"
         $Dest = Join-Path $DistDir "SwitchCraft-linux"
         if (Test-Path $Src) { Move-Item $Src $Dest -Force; Write-Host "Linux Binary created: $Dest" }
-    } elseif ($IsMacBuild) {
+    }
+    elseif ($IsMacBuild) {
         $Src = Join-Path $DistDir "SwitchCraft"
         $Dest = Join-Path $DistDir "SwitchCraft-macos"
         if (Test-Path $Src) { Move-Item $Src $Dest -Force; Write-Host "MacOS Binary created: $Dest" }
@@ -240,7 +263,8 @@ if ($Addons) {
         if (Test-Path $SrcPath) {
             Compress-Archive -Path $SrcPath -DestinationPath $ZipPath -Force
             Write-Host "Packed: $Ad.zip" -ForegroundColor Green
-        } else {
+        }
+        else {
             Write-Warning "Addon source not found: $SrcPath"
         }
     }
@@ -250,6 +274,7 @@ if ($Addons) {
 if ($Pip) {
     Write-Host "`nBuilding Pip Package..." -ForegroundColor Cyan
     if ($IsWinBuild) { python -m build } else { python3 -m build }
+    if ($LASTEXITCODE -ne 0) { throw "Pip build failed with code $LASTEXITCODE" }
 }
 
 # --- 5. INSTALLERS (Windows Only) ---
@@ -279,7 +304,8 @@ if ($Installer -and $IsWinBuild) {
 
             Write-Host "Installer Created: SwitchCraft-Setup.exe" -ForegroundColor Green
         }
-    } else {
+    }
+    else {
         Write-Warning "Inno Setup not found. Skipping installers."
     }
 }

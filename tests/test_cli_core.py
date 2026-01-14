@@ -94,11 +94,11 @@ class TestCliCore(unittest.TestCase):
         """Test addon install command."""
         mock_install.return_value = True
         # We need to simulate a valid addon ID or mock the ADDONS dict
-        with patch('switchcraft.services.addon_service.AddonService.ADDONS', {"test_addon": "pkg"}):
-             result = self.runner.invoke(cli, ['addons', 'install', 'test_addon'])
-             self.assertEqual(result.exit_code, 0)
-             self.assertIn("Successfully installed test_addon", result.output)
-             mock_install.assert_called_with("test_addon", prompt_callback=ANY)
+        # with patch('switchcraft.services.addon_service.AddonService.ADDONS', {"test_addon": "pkg"}):
+        result = self.runner.invoke(cli, ['addons', 'install', 'test_addon'])
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("Successfully installed test_addon", result.output)
+        mock_install.assert_called_with("test_addon")
 
 if __name__ == '__main__':
     unittest.main()

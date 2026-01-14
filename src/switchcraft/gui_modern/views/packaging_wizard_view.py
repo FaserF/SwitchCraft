@@ -45,7 +45,7 @@ class PackagingWizardView(ft.Column):
             self._build_nav_buttons()
         ]
 
-        self._load_step(0)
+        self._load_step(0, update=False)
 
     def _build_stepper_header(self):
         self.steps_indicators = [
@@ -64,7 +64,7 @@ class PackagingWizardView(ft.Column):
             ft.Text(label, color=color, size=12)
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    def _update_stepper(self):
+    def _update_stepper(self, update=True):
         for i, indicator in enumerate(self.steps_indicators):
             if i < self.current_step:
                 color = "GREEN"
@@ -74,7 +74,8 @@ class PackagingWizardView(ft.Column):
                 color = "GREY"
             indicator.controls[0].color = color
             indicator.controls[1].color = color
-        self.update()
+        if update:
+            self.update()
 
     def _build_nav_buttons(self):
         self.btn_prev = ft.ElevatedButton(
@@ -88,12 +89,14 @@ class PackagingWizardView(ft.Column):
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN
         )
 
-    def _load_step(self, index):
+    def _load_step(self, index, update=True):
         self.current_step = index
-        self._update_stepper()
+        self._update_stepper(update=update)
 
-        self.step_content_area.content = ft.ProgressBar()  # Loading placeholder
-        self.update()
+        # Loading placeholder if updating, else just set content
+        if update:
+            self.step_content_area.content = ft.ProgressBar()
+            self.update()
 
         content = None
         if index == 0:
@@ -118,7 +121,8 @@ class PackagingWizardView(ft.Column):
             self.btn_prev.disabled = False
 
         self.step_content_area.content = content
-        self.update()
+        if update:
+            self.update()
 
         # Auto-trigger analysis if entering step 1 and path is set
         if index == 1 and self.installer_path and not self.analysis_result:
@@ -212,23 +216,29 @@ class PackagingWizardView(ft.Column):
             padding=20
         )
 
+        # Tab Content Container
+        self.wizard_tab_body = ft.Container(content=local_content, padding=20)
+
+        def on_source_change(e):
+            idx = int(e.control.selected_index)
+            if idx == 0:
+                 self.wizard_tab_body.content = local_content
+            else:
+                 self.wizard_tab_body.content = url_content
+            self.wizard_tab_body.update()
+
         tabs = ft.Tabs(
+            content=self.wizard_tab_body,
+            length=2,
             selected_index=0,
             animation_duration=300,
-            tabs=[
-                ft.Tab(
-                    text="Local File",
-                    icon=ft.Icons.COMPUTER,
-                    content=local_content
-                ),
-                ft.Tab(
-                    text="Download URL",
-                    icon=ft.Icons.LINK,
-                    content=url_content
-                ),
-            ],
-            expand=True
+            expand=True,
+            on_change=on_source_change
         )
+        tabs.tabs = [
+                ft.Tab(label="Local File", icon=ft.Icons.COMPUTER),
+                ft.Tab(label="Download URL", icon=ft.Icons.LINK),
+            ]
 
         self.autopilot_btn = ft.OutlinedButton(
             "Auto-Pilot (Magic Mode) 🪄",
@@ -244,7 +254,7 @@ class PackagingWizardView(ft.Column):
             tabs,
             ft.Divider(),
             ft.Row([ft.Text("Experimental:"), self.autopilot_btn], alignment=ft.MainAxisAlignment.END)
-        ], spacing=10)
+        ], spacing=10, scroll=ft.ScrollMode.AUTO)
 
     def _start_download(self, e):
         url = self.url_field.value
@@ -313,7 +323,7 @@ class PackagingWizardView(ft.Column):
             ft.Text("Analyzing Installer...", size=20, weight=ft.FontWeight.BOLD),
             self.analysis_status,
             self.analysis_dt
-        ])
+        ], scroll=ft.ScrollMode.AUTO)
 
     def _run_analysis(self):
         self.analysis_status.value = "Scanning..."
@@ -350,7 +360,7 @@ class PackagingWizardView(ft.Column):
             min_lines=10,
             max_lines=15,
             text_size=12,
-            font_family="Consolas"
+            text_style=ft.TextStyle(font_family="Consolas")
         )
         # Load template or generate
         if not self.generated_script_path:
@@ -367,7 +377,7 @@ class PackagingWizardView(ft.Column):
             sign_status,
             self.script_field,
             ft.ElevatedButton("Regenerate", on_click=lambda _: self._generate_script_content())
-        ])
+        ], scroll=ft.ScrollMode.AUTO)
 
     def _generate_script_content(self):
         info = self.analysis_result.info if self.analysis_result else None
@@ -437,7 +447,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
             ft.Container(height=20),
             self.pkg_status,
             self.pkg_btn
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.AUTO)
 
     def _run_packaging(self, e):
         self.pkg_status.value = "Packaging in progress..."
@@ -468,7 +478,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                 self.pkg_status.color = "RED"
             finally:
                 self.pkg_btn.disabled = False
-                self.update()
+                if self.page:
+                    self.update()
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -554,7 +565,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
     def _build_supersedence_ui(self):
         self.search_supersede_field = ft.TextField(label="Search App to Replace", height=40, expand=True)
         self.supersede_status = ft.Text("None selected", italic=True, size=12)
-        self.supersede_option = ft.Dropdown(label="Select App", options=[], visible=False, on_change=self._on_supersede_select)
+        self.supersede_option = ft.Dropdown(label="Select App", options=[], visible=False)
+        self.supersede_option.on_change = self._on_supersede_select
         self.supersede_uninstall = ft.Switch(label="Uninstall previous version?", value=True)
 
         return ft.Column([

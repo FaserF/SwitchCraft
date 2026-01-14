@@ -19,8 +19,11 @@ class AddonManagerView(ft.Column):
 
         # UI
         self._init_ui()
-        self._load_data()
+        # Note: _load_data() is called in did_mount() after view is added to page
 
+    def did_mount(self):
+        """Called after the control is added to the page."""
+        self._load_data()
     def _init_ui(self):
         # Header
         self.refresh_btn = ft.IconButton(ft.Icons.REFRESH, on_click=lambda _: self._load_data())
@@ -61,6 +64,8 @@ class AddonManagerView(ft.Column):
         ]
 
     def _load_data(self):
+        if not self.page:
+            return
         self.list_container.disabled = True
         self.update()
 
@@ -72,7 +77,8 @@ class AddonManagerView(ft.Column):
                 logger.error(f"Failed to list addons: {e}")
             finally:
                 self.list_container.disabled = False
-                self.update()
+                if self.page:
+                    self.update()
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -91,7 +97,8 @@ class AddonManagerView(ft.Column):
                      selected=self.selected_addon == a
                  )
              )
-        self.update()
+        if self.page:
+            self.update()
 
     def _on_select(self, selected, addon):
         if selected:
@@ -99,7 +106,8 @@ class AddonManagerView(ft.Column):
         else:
             self.selected_addon = None
         self.delete_btn.disabled = not self.selected_addon
-        self.update()
+        if self.page:
+            self.update()
 
     def _pick_zip(self, e):
         path = FilePickerHelper.pick_file(allowed_extensions=["zip"])

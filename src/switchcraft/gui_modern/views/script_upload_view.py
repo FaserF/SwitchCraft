@@ -27,15 +27,31 @@ class ScriptUploadView(ft.Column):
         ]
 
     def _build_tabs(self):
-        return ft.Tabs(
+        # Container to hold current tab content
+        self.tab_body = ft.Container(content=self._build_platform_script_tab(), expand=True)
+
+        def on_change(e):
+            idx = int(e.control.selected_index)
+            if idx == 0:
+                self.tab_body.content = self._build_platform_script_tab()
+            else:
+                self.tab_body.content = self._build_remediation_tab()
+            self.tab_body.update()
+
+        t = ft.Tabs(
+            content=self.tab_body,
+            length=2,
             selected_index=0,
             animation_duration=300,
-            tabs=[
-                ft.Tab(text="Platform Scripts", icon=ft.Icons.TERMINAL, content=self._build_platform_script_tab()),
-                ft.Tab(text="Remediations", icon=ft.Icons.HEALING, content=self._build_remediation_tab()),
-            ],
-            expand=True
+            expand=True,
+            on_change=on_change
         )
+
+        t.tabs = [
+             ft.Tab(label="Platform Scripts", icon=ft.Icons.TERMINAL),
+             ft.Tab(label="Remediations", icon=ft.Icons.HEALING)
+        ]
+        return t
 
     # --- Platform Script Tab ---
     def _build_platform_script_tab(self):

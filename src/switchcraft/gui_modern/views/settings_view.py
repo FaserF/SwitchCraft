@@ -5,17 +5,18 @@ import json
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 from switchcraft import __version__
-from switchcraft.utils.updater import UpdateChecker
+from switchcraft.utils.app_updater import UpdateChecker
 from switchcraft.services.auth_service import AuthService
 from switchcraft.services.sync_service import SyncService
 
 logger = logging.getLogger(__name__)
 
 class ModernSettingsView(ft.Column):
-    def __init__(self, page: ft.Page):
+    def __init__(self, page: ft.Page, initial_tab_index=0):
         super().__init__(expand=True)
         self.app_page = page
         self.updater = None
+        self.initial_tab_index = initial_tab_index
 
         # Custom Tab Navigation
         self.current_content = ft.Container(expand=True, padding=10)
@@ -24,16 +25,19 @@ class ModernSettingsView(ft.Column):
         self.tab_defs = [
             (i18n.get("settings_general") or "General", ft.Icons.SETTINGS, self._build_general_tab),
             (i18n.get("settings_hdr_update") or "Updates", ft.Icons.UPDATE, self._build_updates_tab),
-            (i18n.get("deployment_title") or "Deployment", ft.Icons.CLOUD_UPLOAD, self._build_deployment_tab),
+            (i18n.get("deployment_title") or "Global Graph API", ft.Icons.CLOUD_UPLOAD, self._build_deployment_tab),
             (i18n.get("help_title") or "Help", ft.Icons.HELP, self._build_help_tab)
         ]
 
         self.nav_row = ft.Row(scroll=ft.ScrollMode.AUTO, height=50)
-        for name, icon, func in self.tab_defs:
+        for i, (name, icon, func) in enumerate(self.tab_defs):
             btn = ft.ElevatedButton(
                 content=ft.Row([ft.Icon(icon), ft.Text(name)]),
                 on_click=lambda e, f=func: self._switch_tab(f),
-                style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=5))
+                style=ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=5),
+                    bgcolor="PRIMARY_CONTAINER" if i == self.initial_tab_index else None
+                )
             )
             self.nav_row.controls.append(btn)
 
@@ -43,16 +47,18 @@ class ModernSettingsView(ft.Column):
             self.current_content
         ]
 
-        # Load initial content without triggering update() since we are in init
+        # Load initial content
         try:
-            self.current_content.content = self._build_general_tab()
+            target_func = self.tab_defs[self.initial_tab_index][2]
+            self.current_content.content = target_func()
         except Exception as e:
             logger.error(f"Failed to build initial tab: {e}")
             self.current_content.content = ft.Text(f"Error loading settings: {e}", color="red")
 
     def did_mount(self):
-        # Trigger async checks after mount
-        if hasattr(self, "_check_updates"):
+        # Trigger async checks after mount IF NOT cached
+        cached = getattr(self.app_page, "update_check_result", None)
+        if hasattr(self, "_check_updates") and (not cached or not cached.get("checked")):
              self._check_updates(None, only_changelog=True)
         # Check for policy-managed settings
         self._check_managed_settings()
@@ -96,19 +102,6 @@ class ModernSettingsView(ft.Column):
         )
         lang_dd.on_change = lambda e: self._on_lang_change(e.control.value)
 
-        # Theme
-        theme_dd = ft.Dropdown(
-            label=i18n.get("settings_theme") or "Theme",
-            value=SwitchCraftConfig.get_value("Theme", "System"),
-            options=[
-                ft.dropdown.Option("System", "System Default"),
-                ft.dropdown.Option("Dark", "Dark Mode"),
-                ft.dropdown.Option("Light", "Light Mode"),
-            ],
-            expand=True,
-        )
-        theme_dd.on_change = lambda e: self._on_theme_change(e.control.value)
-
         # Winget Toggle
         winget_sw = ft.Switch(
             label=i18n.get("settings_enable_winget") or "Enable Winget Integration",
@@ -133,7 +126,7 @@ class ModernSettingsView(ft.Column):
                 ft.Text(i18n.get("settings_general") or "General Settings", size=24, weight=ft.FontWeight.BOLD),
                 ft.Divider(),
                 company_field,
-                ft.Row([lang_dd, theme_dd]),
+                lang_dd,
                 winget_sw,
                 ft.Divider(),
                 cloud_sync,
@@ -222,8 +215,23 @@ class ModernSettingsView(ft.Column):
         )
         channel.on_change = lambda e: self._on_channel_change(e.control.value)
 
-        self.changelog_text = ft.Markdown(i18n.get("update_loading_changelog") or "Loading changelog...")
-        self.latest_version_text = ft.Text(i18n.get("unknown") or "Unknown")
+        # Check for cached update result
+        cached = getattr(self.app_page, "update_check_result", None)
+        initial_changelog = i18n.get("update_loading_changelog") or "Loading changelog..."
+        initial_latest = i18n.get("unknown") or "Unknown"
+
+        if cached and cached.get("checked"):
+            ver = cached.get("version")
+            data = cached.get("data")
+            note = (data.get("body") if data else None) or "No changelog available."
+            initial_latest = ver if ver else initial_latest
+            if cached.get("error"):
+                 initial_changelog = f"Update check failed: {cached.get('error')}"
+            else:
+                 initial_changelog = f"**{i18n.get('latest_version') or 'Latest Version'}:** {ver}\n\n{note}"
+
+        self.changelog_text = ft.Markdown(initial_changelog)
+        self.latest_version_text = ft.Text(initial_latest)
 
         check_btn = ft.ElevatedButton(i18n.get("check_updates") or "Check for Updates", icon=ft.Icons.REFRESH, on_click=self._check_updates)
 
@@ -254,14 +262,24 @@ class ModernSettingsView(ft.Column):
 
     def _build_deployment_tab(self):
         # Code Signing Section
+        sign_enabled = bool(SwitchCraftConfig.get_value("SignScripts", False))
+
+        # Validate if cert actually exists
+        saved_thumb = SwitchCraftConfig.get_value("CodeSigningCertThumbprint", "")
+        saved_cert_path = SwitchCraftConfig.get_value("CodeSigningCertPath", "")
+
+        if sign_enabled and not saved_thumb and not saved_cert_path:
+            # Config says enabled, but no cert configured -> Disable it to be safe and match UI reality
+            sign_enabled = False
+            SwitchCraftConfig.set_user_preference("SignScripts", False)
+
         sign_sw = ft.Switch(
             label=i18n.get("settings_enable_signing") or "Enable Code Signing",
-            value=bool(SwitchCraftConfig.get_value("SignScripts", False)),
+            value=sign_enabled,
         )
         sign_sw.on_change = lambda e: self._on_signing_toggle(e.control.value)
 
-        saved_thumb = SwitchCraftConfig.get_value("CodeSigningCertThumbprint", "")
-        saved_cert_path = SwitchCraftConfig.get_value("CodeSigningCertPath", "")
+        # saved_thumb and saved_cert_path already read above
 
         cert_display = saved_thumb if saved_thumb else (saved_cert_path if saved_cert_path else (i18n.get("cert_not_configured") or "Not Configured"))
 
@@ -307,18 +325,27 @@ class ModernSettingsView(ft.Column):
         )
 
         # Intune API Section
-        tenant = ft.TextField(label=i18n.get("settings_intune_tenant") or "Intune Tenant ID", value=str(SwitchCraftConfig.get_value("GraphTenantId", "")))
-        tenant.on_blur=lambda e: SwitchCraftConfig.set_user_preference("GraphTenantId", e.control.value)
+        tenant = ft.TextField(label=i18n.get("settings_intune_tenant") or "Intune Tenant ID", value=str(SwitchCraftConfig.get_value("IntuneTenantID", "")))
+        tenant.on_blur=lambda e: SwitchCraftConfig.set_user_preference("IntuneTenantID", e.control.value)
 
-        client = ft.TextField(label=i18n.get("settings_intune_client") or "Intune Client ID", value=str(SwitchCraftConfig.get_value("GraphClientId", "")))
-        client.on_blur=lambda e: SwitchCraftConfig.set_user_preference("GraphClientId", e.control.value)
+        client = ft.TextField(label=i18n.get("settings_intune_client") or "Intune Client ID", value=str(SwitchCraftConfig.get_value("IntuneClientID", "")))
+        client.on_blur=lambda e: SwitchCraftConfig.set_user_preference("IntuneClientID", e.control.value)
 
-        secret = ft.TextField(label=i18n.get("settings_intune_secret") or "Intune Client Secret", value=SwitchCraftConfig.get_secure_value("GraphClientSecret") or "", password=True, can_reveal_password=True)
-        secret.on_blur=lambda e: SwitchCraftConfig.set_secure_value("GraphClientSecret", e.control.value)
+        secret = ft.TextField(label=i18n.get("settings_intune_secret") or "Intune Client Secret", value=SwitchCraftConfig.get_secure_value("IntuneClientSecret") or "", password=True, can_reveal_password=True)
+        secret.on_blur=lambda e: SwitchCraftConfig.set_secure_value("IntuneClientSecret", e.control.value)
 
         return ft.ListView(
             controls=[
-                ft.Text(i18n.get("deployment_title") or "Deployment Settings", size=24, weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("deployment_title") or "Global Graph API", size=24, weight=ft.FontWeight.BOLD),
+                ft.Text("Configure your connection to Microsoft Graph. Required for Intune, Entra ID, and Autopilot features.", size=12, color="GREY"),
+
+                # Intune/Graph
+                ft.Text("Azure App Registration Config", size=18, color="BLUE"),
+                tenant,
+                client,
+                secret,
+                ft.Divider(),
+
                 # Code Signing
                 ft.Text(i18n.get("settings_hdr_signing") or "Code Signing", size=18, color="BLUE"),
                 sign_sw,
@@ -334,16 +361,18 @@ class ModernSettingsView(ft.Column):
                 ft.Row([ft.Text(i18n.get("lbl_custom_template") or "Active Template:"), self.template_status_text]),
                 ft.Row([template_browse_btn, template_reset_btn]),
                 ft.Text(i18n.get("template_help") or "Select a custom .ps1 template. Leave empty for default.", size=11, color="GREY"),
-                ft.Divider(),
-                # Intune
-                ft.Text(i18n.get("settings_hdr_intune_api") or "Microsoft Intune API", size=18, color="BLUE"),
-                tenant,
-                client,
-                secret
             ],
             padding=20,
             spacing=15
         )
+
+    def _on_debug_toggle(self, e):
+        """Toggle debug logging."""
+        val = e.control.value
+        SwitchCraftConfig.set_user_preference("DebugMode", val)
+        from switchcraft.utils.logging_handler import get_session_handler
+        get_session_handler().set_debug_mode(val)
+        self._show_snack(f"Debug Mode {'Enabled' if val else 'Disabled'}", "ORANGE" if val else "GREEN")
 
     def _build_help_tab(self):
         links = ft.Row([
@@ -353,6 +382,13 @@ class ModernSettingsView(ft.Column):
         ])
 
         logs_btn = ft.ElevatedButton(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs)
+
+        # Debug Toggle
+        debug_sw = ft.Switch(
+            label="Enable Debug Logging",
+            value=SwitchCraftConfig.is_debug_mode(),
+            on_change=self._on_debug_toggle
+        )
 
         # GitHub Issue Reporter with pre-filled body
         def open_issue_reporter(e):
@@ -421,10 +457,14 @@ class ModernSettingsView(ft.Column):
             controls=[
                 ft.Text(i18n.get("help_title") or "Help & Resources", size=24, weight=ft.FontWeight.BOLD),
                 links,
+                ft.Row([logs_btn, debug_sw]),
                 ft.Divider(),
                 ft.Text(i18n.get("help_troubleshooting") or "Troubleshooting", size=18, weight=ft.FontWeight.BOLD),
                 ft.Text(i18n.get("help_shared_settings_msg") or "Settings are shared across all SwitchCraft editions (Modern, Legacy, and CLI).", size=12, italic=True),
-                ft.Row([logs_btn, issue_btn]),
+                ft.Row([
+                    ft.ElevatedButton(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs),
+                    issue_btn
+                ]),
                 ft.Divider(),
                 ft.Text(i18n.get("addon_manager_title") or "Addon Manager", size=18, weight=ft.FontWeight.BOLD),
                 addon_section,
@@ -484,7 +524,11 @@ class ModernSettingsView(ft.Column):
 
     def _on_lang_change(self, val):
         SwitchCraftConfig.set_user_preference("Language", val)
-        self._show_snack(i18n.get("restart_required_msg") or "Language changed. Please restart app.")
+        # Attempt to reload i18n strings? i18n is static usually.
+        # But we can try to reload the UI.
+        self._show_snack(i18n.get("restart_required_msg") or "Language changed. Please restart app.", "ORANGE")
+        # Trigger page update just in case
+        self.app_page.update()
 
     def _on_theme_change(self, val):
         SwitchCraftConfig.set_user_preference("Theme", val)
@@ -619,12 +663,16 @@ class ModernSettingsView(ft.Column):
                 self._show_snack(f"{i18n.get('import_failed') or 'Import Failed'}: {ex}", "RED")
 
     def _export_logs(self, e):
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"SwitchCraft_Debug_{timestamp}.log"
+
         from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
-        path = FilePickerHelper.save_file(dialog_title=i18n.get("help_export_logs") or "Export Logs", file_name="logs.txt", allowed_extensions=["txt"])
+        path = FilePickerHelper.save_file(dialog_title=i18n.get("help_export_logs") or "Export Logs", file_name=filename, allowed_extensions=["log", "txt"])
         if path:
             from switchcraft.utils.logging_handler import get_session_handler
             if get_session_handler().export_logs(path):
-                self._show_snack(i18n.get("logs_exported") or "Logs Exported!")
+                self._show_snack(i18n.get("logs_exported") or f"Logs Exported to {path}")
             else:
                 self._show_snack(i18n.get("logs_export_failed") or "Log export failed.", "RED")
 
@@ -644,7 +692,7 @@ class ModernSettingsView(ft.Column):
         # Map config keys to UI element attribute names
         managed_keys = [
             "EnableWinget", "Language", "Theme", "AIProvider", "SignScripts",
-            "UpdateChannel", "GraphTenantId", "GraphClientId", "GraphClientSecret"
+            "UpdateChannel", "IntuneTenantID", "IntuneClientID", "IntuneClientSecret"
         ]
 
         for key in managed_keys:
@@ -660,17 +708,46 @@ class ModernSettingsView(ft.Column):
 
     def _attach_debug_log_handler(self):
         """Attach a custom log handler that appends messages to the debug console text field."""
+        import time
+
         class FletLogHandler(logging.Handler):
             def __init__(self, text_field, page):
                 super().__init__()
                 self.text_field = text_field
                 self.page = page
+                self.buffer = []
+                self.last_update = 0
+                self.update_interval = 0.5 # Seconds
 
             def emit(self, record):
                 try:
                     msg = self.format(record)
-                    self.text_field.value += msg + "\n"
-                    # Avoid excessive updates
+                    self.buffer.append(msg)
+
+                    # Throttle updates
+                    current_time = time.time()
+                    if current_time - self.last_update > self.update_interval:
+                        self.flush_buffer()
+                        self.last_update = current_time
+
+                except Exception:
+                    pass
+
+            def flush_buffer(self):
+                if not self.buffer:
+                    return
+
+                # Append buffer content
+                try:
+                    text_to_add = "\n".join(self.buffer) + "\n"
+                    self.buffer.clear()
+
+                    # Check if text field is too long, truncate if needed to prevent memory issues
+                    if len(self.text_field.value) > 50000:
+                        self.text_field.value = self.text_field.value[-40000:]
+
+                    self.text_field.value += text_to_add
+
                     if self.page:
                         self.page.update()
                 except Exception:
@@ -678,6 +755,7 @@ class ModernSettingsView(ft.Column):
 
         if hasattr(self, "debug_log_text"):
             handler = FletLogHandler(self.debug_log_text, self.app_page)
+            # Ensure we flush on exit? No easy way, but this is good enough.
             handler.setLevel(logging.DEBUG)
             handler.setFormatter(logging.Formatter('%(levelname)s | %(name)s | %(message)s'))
             logging.getLogger().addHandler(handler)
@@ -694,7 +772,7 @@ class ModernSettingsView(ft.Column):
 
         rows = []
         for addon in addons:
-            is_installed = AddonService.is_addon_installed(addon["id"])
+            is_installed = AddonService().is_addon_installed(addon["id"])
             status_color = "GREEN" if is_installed else "ORANGE"
             status_text = i18n.get("status_installed") or "Installed" if is_installed else i18n.get("status_not_installed") or "Not Installed"
 
@@ -732,11 +810,39 @@ class ModernSettingsView(ft.Column):
     def _install_addon(self, addon_id):
         """Install an addon from the official repository."""
         from switchcraft.services.addon_service import AddonService
+        import sys
+        from pathlib import Path
 
         self._show_snack(f"{i18n.get('addon_installing') or 'Installing addon'} {addon_id}...", "BLUE")
 
+        # Resolve bundled path
+        if getattr(sys, 'frozen', False):
+             base_path = Path(sys._MEIPASS) / "assets" / "addons"
+        else:
+             # src/switchcraft/gui_modern/views/settings_view.py -> src/switchcraft/gui_modern/views -> src/switchcraft/gui_modern -> src/switchcraft -> src -> switchcraft/assets/addons?
+             # No: src/switchcraft/gui_modern/views/settings_view.py (level 0)
+             # level 1: views
+             # level 2: gui_modern
+             # level 3: switchcraft
+             # level 4: src
+             # assets is in src/switchcraft/assets
+             # so: parent(views) -> parent(gui_modern) -> parent(switchcraft) / assets / addons ??
+             # Wait. app.py is in gui_modern.
+             # settings_view.py is in gui_modern/views.
+             # So it is one level deeper than app.py.
+             # app.py used Path(__file__).parent.parent / "assets" / "addons" (parent of gui_modern is switchcraft).
+             # settings_view: parent(views).parent(gui_modern).parent(switchcraft)
+             base_path = Path(__file__).parent.parent.parent / "assets" / "addons"
+
+        zip_path = base_path / f"{addon_id}.zip"
+
         def _run():
-            if AddonService.install_addon(addon_id):
+            if not zip_path.exists():
+                 # TODO: Try online download if not bundled?
+                 self._show_snack(f"Addon source not found: {zip_path}", "RED")
+                 return
+
+            if AddonService().install_addon(str(zip_path)):
                 self._show_snack(f"{i18n.get('addon_install_success') or 'Addon installed successfully!'} ({addon_id})", "GREEN")
             else:
                 self._show_snack(f"{i18n.get('addon_install_failed') or 'Addon installation failed.'} ({addon_id})", "RED")
@@ -842,20 +948,29 @@ class ModernSettingsView(ft.Column):
         import subprocess
 
         try:
+            # Added Timeout and simplified command
             cmd = [
-                "powershell", "-NoProfile", "-NonInteractive", "-Command",
-                "Get-ChildItem Cert:\\CurrentUser\\My -CodeSigningCert | Select-Object Subject, Thumbprint | ConvertTo-Json"
+                "powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
+                "Get-ChildItem Cert:\\CurrentUser\\My -CodeSigningCert | Select-Object Subject, Thumbprint | ConvertTo-Json -Depth 1"
             ]
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-            proc = subprocess.run(cmd, capture_output=True, text=True, startupinfo=startupinfo)
-            if proc.returncode != 0 or not proc.stdout.strip():
+            proc = subprocess.run(cmd, capture_output=True, text=True, startupinfo=startupinfo, timeout=10)
+
+            output = proc.stdout.strip()
+            if proc.returncode != 0 or not output:
+                logger.warning(f"Cert detect returned empty or error: {proc.stderr}")
                 self._show_snack(i18n.get("cert_not_found") or "No code signing certificates found.", "ORANGE")
                 return
 
             import json
-            data = json.loads(proc.stdout)
+            try:
+                data = json.loads(output)
+            except json.JSONDecodeError:
+                self._show_snack("Failed to parse cert info", "RED")
+                return
+
             if isinstance(data, dict):
                 data = [data]
 

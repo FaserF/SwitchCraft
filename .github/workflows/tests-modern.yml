@@ -6,12 +6,14 @@ on:
     paths:
       - 'src/switchcraft/gui_modern/**'
       - 'tests/test_modern_gui.py'
+      - 'tests/test_gui_views.py'
       - 'pyproject.toml'
   pull_request:
     branches: [ main ]
     paths:
       - 'src/switchcraft/gui_modern/**'
       - 'tests/test_modern_gui.py'
+      - 'tests/test_gui_views.py'
       - 'pyproject.toml'
   workflow_dispatch:
 
@@ -40,3 +42,4 @@ jobs:
       # We skip GUI tests that require a display if any, but our smoke tests should run fine headless
       run: |
         pytest tests/test_modern_gui.py
+        pytest tests/test_gui_views.py

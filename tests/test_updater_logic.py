@@ -1,11 +1,11 @@
 
 import pytest
 from unittest.mock import MagicMock, patch
-from switchcraft.utils.updater import UpdateChecker
+from switchcraft.utils.app_updater import UpdateChecker
 
 @pytest.fixture
 def mock_requests():
-    with patch("switchcraft.utils.updater.requests") as mock:
+    with patch("switchcraft.utils.app_updater.requests") as mock:
         yield mock
 
 def test_stable_channel_stable_update(mock_requests):

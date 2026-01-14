@@ -1,5 +1,7 @@
 import flet as ft
 from switchcraft.services.history_service import HistoryService
+from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
 import logging
 from datetime import datetime
 
@@ -7,10 +9,31 @@ logger = logging.getLogger(__name__)
 
 class LibraryView(ft.Column):
     def __init__(self, page: ft.Page):
-        super().__init__(expand=True)
+        super().__init__(expand=True, scroll=ft.ScrollMode.AUTO)
         self.app_page = page
         self.history_service = HistoryService()
         self.all_items = []
+
+        # Check if Intune/Graph credentials are configured
+        if not self._has_credentials():
+            self.controls = [
+                ft.Container(
+                    content=ft.Column([
+                        ft.Icon(ft.Icons.LOCK_RESET_ROUNDED, size=80, color="ORANGE_400"),
+                        ft.Text(i18n.get("intune_not_configured") or "Intune is not configured", size=28, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
+                        ft.Text(i18n.get("intune_config_hint") or "Please configure Microsoft Graph API credentials in Settings.", size=16, color="GREY_400", text_align=ft.TextAlign.CENTER),
+                        ft.Container(height=20),
+                        ft.ElevatedButton(
+                            i18n.get("tab_settings") or "Go to Settings",
+                            icon=ft.Icons.SETTINGS,
+                            on_click=self._go_to_settings
+                        )
+                    ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    expand=True,
+                    alignment=ft.Alignment(0, 0)
+                )
+            ]
+            return
 
         # State
         self.search_val = ""
@@ -41,8 +64,8 @@ class LibraryView(ft.Column):
             ],
             value="All",
             width=150,
-            on_change=self._on_filter_change
         )
+        self.filter_dd.on_change = self._on_filter_change
 
         self.controls = [
             ft.Row([
@@ -57,7 +80,8 @@ class LibraryView(ft.Column):
         ]
 
     def did_mount(self):
-        self._load_data(None)
+        if hasattr(self, 'grid') and self.grid:
+            self._load_data(None)
 
     def _load_data(self, e):
         self.all_items = self.history_service.get_history()
@@ -92,7 +116,8 @@ class LibraryView(ft.Column):
         for item in filtered:
             self.grid.controls.append(self._create_tile(item))
 
-        self.update()
+        if self.page:
+            self.update()
 
     def _create_tile(self, item):
         filename = item.get('filename', 'Unknown')
@@ -126,3 +151,31 @@ class LibraryView(ft.Column):
     def _on_tile_hover(self, e):
         e.control.bgcolor = "WHITE,0.2" if e.data == "true" else "WHITE,0.1"
         e.control.update()
+
+    def _has_credentials(self):
+        """Check if Graph API credentials are configured."""
+        tenant_id = SwitchCraftConfig.get_value("GraphTenantId")
+        client_id = SwitchCraftConfig.get_value("GraphClientId")
+        client_secret = SwitchCraftConfig.get_secure_value("GraphClientSecret")
+        return bool(tenant_id and client_id and client_secret)
+
+    def _go_to_settings(self, e):
+        """Navigate to Settings tab."""
+        try:
+            # Try direct access first (as set in ModernApp)
+            if hasattr(self.app_page, 'switchcraft_app'):
+                self.app_page.switchcraft_app.goto_tab(9)
+                return
+
+            # Fallback scan
+            for attr in dir(self.app_page):
+                if 'app' in attr.lower():
+                    app_ref = getattr(self.app_page, attr, None)
+                    if app_ref and hasattr(app_ref, 'goto_tab'):
+                        app_ref.goto_tab(9)  # Settings is at index 9
+                        return
+        except Exception:
+            pass
+        self.app_page.snack_bar = ft.SnackBar(ft.Text("Please navigate to Settings tab manually"), bgcolor="ORANGE")
+        self.app_page.snack_bar.open = True
+        self.app_page.update()

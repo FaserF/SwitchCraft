@@ -97,7 +97,7 @@ def test_addon_detection(mock_open_key):
     """Test registry detection for advanced addon."""
     # This is tricky to test on non-windows or without registry,
     # but we can verify it doesn't crash on import/usage
-    assert not AddonService.is_addon_installed("fake_addon")
+    assert not AddonService().is_addon_installed("fake_addon")
 
 # --- Legacy/Modern Entry Point Safety ---
 
