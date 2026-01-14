@@ -1,11 +1,12 @@
 import flet as ft
 from switchcraft.services.history_service import HistoryService
+from switchcraft.utils.i18n import i18n
 from collections import defaultdict
 from datetime import datetime, timedelta
 
 class DashboardView(ft.Column):
     def __init__(self, page: ft.Page):
-        super().__init__(expand=True, scroll=ft.ScrollMode.AUTO)
+        super().__init__(expand=True, scroll=ft.ScrollMode.AUTO, spacing=15)
         self.app_page = page
         self.history_service = HistoryService()
 
@@ -20,19 +21,25 @@ class DashboardView(ft.Column):
         self.recent_items = []
 
         # Containers for dynamic updates
-        self.stats_row = ft.Row(alignment=ft.MainAxisAlignment.SPACE_EVENLY)
+        self.stats_row = ft.Row(alignment=ft.MainAxisAlignment.SPACE_EVENLY, wrap=True)
         self.chart_container = ft.Container(bgcolor="BLACK12", border_radius=10, padding=20)
         self.recent_container = ft.Container(bgcolor="BLACK12", border_radius=10, padding=20, width=350)
 
         self.controls = [
-            ft.Text("Dashboard", size=28, weight=ft.FontWeight.BOLD),
-            ft.Divider(),
-            self.stats_row,
-            ft.Container(height=20),
-            ft.Row([
-                ft.Container(content=self.chart_container, expand=True),
-                self.recent_container
-            ], expand=True)
+            ft.Container(
+                content=ft.Column([
+                    ft.Text(i18n.get("dashboard_overview_title") or "Overview", size=28, weight=ft.FontWeight.BOLD),
+                    ft.Divider(),
+                    self.stats_row,
+                    self.stats_row,
+                    ft.Container(height=20),
+                    ft.Row([
+                        ft.Container(content=self.chart_container, expand=True, height=300),
+                        ft.Container(content=self.recent_container, height=300)
+                    ], wrap=True)
+                ], spacing=15),
+                padding=20  # Consistent padding with other views
+            )
         ]
 
     def did_mount(self):
@@ -74,10 +81,10 @@ class DashboardView(ft.Column):
     def _refresh_ui(self):
         # Stats
         self.stats_row.controls = [
-            self._stat_card("Analyzed", str(self.stats["analyzed"]), ft.Icons.ANALYTICS, "BLUE"),
-            self._stat_card("Packaged", str(self.stats["packaged"]), ft.Icons.INVENTORY_2, "ORANGE"),
-            self._stat_card("Deployed", str(self.stats["deployed"]), ft.Icons.ROCKET_LAUNCH, "GREEN"),
-            self._stat_card("Errors", str(self.stats["errors"]), ft.Icons.ERROR_OUTLINE, "RED"),
+            self._stat_card(i18n.get("stat_analyzed") or "Analyzed", str(self.stats["analyzed"]), ft.Icons.ANALYTICS, "BLUE"),
+            self._stat_card(i18n.get("stat_packaged") or "Packaged", str(self.stats["packaged"]), ft.Icons.INVENTORY_2, "ORANGE"),
+            self._stat_card(i18n.get("stat_deployed") or "Deployed", str(self.stats["deployed"]), ft.Icons.ROCKET_LAUNCH, "GREEN"),
+            self._stat_card(i18n.get("stat_errors") or "Errors", str(self.stats["errors"]), ft.Icons.ERROR_OUTLINE, "RED"),
         ]
 
         # Chart
@@ -101,7 +108,7 @@ class DashboardView(ft.Column):
             )
 
         self.chart_container.content = ft.Column([
-            ft.Text("Activity (Last 5 Days)", weight=ft.FontWeight.BOLD, size=18),
+            ft.Text(i18n.get("chart_activity_title") or "Activity (Last 5 Days)", weight=ft.FontWeight.BOLD, size=18),
             ft.Container(height=20),
             ft.Row(bars, alignment=ft.MainAxisAlignment.SPACE_EVENLY, vertical_alignment=ft.CrossAxisAlignment.END),
         ])
@@ -109,7 +116,7 @@ class DashboardView(ft.Column):
         # Recent
         recent_list = []
         if not self.recent_items:
-            recent_list.append(ft.Text("No recent activity.", color="GREY", italic=True))
+            recent_list.append(ft.Text(i18n.get("no_recent_activity") or "No recent activity.", color="GREY", italic=True))
         else:
             for item in self.recent_items:
                 # Format time
@@ -120,8 +127,8 @@ class DashboardView(ft.Column):
                 except ValueError:
                     time_str = ts
 
-                title = item.get("filename") or item.get("product") or "Unknown"
-                status = item.get("status", "Analyzed")
+                title = item.get("filename") or item.get("product") or i18n.get("unknown") or "Unknown"
+                status = item.get("status", i18n.get("status_analyzed") or "Analyzed")
                 icon = ft.Icons.ANALYTICS
                 if status == "Packaged":
                     icon = ft.Icons.INVENTORY_2
@@ -139,12 +146,10 @@ class DashboardView(ft.Column):
                 )
 
         self.recent_container.content = ft.Column([
-             ft.Text("Recent Actions", weight=ft.FontWeight.BOLD, size=18),
+             ft.Text(i18n.get("recent_actions") or "Recent Actions", weight=ft.FontWeight.BOLD, size=18),
              ft.ListView(recent_list, height=300, spacing=0)
         ])
 
-        if self.page:
-            self.update()
 
     def _stat_card(self, label, value, icon, color):
         return ft.Container(

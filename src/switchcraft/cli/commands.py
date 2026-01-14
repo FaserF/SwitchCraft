@@ -358,9 +358,21 @@ def _run_analysis(filepath, output_json):
     if info.product_name:
         from switchcraft.services.addon_service import AddonService
         winget_mod = AddonService().import_addon_module("winget", "utils.winget")
-        if winget_mod:
+        if winget_mod and hasattr(winget_mod, "WingetHelper"):
             winget = winget_mod.WingetHelper()
-            winget_url = winget.search_by_name(info.product_name)
+            if hasattr(winget, "search_by_name"):
+                winget_url = winget.search_by_name(info.product_name)
+            else:
+                # Fallback to internal if addon is outdated
+                from switchcraft.utils.winget import WingetHelper
+                winget_url = WingetHelper().search_by_name(info.product_name)
+        else:
+             # Fallback to internal
+             try:
+                 from switchcraft.utils.winget import WingetHelper
+                 winget_url = WingetHelper().search_by_name(info.product_name)
+             except Exception:
+                 pass
 
     if output_json:
         out = info.__dict__.copy()

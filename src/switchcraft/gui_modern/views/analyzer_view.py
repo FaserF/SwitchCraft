@@ -279,13 +279,13 @@ class ModernAnalyzerView(ft.Column):
 
         # 1. Primary Info Table
         table = ft.DataTable(
-            columns=[ft.DataColumn(ft.Text("Field")), ft.DataColumn(ft.Text("Value"))],
+            columns=[ft.DataColumn(ft.Text(i18n.get("table_header_field") or "Field")), ft.DataColumn(ft.Text(i18n.get("table_header_value") or "Value"))],
             rows=[
-                ft.DataRow([ft.DataCell(ft.Text("Product")), ft.DataCell(ft.Text(info.product_name or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text("Version")), ft.DataCell(ft.Text(info.product_version or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text("Manufacturer")), ft.DataCell(ft.Text(info.manufacturer or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text("Type")), ft.DataCell(ft.Text(info.installer_type or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text("File")), ft.DataCell(ft.Text(info.file_path, size=11, font_family="Consolas"))]),
+                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_product") or "Product")), ft.DataCell(ft.Text(info.product_name or "Unknown"))]),
+                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_version") or "Version")), ft.DataCell(ft.Text(info.product_version or "Unknown"))]),
+                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_manufacturer") or "Manufacturer")), ft.DataCell(ft.Text(info.manufacturer or "Unknown"))]),
+                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_type") or "Type")), ft.DataCell(ft.Text(info.installer_type or "Unknown"))]),
+                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_file") or "File")), ft.DataCell(ft.Text(info.file_path, size=11, font_family="Consolas"))]),
             ],
             width=float("inf"),
         )
@@ -324,11 +324,10 @@ class ModernAnalyzerView(ft.Column):
                 )
             )
 
-        # 4. Primary Actions (All-in-One, Test Locally)
         action_buttons = ft.Row([
-            ft.ElevatedButton("Auto Deploy (All-in-One)", icon=ft.Icons.AUTO_FIX_HIGH, bgcolor="RED_700", color="WHITE", on_click=lambda _: self._run_all_in_one_flow(result)),
-            ft.ElevatedButton("Test Locally (Admin)", icon=ft.Icons.PLAY_ARROW, bgcolor="GREEN_700", color="WHITE", on_click=lambda _: self._run_local_test_action(info.file_path, info.install_switches)),
-            ft.ElevatedButton("Winget Manifest", icon=ft.Icons.DESCRIPTION, on_click=lambda _: self._open_manifest_dialog(info)),
+            ft.FilledButton(i18n.get("btn_auto_deploy") or "Auto Deploy (All-in-One)", icon=ft.Icons.AUTO_FIX_HIGH, style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE"), on_click=lambda _: self._run_all_in_one_flow(result)),
+            ft.FilledButton(i18n.get("btn_test_locally") or "Test Locally (Admin)", icon=ft.Icons.PLAY_ARROW, style=ft.ButtonStyle(bgcolor="GREEN_700", color="WHITE"), on_click=lambda _: self._run_local_test_action(info.file_path, info.install_switches)),
+            ft.FilledButton(i18n.get("btn_winget_manifest") or "Winget Manifest", icon=ft.Icons.DESCRIPTION, on_click=lambda _: self._open_manifest_dialog(info)),
         ], wrap=True)
         self.results_column.controls.append(action_buttons)
 
@@ -362,9 +361,9 @@ class ModernAnalyzerView(ft.Column):
         # 7. Deployment Actions (Intune, IntuneWin)
         self.results_column.controls.append(
             ft.Row([
-                ft.ElevatedButton("Generate Intune Script", icon=ft.Icons.CODE, on_click=self._on_click_create_script),
-                ft.ElevatedButton("Create .intunewin", icon=ft.Icons.INVENTORY, on_click=self._on_click_create_intunewin),
-                ft.ElevatedButton("Manual Commands", icon=ft.Icons.TERMINAL, on_click=self._show_manual_cmds),
+                ft.ElevatedButton(i18n.get("btn_gen_intune_script") or "Generate Intune Script", icon=ft.Icons.CODE, on_click=self._on_click_create_script),
+                ft.ElevatedButton(i18n.get("btn_create_intunewin") or "Create .intunewin", icon=ft.Icons.INVENTORY, on_click=self._on_click_create_intunewin),
+                ft.ElevatedButton(i18n.get("btn_manual_cmds") or "Manual Commands", icon=ft.Icons.TERMINAL, on_click=self._show_manual_cmds),
             ], wrap=True)
         )
 
@@ -401,7 +400,7 @@ class ModernAnalyzerView(ft.Column):
             # Cleanup button for nested temp dir
             if result.nested_data.get("temp_dir"):
                 nested_panel.controls.append(
-                    ft.Padding(
+                    ft.Container(
                         padding=10,
                         content=ft.TextButton("Cleanup Temporary Extraction", icon=ft.Icons.DELETE_SWEEP, on_click=lambda _: self._cleanup_temp(result.nested_data))
                     )
@@ -657,9 +656,46 @@ class ModernAnalyzerView(ft.Column):
         if not file_path:
             return
 
+        # Check if we are already admin
+        is_admin = False
+        try:
+            is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except Exception:
+            pass
+
+        if not is_admin:
+            def on_restart_confirm(e):
+                restart_dlg.open = False
+                self.app_page.update()
+
+                # Restart as admin
+                try:
+                    import sys
+                    executable = sys.executable
+                    params = f'"{sys.argv[0]}"'
+                    if len(sys.argv) > 1:
+                        params += " " + " ".join(f'"{a}"' for a in sys.argv[1:])
+
+                    ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
+                    sys.exit(0)
+                except Exception as ex:
+                    self._show_snack(f"Failed to elevate: {ex}", "RED")
+
+            restart_dlg = ft.AlertDialog(
+                title=ft.Text(i18n.get("admin_required_title") or "Admin Rights Required"),
+                content=ft.Text(i18n.get("admin_required_msg") or "Local testing requires administrative privileges. Would you like to restart SwitchCraft as Administrator?"),
+                actions=[
+                    ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda _: setattr(restart_dlg, "open", False) or self.app_page.update()),
+                    ft.ElevatedButton(i18n.get("btn_restart_admin") or "Restart as Admin", bgcolor="RED_700", color="WHITE", on_click=on_restart_confirm),
+                ],
+            )
+            self.app_page.open(restart_dlg)
+            return
+
+        # If already admin, proceed with normal confirmation
         def on_confirm(e):
             local_dlg.open = False
-            self.update()
+            self.app_page.update()
 
             path_obj = Path(file_path)
             params_str = " ".join(switches) if switches else ""
@@ -671,6 +707,7 @@ class ModernAnalyzerView(ft.Column):
                 cmd_params = f"/i \"{path_obj}\" {params_str}"
 
             try:
+                # We already checked for admin, but runas ensures UAC if somehow needed
                 ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", cmd_exec, cmd_params, str(path_obj.parent), 1)
                 if int(ret) <= 32:
                     self._show_snack(f"Failed to start process (Code {ret})", "RED")
@@ -678,16 +715,14 @@ class ModernAnalyzerView(ft.Column):
                 self._show_snack(str(ex), "RED")
 
         local_dlg = ft.AlertDialog(
-            title=ft.Text("Run Test Locally"),
-            content=ft.Text(f"Do you want to run the installer locally?\n\nFile: {Path(file_path).name}\n\nWARNING: This will execute with Admin rights."),
+            title=ft.Text(i18n.get("run_local_test") or "Run Test Locally"),
+            content=ft.Text(f"{i18n.get('confirm_local_test_msg') or 'Do you want to run the installer locally?'}\n\nFile: {Path(file_path).name}"),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: setattr(local_dlg, "open", False)),
-                ft.ElevatedButton("Run Now (Admin)", bgcolor="GREEN_700", color="WHITE", on_click=on_confirm),
+                ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda _: setattr(local_dlg, "open", False) or self.app_page.update()),
+                ft.ElevatedButton(i18n.get("btn_run_now") or "Run Now (Admin)", bgcolor="GREEN_700", color="WHITE", on_click=on_confirm),
             ],
         )
-        self.app_page.dialog = local_dlg
-        local_dlg.open = True
-        self.app_page.update()
+        self.app_page.open(local_dlg)
 
     def _open_manifest_dialog(self, info):
         # Placeholder for Winget Manifest Creation (Similar to Legacy)
@@ -708,13 +743,23 @@ class ModernAnalyzerView(ft.Column):
             )
         ], scroll=ft.ScrollMode.AUTO, tight=True)
 
+        def close_dlg(e):
+            dlg.open = False
+            self.app_page.update()
+
         dlg = ft.AlertDialog(
+            title=ft.Text(i18n.get("detailed_params_title") or "Detailed Parameters Analysis"),
             content=content,
-            actions=[ft.TextButton("Close", on_click=lambda _: setattr(dlg, "open", False))],
+            actions=[ft.TextButton(i18n.get("btn_cancel") or "Close", on_click=close_dlg)],
         )
-        self.app_page.dialog = dlg
-        dlg.open = True
-        self.app_page.update()
+
+        # Use page.open() if available, otherwise fallback to old method
+        if hasattr(self.app_page, 'open'):
+            self.app_page.open(dlg)
+        else:
+            self.app_page.dialog = dlg
+            dlg.open = True
+            self.app_page.update()
 
     def _on_click_create_intunewin(self, e):
         # We need a source folder and output. For simplicity, use installer dir and create alongside.
@@ -771,12 +816,13 @@ class ModernAnalyzerView(ft.Column):
                 self._show_snack("Failed to copy", "RED")
 
     def _show_snack(self, msg, color="GREEN"):
+        print(f"DEBUG: Showing Snack: {msg}")
         try:
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True
             self.app_page.update()
-        except Exception:
-             pass
+        except Exception as e:
+             print(f"DEBUG: Failed to show snack: {e}")
 
     def _add_history_entry(self, info, status):
         try:

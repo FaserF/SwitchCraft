@@ -2,6 +2,7 @@ import flet as ft
 from switchcraft.services.history_service import HistoryService
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.nav_constants import NavIndex
 import logging
 from datetime import datetime
 
@@ -50,7 +51,7 @@ class LibraryView(ft.Column):
         )
 
         self.search_field = ft.TextField(
-            hint_text="Search Library...",
+            hint_text=i18n.get("search_library") or "Search Library...",
             prefix_icon=ft.Icons.SEARCH,
             expand=True,
             on_change=self._on_search_change
@@ -58,9 +59,9 @@ class LibraryView(ft.Column):
 
         self.filter_dd = ft.Dropdown(
             options=[
-                 ft.dropdown.Option("All"),
-                 ft.dropdown.Option("Analyzed"),
-                 ft.dropdown.Option("Packaged"),
+                 ft.dropdown.Option("All", text=i18n.get("filter_all") or "All"),
+                 ft.dropdown.Option("Analyzed", text=i18n.get("filter_analyzed") or "Analyzed"),
+                 ft.dropdown.Option("Packaged", text=i18n.get("filter_packaged") or "Packaged"),
             ],
             value="All",
             width=150,
@@ -68,15 +69,21 @@ class LibraryView(ft.Column):
         self.filter_dd.on_change = self._on_filter_change
 
         self.controls = [
-            ft.Row([
-                ft.Text("My Library", size=28, weight=ft.FontWeight.BOLD),
-                ft.Container(expand=True),
-                ft.IconButton(ft.Icons.REFRESH, on_click=self._load_data)
-            ]),
-            ft.Divider(),
-            ft.Row([self.search_field, self.filter_dd]),
-            ft.Container(height=10),
-            self.grid
+            ft.Container(
+                content=ft.Column([
+                    ft.Row([
+                        ft.Text(i18n.get("my_library") or "My Library", size=28, weight=ft.FontWeight.BOLD),
+                        ft.Container(expand=True),
+                        ft.IconButton(ft.Icons.REFRESH, on_click=self._load_data)
+                    ]),
+                    ft.Divider(),
+                    ft.Row([self.search_field, self.filter_dd]),
+                    ft.Container(height=10),
+                    self.grid
+                ], expand=True, spacing=10),
+                padding=20,
+                expand=True
+            )
         ]
 
     def did_mount(self):
@@ -116,8 +123,6 @@ class LibraryView(ft.Column):
         for item in filtered:
             self.grid.controls.append(self._create_tile(item))
 
-        if self.page:
-            self.update()
 
     def _create_tile(self, item):
         filename = item.get('filename', 'Unknown')
@@ -164,7 +169,7 @@ class LibraryView(ft.Column):
         try:
             # Try direct access first (as set in ModernApp)
             if hasattr(self.app_page, 'switchcraft_app'):
-                self.app_page.switchcraft_app.goto_tab(9)
+                self.app_page.switchcraft_app.goto_tab(NavIndex.SETTINGS_GRAPH)
                 return
 
             # Fallback scan
@@ -172,7 +177,7 @@ class LibraryView(ft.Column):
                 if 'app' in attr.lower():
                     app_ref = getattr(self.app_page, attr, None)
                     if app_ref and hasattr(app_ref, 'goto_tab'):
-                        app_ref.goto_tab(9)  # Settings is at index 9
+                        app_ref.goto_tab(NavIndex.SETTINGS_GRAPH)
                         return
         except Exception:
             pass

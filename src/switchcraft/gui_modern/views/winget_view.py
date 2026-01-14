@@ -95,7 +95,7 @@ class ModernWingetView(ft.Row):
         # Left Pane with filter row
         left_pane = ft.Container(
             content=ft.Column([
-                ft.Text("Winget Explorer", size=18, weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("winget_explorer_title") or "Winget Explorer", size=18, weight=ft.FontWeight.BOLD),
                 ft.Row(
                     [self.filter_dropdown, self.search_field, btn_search],
                     spacing=10,
@@ -108,7 +108,8 @@ class ModernWingetView(ft.Row):
             width=420,
             padding=15,
             bgcolor="SURFACE_CONTAINER_HIGHEST" if hasattr(getattr(ft, "colors", None), "SURFACE_CONTAINER_HIGHEST") else "GREY_900",
-            border_radius=15
+            border_radius=15,
+            margin=ft.margin.only(left=20, top=20, bottom=20, right=10)
         )
 
         # Right Pane
@@ -116,6 +117,7 @@ class ModernWingetView(ft.Row):
             content=self.details_area,
             expand=True,
             padding=20,
+            margin=ft.margin.only(right=20, top=20, bottom=20, left=10)
         )
 
         # Initial instruction
@@ -237,7 +239,7 @@ class ModernWingetView(ft.Row):
 
         # Update results count
         count = len(results) if results else 0
-        self.results_count.value = f"Found {count} app{'s' if count != 1 else ''}"
+        self.results_count.value = (i18n.get("apps_found") or "Found {0} apps").format(count) if count != 1 else (i18n.get("app_found") or "Found 1 app")
 
         if not results:
             self.search_results.controls.append(ft.Text(i18n.get("winget_no_results") or "No results found."))
@@ -295,7 +297,7 @@ class ModernWingetView(ft.Row):
         # Description Section (prominent like winstall.app)
         description = info.get('Description') or info.get('description')
         if description:
-            self.details_area.controls.append(ft.Text("About", size=18, weight=ft.FontWeight.BOLD))
+            self.details_area.controls.append(ft.Text(i18n.get("field_about") or "About", size=18, weight=ft.FontWeight.BOLD))
             self.details_area.controls.append(
                 ft.Container(
                     content=ft.Text(description, size=14, selectable=True),
@@ -441,13 +443,13 @@ class ModernWingetView(ft.Row):
         self.details_area.controls.append(ft.Divider())
 
         # Actions
-        btn_copy = ft.ElevatedButton("Copy Command", icon=ft.Icons.COPY, bgcolor="GREY_700", color="WHITE")
+        btn_copy = ft.ElevatedButton(i18n.get("btn_copy_command") or "Copy Command", icon=ft.Icons.COPY, bgcolor="GREY_700", color="WHITE")
         btn_copy.on_click = lambda e, i=info: self._copy_install_command(i)
 
-        btn_local = ft.ElevatedButton("Install Locally", icon=ft.Icons.DOWNLOAD, bgcolor="GREEN", color="WHITE")
+        btn_local = ft.ElevatedButton(i18n.get("btn_install_locally") or "Install Locally", icon=ft.Icons.DOWNLOAD, bgcolor="GREEN", color="WHITE")
         btn_local.on_click = self._install_local
 
-        btn_deploy = ft.ElevatedButton("Deploy / Package...", icon=ft.Icons.CLOUD_UPLOAD, bgcolor="BLUE", color="WHITE")
+        btn_deploy = ft.ElevatedButton(i18n.get("btn_deploy_package") or "Deploy / Package...", icon=ft.Icons.CLOUD_UPLOAD, bgcolor="BLUE", color="WHITE")
         btn_deploy.on_click = lambda e: self._open_deploy_menu(info)
 
         self.details_area.controls.append(ft.Row([btn_copy, btn_local, btn_deploy], wrap=True, spacing=8))
@@ -574,6 +576,41 @@ class ModernWingetView(ft.Row):
     def _install_local(self, e):
         if not self.current_pkg:
             return
+
+        # Admin check
+        is_admin = False
+        try:
+            import ctypes
+            is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except Exception:
+            pass
+
+        if not is_admin:
+            def on_restart_confirm(e):
+                restart_dlg.open = False
+                self.app_page.update()
+                try:
+                    import sys
+                    executable = sys.executable
+                    params = f'"{sys.argv[0]}"'
+                    if len(sys.argv) > 1:
+                        params += " " + " ".join(f'"{a}"' for a in sys.argv[1:])
+                    ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
+                    sys.exit(0)
+                except Exception as ex:
+                    self._show_snack(f"Failed to elevate: {ex}", "RED")
+
+            restart_dlg = ft.AlertDialog(
+                title=ft.Text(i18n.get("admin_required_title") or "Admin Rights Required"),
+                content=ft.Text(i18n.get("admin_required_msg") or "Local testing requires administrative privileges. Would you like to restart SwitchCraft as Administrator?"),
+                actions=[
+                    ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda _: setattr(restart_dlg, "open", False) or self.app_page.update()),
+                    ft.ElevatedButton(i18n.get("btn_restart_admin") or "Restart as Admin", bgcolor="RED_700", color="WHITE", on_click=on_restart_confirm),
+                ],
+            )
+            self.app_page.open(restart_dlg)
+            return
+
         pkg_id = self.current_pkg.get('Id')
         cmd = f"winget install --id {pkg_id} --silent --accept-package-agreements --accept-source-agreements"
 

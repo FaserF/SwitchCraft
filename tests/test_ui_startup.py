@@ -68,8 +68,8 @@ class TestWindowIconPath(unittest.TestCase):
         # Simulate dev mode (not frozen)
         if not getattr(sys, 'frozen', False):
             # tests folder -> root
-            root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ico_path = os.path.join(root_path, "images", "switchcraft_logo.ico")
+            root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            ico_path = os.path.join(root_path, "src", "switchcraft", "assets", "switchcraft_logo.ico")
 
             self.assertTrue(
                 os.path.exists(ico_path),

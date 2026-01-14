@@ -57,8 +57,6 @@ if src_root not in sys.path:
     sys.path.insert(0, src_root)
 
 datas = [
-    ('images/switchcraft_logo.png', '.'),
-    ('images/switchcraft_logo.ico', '.'),
     ('src/switchcraft/assets', 'assets'),
 ]
 
@@ -100,6 +98,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='images/switchcraft_logo.ico',
+    icon='src/switchcraft/assets/switchcraft_logo.ico',
     version='file_version_info.txt'
 )

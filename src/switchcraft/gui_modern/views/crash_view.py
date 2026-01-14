@@ -4,6 +4,7 @@ import traceback
 class CrashDumpView(ft.Container):
     def __init__(self, page: ft.Page, error: Exception, traceback_str: str = None):
         super().__init__(expand=True)
+        self.app_page = page
         self.bgcolor = "#1a1a1a" # Dark background like BSOD but modern
         self.padding = 30
 
@@ -30,41 +31,56 @@ class CrashDumpView(ft.Container):
                 ),
                 ft.Container(height=20),
                 ft.Row([
-                    ft.ElevatedButton("Copy Error", icon=ft.Icons.COPY, on_click=self._copy_error),
-                    ft.ElevatedButton("Close App", icon=ft.Icons.CLOSE, on_click=self._close_app, bgcolor="RED_900", color="WHITE"),
-                    ft.ElevatedButton("Reload App", icon=ft.Icons.REFRESH, on_click=lambda e: self._reload_app(page)),
+                    ft.FilledButton("Copy Error", icon=ft.Icons.COPY, on_click=self._copy_error),
+                    ft.FilledButton("Close App", icon=ft.Icons.CLOSE, on_click=self._close_app, style=ft.ButtonStyle(bgcolor="RED_900", color="WHITE")),
+                    ft.FilledButton("Reload App", icon=ft.Icons.REFRESH, on_click=lambda e: self._reload_app(page)),
                 ], alignment=ft.MainAxisAlignment.END)
             ],
             expand=True
         )
 
     def _copy_error(self, e):
-        # The traceback string was captured in __init__ scope or passed down?
-        # We need access to it. We'll store it.
-        print(f"DEBUG: Traceback present: {bool(hasattr(self, '_traceback_str') and self._traceback_str)}")
-        if hasattr(self, '_traceback_str') and self._traceback_str:
+        print("DEBUG: Copy Error Clicked")
+        error_text = self._traceback_str if hasattr(self, '_traceback_str') else "No traceback available."
+
+        success = False
+        # Try Pyperclip first (more reliable for desktop clipboard)
+        try:
+            import pyperclip
+            pyperclip.copy(error_text)
+            success = True
+            print("DEBUG: Copied via pyperclip")
+        except Exception as ex1:
+            print(f"DEBUG: Pyperclip failed: {ex1}")
+            # Try Flet Native
+            try:
+                self.app_page.set_clipboard(error_text)
+                success = True
+                print("DEBUG: Copied via Flet set_clipboard")
+            except Exception as ex2:
+                 print(f"DEBUG: Flet clipboard failed: {ex2}")
+
+        if success:
              try:
-                 print("DEBUG: Setting clipboard...")
-                 self.page.set_clipboard(self._traceback_str)
-                 print("DEBUG: Clipboard set, showing snackbar...")
-                 self.page.snack_bar = ft.SnackBar(ft.Text("Error details copied to clipboard"))
-                 self.page.snack_bar.open = True
-                 self.page.update()
-             except Exception as e:
-                 print(f"DEBUG: Failed to set clipboard: {e}")
-                 self.page.snack_bar = ft.SnackBar(ft.Text(f"Copy failed: {e}"), bgcolor="RED")
-                 self.page.snack_bar.open = True
-                 self.page.update()
+                 self.app_page.snack_bar = ft.SnackBar(ft.Text("Error details copied to clipboard"))
+                 self.app_page.snack_bar.open = True
+                 self.app_page.update()
+             except:
+                 pass
+        else:
+             try:
+                 self.app_page.snack_bar = ft.SnackBar(ft.Text("Failed to copy to clipboard"), bgcolor="RED")
+                 self.app_page.snack_bar.open = True
+                 self.app_page.update()
+             except:
+                 pass
 
     def _close_app(self, e):
-        """Forcefully close the application."""
+        """Forcefully close the application immediately."""
         import os
         import sys
-        try:
-             self.page.window.destroy()
-        except:
-             pass
-        # Use os._exit to skip cleanup handlers and thread joins that might hang
+
+        # Kill process immediately to avoid hangs
         os._exit(0)
 
     def _reload_app(self, page):

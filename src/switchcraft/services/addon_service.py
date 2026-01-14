@@ -269,7 +269,6 @@ class AddonService:
         import requests
         import tempfile
         import os
-        from packaging import version
         from switchcraft import __version__ as current_app_version
 
         repo_owner = "FaserF"

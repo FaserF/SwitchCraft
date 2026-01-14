@@ -1,5 +1,6 @@
 import flet as ft
 from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.nav_constants import NavIndex
 import logging
 import threading
 from switchcraft.services.intune_service import IntuneService
@@ -47,18 +48,18 @@ class GroupManagerView(ft.Column):
     def _init_ui(self):
         # Header
         self.search_field = ft.TextField(
-            label="Search Groups",
+            label=i18n.get("search_groups") or "Search Groups",
             width=300,
             prefix_icon=ft.Icons.SEARCH,
             on_change=self._on_search
         )
 
         self.refresh_btn = ft.IconButton(ft.Icons.REFRESH, on_click=lambda _: self._load_data())
-        self.create_btn = ft.ElevatedButton("Create Group", icon=ft.Icons.ADD, on_click=self._show_create_dialog)
+        self.create_btn = ft.ElevatedButton(i18n.get("btn_create_group") or "Create Group", icon=ft.Icons.ADD, on_click=self._show_create_dialog)
 
-        self.delete_toggle = ft.Switch(label="Enable Deletion (Danger Zone)", value=False, on_change=self._toggle_delete_mode)
+        self.delete_toggle = ft.Switch(label=i18n.get("enable_delete_mode") or "Enable Deletion (Danger Zone)", value=False, on_change=self._toggle_delete_mode)
         self.delete_btn = ft.ElevatedButton(
-            "Delete Selected",
+            i18n.get("btn_delete_selected") or "Delete Selected",
             icon=ft.Icons.DELETE_FOREVER,
             bgcolor="RED",
             color="WHITE",
@@ -94,13 +95,20 @@ class GroupManagerView(ft.Column):
         self.list_container = ft.Column([self.dt], scroll=ft.ScrollMode.AUTO, expand=True)
 
         # Main Layout
+        # Main Layout
         self.controls = [
-            ft.Text("Entra Group Manager", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text("Manage your Microsoft Entra ID (Azure AD) groups.", color="GREY"),
-            ft.Divider(),
-            header,
-            ft.Divider(),
-            self.list_container
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("Entra Group Manager", size=28, weight=ft.FontWeight.BOLD),
+                    ft.Text("Manage your Microsoft Entra ID (Azure AD) groups.", color="GREY"),
+                    ft.Divider(),
+                    header,
+                    ft.Divider(),
+                    self.list_container
+                ], expand=True, spacing=10),
+                padding=20,
+                expand=True
+            )
         ]
 
     def _load_data(self):
@@ -264,14 +272,14 @@ class GroupManagerView(ft.Column):
         """Navigate to Settings tab."""
         try:
             if hasattr(self.app_page, 'switchcraft_app'):
-                self.app_page.switchcraft_app.goto_tab(9)
+                self.app_page.switchcraft_app.goto_tab(NavIndex.SETTINGS_GRAPH)
                 return
 
             for attr in dir(self.app_page):
                 if 'app' in attr.lower():
                     app_ref = getattr(self.app_page, attr, None)
                     if app_ref and hasattr(app_ref, 'goto_tab'):
-                        app_ref.goto_tab(9)  # Settings is at index 9
+                        app_ref.goto_tab(NavIndex.SETTINGS_GRAPH)
                         return
         except Exception:
             pass

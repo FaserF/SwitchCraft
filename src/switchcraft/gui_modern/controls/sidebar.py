@@ -1,4 +1,6 @@
 import flet as ft
+from switchcraft.gui_modern.nav_constants import NavIndex
+from switchcraft.utils.i18n import i18n
 
 class HoverSidebar(ft.Stack):
     def __init__(self, app, destinations, on_navigate):
@@ -15,10 +17,10 @@ class HoverSidebar(ft.Stack):
         # Categories definition
         # (Icon, Label, [Destination Indices])
         self.categories = [
-            (ft.Icons.DASHBOARD, "Dashboard", [0, 17]), # Home, Dashboard
-            (ft.Icons.APPS, "Apps & Devices", [8, 9, 5, 18, 19, 16]), # Intune, Store, Winget, Library, Groups, Stacks
-            (ft.Icons.BUILD, "Tools", [6, 7, 10, 11, 14, 15, 1]), # Analyze, Generate, Scripts, MacOS, Wizard, Tester, AddonMgr
-            (ft.Icons.SETTINGS, "System", [13, 2, 3, 12, 4]), # Settings, Updates, Graph, History, Help
+            (ft.Icons.DASHBOARD, i18n.get("cat_dashboard") or "Dashboard", [NavIndex.HOME, NavIndex.DASHBOARD]), # Home, Dashboard
+            (ft.Icons.APPS, i18n.get("cat_apps_devices") or "Apps & Devices", [NavIndex.INTUNE, NavIndex.INTUNE_STORE, NavIndex.WINGET, NavIndex.LIBRARY, NavIndex.GROUP_MANAGER, NavIndex.STACK_MANAGER]), # Intune, Store, Winget, Library, Groups, Stacks
+            (ft.Icons.BUILD, i18n.get("cat_tools") or "Tools", [NavIndex.ANALYZER, NavIndex.HELPER, NavIndex.SCRIPTS, NavIndex.MACOS, NavIndex.PACKAGING_WIZARD, NavIndex.DETECTION_TESTER, NavIndex.ADDON_MANAGER]), # Analyze, Generate, Scripts, MacOS, Wizard, Tester, AddonMgr
+            (ft.Icons.SETTINGS, i18n.get("cat_system") or "System", [NavIndex.SETTINGS, NavIndex.SETTINGS_UPDATES, NavIndex.SETTINGS_GRAPH, NavIndex.HISTORY, NavIndex.SETTINGS_HELP]), # Settings, Updates, Graph, History, Help
         ]
 
         self.sidebar_column = ft.Column(

@@ -25,7 +25,6 @@ hidden_imports = list(set(
 ))
 
 datas = sc_datas + ctk_datas + tkdnd_datas + [
-    ('images/switchcraft_logo.png', '.'),
     ('src/switchcraft/assets', 'assets'),
 ]
 
@@ -70,6 +69,6 @@ exe = EXE(  # noqa: F821
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='images/switchcraft_logo.png',  # Assuming we convert png to ico or pyinstaller handles it (it prefers ico)
+    icon='src/switchcraft/assets/switchcraft_logo.png',  # Assuming we convert png to ico or pyinstaller handles it (it prefers ico)
     version='file_version_info.txt'
 )

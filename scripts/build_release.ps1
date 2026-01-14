@@ -346,69 +346,44 @@ Write-Host "`nBuild Process Complete!" -ForegroundColor Cyan
 
 # --- Notification ---
 if ($IsWinBuild) {
+    $toastSent = $false
+
+    # Method 1: Try BurntToast module (if installed)
     try {
-        $ToastTitle = "SwitchCraft Builder"
-        $ToastText = "Build completed successfully!"
+        if (Get-Module -ListAvailable -Name BurntToast -ErrorAction SilentlyContinue) {
+            Import-Module BurntToast -ErrorAction Stop
+            New-BurntToastNotification -Text "SwitchCraft Build", "Build process finished successfully."
+            $toastSent = $true
+        }
+    } catch {
+        # BurntToast failed, continue to fallback
+    }
 
-        # Use PowerShell BurntToast if available, else standard Import-Module or raw XML?
-        # Raw XML via Windows.UI.Notifications is standard on Win10/11 without extra modules.
-
-        $code = @"
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Windows.Data.Xml.Dom;
-using Windows.UI.Notifications;
-
-namespace ToastNotify
-{
-    public class Toaster
-    {
-        public static void Show(string appId, string title, string message)
-        {
-            var template = ToastNotificationManager.GetTemplateContent(ToastTemplateType.ToastText02);
-            var textNodes = template.GetElementsByTagName("text");
-            textNodes[0].AppendChild(template.CreateTextNode(title));
-            textNodes[1].AppendChild(template.CreateTextNode(message));
-
-            var notifier = ToastNotificationManager.CreateToastNotifier(appId);
-            var notification = new ToastNotification(template);
-            notifier.Show(notification);
+    # Method 2: Just beep (WinRT is unreliable on PS7+)
+    if (-not $toastSent) {
+        try {
+            [System.Console]::Beep(1000, 300)
+        } catch {
+            # Beep failed, ignore
         }
     }
-}
-"@
-        # Try to compile C# snippet for Toast if not already loaded (Simple method)
-        # OR simpler: Just use New-BurntToastNotification if installed?
-        # User requested "via Powershell in Windows". The cleanest dependency-free way is minimal P/Invoke or just Audio.
-        # But let's try a simple visual method using 'msg' as backup or just sound:
-        [System.Console]::Beep(1000, 300)
 
-        # Attempt Toast via plain PS (Windows 10+)
-        $XmlString = @"
-<toast>
-  <visual>
-    <binding template=""ToastGeneric"">
-      <text>SwitchCraft Build</text>
-      <text>Build process finished successfully.</text>
-    </binding>
-  </visual>
-</toast>
-"@
+    # --- Launch Prompt ---
+    $BuiltExe = ""
+    if (Test-Path "$DistDir\SwitchCraft-windows.exe") {
+        $BuiltExe = "$DistDir\SwitchCraft-windows.exe"
+    } elseif (Test-Path "$DistDir\SwitchCraft-Legacy.exe") {
+        $BuiltExe = "$DistDir\SwitchCraft-Legacy.exe"
+    }
 
-        $AppId = "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
-
-        $null = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
-        $null = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
-
-        $Xml = [Windows.Data.Xml.Dom.XmlDocument]::new()
-        $Xml.LoadXml($XmlString)
-        $Toast = [Windows.UI.Notifications.ToastNotification]::new($Xml)
-        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($AppId).Show($Toast)
-
-    } catch {
-        Write-Warning "Could not trigger toast notification: $_"
+    if ($BuiltExe) {
+    if ($BuiltExe) {
+        Write-Host "`nBuild Complete!" -ForegroundColor Green
+        $response = Read-Host "Would you like to start SwitchCraft now? (y/N)"
+        if ($response -match "^[yY]$") {
+             Write-Host "Launching SwitchCraft..." -ForegroundColor Green
+             Start-Process $BuiltExe
+        }
+    }
     }
 }

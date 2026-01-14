@@ -36,13 +36,21 @@ class PackagingWizardView(ft.Column):
         self.step_content_area = ft.Container(expand=True, padding=20)
 
         # Build UI
+        # Build UI
+        # Wrap everything in a container to provide consistent padding
         self.controls = [
-            ft.Text("End-to-End Packaging Wizard", size=28, weight=ft.FontWeight.BOLD),
-            self._build_stepper_header(),
-            ft.Divider(),
-            self.step_content_area,
-            ft.Divider(),
-            self._build_nav_buttons()
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("End-to-End Packaging Wizard", size=28, weight=ft.FontWeight.BOLD),
+                    self._build_stepper_header(),
+                    ft.Divider(),
+                    self.step_content_area,
+                    ft.Divider(),
+                    self._build_nav_buttons()
+                ], expand=True, spacing=10),
+                padding=20,
+                expand=True
+            )
         ]
 
         self._load_step(0, update=False)

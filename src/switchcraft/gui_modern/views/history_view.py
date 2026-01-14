@@ -101,7 +101,7 @@ def ModernHistoryView(page: ft.Page):
 
     # Toolbar
     toolbar = ft.Row([
-        ft.Text(i18n.get("tab_history") or "History", size=24, weight=ft.FontWeight.BOLD),
+        ft.Text(i18n.get("tab_history") or "History", size=24, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
         ft.Row([
             ft.IconButton(ft.Icons.REFRESH, tooltip=i18n.get("btn_refresh") or "Refresh", on_click=lambda e: load_history()),
             ft.IconButton(ft.Icons.DELETE_FOREVER, tooltip=i18n.get("btn_clear_all") or "Clear All", icon_color="red", on_click=clear_history)
@@ -109,8 +109,8 @@ def ModernHistoryView(page: ft.Page):
     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
     return ft.Column([
-        toolbar,
+        ft.Container(content=toolbar, padding=ft.padding.only(left=20, right=20, top=10)),
         loading,
         ft.Divider(),
-        ft.Column([history_table], scroll=ft.ScrollMode.AUTO, expand=True)
-    ], expand=True)
+        ft.Column([history_table], scroll=ft.ScrollMode.AUTO, expand=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+    ], expand=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER)

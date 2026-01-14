@@ -63,7 +63,7 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to save notifications: {e}")
 
-    def add_notification(self, title: str, message: str, type: str = "info", notify_system: bool = None):
+    def add_notification(self, title: str, message: str, type: str = "info", notify_system: bool = None, data: Dict = None):
         """
         Adds a notification.
         type: info, success, warning, error
@@ -82,7 +82,8 @@ class NotificationService:
             "type": type,
             "timestamp": datetime.now(),
             "read": False,
-            "notify_system": notify_system
+            "notify_system": notify_system,
+            "data": data or {}
         }
         self.notifications.insert(0, notif)
         self._save_notifications()

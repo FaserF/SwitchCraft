@@ -42,7 +42,6 @@ for root, dirs, files in os.walk(pkg_path):
 datas = [
     (ctk_path, ctk_name),
     (tkdnd_path, tkdnd_name),
-    ('images/switchcraft_logo.png', '.'),
     ('src/switchcraft/assets', 'assets'),
 ]
 
@@ -83,6 +82,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='images/switchcraft_logo.png',
+    icon='src/switchcraft/assets/switchcraft_logo.png',
     version='file_version_info_legacy.txt'
 )

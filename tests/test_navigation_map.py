@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import flet as ft
 from switchcraft.gui_modern.app import ModernApp
 
@@ -39,6 +39,16 @@ def app_instance(monkeypatch):
     # Configure page attributes that strictly exist
     page.theme_mode = ft.ThemeMode.DARK
     page.padding = 10
+
+    page.padding = 10
+
+    # We must patch HistoryService WHERE IT IS USED, and keep it patched if instantiated later?
+    # DashboardView is instantiated inside _switch_to_tab, so the patch must be active during the TEST, not just app init.
+    # So we should yield the app or rely on the fact that if DashboardView is imported, we can patch the class?
+
+    # Actually, DashboardView is instantiated when needed.
+    # The fixture returns the app. The test runs later.
+    # So the patch context manager must wrap the test execution or be a fixture itself.
 
     app = ModernApp(page)
     # Disable actual file system/network calls
@@ -103,54 +113,55 @@ def test_sidebar_navigation_consistency(app_instance):
     }
 
     # Iterate Sidebar Categories
-    for cat_icon, cat_name, indices in app_instance.sidebar.categories:
-        print(f"\nTesting Category: {cat_name}")
-        for idx in indices:
-            print(f"  Testing Index {idx}...")
+    with patch("switchcraft.gui_modern.views.dashboard_view.HistoryService") as MockHistoryService:
+        for cat_icon, cat_name, indices in app_instance.sidebar.categories:
+            print(f"\nTesting Category: {cat_name}")
+            for idx in indices:
+                print(f"  Testing Index {idx}...")
 
-            # Action: Switch Tab
-            # _switch_to_tab usually calls load_view which appends to new_controls
-            # We mock load_view inside app or just inspect internal state?
-            # app._view_cache logic makes this tricky if we don't really instantiate.
-            # But the test imports real classes.
+                # Action: Switch Tab
+                # _switch_to_tab usually calls load_view which appends to new_controls
+                # We mock load_view inside app or just inspect internal state?
+                # app._view_cache logic makes this tricky if we don't really instantiate.
+                # But the test imports real classes.
 
-            # Clear previous content to be sure
-            app_instance.content.controls.clear()
+                # Clear previous content to be sure
+                app_instance.content.controls.clear()
 
-            # Run switch (simulated)
-            app_instance._switch_to_tab(idx)
+                # Run switch (simulated)
+                app_instance._switch_to_tab(idx)
 
-            # Check what was added
-            # Note: _switch_to_tab creates a Fade Container. Content is inside.
-            assert len(app_instance.content.controls) > 0, f"Index {idx} added no controls"
-            fade_container = app_instance.content.controls[-1]
-            view_instance = fade_container.content
+                # Check what was added
+                # Note: _switch_to_tab creates a Fade Container. Content is inside.
+                assert len(app_instance.content.controls) > 0, f"Index {idx} added no controls"
+                fade_container = app_instance.content.controls[-1]
+                view_instance = fade_container.content
 
-            expected_type = expected_views.get(idx)
+                expected_type = expected_views.get(idx)
 
-            if isinstance(expected_type, tuple):
-                 # Handle placeholders (Type, Value)
-                 t, val = expected_type
-                 assert isinstance(view_instance, t), f"Index {idx} expected {t}, got {type(view_instance)}"
-                 if isinstance(view_instance, ft.Text):
-                      # Allow "Unknown Tab" if expected?
-                      pass
-            else:
-                 # Real View
-                 # Handle cases where view is wrapped or loaded differently?
-                 # Usually it's the direct instance.
+                if isinstance(expected_type, tuple):
+                     # Handle placeholders (Type, Value)
+                     t, val = expected_type
+                     assert isinstance(view_instance, t), f"Index {idx} expected {t}, got {type(view_instance)}"
+                     if isinstance(view_instance, ft.Text):
+                          # Allow "Unknown Tab" if expected?
+                          pass
+                else:
+                     # Real View
+                     # Handle cases where view is wrapped or loaded differently?
+                     # Usually it's the direct instance.
 
-                 # Settings View checks:
-                 if expected_type == ModernSettingsView:
-                      assert isinstance(view_instance, ModernSettingsView)
-                      # Verify Sub-Tab?
-                      # Index 2 -> Updates (Tab 1)
-                      # Index 3 -> Graph (Tab 2)
-                      # Index 4 -> Help (Tab 3)
-                      # Index 13 -> General (Tab 0)
-                      if idx == 2: assert view_instance.initial_tab_index == 1, f"Index {idx} should be Settings Tab 1"
-                      if idx == 3: assert view_instance.initial_tab_index == 2, f"Index {idx} should be Settings Tab 2"
-                      if idx == 4: assert view_instance.initial_tab_index == 3, f"Index {idx} should be Settings Tab 3"
-                      if idx == 13: assert view_instance.initial_tab_index == 0, f"Index {idx} should be Settings Tab 0"
-                 else:
-                      assert isinstance(view_instance, expected_type), f"Index {idx} ({app_instance.destinations[idx].label}) expected {expected_type.__name__}, got {type(view_instance).__name__}"
+                     # Settings View checks:
+                     if expected_type == ModernSettingsView:
+                          assert isinstance(view_instance, ModernSettingsView)
+                          # Verify Sub-Tab?
+                          # Index 2 -> Updates (Tab 1)
+                          # Index 3 -> Graph (Tab 2)
+                          # Index 4 -> Help (Tab 3)
+                          # Index 13 -> General (Tab 0)
+                          if idx == 2: assert view_instance.initial_tab_index == 1, f"Index {idx} should be Settings Tab 1"
+                          if idx == 3: assert view_instance.initial_tab_index == 2, f"Index {idx} should be Settings Tab 2"
+                          if idx == 4: assert view_instance.initial_tab_index == 3, f"Index {idx} should be Settings Tab 3"
+                          if idx == 13: assert view_instance.initial_tab_index == 0, f"Index {idx} should be Settings Tab 0"
+                     else:
+                          assert isinstance(view_instance, expected_type), f"Index {idx} ({app_instance.destinations[idx].label}) expected {expected_type.__name__}, got {type(view_instance).__name__}"
