@@ -203,3 +203,11 @@ class ModernIntuneStoreView(ft.Column):
         )
 
         self.update()
+
+    def _show_snack(self, msg, color="GREEN"):
+        try:
+            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
+            self.app_page.snack_bar.open = True
+            self.app_page.update()
+        except Exception:
+             pass

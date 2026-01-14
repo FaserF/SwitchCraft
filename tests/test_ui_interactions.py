@@ -27,6 +27,21 @@ def mock_page():
     page.open = MagicMock()
     return page
 
+def find_buttons(control):
+    buttons = []
+    # Check if it's a button
+    if isinstance(control, (ft.ElevatedButton, ft.FilledButton, ft.TextButton, ft.IconButton, ft.OutlinedButton)):
+        buttons.append(control)
+
+    # Recurse
+    if hasattr(control, "controls") and control.controls:
+        for child in control.controls:
+            buttons.extend(find_buttons(child))
+    elif hasattr(control, "content") and control.content:
+        buttons.extend(find_buttons(control.content))
+
+    return buttons
+
 def test_settings_view_buttons(mock_page):
     """Test all buttons in SettingsView (General, Updates, Deployment, Help)."""
 
@@ -59,26 +74,30 @@ def test_settings_view_buttons(mock_page):
             log(traceback.format_exc())
             pytest.fail(f"Init failed: {e}")
 
-        def find_buttons(control):
-            buttons = []
-            # Check if it's a button
-            if isinstance(control, (ft.ElevatedButton, ft.FilledButton, ft.TextButton, ft.IconButton, ft.OutlinedButton)):
-                buttons.append(control)
-
-            # Recurse
-            if hasattr(control, "controls") and control.controls:
-                for child in control.controls:
-                    buttons.extend(find_buttons(child))
-            elif hasattr(control, "content") and control.content:
-                buttons.extend(find_buttons(control.content))
-
-            return buttons
-
         buttons = find_buttons(view)
         log(f"Found {len(buttons)} buttons in Settings View (Updates Tab)")
 
         for btn in buttons:
-            label = getattr(btn, "text", getattr(btn, "tooltip", "Unknown")) or "Icon Button"
+            label = "Unknown"
+            if hasattr(btn, "text") and btn.text:
+                label = btn.text
+            elif hasattr(btn, "label") and btn.label: # TextField
+                 label = btn.label
+            elif hasattr(btn, "content"):
+                if isinstance(btn.content, str):
+                    label = btn.content
+                elif isinstance(btn.content, ft.Text):
+                    label = btn.content.value
+                elif isinstance(btn.content, ft.Row):
+                    # Try to find text in Row
+                    for c in btn.content.controls:
+                        if isinstance(c, ft.Text):
+                            label = c.value
+                            break
+
+            if label == "Unknown" and hasattr(btn, "tooltip"):
+                label = btn.tooltip or "Unknown"
+
             log(f"Testing button: {label} (Type: {type(btn).__name__})")
 
             if btn.on_click:
@@ -128,22 +147,21 @@ def test_dashboard_view_buttons(mock_page):
             log(traceback.format_exc())
             pytest.fail(f"Dashboard init failed: {e}")
 
-        # Reuse find_buttons logic (should probably be a helper)
-        def find_buttons(control):
-            buttons = []
-            if isinstance(control, (ft.ElevatedButton, ft.FilledButton, ft.TextButton, ft.IconButton, ft.OutlinedButton)):
-                buttons.append(control)
-            if hasattr(control, "controls") and control.controls:
-                for child in control.controls:
-                    buttons.extend(find_buttons(child))
-            elif hasattr(control, "content") and control.content:
-                buttons.extend(find_buttons(control.content))
-            return buttons
-
         buttons = find_buttons(view)
         log(f"Found {len(buttons)} buttons in Dashboard View")
         for btn in buttons:
-             label = getattr(btn, "text", getattr(btn, "tooltip", "Unknown")) or "Icon Button"
+             label = "Unknown"
+             if hasattr(btn, "text") and btn.text:
+                label = btn.text
+             elif hasattr(btn, "content"):
+                if isinstance(btn.content, str):
+                    label = btn.content
+                elif isinstance(btn.content, ft.Text):
+                    label = btn.content.value
+
+             if label == "Unknown":
+                 label = getattr(btn, "tooltip", "Unknown") or "Icon Button"
+
              log(f"Testing button: {label}")
              if btn.on_click:
                 try:
@@ -202,23 +220,21 @@ def test_analyzer_view_buttons(mock_page):
              log(traceback.format_exc())
              pytest.fail(f"AnalyzerView failed: {e}")
 
-        def find_buttons(control):
-            buttons = []
-            if isinstance(control, (ft.ElevatedButton, ft.FilledButton, ft.TextButton, ft.IconButton, ft.OutlinedButton)):
-                buttons.append(control)
-            if hasattr(control, "controls") and control.controls:
-                for child in control.controls:
-                    buttons.extend(find_buttons(child))
-            elif hasattr(control, "content") and control.content:
-                buttons.extend(find_buttons(control.content))
-            return buttons
-
         buttons = find_buttons(view)
         log(f"Found {len(buttons)} buttons in Analyzer View (after analysis)")
 
         # Test Dynamic Buttons (Winget, Test Locally, etc.)
         for btn in buttons:
-             label = getattr(btn, "text", getattr(btn, "tooltip", "Unknown")) or "Icon Button"
+             label = "Unknown"
+             if hasattr(btn, "text") and btn.text:
+                label = btn.text
+             elif hasattr(btn, "content") and isinstance(btn.content, str):
+                 label = btn.content
+             elif hasattr(btn, "content") and isinstance(btn.content, ft.Text):
+                 label = btn.content.value
+
+             if label == "Unknown":
+                  label = getattr(btn, "tooltip", "Unknown") or "Icon Button"
 
              log(f"Testing button: {label}")
              if btn.on_click:
@@ -258,27 +274,28 @@ def test_library_view_buttons(mock_page):
         try:
             from switchcraft.gui_modern.views.library_view import LibraryView
             view = LibraryView(mock_page)
+            # IMPORTANT: view.update calls self.page.update() if mounted, or errors if not.
+            # Since we are testing in isolation, we must mock it.
+            view.update = MagicMock()
         except Exception as e:
             log(f"CRITICAL: LibraryView init failed: {e}")
             pytest.fail(f"LibraryView init failed: {e}")
-
-        # Find "Go to Settings" button
-        def find_buttons(control):
-            buttons = []
-            if isinstance(control, (ft.ElevatedButton, ft.FilledButton, ft.TextButton, ft.IconButton, ft.OutlinedButton)):
-                buttons.append(control)
-            if hasattr(control, "controls") and control.controls:
-                for child in control.controls:
-                    buttons.extend(find_buttons(child))
-            elif hasattr(control, "content") and control.content:
-                buttons.extend(find_buttons(control.content))
-            return buttons
 
         buttons = find_buttons(view)
         log(f"Found {len(buttons)} buttons in LibraryView (No Creds)")
 
         for btn in buttons:
-            label = getattr(btn, "text", getattr(btn, "tooltip", "Unknown")) or "Icon Button"
+            label = "Unknown"
+            if hasattr(btn, "text") and btn.text:
+                label = btn.text
+            elif hasattr(btn, "content"):
+                if isinstance(btn.content, str):
+                    label = btn.content
+                elif isinstance(btn.content, ft.Text):
+                    label = btn.content.value
+
+            if label == "Unknown":
+                label = getattr(btn, "tooltip", "Unknown") or "Icon Button"
             log(f"Testing button: {label}")
             if btn.on_click:
                 try:
@@ -319,7 +336,17 @@ def test_library_view_buttons(mock_page):
         log(f"Found {len(buttons)} buttons in LibraryView (With Creds)")
 
         for btn in buttons:
-            label = getattr(btn, "text", getattr(btn, "tooltip", "Unknown")) or "Icon Button"
+            label = "Unknown"
+            if hasattr(btn, "text") and btn.text:
+                label = btn.text
+            elif hasattr(btn, "content"):
+                if isinstance(btn.content, str):
+                    label = btn.content
+                elif isinstance(btn.content, ft.Text):
+                    label = btn.content.value
+
+            if label == "Unknown":
+                label = getattr(btn, "tooltip", "Unknown") or "Icon Button"
             log(f"Testing button: {label}")
             if btn.on_click:
                 try:
@@ -333,8 +360,8 @@ def test_library_view_buttons(mock_page):
                      log(f"CRITICAL: Button '{label}' crashed: {ex}")
                      pytest.fail(f"Button '{label}' crashed: {ex}")
 
-def test_settings_view_buttons(mock_page):
-    """Test buttons in SettingsView, specifically Entra Test Connection."""
+def test_settings_view_entra_test_connection(mock_page):
+    """Test custom buttons like Entra Test Connection in SettingsView."""
     log_file = "test_result.log"
     def log(msg):
         with open(log_file, "a") as f:
@@ -372,6 +399,15 @@ def test_settings_view_buttons(mock_page):
             if hasattr(control, "content") and control.content:
                 children.append(control.content)
 
+            # Handle Tabs
+            if isinstance(control, ft.Tabs) and control.tabs:
+                for tab in control.tabs:
+                    if tab.content:
+                        children.append(tab.content)
+            # Handle Tab (if passed directly, though unlikely)
+            if isinstance(control, ft.Tab) and control.content:
+                children.append(control.content)
+
             # SettingsView uses ListView controls which are in .controls
 
             for child in children:
@@ -386,7 +422,17 @@ def test_settings_view_buttons(mock_page):
 
         found_labels = []
         for item in items:
-            label = getattr(item, "text", getattr(item, "label", "Unknown"))
+            label = "Unknown"
+            if hasattr(item, "text") and item.text:
+                label = item.text
+            elif hasattr(item, "label") and item.label:
+                label = item.label
+            elif hasattr(item, "content"):
+                if isinstance(item.content, str):
+                    label = item.content
+                elif isinstance(item.content, ft.Text):
+                    label = item.content.value
+
             found_labels.append(label)
             if label == "Test Connection":
                 test_btn = item
@@ -396,9 +442,6 @@ def test_settings_view_buttons(mock_page):
         log(f"All found labels: {found_labels}")
 
         if not test_btn:
-             # Try debugging by listing all labels
-             # labels = [getattr(i, 'text', getattr(i, 'label', 'N/A')) for i in items]
-             # log(f"All Labels: {labels}")
              log("CRITICAL: 'Test Connection' button NOT FOUND in SettingsView!")
              pytest.fail("'Test Connection' button missing")
         else:
@@ -408,10 +451,6 @@ def test_settings_view_buttons(mock_page):
                  e = MagicMock(spec=ft.ControlEvent)
                  e.control = test_btn
                  e.page = mock_page
-                 # We need to set field values first because the test method reads them
-                 # But in test they are empty or dummy?
-                 # view.raw_tenant_field.value comes from Config or UI?
-                 # It comes from UI.
                  if hasattr(view, 'raw_tenant_field'):
                      view.raw_tenant_field.value = "test-tenant"
                      view.raw_client_field.value = "test-client"

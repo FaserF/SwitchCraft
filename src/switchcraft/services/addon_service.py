@@ -344,12 +344,13 @@ class AddonService:
             r = requests.get(asset_url, stream=True, timeout=30)
             r.raise_for_status()
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
-                for chunk in r.iter_content(chunk_size=8192):
-                    tmp.write(chunk)
-                tmp_path = tmp.name
-
+            tmp_path = None
             try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        tmp.write(chunk)
+                    tmp_path = tmp.name
+
                 self.install_addon(tmp_path)
                 logger.info(f"Successfully installed {addon_id} from GitHub.")
                 result_msg = f"Installed {addon_id} ({used_tag})."
@@ -357,7 +358,7 @@ class AddonService:
                     result_msg += f" [Warning: {warning_msg}]"
                 return True, result_msg
             finally:
-                if os.path.exists(tmp_path):
+                if tmp_path and os.path.exists(tmp_path):
                     os.remove(tmp_path)
 
         except Exception as e:

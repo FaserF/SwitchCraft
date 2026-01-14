@@ -1,44 +1,28 @@
 import flet as ft
-from switchcraft.services.history_service import HistoryService
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 from switchcraft.gui_modern.nav_constants import NavIndex
 import logging
 from datetime import datetime
+from pathlib import Path
+import os
 
 logger = logging.getLogger(__name__)
 
+
 class LibraryView(ft.Column):
+    """Library view that displays recent .intunewin packages."""
+
     def __init__(self, page: ft.Page):
         super().__init__(expand=True, scroll=ft.ScrollMode.AUTO)
         self.app_page = page
-        self.history_service = HistoryService()
-        self.all_items = []
+        self.all_files = []
 
-        # Check if Intune/Graph credentials are configured
-        if not self._has_credentials():
-            self.controls = [
-                ft.Container(
-                    content=ft.Column([
-                        ft.Icon(ft.Icons.LOCK_RESET_ROUNDED, size=80, color="ORANGE_400"),
-                        ft.Text(i18n.get("intune_not_configured") or "Intune is not configured", size=28, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
-                        ft.Text(i18n.get("intune_config_hint") or "Please configure Microsoft Graph API credentials in Settings.", size=16, color="GREY_400", text_align=ft.TextAlign.CENTER),
-                        ft.Container(height=20),
-                        ft.ElevatedButton(
-                            i18n.get("tab_settings") or "Go to Settings",
-                            icon=ft.Icons.SETTINGS,
-                            on_click=self._go_to_settings
-                        )
-                    ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                    expand=True,
-                    alignment=ft.Alignment(0, 0)
-                )
-            ]
-            return
+        # Get configured directories to scan
+        self.scan_dirs = self._get_scan_directories()
 
         # State
         self.search_val = ""
-        self.status_filter = "All"
 
         # UI Components
         self.grid = ft.GridView(
@@ -47,37 +31,54 @@ class LibraryView(ft.Column):
             child_aspect_ratio=1.0,
             spacing=10,
             run_spacing=10,
-            expand=True
+            expand=True,
+            padding=10
         )
 
         self.search_field = ft.TextField(
             hint_text=i18n.get("search_library") or "Search Library...",
             prefix_icon=ft.Icons.SEARCH,
             expand=True,
+            border_radius=8,
             on_change=self._on_search_change
         )
 
-        self.filter_dd = ft.Dropdown(
-            options=[
-                 ft.dropdown.Option("All", text=i18n.get("filter_all") or "All"),
-                 ft.dropdown.Option("Analyzed", text=i18n.get("filter_analyzed") or "Analyzed"),
-                 ft.dropdown.Option("Packaged", text=i18n.get("filter_packaged") or "Packaged"),
-            ],
-            value="All",
-            width=150,
+        self.dir_info = ft.Text(
+            f"{i18n.get('scanning') or 'Scanning'}: {len(self.scan_dirs)} {i18n.get('directories') or 'directories'}",
+            size=12,
+            color="GREY_500"
         )
-        self.filter_dd.on_change = self._on_filter_change
 
         self.controls = [
             ft.Container(
                 content=ft.Column([
                     ft.Row([
-                        ft.Text(i18n.get("my_library") or "My Library", size=28, weight=ft.FontWeight.BOLD),
+                        ft.Column([
+                            ft.Text(
+                                i18n.get("intunewin_library_title") or "IntuneWin Library",
+                                size=28,
+                                weight=ft.FontWeight.BOLD
+                            ),
+                            ft.Text(
+                                i18n.get("intunewin_library_subtitle") or "Recent .intunewin packages",
+                                size=16,
+                                color="GREY_400"
+                            ),
+                        ], spacing=5),
                         ft.Container(expand=True),
-                        ft.IconButton(ft.Icons.REFRESH, on_click=self._load_data)
-                    ]),
-                    ft.Divider(),
-                    ft.Row([self.search_field, self.filter_dd]),
+                        ft.IconButton(
+                            ft.Icons.FOLDER_OPEN,
+                            tooltip=i18n.get("scan_directories") or "Configure scan directories",
+                            on_click=self._show_dir_config
+                        ),
+                        ft.IconButton(
+                            ft.Icons.REFRESH,
+                            tooltip=i18n.get("btn_refresh") or "Refresh",
+                            on_click=self._load_data
+                        )
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(height=20),
+                    ft.Row([self.search_field, self.dir_info], spacing=15),
                     ft.Container(height=10),
                     self.grid
                 ], expand=True, spacing=10),
@@ -87,100 +88,238 @@ class LibraryView(ft.Column):
         ]
 
     def did_mount(self):
-        if hasattr(self, 'grid') and self.grid:
-            self._load_data(None)
+        self._load_data(None)
+
+    def _get_scan_directories(self):
+        """Get directories to scan for .intunewin files."""
+        dirs = []
+
+        # Check configured output folder from settings
+        output_folder = SwitchCraftConfig.get_value("IntuneOutputFolder")
+        if output_folder and os.path.isdir(output_folder):
+            dirs.append(output_folder)
+
+        # Common default locations
+        user_home = Path.home()
+        default_dirs = [
+            user_home / "Downloads",
+            user_home / "Documents",
+            user_home / "Desktop",
+            Path("C:/Temp"),
+            Path("C:/IntuneWin"),
+        ]
+
+        for d in default_dirs:
+            if d.exists() and d.is_dir():
+                dirs.append(str(d))
+
+        # Remove duplicates
+        seen = set()
+        unique_dirs = []
+        for d in dirs:
+            d_normalized = os.path.normpath(d).lower()
+            if d_normalized not in seen:
+                seen.add(d_normalized)
+                unique_dirs.append(d)
+
+        return unique_dirs[:5]  # Limit to 5 directories to avoid slow scanning
 
     def _load_data(self, e):
-        self.all_items = self.history_service.get_history()
+        self.all_files = []
+
+        for scan_dir in self.scan_dirs:
+            try:
+                path = Path(scan_dir)
+                if not path.exists():
+                    continue
+
+                # Non-recursive scan of the directory
+                for file in path.glob("*.intunewin"):
+                    if file.is_file():
+                        stat = file.stat()
+                        self.all_files.append({
+                            'path': str(file),
+                            'filename': file.name,
+                            'size': stat.st_size,
+                            'modified': datetime.fromtimestamp(stat.st_mtime),
+                            'directory': scan_dir
+                        })
+
+                # Also check one level down (common structure)
+                for subdir in path.iterdir():
+                    if subdir.is_dir():
+                        for file in subdir.glob("*.intunewin"):
+                            if file.is_file():
+                                stat = file.stat()
+                                self.all_files.append({
+                                    'path': str(file),
+                                    'filename': file.name,
+                                    'size': stat.st_size,
+                                    'modified': datetime.fromtimestamp(stat.st_mtime),
+                                    'directory': str(subdir)
+                                })
+            except Exception as ex:
+                logger.warning(f"Failed to scan {scan_dir}: {ex}")
+
+        # Sort by modification time (newest first)
+        self.all_files.sort(key=lambda x: x['modified'], reverse=True)
+
+        # Limit to 50 most recent files
+        self.all_files = self.all_files[:50]
+
         self._refresh_grid()
 
     def _on_search_change(self, e):
         self.search_val = e.control.value.lower()
         self._refresh_grid()
 
-    def _on_filter_change(self, e):
-        self.status_filter = e.control.value
-        self._refresh_grid()
-
     def _refresh_grid(self):
         self.grid.controls.clear()
 
-        filtered = []
-        for item in self.all_items:
+        if not self.all_files:
+            self.grid.controls.append(
+                ft.Container(
+                    content=ft.Column([
+                        ft.Icon(ft.Icons.INVENTORY_2_OUTLINED, size=60, color="GREY_500"),
+                        ft.Text(
+                            i18n.get("no_intunewin_files") or "No .intunewin files found",
+                            size=16,
+                            color="GREY_500"
+                        ),
+                        ft.Text(
+                            i18n.get("scan_directories_hint") or "Check scan directories or create packages first",
+                            size=12,
+                            color="GREY_600"
+                        )
+                    ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    alignment=ft.Alignment(0, 0),
+                    expand=True
+                )
+            )
+            self.update()
+            return
+
+        for item in self.all_files:
             # Filter Logic
-            name = item.get('filename', '').lower() + " " + item.get('product', '').lower()
+            name = item.get('filename', '').lower()
             if self.search_val and self.search_val not in name:
                 continue
 
-            # Mock status for now since history doesn't strictly track "Packaged" vs "Analyzed"
-            # In real impl, we'd check item fields.
-            item_status = item.get('status', 'Analyzed')
-            if self.status_filter != "All" and self.status_filter != item_status:
-                continue
-
-            filtered.append(item)
-
-        for item in filtered:
             self.grid.controls.append(self._create_tile(item))
 
+        self.update()
 
     def _create_tile(self, item):
         filename = item.get('filename', 'Unknown')
-        product = item.get('product', 'Unknown')
-        ver = item.get('version', '?')
-        ts = item.get('timestamp', '')
+        size_bytes = item.get('size', 0)
+        modified = item.get('modified', datetime.now())
+        directory = item.get('directory', '')
 
-        try:
-            dt = datetime.fromisoformat(ts).strftime("%Y-%m-%d")
-        except ValueError:
-            dt = ts
+        # Format size
+        if size_bytes < 1024:
+            size_str = f"{size_bytes} B"
+        elif size_bytes < 1024 * 1024:
+            size_str = f"{size_bytes / 1024:.1f} KB"
+        elif size_bytes < 1024 * 1024 * 1024:
+            size_str = f"{size_bytes / (1024 * 1024):.1f} MB"
+        else:
+            size_str = f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+        # Format date
+        date_str = modified.strftime("%Y-%m-%d %H:%M")
 
         return ft.Container(
             content=ft.Column([
-                ft.Icon(ft.Icons.INVENTORY_2_OUTLINED, size=40, color="BLUE_200"),
-                ft.Text(filename, weight=ft.FontWeight.BOLD, no_wrap=True, tooltip=filename),
-                ft.Text(f"{product} v{ver}", size=12, color="GREY", no_wrap=True),
+                ft.Icon(ft.Icons.INVENTORY_2, size=40, color="BLUE_400"),
+                ft.Text(
+                    filename.replace('.intunewin', ''),
+                    weight=ft.FontWeight.BOLD,
+                    no_wrap=True,
+                    tooltip=filename,
+                    max_lines=2
+                ),
+                ft.Text(size_str, size=12, color="GREY_400"),
                 ft.Container(expand=True),
                 ft.Row([
-                    ft.Text(dt, size=10, color="GREY_500"),
-                    ft.Icon(ft.Icons.CHECK_CIRCLE, size=14, color="GREEN")
+                    ft.Text(date_str, size=10, color="GREY_500"),
+                    ft.IconButton(
+                        ft.Icons.FOLDER_OPEN,
+                        icon_size=16,
+                        tooltip=i18n.get("open_folder") or "Open Folder",
+                        on_click=lambda e, p=item.get('path'): self._open_folder(p)
+                    )
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-            ]),
-            bgcolor="WHITE,0.1",
-            border=ft.Border.all(1, "WHITE,0.1"),
+            ], spacing=5),
+            bgcolor="WHITE10",
+            border=ft.border.all(1, "WHITE10"),
             border_radius=10,
             padding=15,
-            on_hover=lambda e: self._on_tile_hover(e)
+            on_hover=lambda e: self._on_tile_hover(e),
+            on_click=lambda e, item=item: self._on_tile_click(item)
         )
 
     def _on_tile_hover(self, e):
-        e.control.bgcolor = "WHITE,0.2" if e.data == "true" else "WHITE,0.1"
+        e.control.bgcolor = "WHITE20" if e.data == "true" else "WHITE10"
         e.control.update()
 
-    def _has_credentials(self):
-        """Check if Graph API credentials are configured."""
-        tenant_id = SwitchCraftConfig.get_value("GraphTenantId")
-        client_id = SwitchCraftConfig.get_value("GraphClientId")
-        client_secret = SwitchCraftConfig.get_secure_value("GraphClientSecret")
-        return bool(tenant_id and client_id and client_secret)
+    def _on_tile_click(self, item):
+        # Show details in a dialog
+        path = item.get('path', '')
+        dlg = ft.AlertDialog(
+            title=ft.Text(item.get('filename', 'Unknown')),
+            content=ft.Column([
+                ft.Text(f"📁 {i18n.get('location') or 'Location'}: {item.get('directory', '')}"),
+                ft.Text(f"📏 {i18n.get('size') or 'Size'}: {item.get('size', 0) / (1024*1024):.2f} MB"),
+                ft.Text(f"📅 {i18n.get('modified') or 'Modified'}: {item.get('modified', datetime.now()).strftime('%Y-%m-%d %H:%M')}"),
+            ], tight=True, spacing=10),
+            actions=[
+                ft.TextButton(i18n.get("btn_cancel") or "Close", on_click=lambda e: self.app_page.close(dlg)),
+                ft.ElevatedButton(
+                    i18n.get("open_folder") or "Open Folder",
+                    icon=ft.Icons.FOLDER_OPEN,
+                    on_click=lambda e: (self.app_page.close(dlg), self._open_folder(path))
+                )
+            ]
+        )
+        self.app_page.open(dlg)
 
-    def _go_to_settings(self, e):
-        """Navigate to Settings tab."""
+    def _open_folder(self, path):
+        """Open the folder containing the file."""
         try:
-            # Try direct access first (as set in ModernApp)
-            if hasattr(self.app_page, 'switchcraft_app'):
-                self.app_page.switchcraft_app.goto_tab(NavIndex.SETTINGS_GRAPH)
-                return
+            folder = os.path.dirname(path)
+            os.startfile(folder)
+        except Exception as ex:
+            logger.error(f"Failed to open folder: {ex}")
 
-            # Fallback scan
-            for attr in dir(self.app_page):
-                if 'app' in attr.lower():
-                    app_ref = getattr(self.app_page, attr, None)
-                    if app_ref and hasattr(app_ref, 'goto_tab'):
-                        app_ref.goto_tab(NavIndex.SETTINGS_GRAPH)
-                        return
-        except Exception:
-            pass
-        self.app_page.snack_bar = ft.SnackBar(ft.Text("Please navigate to Settings tab manually"), bgcolor="ORANGE")
-        self.app_page.snack_bar.open = True
-        self.app_page.update()
+    def _show_dir_config(self, e):
+        """Show dialog to configure scan directories."""
+        dirs_text = "\n".join(self.scan_dirs) if self.scan_dirs else "(No directories configured)"
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(i18n.get("scan_directories") or "Scan Directories"),
+            content=ft.Column([
+                ft.Text(
+                    i18n.get("scan_dirs_desc") or "The following directories are scanned for .intunewin files:",
+                    size=14
+                ),
+                ft.Container(height=10),
+                ft.Container(
+                    content=ft.Text(dirs_text, selectable=True, size=12),
+                    bgcolor="BLACK12",
+                    border_radius=8,
+                    padding=10,
+                    width=400
+                ),
+                ft.Container(height=10),
+                ft.Text(
+                    i18n.get("scan_dirs_hint") or "Configure the default output folder in Settings > Directories",
+                    size=12,
+                    color="GREY_500",
+                    italic=True
+                )
+            ], tight=True),
+            actions=[
+                ft.TextButton(i18n.get("btn_cancel") or "Close", on_click=lambda e: self.app_page.close(dlg))
+            ]
+        )
+        self.app_page.open(dlg)

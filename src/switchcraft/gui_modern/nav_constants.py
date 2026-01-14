@@ -44,6 +44,7 @@ class NavIndex:
     DASHBOARD = 17            # Dashboard View
     LIBRARY = 18              # Library View
     GROUP_MANAGER = 19        # Group Manager
+    WINGET_CREATE = 20        # WingetCreate Manager
 
 
 # Mapping from NavIndex to sidebar category for reference
@@ -56,7 +57,7 @@ NAV_CATEGORIES = {
     "Tools": [
         NavIndex.ANALYZER, NavIndex.HELPER, NavIndex.SCRIPTS,
         NavIndex.MACOS, NavIndex.PACKAGING_WIZARD, NavIndex.DETECTION_TESTER,
-        NavIndex.ADDON_MANAGER
+        NavIndex.ADDON_MANAGER, NavIndex.WINGET_CREATE
     ],
     "System": [
         NavIndex.SETTINGS, NavIndex.SETTINGS_UPDATES,

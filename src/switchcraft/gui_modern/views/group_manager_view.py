@@ -95,7 +95,6 @@ class GroupManagerView(ft.Column):
         self.list_container = ft.Column([self.dt], scroll=ft.ScrollMode.AUTO, expand=True)
 
         # Main Layout
-        # Main Layout
         self.controls = [
             ft.Container(
                 content=ft.Column([
@@ -129,9 +128,31 @@ class GroupManagerView(ft.Column):
                 self.groups = self.intune_service.list_groups(self.token)
                 self.filtered_groups = self.groups
                 self._update_table()
+            except PermissionError as e:
+                # Handle specific permission error (403)
+                logger.error(f"Permission denied loading groups: {e}")
+                missing_perms = str(e) if str(e) else "Group.Read.All, Group.ReadWrite.All"
+                error_msg = i18n.get("graph_permission_error") or "Missing Graph API permissions: {permissions}"
+                error_msg = error_msg.replace("{permissions}", missing_perms)
+                self._show_snack(error_msg, "RED")
+            except ConnectionError as e:
+                # Handle authentication failure
+                logger.error(f"Authentication failed: {e}")
+                error_msg = i18n.get("graph_auth_error") or "Authentication failed. Please check your credentials."
+                self._show_snack(error_msg, "RED")
             except Exception as e:
-                logger.error(f"Failed to load groups: {e}")
-                self._show_snack(f"Error loading groups: {e}", "RED")
+                error_str = str(e).lower()
+                # Detect permission issues from error message
+                if "403" in error_str or "forbidden" in error_str or "insufficient" in error_str:
+                    error_msg = i18n.get("graph_permission_error") or "Missing Graph API permissions: {permissions}"
+                    error_msg = error_msg.replace("{permissions}", "Group.Read.All")
+                    self._show_snack(error_msg, "RED")
+                elif "401" in error_str or "unauthorized" in error_str:
+                    error_msg = i18n.get("graph_auth_error") or "Authentication failed. Please check your credentials."
+                    self._show_snack(error_msg, "RED")
+                else:
+                    logger.error(f"Failed to load groups: {e}")
+                    self._show_snack(f"Error loading groups: {e}", "RED")
             finally:
                 self.list_container.disabled = False
                 self.update()

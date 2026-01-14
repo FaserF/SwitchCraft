@@ -128,14 +128,7 @@ class ModernApp:
 
         self.build_ui()
 
-    def _go_back_handler(self, e):
-        """Handle back button click."""
-        if len(self._navigation_history) > 1:
-            self._navigation_history.pop()  # Remove current
-            prev_idx = self._navigation_history[-1] if self._navigation_history else 0
-            # Don't add to history when going back
-            self._switch_to_tab(prev_idx)
-            self.sidebar.set_selected_index(prev_idx)
+
 
 
     def _toggle_notification_drawer(self, e):
@@ -418,14 +411,6 @@ class ModernApp:
             # Already setup or not first run
             return
 
-        def setup_process():
-            # 1. Dialog for Initial Setup
-            # We need to run UI updates on main thread, but downloads on background?
-            # Flet is tricky with threading + UI. We'll use a progress dialog.
-
-            # Using a flag on self to prevent multiple runs?
-            # It's called once from __init__ (moved to build_ui or separate thread)
-            pass
 
         # Since we need UI interaction, we trigger this via a delayed call or just show a modal if needed.
         # Let's create a visual wizard style dialog.
@@ -858,8 +843,6 @@ class ModernApp:
         new_controls = []
 
         # 2. LOAD ACTUAL CONTENT
-        # 2. LOAD ACTUAL CONTENT
-        new_controls = []
 
         # Helper to safely load views
         def load_view(factory_func):
@@ -1014,9 +997,16 @@ class ModernApp:
                 return GroupManagerView(self.page)
             load_view(_f)
 
+        elif idx == NavIndex.WINGET_CREATE:
+            # WingetCreate Manager
+            def _f():
+                from switchcraft.gui_modern.views.wingetcreate_view import WingetCreateView
+                return WingetCreateView(self.page)
+            load_view(_f)
+
         else:
-            # Dynamic Addons (start at idx 20)
-            dynamic_idx = idx - 20
+            # Dynamic Addons (start at idx 21)
+            dynamic_idx = idx - 21
             if 0 <= dynamic_idx < len(self.dynamic_addons):
                 addon = self.dynamic_addons[dynamic_idx]
                 def _f():

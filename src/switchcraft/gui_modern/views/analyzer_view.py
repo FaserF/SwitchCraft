@@ -4,6 +4,8 @@ import logging
 import shutil
 import ctypes
 import webbrowser
+import requests
+import tempfile
 from pathlib import Path
 
 from switchcraft.controllers.analysis_controller import AnalysisController, AnalysisResult
@@ -45,7 +47,7 @@ class ModernAnalyzerView(ft.Column):
         self.addon_warning = ft.Container(visible=False)
 
         def on_drop_click(e):
-             path = FilePickerHelper.pick_file(allowed_extensions=["exe", "msi"])
+             path = FilePickerHelper.pick_file(allowed_extensions=["exe", "msi", "ps1", "bat", "cmd", "vbs", "msp"])
              if path:
                  self.start_analysis(path)
 
@@ -115,7 +117,71 @@ class ModernAnalyzerView(ft.Column):
         else:
             self.drop_zone = drop_container
 
+        # URL Download UI
+        self.url_field = ft.TextField(
+            label=i18n.get("download_url") or "Direct Download URL",
+            hint_text="https://example.com/installer.exe",
+            expand=True,
+            border_radius=8
+        )
+        self.url_download_progress = ft.ProgressBar(width=400, visible=False)
+        self.url_download_status = ft.Text("", italic=True, size=12)
 
+        url_content = ft.Container(
+            content=ft.Column([
+                ft.Icon(ft.Icons.CLOUD_DOWNLOAD, size=60, color="ORANGE_400"),
+                ft.Text(
+                    i18n.get("download_from_web") or "Download from Web",
+                    size=20,
+                    weight=ft.FontWeight.BOLD
+                ),
+                ft.Text(
+                    i18n.get("enter_direct_link") or "Enter a direct link to an .exe or .msi file",
+                    size=12,
+                    color="GREY_400"
+                ),
+                ft.Container(height=10),
+                ft.Row([
+                    self.url_field,
+                    ft.ElevatedButton(
+                        i18n.get("download_and_analyze") or "Download & Analyze",
+                        icon=ft.Icons.DOWNLOAD,
+                        on_click=self._start_url_download
+                    )
+                ], spacing=10),
+                self.url_download_progress,
+                self.url_download_status
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+            padding=20,
+            alignment=ft.Alignment(0, 0)
+        )
+
+        # Tab container
+        self.source_tab_body = ft.Container(content=self.drop_zone, expand=True)
+
+        def on_source_tab_change(e):
+            idx = int(e.control.selected_index)
+            if idx == 0:
+                self.source_tab_body.content = self.drop_zone
+            else:
+                self.source_tab_body.content = url_content
+            self.source_tab_body.update()
+
+        source_tabs = ft.Tabs(
+            selected_index=0,
+            animation_duration=300,
+            on_change=on_source_tab_change,
+            tabs=[
+                ft.Tab(
+                    label=i18n.get("local_file") or "Local File",
+                    icon=ft.Icons.COMPUTER
+                ),
+                ft.Tab(
+                    label=i18n.get("download_url") or "URL Download",
+                    icon=ft.Icons.LINK
+                )
+            ]
+        )
 
         self.results_column = ft.Column(expand=False, spacing=15)
 
@@ -129,7 +195,8 @@ class ModernAnalyzerView(ft.Column):
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     ft.Divider(height=2, thickness=1),
                     self.addon_warning,
-                    self.drop_zone,
+                    source_tabs,
+                    self.source_tab_body,
                     ft.Container(
                         content=ft.Column([
                             self.status_text,
@@ -144,6 +211,79 @@ class ModernAnalyzerView(ft.Column):
             )
         ]
         self._check_addon()
+
+    def _start_url_download(self, e):
+        """Download installer from URL and start analysis."""
+        url = self.url_field.value.strip()
+        if not url:
+            self._show_snack(
+                i18n.get("urls_required") or "Please enter a URL",
+                "RED"
+            )
+            return
+
+        # Validate URL
+        if not url.startswith(("http://", "https://")):
+            self._show_snack("Invalid URL format", "RED")
+            return
+
+        self.url_download_progress.visible = True
+        self.url_download_progress.value = None  # Indeterminate
+        self.url_download_status.value = i18n.get("starting_download") or "Starting download..."
+        self.url_download_status.color = "BLUE"
+        self.update()
+
+        def _bg():
+            try:
+                # Get filename from URL
+                filename = url.split("/")[-1].split("?")[0]
+                if not filename.lower().endswith((".exe", ".msi")):
+                    filename = "installer.exe"
+
+                # Create temp directory
+                temp_dir = tempfile.mkdtemp(prefix="switchcraft_")
+                temp_path = Path(temp_dir) / filename
+
+                # Download with progress
+                response = requests.get(url, stream=True, timeout=60)
+                response.raise_for_status()
+
+                total_size = int(response.headers.get('content-length', 0))
+                downloaded = 0
+
+                with open(temp_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total_size > 0:
+                                pct = downloaded / total_size
+                                self.url_download_progress.value = pct
+                                self.url_download_status.value = f"{i18n.get('downloading') or 'Downloading'}: {int(pct*100)}%"
+                                self.update()
+
+                self.url_download_progress.visible = False
+                self.url_download_status.value = f"{i18n.get('downloaded') or 'Downloaded'}: {filename}"
+                self.url_download_status.color = "GREEN"
+                self.update()
+
+                # Start analysis with downloaded file
+                self.start_analysis(str(temp_path))
+
+            except requests.exceptions.RequestException as ex:
+                self.url_download_progress.visible = False
+                self.url_download_status.value = f"Download failed: {ex}"
+                self.url_download_status.color = "RED"
+                self.update()
+                logger.error(f"URL download failed: {ex}")
+            except Exception as ex:
+                self.url_download_progress.visible = False
+                self.url_download_status.value = f"Error: {ex}"
+                self.url_download_status.color = "RED"
+                self.update()
+                logger.error(f"URL download error: {ex}")
+
+        threading.Thread(target=_bg, daemon=True).start()
 
     def _check_addon(self):
         """Check if Advanced addon is installed and show warning if not."""
@@ -771,14 +911,58 @@ class ModernAnalyzerView(ft.Column):
         output = source
         setup_file = installer.name
 
-        self._show_snack("Creating .intunewin package...", "BLUE")
+        # Show progress
+        self._show_snack(i18n.get("creating_intunewin") or "Creating .intunewin package...", "BLUE")
 
         def _bg():
             try:
-                self.intune_service.create_intunewin(str(source), setup_file, str(output), quiet=True)
-                self._show_snack("Package Created Successfully!", "GREEN")
+                result_path = self.intune_service.create_intunewin(str(source), setup_file, str(output), quiet=True)
+
+                # Find the created file
+                expected_intunewin = source / (installer.stem + ".intunewin")
+                if expected_intunewin.exists():
+                    output_file = str(expected_intunewin)
+                else:
+                    # Search for any .intunewin in folder
+                    intunewin_files = list(source.glob("*.intunewin"))
+                    output_file = str(intunewin_files[0]) if intunewin_files else str(source)
+
+                # Show success dialog
+                def open_folder(e):
+                    import os
+                    os.startfile(str(source))
+                    dlg.open = False
+                    self.app_page.update()
+
+                def close_dlg(e):
+                    dlg.open = False
+                    self.app_page.update()
+
+                dlg = ft.AlertDialog(
+                    title=ft.Row([
+                        ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN", size=30),
+                        ft.Text(i18n.get("package_created_title") or "Package Created!", weight=ft.FontWeight.BOLD)
+                    ]),
+                    content=ft.Column([
+                        ft.Text(i18n.get("intunewin_created_success") or "Your .intunewin package was created successfully!"),
+                        ft.Container(height=10),
+                        ft.Text(i18n.get("location") or "Location:", weight=ft.FontWeight.BOLD),
+                        ft.Text(output_file, size=12, selectable=True, color="GREY_400")
+                    ], tight=True),
+                    actions=[
+                        ft.TextButton(i18n.get("btn_close") or "Close", on_click=close_dlg),
+                        ft.ElevatedButton(
+                            i18n.get("open_folder") or "Open Folder",
+                            icon=ft.Icons.FOLDER_OPEN,
+                            on_click=open_folder
+                        )
+                    ]
+                )
+                self.app_page.open(dlg)
+
             except Exception as ex:
-                self._show_snack(f"Packaging Failed: {ex}", "RED")
+                logger.error(f"IntuneWin creation failed: {ex}")
+                self._show_snack(f"{i18n.get('packaging_failed') or 'Packaging Failed'}: {ex}", "RED")
 
         threading.Thread(target=_bg, daemon=True).start()
 

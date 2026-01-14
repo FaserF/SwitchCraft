@@ -336,7 +336,7 @@ class ModernSettingsView(ft.Column):
         client.on_change=lambda e: SwitchCraftConfig.set_user_preference("GraphClientId", e.control.value)
 
         secret = ft.TextField(label=i18n.get("settings_entra_secret") or "Entra Client Secret", value=SwitchCraftConfig.get_secure_value("GraphClientSecret") or "", password=True, can_reveal_password=True)
-        secret.on_change=lambda e: SwitchCraftConfig.set_secure_value("GraphClientSecret", e.control.value)
+        secret.on_change=lambda e: SwitchCraftConfig.set_secret("GraphClientSecret", e.control.value)
 
         # Store references for test button
         self.raw_tenant_field = tenant
@@ -539,13 +539,7 @@ class ModernSettingsView(ft.Column):
         # Trigger re-check
         self._check_updates(None, only_changelog=True)
 
-    def _on_lang_change(self, val):
-        SwitchCraftConfig.set_user_preference("Language", val)
-        # Attempt to reload i18n strings? i18n is static usually.
-        # But we can try to reload the UI.
-        self._show_snack(i18n.get("restart_required_msg") or "Language changed. Please restart app.", "ORANGE")
-        # Trigger page update just in case
-        self.app_page.update()
+
 
     def _on_theme_change(self, val):
         SwitchCraftConfig.set_user_preference("Theme", val)
@@ -704,12 +698,47 @@ class ModernSettingsView(ft.Column):
     def _on_lang_change(self, val):
         from switchcraft.utils.config import SwitchCraftConfig
         from switchcraft.utils.i18n import i18n
+
+        # Save preference
         SwitchCraftConfig.set_user_preference("Language", val)
-        # Ask app to restart
-        if hasattr(self.app_page, "_show_restart_countdown"):
-            self.app_page._show_restart_countdown()
-        else:
-            self._show_snack(i18n.get("restart_required") or "Language changed. Please restart app.", "ORANGE")
+
+        # Actually update the i18n singleton
+        i18n.set_language(val)
+
+        # Show restart dialog
+        def do_restart(e):
+            dlg.open = False
+            self.app_page.update()
+            # Request restart
+            import sys
+            import os
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+
+        def skip_restart(e):
+            dlg.open = False
+            self.app_page.update()
+            self._show_snack(
+                i18n.get("restart_required") or "Some texts will update after restart.",
+                "ORANGE"
+            )
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(i18n.get("language_changed") or "Language Changed"),
+            content=ft.Text(
+                i18n.get("restart_to_apply") or
+                "The application needs to restart to apply the new language. Restart now?"
+            ),
+            actions=[
+                ft.TextButton(i18n.get("btn_later") or "Later", on_click=skip_restart),
+                ft.ElevatedButton(
+                    i18n.get("btn_restart_now") or "Restart Now",
+                    on_click=do_restart,
+                    bgcolor="BLUE_700",
+                    color="WHITE"
+                ),
+            ]
+        )
+        self.app_page.open(dlg)
 
     def _test_graph_connection(self, e):
         t_id = self.raw_tenant_field.value.strip()
@@ -762,7 +791,7 @@ class ModernSettingsView(ft.Column):
         # Map config keys to UI element attribute names
         managed_keys = [
             "EnableWinget", "Language", "Theme", "AIProvider", "SignScripts",
-            "UpdateChannel", "IntuneTenantID", "IntuneClientID", "IntuneClientSecret"
+            "UpdateChannel", "GraphTenantId", "GraphClientId", "GraphClientSecret"
         ]
 
         for key in managed_keys:

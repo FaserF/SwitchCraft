@@ -15,7 +15,7 @@ def mock_app():
     app.addon_service = MagicMock()
     app.notification_service = MagicMock()
     app.sidebar = MagicMock()
-    app.sidebar.categories = [("MyCategory", "ICON", [0, 1])] # Mock Category 0
+    app.sidebar.categories = [(ft.Icons.CATEGORY, "MyCategory", [0, 1])] # Mock Category 0
     return app
 
 def test_switch_to_tab_analyzer(mock_app):

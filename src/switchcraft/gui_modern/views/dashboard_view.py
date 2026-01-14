@@ -28,15 +28,22 @@ class DashboardView(ft.Column):
         self.controls = [
             ft.Container(
                 content=ft.Column([
-                    ft.Text(i18n.get("dashboard_overview_title") or "Overview", size=28, weight=ft.FontWeight.BOLD),
+                    ft.Text(i18n.get("dashboard_overview_title") or "Übersicht", size=28, weight=ft.FontWeight.BOLD),
                     ft.Divider(),
-                    self.stats_row,
                     self.stats_row,
                     ft.Container(height=20),
                     ft.Row([
-                        ft.Container(content=self.chart_container, expand=True, height=300),
-                        ft.Container(content=self.recent_container, height=300)
-                    ], wrap=True)
+                        ft.Container(
+                            content=self.chart_container,
+                            expand=2,
+                            height=280
+                        ),
+                        ft.Container(
+                            content=self.recent_container,
+                            expand=1,
+                            height=280
+                        )
+                    ], spacing=20, wrap=True)
                 ], spacing=15),
                 padding=20  # Consistent padding with other views
             )

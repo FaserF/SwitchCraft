@@ -59,3 +59,5 @@ jobs:
       - name: Run CLI Dynamic Tests
         run: |
            pytest tests/test_cli_dynamic.py tests/test_cli_core.py -v
+        env:
+           PYTHONPATH: ${{ github.workspace }}/src

@@ -222,7 +222,12 @@ else {
     $AddonAssetsDir = Join-Path $RepoRoot "src/switchcraft/assets/addons"
     if (Test-Path $AddonAssetsDir) {
         Write-Host "Cleaning bundled addons for Release Build..." -ForegroundColor Yellow
-        Remove-Item "$AddonAssetsDir\*.zip" -Force -ErrorAction SilentlyContinue
+        # Use Join-Path for cross-platform compatibility
+        $ZipPattern = Join-Path $AddonAssetsDir "*.zip"
+        # Wildcard expansion by Remove-Item
+        if (Test-Path $ZipPattern) {
+             Remove-Item $ZipPattern -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
@@ -377,13 +382,11 @@ if ($IsWinBuild) {
     }
 
     if ($BuiltExe) {
-    if ($BuiltExe) {
         Write-Host "`nBuild Complete!" -ForegroundColor Green
         $response = Read-Host "Would you like to start SwitchCraft now? (y/N)"
         if ($response -match "^[yY]$") {
              Write-Host "Launching SwitchCraft..." -ForegroundColor Green
              Start-Process $BuiltExe
         }
-    }
     }
 }

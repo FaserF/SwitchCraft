@@ -41,6 +41,39 @@ class TestI18nIntegrity(unittest.TestCase):
 
             self.assertEqual(en_params, de_params, f"Placeholder mismatch for key '{key}'. EN: {en_params}, DE: {de_params}")
 
+    def test_no_duplicate_keys(self):
+        """Ensure no duplicate keys appear in JSON files (which usually overrides previous ones silently)."""
+        import collections
+
+        def find_duplicates(filepath):
+            def check_pairs(pairs):
+                keys = [k for k, v in pairs]
+                return dict(pairs), keys
+
+            with open(filepath, "r", encoding="utf-8") as f:
+                # We need to manually parse or hook into load
+                # Standard json.load objects_pairs_hook can detect duplicates if we check keys list
+                raw_content = f.read()
+
+            # Helper to hook into json decoder
+            duplicates = []
+            def dict_checker(pairs):
+                keys = [k for k, v in pairs]
+                counts = collections.Counter(keys)
+                for k, count in counts.items():
+                    if count > 1:
+                        duplicates.append(k)
+                return dict(pairs)
+
+            json.loads(raw_content, object_pairs_hook=dict_checker)
+            return duplicates
+
+        en_dupes = find_duplicates(self.lang_dir / "en.json")
+        de_dupes = find_duplicates(self.lang_dir / "de.json")
+
+        self.assertFalse(en_dupes, f"Duplicate keys in EN: {en_dupes}")
+        self.assertFalse(de_dupes, f"Duplicate keys in DE: {de_dupes}")
+
     def test_codebase_keys_exist(self):
         """Scan codebase for i18n.get usage and verify keys exist in JSON."""
         # Regex to find i18n.get("key")

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 
 @dataclass
 class InstallerInfo:
@@ -25,7 +25,7 @@ class InstallerInfo:
     is_corrupted: bool = False
     corruption_reason: Optional[str] = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "file_path": self.file_path,
             "installer_type": self.installer_type,
@@ -36,6 +36,7 @@ class InstallerInfo:
             "install_path": self.install_path,
             "install_switches": self.install_switches,
             "uninstall_switches": self.uninstall_switches,
+            "properties": self.properties,
             "is_corrupted": self.is_corrupted,
             "corruption_reason": self.corruption_reason,
             "bundle_id": self.bundle_id,

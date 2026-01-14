@@ -85,6 +85,7 @@ class CrashDumpView(ft.Container):
 
     def _reload_app(self, page):
         import sys
+        import os
         import subprocess
 
         page.clean()

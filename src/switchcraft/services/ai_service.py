@@ -12,6 +12,7 @@ else:
     class SwitchCraftAI:
         """
         Stub SwitchCraftAI when the Addon is not installed.
+        Provides helpful guidance instead of just echoing input.
         """
         def __init__(self):
             logger.warning("SwitchCraftAI running in Stub mode (Addon missing).")
@@ -21,4 +22,15 @@ else:
             self.context = data
 
         def ask(self, query: str) -> str:
-            return "Advanced Feature: AI Assistant requires the AI Addon."
+            # Provide helpful response instead of just echoing
+            return (
+                "🤖 **AI Addon Required**\n\n"
+                "The AI Assistant addon is not installed. To get intelligent responses, "
+                "please install the AI addon via the Addon Manager.\n\n"
+                "**In the meantime, here are some tips:**\n"
+                "• For MSI files: Use `/qn /norestart` for silent install\n"
+                "• For NSIS: Use `/S` (case sensitive)\n"
+                "• For Inno Setup: Use `/VERYSILENT /SUPPRESSMSGBOXES`\n"
+                "• For InstallShield: Use `/s /v\"/qn\"`\n\n"
+                f"Your question: *{query}*"
+            )

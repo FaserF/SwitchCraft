@@ -401,6 +401,21 @@ class IntuneService:
         filter_str = f"contains(displayName, '{escaped_query}')"
         return self.list_apps(token, filter_query=filter_str)
 
+    def get_app_details(self, token, app_id):
+        """
+        Fetch details for a specific app.
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        base_url = f"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{app_id}"
+
+        try:
+            resp = requests.get(base_url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            logger.error(f"Failed to get app details: {e}")
+            raise e
+
     def upload_powershell_script(self, token, name, description, script_content, run_as_account="system"):
         """
         Uploads a PowerShell script to Intune (Device Management Script).

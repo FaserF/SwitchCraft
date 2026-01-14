@@ -91,19 +91,20 @@ except Exception:
 
 # Parse command line for protocol URL
 _INITIAL_ACTION = None
-for i, arg in enumerate(sys.argv):
-    if arg == "--protocol" and i + 1 < len(sys.argv):
-        try:
-            _INITIAL_ACTION = parse_protocol_url(sys.argv[i + 1])
-        except Exception:
-            pass
-        break
-    elif arg.startswith("switchcraft://"):
-        try:
-            _INITIAL_ACTION = parse_protocol_url(arg)
-        except Exception:
-            pass
-        break
+if "parse_protocol_url" in globals() and callable(parse_protocol_url):
+    for i, arg in enumerate(sys.argv):
+        if arg == "--protocol" and i + 1 < len(sys.argv):
+            try:
+                _INITIAL_ACTION = parse_protocol_url(sys.argv[i + 1])
+            except Exception:
+                pass
+            break
+        elif arg.startswith("switchcraft://"):
+            try:
+                _INITIAL_ACTION = parse_protocol_url(arg)
+            except Exception:
+                pass
+            break
 
 def write_crash_dump(exc_info):
     """Write crash dump to a file for debugging."""

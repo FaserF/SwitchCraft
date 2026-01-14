@@ -19,7 +19,6 @@ from switchcraft.gui_modern.views.detection_tester_view import DetectionTesterVi
 from switchcraft.gui_modern.views.stack_manager_view import StackManagerView
 from switchcraft.gui_modern.views.dashboard_view import DashboardView
 from switchcraft.gui_modern.views.library_view import LibraryView
-from switchcraft.gui_modern.views.library_view import LibraryView
 from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
 from switchcraft.gui_modern.views.addon_manager_view import AddonManagerView
 
@@ -38,8 +37,6 @@ def app_instance(monkeypatch):
     page.window.jump_list = []
     # Configure page attributes that strictly exist
     page.theme_mode = ft.ThemeMode.DARK
-    page.padding = 10
-
     page.padding = 10
 
     # We must patch HistoryService WHERE IT IS USED, and keep it patched if instantiated later?
