@@ -69,9 +69,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _switch_tab(self, builder_func):
         """
         Switches the view to a new tab by invoking the provided tab builder and updating the UI.
-        
+
         If `builder_func` is callable, its return value is assigned to `self.current_content.content`. If `builder_func` is None, a localized error message is shown. If the builder raises an exception, the error is logged and a fallback error UI (icon, error text, and guidance) is displayed. The method then attempts to refresh the UI; update failures are ignored.
-        
+
         Parameters:
             builder_func (Callable[[], ft.Control] | None): Function that constructs and returns the Flet control for the tab, or None to indicate a missing builder.
         """
@@ -97,9 +97,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
         # Company Name
         """
         Builds the General settings tab UI.
-        
+
         Constructs and returns a ListView containing controls for company name, language selection, Winget integration toggle, cloud sync section, AI configuration, export/import settings actions, and a test notification button.
-        
+
         Returns:
             ft.ListView: A configured ListView that represents the General Settings tab.
         """
@@ -229,14 +229,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _build_updates_tab(self):
         """
         Builds the Updates settings tab UI.
-        
+
         Creates and returns a ListView containing:
         - An update channel selector (stable/beta/dev) wired to save changes.
         - Current version and build date display.
         - Latest version display (updated from cached or live checks).
         - A "Check for Updates" button that triggers an update check.
         - A changelog Markdown view populated from cached results or a loading message.
-        
+
         Returns:
             ft.ListView: The assembled ListView for the Updates tab with version info, controls, and changelog.
         """
@@ -300,11 +300,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
         # Code Signing Section
         """
         Builds the Deployment / Global Graph API settings tab UI.
-        
+
         Constructs and returns a ListView containing controls to configure Entra/Microsoft Graph (tenant, client, secret) with a connection test button, code signing settings (enable switch, certificate display and management buttons), repository and template path fields, and related actions.
-        
+
         The method also stores references to the tenant, client, and secret input fields and to status text controls (certificate and template status, and test result) on the instance for use by other methods.
-        
+
         Returns:
             ft.ListView: A ListView populated with controls for Graph/Intune configuration, code signing, paths, and template management.
         """
@@ -436,9 +436,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _build_help_tab(self):
         """
         Builds the Help & Resources tab UI for the settings view.
-        
+
         The returned view includes links to the project, issue reporter, and documentation; controls to export logs and toggle debug logging; a debug console with streamed logs; a prefilled GitHub issue reporter flow; an addon manager section; a "Danger Zone" factory reset action; and version/credits footer.
-        
+
         Returns:
             ft.ListView: A ListView containing the assembled controls for the Help & Resources tab.
         """
@@ -461,9 +461,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
         def open_issue_reporter(e):
             """
             Open the application's pre-filled GitHub issue reporter for the current session.
-            
+
             Attempts to open the generated issue URL in the user's default web browser; if that fails, copies the URL to the clipboard. Shows an in-app notification indicating the action taken and logs successes or failures.
-            
+
             Parameters:
                 e: UI event object (ignored).
             """
@@ -662,17 +662,15 @@ class ModernSettingsView(ft.Column, ViewMixin):
         threading.Thread(target=_run, daemon=True).start()
 
     def _start_github_login(self, e):
-       # Reuse logic, update references to self.app_page.dialog not self.page.dialog if self.page isn't set on Column?
-       # Column gets .page when mounted. but we are using self.app_page.
         """
-       Start an interactive GitHub device‑flow login in a background thread and handle the result.
-       
-       Starts the device authorization flow, presents a dialog with the verification URL and user code, opens the browser when requested, polls for an access token, and on success saves the token, updates the cloud-sync UI, and shows a success or failure notification. All UI interactions and the polling run in a background thread to avoid blocking the main thread.
-       
-       Parameters:
-           e: The triggering event (e.g., button click). The value is accepted but not used by this method.
-       """
-       def _flow():
+        Start an interactive GitHub device‑flow login in a background thread and handle the result.
+
+        Starts the device authorization flow, presents a dialog with the verification URL and user code, opens the browser when requested, polls for an access token, and on success saves the token, updates the cloud-sync UI, and shows a success or failure notification. All UI interactions and the polling run in a background thread to avoid blocking the main thread.
+
+        Parameters:
+            e: The triggering event (e.g., button click). The value is accepted but not used by this method.
+        """
+        def _flow():
             flow = AuthService.initiate_device_flow()
             if not flow:
                 self._show_snack("Login init failed")
@@ -700,11 +698,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
             btn_cancel = ft.TextButton("Cancel", on_click=close_dlg)
 
             dlg = ft.AlertDialog(
-            title=ft.Text(i18n.get("github_login") or "GitHub Login"),
-            content=ft.Column([
-                ft.Text(i18n.get("please_visit") or "Please visit:"),
-                ft.Text(flow.get("verification_uri"), color="BLUE"),
-                ft.Text(i18n.get("and_enter_code") or "And enter code:"),
+                title=ft.Text(i18n.get("github_login") or "GitHub Login"),
+                content=ft.Column([
+                    ft.Text(i18n.get("please_visit") or "Please visit:"),
+                    ft.Text(flow.get("verification_uri"), color="BLUE"),
+                    ft.Text(i18n.get("and_enter_code") or "And enter code:"),
                     ft.Text(flow.get("user_code"), size=24, weight=ft.FontWeight.BOLD),
                 ], height=150),
                 actions=[btn_copy, btn_cancel]
@@ -729,9 +727,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _logout_github(self, e):
         """
         Logs out the current GitHub/cloud authentication session, refreshes the sync UI, and shows a success or failure notification.
-        
+
         Performs the logout action, updates the cloud sync section to reflect the unauthenticated state, and displays a green success snackbar on success or a red failure snackbar if an error occurs.
-        
+
         Parameters:
             e: The triggering event (typically a UI event). This parameter is accepted but not used.
         """
@@ -746,7 +744,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _sync_up(self, e):
         """
         Start an asynchronous upload of user settings to cloud storage and show a success or failure snack.
-        
+
         Parameters:
             e: The triggering UI event (unused).
         """
@@ -768,7 +766,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _export_settings(self, e):
         """
         Open a file-save dialog and write current user preferences to a JSON file.
-        
+
         Opens a save-file picker prompting the user for a destination (default filename "settings.json"); if a path is selected, exports the application preferences to that file as pretty-printed JSON and shows a success notification.
         """
         from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
@@ -782,9 +780,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _import_settings(self, e):
         """
         Import application settings from a user-selected JSON file.
-        
+
         Opens a file picker restricted to a single `.json` file, parses the selected file as JSON, and applies the data via SwitchCraftConfig.import_preferences. Displays a success snack on successful import; on failure shows an error snack and logs the exception. JSON decoding errors are reported as an invalid JSON file.
-        
+
         Parameters:
             e: UI event or trigger that invoked this handler (ignored).
         """
@@ -886,9 +884,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _on_lang_change(self, val):
         """
         Handle a change to the UI language and apply it across the application.
-        
+
         Saves the selected language to user preferences, updates the i18n singleton, rebuilds the settings view (and main app navigation) to reflect the new language, and shows a confirmation snack. If the app page reference is unavailable, prompts the user to restart the application and performs a restart when confirmed.
-        
+
         Parameters:
             val (str): Language code or identifier to set (e.g., "en", "fr", etc.).
         """
@@ -954,7 +952,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
             def do_restart(e):
                 """
                 Restart the application by launching a new process and exiting the current process.
-                
+
                 This function attempts a clean restart by shutting down logging, forcing garbage collection, removing PyInstaller-related environment variables (e.g., `_MEI*`), and spawning a new process with the same executable and arguments. On Windows the new process is started detached and in a new process group. Standard input/output/error are suppressed for the spawned process. If the restart fails, an error snack is shown via self._show_snack.
                 """
                 dlg.open = False
@@ -1040,7 +1038,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _test_graph_connection(self, e):
         """
         Validate Entra (Microsoft Graph/Intune) credentials from the UI fields and report the result.
-        
+
         Reads tenant ID, client ID, and client secret from the view's credential fields; if any are missing, updates the test result text and color to indicate the missing input. If present, starts an asynchronous authentication attempt and updates the test result text and color to show progress, success, or failure. On success or failure a notification snack is displayed. The method does not raise exceptions (authentication errors are reported in the UI).
         """
         t_id = self.raw_tenant_field.value.strip()
@@ -1164,10 +1162,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _build_addon_manager_section(self):
         """
         Create the Addon Manager UI section listing available addons and actions.
-        
+
         Each addon row shows the addon's name, description, installation status, and an Install/Reinstall button.
         The section also includes an "Upload Custom Addon (.zip)" button and an "Import from URL" button.
-        
+
         Returns:
             ft.Column: A Flet Column containing addon rows and a row with upload/import action buttons.
         """
@@ -1223,9 +1221,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _install_addon(self, addon_id):
         """
         Install the specified addon and update the UI with success or failure feedback.
-        
+
         Attempts to install the addon identified by `addon_id` by first locating a bundled ZIP and, if absent, falling back to downloading the addon from the official GitHub releases. The installation runs on a background thread, displays success or failure notifications to the user, and triggers a refresh of the addon manager UI when installation succeeds.
-        
+
         Parameters:
             addon_id (str): Identifier of the addon (filename prefix for the addon ZIP, e.g. "advanced", "winget").
         """
@@ -1261,7 +1259,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         def _run():
             """
             Install an addon ZIP if present; otherwise attempt to download it from GitHub and update the UI with the outcome.
-            
+
             Attempts to install the addon located at `zip_path`. If the ZIP is missing, triggers a download from GitHub for `addon_id`. On successful installation, logs the event, shows a success snack, and refreshes the addon manager section in the UI if available. On failure or exception, logs the error and shows a failure snack containing the error message.
             """
             try:
@@ -1296,7 +1294,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _refresh_addon_section(self):
         """
         Attempt to refresh the Addon Manager section in the current settings view.
-        
+
         This is a best-effort UI refresh: when an addon is installed or its state changes, the method tries to locate and rebuild the Addon Manager area inside the currently rendered tab. Failures are handled silently and logged for debugging; the method performs no guaranteed action and may be a no-op in some layouts.
         """
         try:
@@ -1311,9 +1309,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _download_addon_from_github(self, addon_id):
         """
         Download and install an addon ZIP named "<addon_id>.zip" from the repository's latest GitHub release.
-        
+
         Looks up the latest release for the bundled SwitchCraft repository, downloads the release asset matching "{addon_id}.zip", attempts installation via AddonService.install_addon, and removes the temporary download file. Shows user-facing notifications for success or failure and logs errors.
-        
+
         Parameters:
             addon_id (str): Identifier of the addon; corresponds to the asset filename without the ".zip" extension.
         """
@@ -1558,7 +1556,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _reset_template(self, e):
         """
         Reset the custom template selection to the default.
-        
+
         Clears the stored CustomTemplatePath user preference, updates the template status label and its color, refreshes the view, and shows a confirmation snackbar.
         """
         SwitchCraftConfig.set_user_preference("CustomTemplatePath", "")
@@ -1570,9 +1568,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _get_build_date(self):
         """
         Return a human-readable build date/time derived from the application's file modification time.
-        
+
         If the application is running from a frozen (packaged) executable the executable's modification time is used; otherwise the package's __init__.py (or this file as a fallback) is used. If the build date cannot be determined, returns "Unknown".
-        
+
         Returns:
             A string containing the build date/time in "YYYY-MM-DD HH:MM:SS" format, or "Unknown" if unavailable.
         """

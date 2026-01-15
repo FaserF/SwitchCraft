@@ -79,7 +79,7 @@ class TestAppStartupCritical(unittest.TestCase):
     def test_main_function_can_be_called(self):
         """
         Ensure switchcraft.modern_main.main can be invoked with a mocked flet Page without variable-scope startup errors.
-        
+
         Creates a fully mocked flet Page and patches protocol-related functions and ModernApp. The test fails if calling main raises UnboundLocalError or NameError (indicative of improper splash_proc or other variable scope issues). Other exceptions during startup are tolerated by this test.
         """
         from unittest.mock import MagicMock, patch
@@ -114,8 +114,8 @@ class TestAppStartupCritical(unittest.TestCase):
             # Mock all the functions that main() might call
             with patch('switchcraft.modern_main.is_protocol_registered', return_value=True), \
                  patch('switchcraft.modern_main.register_protocol_handler'), \
-                 patch('switchcraft.modern_main.ModernApp') as mock_app_class:
-
+                 patch('switchcraft.modern_main.ModernApp') as mock_app_class, \
+                 patch('sys.exit'):
                 mock_app = MagicMock()
                 mock_app_class.return_value = mock_app
 
@@ -137,7 +137,7 @@ class TestAppStartupCritical(unittest.TestCase):
     def test_splash_proc_global_declaration(self):
         """
         Verify that main() declares `splash_proc` as global before it is used or assigned.
-        
+
         Reads src/switchcraft/modern_main.py, locates the `main(page: ft.Page)` function, and checks for any use of `splash_proc` inside that function. If `splash_proc` is not used, the test passes. If `splash_proc` is used, the test ensures a `global splash_proc` declaration appears before the first usage; if `splash_proc` is assigned in `main()` without a preceding `global` declaration, the test fails because that would cause an UnboundLocalError at runtime.
         """
         modern_main_path = Path(__file__).parent.parent / "src" / "switchcraft" / "modern_main.py"
