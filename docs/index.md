@@ -6,7 +6,7 @@ hero:
   text: "The Ultimate Packaging Assistant"
   tagline: "Analyze installers, create Intune packages, and streamline your IT workflow — all in one powerful tool."
   image:
-    src: https://github.com/FaserF/SwitchCraft/raw/main/images/switchcraft_logo_with_Text.png
+    src: https://github.com/FaserF/SwitchCraft/raw/main/src/switchcraft/assets/switchcraft_logo_with_Text.png
     alt: SwitchCraft Logo
   actions:
     - theme: brand
@@ -57,7 +57,7 @@ features:
 ## Preview
 
 <div style="text-align: center; margin: 2rem 0;">
-  <img src="https://github.com/FaserF/SwitchCraft/raw/main/images/switchcraft_ui.png" alt="SwitchCraft Modern UI" style="max-width: 100%; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);" />
+  <img src="https://github.com/FaserF/SwitchCraft/raw/main/src/switchcraft/assets/switchcraft_ui.png" alt="SwitchCraft Modern UI" style="max-width: 100%; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);" />
 </div>
 
 ## Quick Start

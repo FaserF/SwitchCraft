@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import flet as ft
 from switchcraft import __version__
 from switchcraft.utils.config import SwitchCraftConfig
@@ -9,8 +10,15 @@ from switchcraft.gui_modern.views.macos_wizard_view import MacOSWizardView
 from switchcraft.services.notification_service import NotificationService
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.controls.sidebar import HoverSidebar
+from switchcraft.gui_modern.nav_constants import NavIndex
 import logging
 import time
+
+try:
+    from winotify import Notification, audio
+    WINOTIFY_AVAILABLE = True
+except ImportError:
+    WINOTIFY_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -20,19 +28,16 @@ class ModernApp:
         self.page.switchcraft_app = self  # Store reference for views to access goto_tab
         self.page.clean()
 
-        # Initialize history early
+        # Initialize Services EARLY
+        self.notification_service = NotificationService()
+        self._last_notif_id = None
+        self.addon_service = AddonService()
+        self.dynamic_addons = []
+
+        # Initialize history
         self._navigation_history = [0]
 
         self.setup_page()
-
-
-        # Notification Service
-        self.notification_service = NotificationService()
-        # Listener added later after UI init
-
-        # Addon Service
-        self.addon_service = AddonService()
-        self.dynamic_addons = []
 
         # Build Actions (Theme Toggle + Notifications)
         self.theme_icon = ft.IconButton(
@@ -42,7 +47,6 @@ class ModernApp:
         )
 
         # Notification button
-        # Notification button
         self.notif_btn = ft.IconButton(
             icon=ft.Icons.NOTIFICATIONS,
             tooltip="Notifications",
@@ -51,13 +55,16 @@ class ModernApp:
 
         # Now add listener
         self.notification_service.add_listener(self._on_notification_update)
+        # Sync initial state (badge, etc)
+        self._on_notification_update()
 
         # Back button (Early init for AppBar)
         self.back_btn = ft.IconButton(
             icon=ft.Icons.ARROW_BACK,
             tooltip=i18n.get("btn_back") or "Back",
             on_click=self._go_back_handler,
-            icon_size=24
+            icon_size=24,
+            visible=False  # Hidden initially when no history
         )
 
         # Try to find logo for AppBar
@@ -117,48 +124,19 @@ class ModernApp:
         # View cache - keeps views in memory to preserve state between tab switches
         self._view_cache = {}
 
-        # Auto-install bundled addons on first start
-        self._install_bundled_addons()
+
 
         self.build_ui()
 
-    def _go_back_handler(self, e):
-        """Handle back button click."""
-        if len(self._navigation_history) > 1:
-            self._navigation_history.pop()  # Remove current
-            prev_idx = self._navigation_history[-1] if self._navigation_history else 0
-            # Don't add to history when going back
-            self._switch_to_tab(prev_idx)
-            self.sidebar.set_selected_index(prev_idx)
 
-    def _open_notifications(self, e):
-        """Open notification history or drawer."""
-        # For now, we will use a simple dialog to show notifications
-        # In a real app this might be a navigation drawer
 
-        notifications = self.notification_service.get_history()
-
-        list_view = ft.ListView(expand=True, spacing=10, padding=10)
-
-        if not notifications:
-            list_view.controls.append(ft.Text(i18n.get("no_notifications") or "No notifications", italic=True))
-        else:
-            for notif in reversed(notifications):
-                list_view.controls.append(
-                   ft.ListTile(
-                       leading=ft.Icon(ft.Icons.INFO if notif.type == "info" else ft.Icons.ERROR if notif.type == "error" else ft.Icons.WARNING),
-                       title=ft.Text(notif.title),
-                       subtitle=ft.Text(f"{notif.message}\n{notif.timestamp}", size=12),
-                   )
-                )
-
-        self.page.open(dlg)
 
     def _toggle_notification_drawer(self, e):
         """Toggles the notification drawer."""
-        # Check if drawer is currently open
-        if hasattr(self, "_active_drawer") and self._active_drawer and self._active_drawer.open:
-             self.page.close(self._active_drawer)
+        # Force fresh drawer build if not open
+        if self.page.end_drawer and self.page.end_drawer.open:
+             self.page.end_drawer.open = False
+             self.page.update()
         else:
              self._open_notifications_drawer(e)
 
@@ -172,14 +150,16 @@ class ModernApp:
             for n in notifs:
                 icon = ft.Icons.INFO
                 color = "BLUE"
-                # ... (Logic identical to previous _open_notifications) ...
-                if n["type"] == "success":
+
+                # Check type safely
+                ntype = n.get("type", "info")
+                if ntype == "success":
                     icon = ft.Icons.CHECK_CIRCLE
                     color = "GREEN"
-                elif n["type"] == "warning":
+                elif ntype == "warning":
                     icon = ft.Icons.WARNING
                     color = "ORANGE"
-                elif n.get("type") == "error":
+                elif ntype == "error":
                     icon = ft.Icons.ERROR
                     color = "RED"
 
@@ -203,10 +183,18 @@ class ModernApp:
                 ft.Divider(),
                 ft.Column(items, scroll=ft.ScrollMode.AUTO, expand=True)
             ],
+            on_dismiss=self._on_drawer_dismiss
         )
-        self._active_drawer = drawer
-        self.page.open(drawer)
+
+        self.page.end_drawer = drawer
+        self.page.end_drawer.open = True
+        self.page.update() # Ensure UI reflects new drawer
         self.notification_service.mark_all_read()
+
+    def _on_drawer_dismiss(self, e):
+        """Cleanup when drawer is dismissed."""
+        # self._active_drawer = None # legacy
+        pass
 
     def _clear_notifications(self, e, dlg):
         self.notification_service.clear()
@@ -245,13 +233,13 @@ class ModernApp:
                     self.page.window.jump_list = [
                         ft.JumpListItem(
                             text="Packaging Wizard",
-                            icon="images/switchcraft_logo.ico",
+                            icon="assets/switchcraft_logo.ico",
                             arguments="--wizard",
                             description="Open Packaging Wizard"
                         ),
                         ft.JumpListItem(
                             text="All-in-One Analyzer",
-                            icon="images/switchcraft_logo.ico",
+                            icon="assets/switchcraft_logo.ico",
                             arguments="--analyzer",
                             description="Open Installer Analyzer"
                         ),
@@ -260,47 +248,31 @@ class ModernApp:
                 logger.debug(f"JumpList not supported: {e}")
 
             # Set window icon paths
-            import os
             import sys
-            root_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-            # Set window icon paths - Prefer local assets if available
-            # We copied icons to src/switchcraft/assets
-            # Calculate path relative to THIS file (app.py) -> assets/
-            current_dir = os.path.dirname(os.path.abspath(__file__)) # src/switchcraft/gui_modern
-            assets_dir = os.path.join(os.path.dirname(current_dir), "assets") # src/switchcraft/assets
-
-            asset_ico = os.path.join(assets_dir, "switchcraft_logo.ico")
-            asset_png = os.path.join(assets_dir, "switchcraft_logo.png")
-
-            if os.path.exists(asset_ico):
-                self._ico_path = asset_ico
-                self._png_path = asset_png if os.path.exists(asset_png) else asset_ico
+            # Asset Path Resolution for Flet
+            # In Dev: src/switchcraft/assets/
+            # In Prod (Frozen): sys._MEIPASS / assets/
+            if getattr(sys, 'frozen', False):
+                base_assets = os.path.join(sys._MEIPASS, "assets")
             else:
-                # Fallback to root images logic
-                if getattr(sys, 'frozen', False):
-                    base_path = sys._MEIPASS
-                    ico_path = os.path.join(base_path, "switchcraft_logo.ico")
-                    png_path = os.path.join(base_path, "images", "switchcraft_logo.png")
-                else:
-                    ico_path = os.path.join(root_path, "images", "switchcraft_logo.ico")
-                    png_path = os.path.join(root_path, "images", "switchcraft_logo.png")
+                # src/switchcraft/gui_modern/app.py -> src/switchcraft/assets/
+                base_assets = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
 
-                self._ico_path = os.path.abspath(ico_path) if os.path.exists(ico_path) else None
-                self._png_path = os.path.abspath(png_path) if os.path.exists(png_path) else self._ico_path
+            ico_path = os.path.join(base_assets, "switchcraft_logo.ico")
+            png_path = os.path.join(base_assets, "switchcraft_logo.png")
+
+            self._ico_path = ico_path if os.path.exists(ico_path) else None
+            self._png_path = png_path if os.path.exists(png_path) else self._ico_path
 
             if self._ico_path:
                 self.page.window.icon = self._ico_path
 
             if hasattr(self.page, 'appbar') and self.page.appbar:
-                # Use asset URL for AppBar image if possible, or file path
-                # Since we set assets_dir="assets", we can use "/switchcraft_logo.png"
-                self.page.appbar.leading = ft.Image(src="/switchcraft_logo.png", width=30, height=30)
-                # Fallback if that failed? No, we trust assets.
-                # But to be safe, stick to what was working or new asset path?
-                # Let's use the asset path relative URL which Flet handles best.
-                # src="/switchcraft_logo.png"
-                pass
+                # Use absolute path for logo in appbar to be safe, or /path if assets_dir works
+                # Let's try the absolute path as fallback if simple / failed
+                header_logo = ft.Image(src="/switchcraft_logo.png", width=30, height=30)
+                self.page.appbar.leading = header_logo
                 self.page.appbar.update()
         except Exception as e:
             logger.debug(f"Window properties not available during setup: {e}")
@@ -318,9 +290,9 @@ class ModernApp:
         import sys
         if "--wizard" in sys.argv:
             # We need to defer this until UI is built
-            self._pending_nav_index = 2 # Wizard index
+            self._pending_nav_index = NavIndex.PACKAGING_WIZARD
         elif "--analyzer" in sys.argv or "--all-in-one" in sys.argv:
-             self._pending_nav_index = 3 # Analyzer index
+             self._pending_nav_index = NavIndex.ANALYZER
         else:
             self._pending_nav_index = None
 
@@ -353,7 +325,7 @@ class ModernApp:
 
                 if has_update:
                     def go_to_update(e):
-                        self.goto_tab(9)
+                        self.goto_tab(NavIndex.SETTINGS_UPDATES)
                         self.page.update()
 
                     snack = ft.SnackBar(
@@ -366,48 +338,171 @@ class ModernApp:
                     self.page.snack_bar = snack
                     snack.open = True
                     self.page.update()
+
+                    # Add persistent notification with system toast
+                    self.notification_service.add_notification(
+                        title=i18n.get("update_available") or "Update Available",
+                        message=f"Version {version_str} is available. Click to view details.",
+                        type="update",
+                        notify_system=True,
+                        data={"url": update_data.get("html_url")}
+                    )
             except Exception as e:
                 logger.error(f"Startup update check failed: {e}")
                 self.page.update_check_result = {"checked": True, "error": str(e)}
 
         threading.Thread(target=_run, daemon=True).start()
 
-    def _install_bundled_addons(self):
-        """Auto-install bundled addons (advanced, ai) on first start."""
+        # Check for First Run conditions
+        # 1. Local Bundle (Dev/Test)
+        if self._check_local_bundle():
+             logger.info("Local bundle detected and installed.")
+             # Continue to wizard just in case 'advanced' is still missing
+
+        # 2. First Run Wizard (Production)
+        # We delay this slightly to ensure UI is ready
+        self._first_run_setup()
+
+    def _check_local_bundle(self):
+        """
+        Checks for bundled addons (assets/addons/*.zip).
+        If found, installs them and returns True.
+        Used for Local Dev/Test builds.
+        """
         try:
-            # Check for bundled addons in assets
             import sys
+            from pathlib import Path
             if getattr(sys, 'frozen', False):
                 base_path = Path(sys._MEIPASS) / "assets" / "addons"
             else:
-                 # src/switchcraft/gui_modern/app.py -> src/switchcraft/assets/addons
                 base_path = Path(__file__).parent.parent / "assets" / "addons"
 
             if not base_path.exists():
-                logger.warning(f"Bundled addons directory not found: {base_path}")
-                return
+                return False
 
-            addons_to_install = ["advanced", "ai"]
+            found_any = False
+            # Install any zip found
+            for zip_file in base_path.glob("*.zip"):
+                 # Check if already installed to avoid re-install work?
+                 # Or force update for dev? Let's check installed.
+                 # Actually, we don't know the ID easily without opening zip.
+                 # Let's just try install. AddonService handles overwrite.
+                 try:
+                     logger.info(f"Installing local bundle: {zip_file.name}")
+                     self.addon_service.install_addon(str(zip_file))
+                     found_any = True
+                 except Exception as e:
+                     logger.error(f"Failed to bundle install {zip_file}: {e}")
 
-            for addon_id in addons_to_install:
-                 if self.addon_service.is_addon_installed(addon_id):
-                     continue
-
-                 zip_path = base_path / f"{addon_id}.zip"
-                 if zip_path.exists():
-                     self.loading_text.value = f"Installing {addon_id} addon..."
-                     self.page.update()
-                     try:
-                        logger.info(f"Attempting to install bundled addon {addon_id} from {zip_path}")
-                        if self.addon_service.install_addon(str(zip_path)):
-                            logger.info(f"Bundled addon {addon_id} installed successfully.")
-                        else:
-                             logger.warning(f"Addon service returned False for {addon_id}")
-                     except Exception as ex:
-                        logger.error(f"Failed to install bundled addon {addon_id}: {ex}", exc_info=True)
+            return found_any
 
         except Exception as e:
-            logger.error(f"Error during bundled addon install: {e}")
+            logger.error(f"Error checking local bundle: {e}")
+            return False
+
+    def _first_run_setup(self):
+        """
+        On first run (if 'advanced' addon is missing), guide the user through setup.
+        1. Auto-download 'advanced' (Essential).
+        2. Prompt for optional addons.
+        """
+        if self.addon_service.is_addon_installed("advanced"):
+            # Already setup or not first run
+            return
+
+
+        # Since we need UI interaction, we trigger this via a delayed call or just show a modal if needed.
+        # Let's create a visual wizard style dialog.
+
+        def close_wizard(e):
+             self.page.close(dlg)
+
+        def install_optional(e):
+             # Trigger background download of optionals
+             self.page.close(dlg)
+             self.set_progress(None, True) # Indeterminate
+             self.page.snack_bar = ft.SnackBar(ft.Text("Installing optional components..."))
+             self.page.snack_bar.open = True
+             self.page.update()
+
+             import threading
+             def _bg():
+                 opts = ["ai", "winget"]
+                 for opt in opts:
+                     success, msg = self.addon_service.install_from_github(opt)
+                     if success:
+                         logger.info(f"Optional addon {opt} installed: {msg}")
+                     else:
+                         logger.warning(f"Optional addon {opt} failed: {msg}")
+
+                 self.set_progress(0, False)
+                 self._show_snack("Optional components installed!", "GREEN")
+                 # We might need to reload UI/Sidebar
+                 # self.build_ui() # Full reload might be jarring, maybe just refresh sidebar
+                 # For now, require restart or just let dynamic addons load next time (or dynamic load?)
+                 # Dynamic load is supported by app restart usually.
+
+             threading.Thread(target=_bg, daemon=True).start()
+
+        def start_setup(e):
+            # Disable button, show progress
+            e.control.disabled = True
+            e.control.text = "Installing Base..."
+            e.control.update()
+
+            import threading
+            def _base_install():
+                # Install Advanced
+                success, msg = self.addon_service.install_from_github("advanced")
+
+                # UI Update needs to happen on loop? Flet is thread-safe for simple updates usually
+                def update_ui():
+                    if not dlg.open or (hasattr(self.page, "dialog") and dlg != self.page.dialog):
+                        # Dialog might be closed or not active
+                        return
+
+                    try:
+                        if success:
+                            # Update Dialog to ask for Optional
+                            content.controls.clear()
+                            content.controls.append(ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN", size=48))
+                            content.controls.append(ft.Text("Base components installed!"))
+                            content.controls.append(ft.Text("Do you want to install optional features (AI, Winget)?"))
+
+                            dlg.actions.clear()
+                            dlg.actions.append(ft.TextButton("No, thanks", on_click=close_wizard))
+                            dlg.actions.append(ft.Button("Install Optional", on_click=install_optional))
+                        else:
+                            content.controls.append(ft.Text(f"Failed to install base: {msg}", color="RED"))
+                            dlg.actions.clear()
+                            dlg.actions.append(ft.TextButton("Close", on_click=close_wizard))
+
+                        dlg.update()
+                    except Exception as ex:
+                        import logging
+                        logging.getLogger(__name__).warning(f"Failed to update wizard UI: {ex}")
+
+                if self.page:
+                    self.page.run_task(update_ui)
+
+            threading.Thread(target=_base_install, daemon=True).start()
+
+        content = ft.Column([
+            ft.Text("Welcome to SwitchCraft!", size=20, weight="bold"),
+            ft.Text("It looks like this is your first run."),
+            ft.Text("We classify 'Advanced Features' as an Essential add-on. Install it now?"),
+        ], tight=True)
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Setup Wizard"),
+            content=content,
+            actions=[
+                ft.TextButton("Skip", on_click=close_wizard),
+                ft.Button("Install Essential", on_click=start_setup)
+            ],
+            modal=True,
+        )
+        self.page.open(dlg)
 
     def toggle_theme(self, e):
         """Toggle between light and dark theme."""
@@ -467,7 +562,7 @@ class ModernApp:
         # Clear loading screen immediately before building new UI
         self.page.clean()
 
-        destinations=[
+        self.destinations = [
                 ft.NavigationRailDestination(
                     icon=ft.Icons.HOME_OUTLINED, selected_icon=ft.Icons.HOME, label=i18n.get("nav_home")
                 ),
@@ -510,8 +605,8 @@ class ModernApp:
                     icon=ft.Icons.HISTORY_OUTLINED, selected_icon=ft.Icons.HISTORY, label=i18n.get("nav_history")
                 ),  # 8 History
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS, label="General Settings"
-                ),  # 9 Settings
+                    icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS, label=i18n.get("settings_general") or "General Settings"
+                ),  # 13 Settings
                 ft.NavigationRailDestination(
                     icon=ft.Icons.AUTO_FIX_HIGH, selected_icon=ft.Icons.AUTO_FIX_HIGH, label="Wizard"
                 ),  # 10 Wizard
@@ -530,14 +625,14 @@ class ModernApp:
                 ft.NavigationRailDestination(
                      icon=ft.Icons.PEOPLE_OUTLINED, selected_icon=ft.Icons.PEOPLE, label="Groups"
                 ),  # 15 Groups
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.TERMINAL, selected_icon=ft.Icons.TERMINAL, label="Winget Creator"
+                ),  # 20 Winget Create
             ]
 
-        # Re-define version for NavigationRail trailing
-        version_text = ft.Container(
-            content=ft.Text(f"v{__version__}", size=10, color="GREY_500", text_align="center"),
-            padding=ft.padding.only(bottom=10),
-            alignment=ft.Alignment(0, 0)
-        )
+
+        # Capture the end of static destinations to calculate offset later
+        self.first_dynamic_index = len(self.destinations)
 
         # Load Dynamic Addons
         try:
@@ -547,7 +642,7 @@ class ModernApp:
                 # Resolve icon if possible, else default
                 icon_code = getattr(ft.Icons, icon_name, ft.Icons.EXTENSION)
 
-                destinations.append(
+                self.destinations.append(
                     ft.NavigationRailDestination(
                         icon=icon_code,
                         label=addon.get("name", "Addon")
@@ -561,7 +656,7 @@ class ModernApp:
 
         self.sidebar = HoverSidebar(
             app=self,
-            destinations=destinations,
+            destinations=self.destinations,
             on_navigate=self.goto_tab
         )
 
@@ -606,6 +701,7 @@ class ModernApp:
         self.page.add(
              ft.Column(layout_controls, expand=True, spacing=0)
         )
+
 
     def _open_notifications(self, e):
         """Opens or closes the notifications drawer."""
@@ -682,6 +778,30 @@ class ModernApp:
         if hasattr(self, '_navigation_history'):
             if not self._navigation_history or self._navigation_history[-1] != index:
                 self._navigation_history.append(index)
+                self._update_back_btn_visibility()
+
+    def _go_back_handler(self, e):
+        """Handle back button click to navigate to previous view."""
+        if hasattr(self, '_navigation_history') and len(self._navigation_history) > 1:
+            # Pop current view
+            self._navigation_history.pop()
+            # Go to previous view
+            prev_idx = self._navigation_history[-1]
+            self.sidebar.set_selected_index(prev_idx)
+            self._switch_to_tab(prev_idx)
+            self._update_back_btn_visibility()
+
+    def _update_back_btn_visibility(self):
+        """Show/hide back button based on navigation history."""
+        if hasattr(self, 'back_btn') and self.back_btn:
+            # Show back button only if there's history to go back to
+            should_show = len(self._navigation_history) > 1
+            if self.back_btn.visible != should_show:
+                self.back_btn.visible = should_show
+                try:
+                    self.back_btn.update()
+                except RuntimeError:
+                    pass  # Control not attached to page
 
     def nav_change(self, e):
         idx = int(e.control.selected_index)
@@ -691,6 +811,7 @@ class ModernApp:
         if hasattr(self, '_navigation_history'):
             if not self._navigation_history or self._navigation_history[-1] != idx:
                 self._navigation_history.append(idx)
+                self._update_back_btn_visibility()
 
     def handle_window_drop(self, e):
         """Global drop handler - switches to analyzer if file is dropped anywhere."""
@@ -699,7 +820,7 @@ class ModernApp:
             if file_path.lower().endswith((".exe", ".msi")):
                 logger.info(f"Global drop detected: {file_path}")
                 # 1. Switch Tab to Analyzer
-                self.goto_tab(2) # Analyzer is now index 2
+                self.goto_tab(NavIndex.ANALYZER)
 
                 # 2. Trigger Analysis
                 # Our _switch_to_tab ensures 'analyzer' is in cache if it wasn't
@@ -739,221 +860,183 @@ class ModernApp:
         new_controls = []
 
         # 2. LOAD ACTUAL CONTENT
-        new_controls = []
+
+        # Helper to safely load views
+        def load_view(factory_func):
+            try:
+                new_controls.append(factory_func())
+            except Exception as ex:
+                import traceback
+                print(f"DEBUG: Exception loading view: {ex}") # Keep print for immediate debug console visibility
+                logger.error(f"Exception loading view: {ex}", exc_info=True)
+                from switchcraft.gui_modern.views.crash_view import CrashDumpView
+                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
 
         if idx >= 100:
             # Handle Category View
-            cat_index = idx - 100
-        if idx == 100:
-            # Special Category View
-             # Find which category
-             cat_index = 0 # Default
-             if hasattr(self.sidebar, 'selected_category_index'):
+            cat_index = 0 # Default
+            if hasattr(self.sidebar, 'selected_category_index'):
                  cat_index = self.sidebar.selected_category_index
 
-             if 0 <= cat_index < len(self.sidebar.categories):
+            if 0 <= cat_index < len(self.sidebar.categories):
                 cat_data = self.sidebar.categories[cat_index]
                 try:
                     from switchcraft.gui_modern.views.category_view import CategoryView
                     # Pass the destinations so the view can render cards
-                    cat_view = CategoryView(self.page, items=cat_data[2], app_destinations=self.destinations, on_navigate=self.goto_tab)
+                    # cat_data is tuple: (Icon, Label, ItemsList)
+                    cat_name = cat_data[1]
+                    cat_view = CategoryView(self.page, category_name=cat_name, items=cat_data[2], app_destinations=self.destinations, on_navigate=self.goto_tab)
                     new_controls.append(cat_view)
-                except Exception as ex:
-                    import traceback
-                    from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                    new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-             else:
+                except Exception:
+                    new_controls.append(ft.Text("Unknown Category", color="red"))
+            else:
                 new_controls.append(ft.Text("Unknown Category", color="red"))
 
-        elif idx == 0:
-             try:
+        elif idx == NavIndex.HOME:
+             # Home
+             def _f():
                 from switchcraft.gui_modern.views.home_view import ModernHomeView
-                new_controls.append(ModernHomeView(self.page, on_navigate=self.goto_tab))
-             except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 1:
+                return ModernHomeView(self.page, on_navigate=self.goto_tab)
+             load_view(_f)
+        elif idx == NavIndex.ADDON_MANAGER:
+             # Addon Manager
+             def _f():
+                 from switchcraft.gui_modern.views.addon_manager_view import AddonManagerView
+                 return AddonManagerView(self.page)
+             load_view(_f)
+        elif idx == NavIndex.SETTINGS_UPDATES:
+             # Updates (Settings sub)
+             def _f():
+                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+                return ModernSettingsView(self.page, initial_tab_index=1)
+             load_view(_f)
+        elif idx == NavIndex.SETTINGS_GRAPH:
+             # Deployment/Graph (Settings sub)
+             def _f():
+                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+                return ModernSettingsView(self.page, initial_tab_index=2)
+             load_view(_f)
+        elif idx == NavIndex.SETTINGS_HELP:
+             # Help (Settings sub)
+             def _f():
+                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+                return ModernSettingsView(self.page, initial_tab_index=3)
+             load_view(_f)
+        elif idx == NavIndex.WINGET:
             # Apps (Winget)
-            try:
+            def _f():
                 if 'winget' not in self._view_cache:
                     from switchcraft.gui_modern.views.winget_view import ModernWingetView
                     self._view_cache['winget'] = ModernWingetView(self.page)
-                new_controls.append(self._view_cache['winget'])
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 2:
-            # Analyze
-            try:
+                return self._view_cache['winget']
+            load_view(_f)
+        elif idx == NavIndex.ANALYZER:
+            # Analyzer
+            def _f():
                 if 'analyzer' not in self._view_cache:
                     from switchcraft.gui_modern.views.analyzer_view import ModernAnalyzerView
                     self._view_cache['analyzer'] = ModernAnalyzerView(self.page)
-                new_controls.append(self._view_cache['analyzer'])
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 3:
+                return self._view_cache['analyzer']
+            load_view(_f)
+        elif idx == NavIndex.HELPER:
             # Generate (Helper)
-            try:
+            def _f():
                 if 'helper' not in self._view_cache:
                     from switchcraft.gui_modern.views.helper_view import ModernHelperView
                     self._view_cache['helper'] = ModernHelperView(self.page)
-                new_controls.append(self._view_cache['helper'])
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 4:
+                return self._view_cache['helper']
+            load_view(_f)
+        elif idx == NavIndex.INTUNE:
             # Intune
-            try:
+            def _f():
                 from switchcraft.gui_modern.views.intune_view import ModernIntuneView
-                new_controls.append(ModernIntuneView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 5:
+                return ModernIntuneView(self.page)
+            load_view(_f)
+        elif idx == NavIndex.INTUNE_STORE:
             # Intune Store
-            try:
+            def _f():
                 from switchcraft.gui_modern.views.intune_store_view import ModernIntuneStoreView
-                new_controls.append(ModernIntuneStoreView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 6:
+                return ModernIntuneStoreView(self.page)
+            load_view(_f)
+        elif idx == NavIndex.SCRIPTS:
             # Scripts
-            try:
-                new_controls.append(ScriptUploadView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 7:
+            load_view(lambda: ScriptUploadView(self.page))
+        elif idx == NavIndex.MACOS:
             # MacOS
-            try:
-                new_controls.append(MacOSWizardView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 8:
+            load_view(lambda: MacOSWizardView(self.page))
+        elif idx == NavIndex.HISTORY:
             # History
-            try:
+            def _f():
                 from switchcraft.gui_modern.views.history_view import ModernHistoryView
-                new_controls.append(ModernHistoryView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 9:
+                return ModernHistoryView(self.page)
+            load_view(_f)
+        elif idx == NavIndex.SETTINGS:
             # Settings (General)
-            try:
+            def _f():
                 from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-                new_controls.append(ModernSettingsView(self.page, initial_tab_index=0))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 10:
+                # Tab 0 is General
+                return ModernSettingsView(self.page, initial_tab_index=0)
+            load_view(_f)
+        elif idx == NavIndex.PACKAGING_WIZARD:
             # Wizard
-            try:
+            def _f():
                 from switchcraft.gui_modern.views.packaging_wizard_view import PackagingWizardView
-                new_controls.append(PackagingWizardView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 11:
+                return PackagingWizardView(self.page)
+            load_view(_f)
+        elif idx == NavIndex.DETECTION_TESTER:
             # Tester
-            try:
+            def _f():
                 from switchcraft.gui_modern.views.detection_tester_view import DetectionTesterView
-                new_controls.append(DetectionTesterView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 12:
+                return DetectionTesterView(self.page)
+            load_view(_f)
+        elif idx == NavIndex.STACK_MANAGER:
             # Stacks
-            try:
+            def _f():
                 from switchcraft.gui_modern.views.stack_manager_view import StackManagerView
-                new_controls.append(StackManagerView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 13:
+                return StackManagerView(self.page)
+            load_view(_f)
+        elif idx == NavIndex.DASHBOARD:
             # Dashboard
-            try:
+            def _f():
                 from switchcraft.gui_modern.views.dashboard_view import DashboardView
-                new_controls.append(DashboardView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 14:
+                return DashboardView(self.page)
+            load_view(_f)
+        elif idx == NavIndex.LIBRARY:
             # Library
-            try:
+            def _f():
                 from switchcraft.gui_modern.views.library_view import LibraryView
-                new_controls.append(LibraryView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 15:
+                return LibraryView(self.page)
+            load_view(_f)
+        elif idx == NavIndex.GROUP_MANAGER:
             # Groups
-            try:
+            def _f():
                 from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
-                new_controls.append(GroupManagerView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
-        elif idx == 16:
-            # Addon Manager
-            try:
-                from switchcraft.gui_modern.views.addon_manager_view import AddonManagerView
-                new_controls.append(AddonManagerView(self.page))
-            except Exception as ex:
-                import traceback
-                from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
+                return GroupManagerView(self.page)
+            load_view(_f)
 
-        # New Settings Sub-Pages
-        elif idx == 17: # Updates
-             try:
-                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-                new_controls.append(ModernSettingsView(self.page, initial_tab_index=1))
-             except Exception as ex:
-                new_controls.append(ft.Text(f"Error: {ex}", color="red"))
-        elif idx == 18: # Graph
-             try:
-                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-                new_controls.append(ModernSettingsView(self.page, initial_tab_index=2))
-             except Exception as ex:
-                new_controls.append(ft.Text(f"Error: {ex}", color="red"))
-        elif idx == 19: # Help
-             try:
-                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-                new_controls.append(ModernSettingsView(self.page, initial_tab_index=3))
-             except Exception as ex:
-                new_controls.append(ft.Text(f"Error: {ex}", color="red"))
+        elif idx == NavIndex.WINGET_CREATE:
+            # WingetCreate Manager
+            def _f():
+                from switchcraft.gui_modern.views.wingetcreate_view import WingetCreateView
+                return WingetCreateView(self.page)
+            load_view(_f)
 
         else:
-            # Dynamic Addons (start at idx 20)
-            dynamic_idx = idx - 20
+            # Dynamic Addons
+            # Robust calculation relying on captured start index
+            if hasattr(self, 'first_dynamic_index'):
+                dynamic_idx = idx - self.first_dynamic_index
+            else:
+                # Fallback if somehow not set (should not happen if build_ui called)
+                # This fallback assumes WINGET_CREATE is last static
+                dynamic_idx = idx - (NavIndex.WINGET_CREATE + 1)
+
             if 0 <= dynamic_idx < len(self.dynamic_addons):
                 addon = self.dynamic_addons[dynamic_idx]
-                try:
+                def _f():
                     view_class = self.addon_service.load_addon_view(addon['id'])
-                    new_controls.append(view_class(self.page))
-                except Exception as ex:
-                    import traceback
-                    from switchcraft.gui_modern.views.crash_view import CrashDumpView
-                    new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
+                    return view_class(self.page)
+                load_view(_f)
             else:
                 new_controls.append(ft.Text("Unknown Tab", color="red"))
 
@@ -974,15 +1057,21 @@ class ModernApp:
 
         # Trigger fade in
         fade_container.opacity = 1
-        fade_container.update()
+        try:
+            fade_container.update()
+        except RuntimeError as re:
+             logger.debug(f"Fade container update failed: {re}")
 
     def _on_notification_update(self):
-        """Update notification icon based on unread count."""
+        """Update notification icon based on unread count and trigger Windows toast."""
         if not hasattr(self, 'notif_btn') or not self.notif_btn:
              return
 
         try:
+             # 1. Update Badge
+             notifs = self.notification_service.get_notifications()
              count = self.notification_service.get_unread_count()
+
              if count > 0:
                  self.notif_btn.icon = ft.Icons.NOTIFICATIONS_ACTIVE
                  self.notif_btn.icon_color = "RED"
@@ -991,7 +1080,62 @@ class ModernApp:
                  self.notif_btn.icon = ft.Icons.NOTIFICATIONS
                  self.notif_btn.icon_color = None
                  self.notif_btn.tooltip = "Notifications"
-             self.notif_btn.update()
+             try:
+                 self.notif_btn.update()
+             except RuntimeError as re:
+                 logger.debug(f"Notification update failed (control likely detached): {re}")
+
+             # 2. Windows Toast Logic
+             if notifs and WINOTIFY_AVAILABLE:
+                 latest = notifs[0]
+                 latest_id = latest["id"]
+
+                 # Only notify if it's new (not same as last processed) AND unread
+                 # Check notify_system flag (default False if missing)
+                 should_notify_system = latest.get("notify_system", False)
+
+                 if should_notify_system and not latest["read"] and self._last_notif_id != latest_id:
+                     self._last_notif_id = latest_id
+
+                     # Map type to winotify sound/icon?
+                     # Winotify doesn't support custom icons easily without path, use default app icon
+
+                     toast = Notification(
+                         app_id="SwitchCraft",
+                         title=latest["title"],
+                         msg=latest["message"],
+                         duration="short",
+                         icon=self._ico_path if hasattr(self, '_ico_path') and self._ico_path else ""
+                     )
+
+                     # Add action buttons
+                     notif_type = latest.get("type")
+                     n_data = latest.get("data", {})
+
+                     if notif_type == "update":
+                         # Button 1: Open Changelog
+                         changelog_url = n_data.get("url") or "https://github.com/FaserF/SwitchCraft/releases"
+                         toast.add_actions(label=i18n.get("notif_open_changelog") or "Open Changelog", launch=changelog_url)
+
+                         # Button 2: Open App
+                         toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
+                     else:
+                         # Regular notifications (error/info/warning)
+                         # Button 1: Open Logs Folder (if exists)
+                         logs_path = Path(os.getenv('APPDATA', '')) / "FaserF" / "SwitchCraft" / "Logs"
+                         if logs_path.exists():
+                             toast.add_actions(label=i18n.get("notif_open_logs") or "Open Logs", launch=f"file://{logs_path}")
+
+                         if notif_type == "error":
+                             toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
+
+                     if notif_type == "error":
+                         toast.set_audio(audio.LoopingAlarm, loop=False)
+                     else:
+                         toast.set_audio(audio.Default, loop=False)
+
+                     toast.show()
+
         except Exception as e:
              logger.error(f"Error updating notification icon: {e}")
 
@@ -1031,4 +1175,5 @@ def main(page: ft.Page):
     page._show_restart_countdown = app._show_restart_countdown
 
 if __name__ == "__main__":
-    ft.run(main)
+    assets_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
+    ft.run(main, assets_dir=assets_dir)

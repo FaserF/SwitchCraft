@@ -4,6 +4,7 @@ import traceback
 class CrashDumpView(ft.Container):
     def __init__(self, page: ft.Page, error: Exception, traceback_str: str = None):
         super().__init__(expand=True)
+        self.app_page = page
         self.bgcolor = "#1a1a1a" # Dark background like BSOD but modern
         self.padding = 30
 
@@ -30,23 +31,57 @@ class CrashDumpView(ft.Container):
                 ),
                 ft.Container(height=20),
                 ft.Row([
-                    ft.ElevatedButton("Copy Error", icon=ft.Icons.COPY, on_click=self._copy_error),
-                    ft.ElevatedButton("Reload App", icon=ft.Icons.REFRESH, on_click=lambda e: self._reload_app(page)),
+                    ft.FilledButton("Copy Error", icon=ft.Icons.COPY, on_click=self._copy_error),
+                    ft.FilledButton("Close App", icon=ft.Icons.CLOSE, on_click=self._close_app, style=ft.ButtonStyle(bgcolor="RED_900", color="WHITE")),
+                    ft.FilledButton("Reload App", icon=ft.Icons.REFRESH, on_click=lambda e: self._reload_app(page)),
                 ], alignment=ft.MainAxisAlignment.END)
             ],
             expand=True
         )
 
     def _copy_error(self, e):
-        # The traceback string was captured in __init__ scope or passed down?
-        # We need access to it. We'll store it.
-        if hasattr(self, '_traceback_str'):
-             self.page.set_clipboard(self._traceback_str)
-             self.page.show_snack_bar(ft.SnackBar(ft.Text("Error details copied to clipboard")))
-             self.page.update()
+        error_text = self._traceback_str if hasattr(self, '_traceback_str') else "No traceback available."
+
+        success = False
+        # Try Pyperclip first (more reliable for desktop clipboard)
+        try:
+            import pyperclip
+            pyperclip.copy(error_text)
+            success = True
+        except Exception as ex1:
+            # Try Flet Native
+            try:
+                self.app_page.set_clipboard(error_text)
+                success = True
+            except Exception as ex2:
+                # Log via logger if possible, but minimal deps here
+                pass
+
+        if success:
+             try:
+                 self.app_page.snack_bar = ft.SnackBar(ft.Text("Error details copied to clipboard"))
+                 self.app_page.snack_bar.open = True
+                 self.app_page.update()
+             except Exception:
+                 pass
+        else:
+             try:
+                 self.app_page.snack_bar = ft.SnackBar(ft.Text("Failed to copy to clipboard"), bgcolor="RED")
+                 self.app_page.snack_bar.open = True
+                 self.app_page.update()
+             except Exception:
+                 pass
+
+    def _close_app(self, e):
+        """Forcefully close the application immediately."""
+        import os
+
+        # Kill process immediately to avoid hangs
+        os._exit(0)
 
     def _reload_app(self, page):
         import sys
+        import os
         import subprocess
 
         page.clean()
@@ -65,7 +100,17 @@ class CrashDumpView(ft.Container):
                 args = sys.argv
 
             # Launch new instance
-            subprocess.Popen([executable] + args)
+            # Use DETACHED_PROCESS flag on Windows (0x00000008) to separate from current console/process group
+            # Also close_fds=True to prevent handle inheritance (fixes _MEI cleanup issues)
+            creationflags = 0
+            if sys.platform == 'win32':
+                creationflags = 0x00000008  # DETACHED_PROCESS
+
+            # Force CWD to the executable's directory to avoid locking the temp _MEI folder
+            # If frozen, sys.executable is the .exe file.
+            cwd = os.path.dirname(executable) if getattr(sys, 'frozen', False) else os.getcwd()
+
+            subprocess.Popen([executable] + args, close_fds=True, creationflags=creationflags, cwd=cwd)
 
             # Kill current instance
             sys.exit(0)

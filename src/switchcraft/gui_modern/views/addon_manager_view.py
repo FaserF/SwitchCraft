@@ -4,10 +4,11 @@ import threading
 
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
-class AddonManagerView(ft.Column):
+class AddonManagerView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -27,8 +28,8 @@ class AddonManagerView(ft.Column):
     def _init_ui(self):
         # Header
         self.refresh_btn = ft.IconButton(ft.Icons.REFRESH, on_click=lambda _: self._load_data())
-        self.install_btn = ft.ElevatedButton("Install Addon (.zip)", icon=ft.Icons.UPLOAD_FILE, on_click=self._pick_zip)
-        self.delete_btn = ft.ElevatedButton(
+        self.install_btn = ft.Button("Install Addon (.zip)", icon=ft.Icons.UPLOAD_FILE, on_click=self._pick_zip)
+        self.delete_btn = ft.Button(
             "Delete Selected",
             icon=ft.Icons.DELETE,
             bgcolor="RED",
@@ -46,7 +47,7 @@ class AddonManagerView(ft.Column):
                 ft.DataColumn(ft.Text("Author")),
             ],
             rows=[],
-            border=ft.border.all(1, "GREY_400"),
+            border=ft.Border.all(1, "GREY_400"),
             vertical_lines=ft.border.BorderSide(1, "GREY_400"),
             horizontal_lines=ft.border.BorderSide(1, "GREY_400"),
             heading_row_color="BLACK12",
@@ -152,17 +153,9 @@ class AddonManagerView(ft.Column):
             content=ft.Text(f"Delete addon '{self.selected_addon.get('name')}'?"),
             actions=[
                 ft.TextButton("Cancel", on_click=close_dlg),
-                ft.ElevatedButton("Delete", on_click=delete, bgcolor="RED", color="WHITE")
+                ft.Button("Delete", on_click=delete, bgcolor="RED", color="WHITE")
             ]
         )
         self.app_page.dialog = dlg
         dlg.open = True
         self.app_page.update()
-
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception:
-            pass

@@ -1,5 +1,6 @@
 import logging
 from switchcraft.services.addon_service import AddonService
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +13,7 @@ else:
     class SwitchCraftAI:
         """
         Stub SwitchCraftAI when the Addon is not installed.
+        Provides helpful guidance instead of just echoing input.
         """
         def __init__(self):
             logger.warning("SwitchCraftAI running in Stub mode (Addon missing).")
@@ -20,5 +22,28 @@ else:
         def update_context(self, data: dict):
             self.context = data
 
-        def ask(self, query: str) -> str:
-            return "Advanced Feature: AI Assistant requires the AI Addon."
+            title = i18n.get("ai_addon_required_title") or "🤖 **AI Addon Required**"
+            msg = i18n.get("ai_addon_required_msg") or (
+                "The AI Assistant addon is not installed. This feature requires the AI Addon "
+                "to be installed via the Addon Manager to get intelligent responses."
+            )
+            tips_header = i18n.get("ai_tips_header") or "**In the meantime, here are some tips:**"
+
+            return (
+                f"{title}\n\n"
+                f"{msg}\n\n"
+                f"{tips_header}\n"
+                "• For MSI files: Use `/qn /norestart` for silent install\n"
+                "• For NSIS: Use `/S` (case sensitive)\n"
+                "• For Inno Setup: Use `/VERYSILENT /SUPPRESSMSGBOXES`\n"
+                "• For InstallShield: Use `/s /v\"/qn\"`\n\n"
+                f"Your question: *{self.context.get('query', 'Unknown')}*"
+            )
+
+        def ask(self, query):
+            """Stub ask method - returns a message indicating the AI addon is missing."""
+            title = i18n.get("ai_addon_required_title") or "AI Addon Required"
+            msg = i18n.get("ai_addon_required_msg") or "This feature requires the AI Addon."
+
+            # Include a machine-readable token for tests to easily detect the stub
+            return f"[AI_STUB] {title}: {msg}\n\nYour query: {query}"

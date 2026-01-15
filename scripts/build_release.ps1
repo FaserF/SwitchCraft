@@ -51,7 +51,8 @@ param (
     [switch]$Pip,
     [switch]$Addons,
     [switch]$Installer,
-    [switch]$All
+    [switch]$All,
+    [switch]$LocalDev
 )
 
 $ErrorActionPreference = "Stop"
@@ -127,13 +128,15 @@ Write-Host "------------------------------------------" -ForegroundColor Gray
 # --- Force Close SwitchCraft ---
 if ($IsWinBuild) {
     Write-Host "`nStopping any running SwitchCraft processes to prevent file locks..." -ForegroundColor Yellow
-    $Processes = Get-Process | Where-Object { $_.ProcessName -like "SwitchCraft*" -and $_.Id -ne $PID }
-    if ($Processes) {
-        $Processes | Stop-Process -Force
-        Write-Host "Killed $($Processes.Count) process(es)." -ForegroundColor Gray
-    }
-    else {
-        Write-Host "No active SwitchCraft processes found." -ForegroundColor Gray
+    # Use taskkill for more robust tree killing (/T) and forceful termination (/F)
+    # Redirect stderr to null to avoid noise if process not found
+    try {
+        taskkill /F /IM SwitchCraft.exe /T 2>&1 | Out-Null
+        taskkill /F /IM SwitchCraft-windows.exe /T 2>&1 | Out-Null
+        # Give it a second to release locks
+        Start-Sleep -Seconds 1
+    } catch {
+        # Ignore errors if process not found
     }
 }
 
@@ -199,18 +202,33 @@ function Run-PyInstaller {
 }
 
 # --- 0. PREPARE ASSETS ---
-Write-Host "`nGenerating Bundled Addons..." -ForegroundColor Cyan
-try {
-    if ($IsWinBuild) {
-        python src/generate_addons.py
+if ($LocalDev) {
+    Write-Host "`nGenerating Bundled Addons (Local Dev Mode)..." -ForegroundColor Cyan
+    try {
+        if ($IsWinBuild) {
+            python src/generate_addons.py
+        }
+        else {
+            python3 src/generate_addons.py
+        }
+        if ($LASTEXITCODE -ne 0) { throw "Addon generation failed with code $LASTEXITCODE" }
     }
-    else {
-        python3 src/generate_addons.py
+    catch {
+        Write-Warning "Failed to generate addons: $_"
     }
-    if ($LASTEXITCODE -ne 0) { throw "Addon generation failed with code $LASTEXITCODE" }
 }
-catch {
-    Write-Warning "Failed to generate addons: $_"
+else {
+    # Clean up bundled addons to ensure clean release build
+    $AddonAssetsDir = Join-Path $RepoRoot "src/switchcraft/assets/addons"
+    if (Test-Path $AddonAssetsDir) {
+        Write-Host "Cleaning bundled addons for Release Build..." -ForegroundColor Yellow
+        # Use Join-Path for cross-platform compatibility
+        $ZipPattern = Join-Path $AddonAssetsDir "*.zip"
+        # Wildcard expansion by Remove-Item
+        if (Test-Path $ZipPattern) {
+             Remove-Item $ZipPattern -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 # --- 1. BUILD MODERN (Flet) ---
@@ -330,3 +348,45 @@ if ($Legacy -and $IsWinBuild) {
 }
 
 Write-Host "`nBuild Process Complete!" -ForegroundColor Cyan
+
+# --- Notification ---
+if ($IsWinBuild) {
+    $toastSent = $false
+
+    # Method 1: Try BurntToast module (if installed)
+    try {
+        if (Get-Module -ListAvailable -Name BurntToast -ErrorAction SilentlyContinue) {
+            Import-Module BurntToast -ErrorAction Stop
+            New-BurntToastNotification -Text "SwitchCraft Build", "Build process finished successfully."
+            $toastSent = $true
+        }
+    } catch {
+        # BurntToast failed, continue to fallback
+    }
+
+    # Method 2: Just beep (WinRT is unreliable on PS7+)
+    if (-not $toastSent) {
+        try {
+            [System.Console]::Beep(1000, 300)
+        } catch {
+            # Beep failed, ignore
+        }
+    }
+
+    # --- Launch Prompt ---
+    $BuiltExe = ""
+    if (Test-Path "$DistDir\SwitchCraft-windows.exe") {
+        $BuiltExe = "$DistDir\SwitchCraft-windows.exe"
+    } elseif (Test-Path "$DistDir\SwitchCraft-Legacy.exe") {
+        $BuiltExe = "$DistDir\SwitchCraft-Legacy.exe"
+    }
+
+    if ($BuiltExe) {
+        Write-Host "`nBuild Complete!" -ForegroundColor Green
+        $response = Read-Host "Would you like to start SwitchCraft now? (y/N)"
+        if ($response -match "^[yY]$") {
+             Write-Host "Launching SwitchCraft..." -ForegroundColor Green
+             Start-Process $BuiltExe
+        }
+    }
+}

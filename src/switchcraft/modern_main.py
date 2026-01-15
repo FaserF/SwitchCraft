@@ -78,11 +78,33 @@ try:
 
     from switchcraft.gui_modern.app import ModernApp  # noqa: E402
     from switchcraft.utils.logging_handler import setup_session_logging  # noqa: E402
+    from switchcraft.utils.protocol_handler import (
+        register_protocol_handler,
+        parse_protocol_url,
+        is_protocol_registered
+    )  # noqa: E402
     # Setup session logging
     setup_session_logging()
 except Exception:
     _IMPORT_ERROR = True
     _IMPORT_EXC_INFO = sys.exc_info()
+
+# Parse command line for protocol URL
+_INITIAL_ACTION = None
+if "parse_protocol_url" in globals() and callable(parse_protocol_url):
+    for i, arg in enumerate(sys.argv):
+        if arg == "--protocol" and i + 1 < len(sys.argv):
+            try:
+                _INITIAL_ACTION = parse_protocol_url(sys.argv[i + 1])
+            except Exception:
+                pass
+            break
+        elif arg.startswith("switchcraft://"):
+            try:
+                _INITIAL_ACTION = parse_protocol_url(arg)
+            except Exception:
+                pass
+            break
 
 def write_crash_dump(exc_info):
     """Write crash dump to a file for debugging."""
@@ -226,8 +248,35 @@ def main(page: ft.Page):
         if _IMPORT_ERROR:
              raise _IMPORT_EXC_INFO[1] # Re-raise for the except block
 
+        # Auto-register protocol handler on first run
+        try:
+            if not is_protocol_registered():
+                register_protocol_handler()
+        except Exception:
+            pass  # Non-critical
+
         # Pass splash proc to app for cleanup
-        ModernApp(page, splash_proc)
+        app = ModernApp(page, splash_proc=splash_proc)
+
+        # Handle initial action from protocol URL
+        if _INITIAL_ACTION:
+            action = _INITIAL_ACTION.get("action", "home")
+            from switchcraft.gui_modern.nav_constants import NavIndex
+
+            action_map = {
+                "notifications": lambda: app._toggle_notification_drawer(None),
+                "settings": lambda: app.goto_tab(NavIndex.SETTINGS),
+                "updates": lambda: app.goto_tab(NavIndex.SETTINGS_UPDATES),
+                "analyzer": lambda: app.goto_tab(NavIndex.ANALYZER),
+                "home": lambda: app.goto_tab(NavIndex.HOME),
+            }
+
+            handler = action_map.get(action)
+            if handler:
+                try:
+                    handler()
+                except Exception:
+                    pass
     except Exception:
         # Ensure window can be closed even if the app failed during setup
         try:
@@ -296,24 +345,24 @@ def main(page: ft.Page):
                     ft.Text(str(dump_file), size=12, selectable=True, color="BLUE_400", weight="bold"),
                     ft.Container(height=20),
                     ft.Row([
-                        ft.ElevatedButton(
+                        ft.Button(
                             "Open Dump Folder",
                             icon=ft.Icons.FOLDER_OPEN,
                             on_click=open_dump_folder,
                             style=ft.ButtonStyle(color="WHITE", bgcolor="BLUE_700")
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             "Open Dump File",
                             icon=ft.Icons.DESCRIPTION,
                             on_click=open_dump_file,
                             style=ft.ButtonStyle(color="WHITE", bgcolor="BLUE_700")
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             "Copy Path",
                             icon=ft.Icons.COPY,
                             on_click=copy_dump_path
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             "Close App",
                             icon=ft.Icons.CLOSE,
                             on_click=close_app,

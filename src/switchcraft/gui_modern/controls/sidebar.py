@@ -1,4 +1,6 @@
 import flet as ft
+from switchcraft.gui_modern.nav_constants import NavIndex
+from switchcraft.utils.i18n import i18n
 
 class HoverSidebar(ft.Stack):
     def __init__(self, app, destinations, on_navigate):
@@ -15,10 +17,10 @@ class HoverSidebar(ft.Stack):
         # Categories definition
         # (Icon, Label, [Destination Indices])
         self.categories = [
-            (ft.Icons.SPACE_DASHBOARD_OUTLINED, "General", [0, 13, 8]),
-            (ft.Icons.BUILD_OUTLINED, "Tools", [1, 2, 3, 11]),
-            (ft.Icons.CATEGORY_OUTLINED, "Management", [4, 10, 12, 7, 15, 14, 6, 5]),
-            (ft.Icons.SETTINGS_OUTLINED, "Settings", [9, 17, 18, 19]),
+            (ft.Icons.DASHBOARD, i18n.get("cat_dashboard") or "Dashboard", [NavIndex.HOME, NavIndex.DASHBOARD]), # Home, Dashboard
+            (ft.Icons.APPS, i18n.get("cat_apps_devices") or "Apps & Devices", [NavIndex.INTUNE, NavIndex.INTUNE_STORE, NavIndex.WINGET, NavIndex.LIBRARY, NavIndex.GROUP_MANAGER, NavIndex.STACK_MANAGER]), # Intune, Store, Winget, Library, Groups, Stacks
+            (ft.Icons.BUILD, i18n.get("cat_tools") or "Tools", [NavIndex.ANALYZER, NavIndex.HELPER, NavIndex.SCRIPTS, NavIndex.MACOS, NavIndex.PACKAGING_WIZARD, NavIndex.DETECTION_TESTER, NavIndex.ADDON_MANAGER]), # Analyze, Generate, Scripts, MacOS, Wizard, Tester, AddonMgr
+            (ft.Icons.SETTINGS, i18n.get("cat_system") or "System", [NavIndex.SETTINGS, NavIndex.SETTINGS_UPDATES, NavIndex.SETTINGS_GRAPH, NavIndex.HISTORY, NavIndex.SETTINGS_HELP]), # Settings, Updates, Graph, History, Help
         ]
 
         self.sidebar_column = ft.Column(
@@ -32,8 +34,8 @@ class HoverSidebar(ft.Stack):
             width=70,
             bgcolor="SURFACE",
             content=self.sidebar_column,
-            padding=ft.padding.only(top=20),
-            border=ft.border.only(right=ft.BorderSide(1, "OUTLINE_VARIANT"))
+            padding=ft.Padding(0, 20, 0, 0), # Top only
+            border=ft.Border(right=ft.BorderSide(1, "OUTLINE_VARIANT"))
         )
 
         self._build_sidebar_items()

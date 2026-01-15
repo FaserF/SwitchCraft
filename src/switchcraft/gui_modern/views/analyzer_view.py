@@ -4,6 +4,8 @@ import logging
 import shutil
 import ctypes
 import webbrowser
+import requests
+import tempfile
 from pathlib import Path
 
 from switchcraft.controllers.analysis_controller import AnalysisController, AnalysisResult
@@ -15,6 +17,8 @@ from switchcraft.utils.templates import TemplateGenerator
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+from switchcraft.gui_modern.utils.flet_compat import create_tabs
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 # Try to import flet_dropzone for native file DnD
 try:
@@ -26,7 +30,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-class ModernAnalyzerView(ft.Column):
+class ModernAnalyzerView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -45,7 +49,7 @@ class ModernAnalyzerView(ft.Column):
         self.addon_warning = ft.Container(visible=False)
 
         def on_drop_click(e):
-             path = FilePickerHelper.pick_file(allowed_extensions=["exe", "msi"])
+             path = FilePickerHelper.pick_file(allowed_extensions=["exe", "msi", "ps1", "bat", "cmd", "vbs", "msp"])
              if path:
                  self.start_analysis(path)
 
@@ -115,29 +119,189 @@ class ModernAnalyzerView(ft.Column):
         else:
             self.drop_zone = drop_container
 
+        # URL Download UI
+        self.url_field = ft.TextField(
+            label=i18n.get("download_url") or "Direct Download URL",
+            hint_text="https://example.com/installer.exe",
+            expand=True,
+            border_radius=8
+        )
+        self.url_download_progress = ft.ProgressBar(width=400, visible=False)
+        self.url_download_status = ft.Text("", italic=True, size=12)
 
+        url_content = ft.Container(
+            content=ft.Column([
+                ft.Icon(ft.Icons.CLOUD_DOWNLOAD, size=60, color="ORANGE_400"),
+                ft.Text(
+                    i18n.get("download_from_web") or "Download from Web",
+                    size=20,
+                    weight=ft.FontWeight.BOLD
+                ),
+                ft.Text(
+                    i18n.get("enter_direct_link") or "Enter a direct link to an .exe or .msi file",
+                    size=12,
+                    color="GREY_400"
+                ),
+                ft.Container(height=10),
+                ft.Row([
+                    self.url_field,
+                    ft.Button(
+                        i18n.get("download_and_analyze") or "Download & Analyze",
+                        icon=ft.Icons.DOWNLOAD,
+                        on_click=self._start_url_download
+                    )
+                ], spacing=10),
+                self.url_download_progress,
+                self.url_download_status
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+            padding=20,
+            alignment=ft.Alignment(0, 0)
+        )
 
-        self.results_column = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True, spacing=15)
+        # Tab container
+        self.source_tab_body = ft.Container(content=self.drop_zone, expand=True)
+
+        def on_source_tab_change(e):
+            idx = int(e.control.selected_index)
+            if idx == 0:
+                self.source_tab_body.content = self.drop_zone
+            else:
+                self.source_tab_body.content = url_content
+            self.source_tab_body.update()
+
+        source_tabs = create_tabs(
+            tabs=[
+                ft.Tab(
+                    label=i18n.get("local_file") or "Local File",
+                    icon=ft.Icons.COMPUTER
+                ),
+                ft.Tab(
+                    label=i18n.get("download_url") or "URL Download",
+                    icon=ft.Icons.LINK
+                )
+            ],
+            selected_index=0,
+            animation_duration=300,
+            on_change=on_source_tab_change,
+        )
+
+        self.results_column = ft.Column(expand=False, spacing=15)
 
         self.controls = [
-                ft.Row([
-                    ft.Text("Installer Analyzer", size=32, weight=ft.FontWeight.BOLD),
-                    ft.Icon(ft.Icons.ANALYTICS, size=32, color="BLUE_400")
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                ft.Divider(height=2, thickness=1),
-                self.addon_warning,
-                self.drop_zone,
-                ft.Container(
-                    content=ft.Column([
-                        self.status_text,
-                        self.progress_bar,
-                    ], spacing=5),
-                    margin=ft.margin.only(top=10)
-                ),
-                ft.Divider(height=2, thickness=1),
-                self.results_column,
+            ft.Container(
+                padding=20,
+                content=ft.Column([
+                    ft.Row([
+                        ft.Text(i18n.get("analyzer_view_title"), size=32, weight=ft.FontWeight.BOLD),
+                        ft.Icon(ft.Icons.ANALYTICS, size=32, color="BLUE_400")
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(height=2, thickness=1),
+                    self.addon_warning,
+                    source_tabs,
+                    self.source_tab_body,
+                    ft.Container(
+                        content=ft.Column([
+                            self.status_text,
+                            self.progress_bar,
+                        ], spacing=5),
+                        margin=ft.Margin.only(top=10)
+                    ),
+                    ft.Divider(height=2, thickness=1),
+                    self.results_column,
+                ], spacing=10, scroll=ft.ScrollMode.AUTO, expand=True),
+                expand=True
+            )
         ]
         self._check_addon()
+
+    def _start_url_download(self, e):
+        """Download installer from URL and start analysis."""
+        url = self.url_field.value.strip()
+        if not url:
+            self._show_snack(
+                i18n.get("urls_required") or "Please enter a URL",
+                "RED"
+            )
+            return
+
+        # Validate URL
+
+        if not url.startswith(("http://", "https://")):
+            self._show_snack(i18n.get("invalid_url_format") or "Invalid URL format", "RED")
+            return
+
+        self.url_download_progress.visible = True
+        self.url_download_progress.value = None  # Indeterminate
+        self.url_download_status.value = i18n.get("starting_download") or "Starting download..."
+        self.url_download_status.color = "BLUE"
+        self.update()
+
+        def _bg():
+            temp_dir = None
+            analysis_started = False
+            try:
+                # Get filename from URL
+                raw_filename = url.split("/")[-1].split("?")[0]
+                # Sanitize filename (basic)
+                keep_chars = ("-", "_", ".")
+                filename = "".join(c for c in raw_filename if c.isalnum() or c in keep_chars).strip()
+
+                if not filename or not filename.lower().endswith((".exe", ".msi")):
+                    filename = "installer.exe"
+
+                # Create temp directory
+                temp_dir = tempfile.mkdtemp(prefix="switchcraft_")
+                temp_path = Path(temp_dir) / filename
+
+                # Download with progress
+                with requests.get(url, stream=True, timeout=60) as response:
+                    response.raise_for_status()
+
+                    total_size = int(response.headers.get('content-length', 0))
+                    downloaded = 0
+
+                    with open(temp_path, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                if total_size > 0:
+                                    pct = downloaded / total_size
+                                    self.url_download_progress.value = pct
+                                    self.url_download_status.value = f"{i18n.get('downloading') or 'Downloading'}: {int(pct*100)}%"
+                                    self.update()
+
+                self.url_download_progress.visible = False
+                self.url_download_status.value = f"{i18n.get('downloaded') or 'Downloaded'}: {filename}"
+                self.url_download_status.color = "GREEN"
+                self.update()
+
+                # Start analysis with downloaded file
+                # Pass temp_dir as cleanup_path so the whole directory is removed
+                self.start_analysis(str(temp_path), cleanup_path=str(temp_dir))
+                analysis_started = True
+
+            except requests.exceptions.RequestException as ex:
+                self.url_download_progress.visible = False
+                self.url_download_status.value = f"Download failed: {ex}"
+                self.url_download_status.color = "RED"
+                self.update()
+                logger.error(f"URL download failed: {ex}")
+            except Exception as ex:
+                self.url_download_progress.visible = False
+                self.url_download_status.value = f"Error: {ex}"
+                self.url_download_status.color = "RED"
+                self.update()
+                logger.error(f"URL download error: {ex}")
+            finally:
+                # If analysis didn't start (e.g. download failed), clean up temp dir immediately
+                if temp_dir and not analysis_started:
+                     try:
+                         shutil.rmtree(temp_dir, ignore_errors=True)
+                     except Exception as e:
+                         logger.warning(f"Failed to cleanup temp dir {temp_dir}: {e}")
+
+        threading.Thread(target=_bg, daemon=True).start()
 
     def _check_addon(self):
         """Check if Advanced addon is installed and show warning if not."""
@@ -149,7 +313,7 @@ class ModernAnalyzerView(ft.Column):
                         ft.Text(i18n.get("analyzer_addon_warning") or "Advanced Analysis Addon is missing!", weight=ft.FontWeight.BOLD, color="WHITE"),
                         ft.Text("Standard detection will be limited.", size=12, color="WHITE70"),
                     ], expand=True),
-                    ft.ElevatedButton(
+                    ft.Button(
                         i18n.get("analyzer_addon_install") or "Install Now",
                         color="WHITE",
                         bgcolor="RED_700",
@@ -159,7 +323,7 @@ class ModernAnalyzerView(ft.Column):
                 bgcolor="RED_900",
                 padding=15,
                 border_radius=10,
-                margin=ft.margin.only(bottom=15)
+                margin=ft.Margin.only(bottom=15)
             )
             self.addon_warning.visible = True
             # Note: Don't call self.update() here - view isn't added to page yet
@@ -196,7 +360,7 @@ class ModernAnalyzerView(ft.Column):
 
         threading.Thread(target=_run, daemon=True).start()
 
-    def start_analysis(self, filepath):
+    def start_analysis(self, filepath, cleanup_path=None):
         if self.analyzing:
             return
 
@@ -244,6 +408,17 @@ class ModernAnalyzerView(ft.Column):
                 else:
                     self.update()
 
+            finally:
+                if cleanup_path:
+                    try:
+                        import os
+                        if os.path.isdir(cleanup_path):
+                            shutil.rmtree(cleanup_path, ignore_errors=True)
+                        elif os.path.exists(cleanup_path):
+                            os.remove(cleanup_path)
+                    except Exception as ex:
+                        logger.warning(f"Failed to cleanup temp analysis file {cleanup_path}: {ex}")
+
         threading.Thread(target=_run, daemon=True).start()
 
     def _show_results(self, result: AnalysisResult):
@@ -273,13 +448,13 @@ class ModernAnalyzerView(ft.Column):
 
         # 1. Primary Info Table
         table = ft.DataTable(
-            columns=[ft.DataColumn(ft.Text("Field")), ft.DataColumn(ft.Text("Value"))],
+            columns=[ft.DataColumn(ft.Text(i18n.get("table_header_field") or "Field")), ft.DataColumn(ft.Text(i18n.get("table_header_value") or "Value"))],
             rows=[
-                ft.DataRow([ft.DataCell(ft.Text("Product")), ft.DataCell(ft.Text(info.product_name or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text("Version")), ft.DataCell(ft.Text(info.product_version or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text("Manufacturer")), ft.DataCell(ft.Text(info.manufacturer or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text("Type")), ft.DataCell(ft.Text(info.installer_type or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text("File")), ft.DataCell(ft.Text(info.file_path, size=11, font_family="Consolas"))]),
+                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_product") or "Product")), ft.DataCell(ft.Text(info.product_name or "Unknown"))]),
+                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_version") or "Version")), ft.DataCell(ft.Text(info.product_version or "Unknown"))]),
+                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_manufacturer") or "Manufacturer")), ft.DataCell(ft.Text(info.manufacturer or "Unknown"))]),
+                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_type") or "Type")), ft.DataCell(ft.Text(info.installer_type or "Unknown"))]),
+                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_file") or "File")), ft.DataCell(ft.Text(info.file_path, size=11, font_family="Consolas"))]),
             ],
             width=float("inf"),
         )
@@ -318,11 +493,10 @@ class ModernAnalyzerView(ft.Column):
                 )
             )
 
-        # 4. Primary Actions (All-in-One, Test Locally)
         action_buttons = ft.Row([
-            ft.ElevatedButton("Auto Deploy (All-in-One)", icon=ft.Icons.AUTO_FIX_HIGH, bgcolor="RED_700", color="WHITE", on_click=lambda _: self._run_all_in_one_flow(result)),
-            ft.ElevatedButton("Test Locally (Admin)", icon=ft.Icons.PLAY_ARROW, bgcolor="GREEN_700", color="WHITE", on_click=lambda _: self._run_local_test_action(info.file_path, info.install_switches)),
-            ft.ElevatedButton("Winget Manifest", icon=ft.Icons.DESCRIPTION, on_click=lambda _: self._open_manifest_dialog(info)),
+            ft.FilledButton(i18n.get("btn_auto_deploy") or "Auto Deploy (All-in-One)", icon=ft.Icons.AUTO_FIX_HIGH, style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE"), on_click=lambda _: self._run_all_in_one_flow(result)),
+            ft.FilledButton(i18n.get("btn_test_locally") or "Test Locally (Admin)", icon=ft.Icons.PLAY_ARROW, style=ft.ButtonStyle(bgcolor="GREEN_700", color="WHITE"), on_click=lambda _: self._run_local_test_action(info.file_path, info.install_switches)),
+            ft.FilledButton(i18n.get("btn_winget_manifest") or "Winget Manifest", icon=ft.Icons.DESCRIPTION, on_click=lambda _: self._open_manifest_dialog(info)),
         ], wrap=True)
         self.results_column.controls.append(action_buttons)
 
@@ -356,9 +530,9 @@ class ModernAnalyzerView(ft.Column):
         # 7. Deployment Actions (Intune, IntuneWin)
         self.results_column.controls.append(
             ft.Row([
-                ft.ElevatedButton("Generate Intune Script", icon=ft.Icons.CODE, on_click=self._on_click_create_script),
-                ft.ElevatedButton("Create .intunewin", icon=ft.Icons.INVENTORY, on_click=self._on_click_create_intunewin),
-                ft.ElevatedButton("Manual Commands", icon=ft.Icons.TERMINAL, on_click=self._show_manual_cmds),
+                ft.Button(i18n.get("btn_gen_intune_script") or "Generate Intune Script", icon=ft.Icons.CODE, on_click=self._on_click_create_script),
+                ft.Button(i18n.get("btn_create_intunewin") or "Create .intunewin", icon=ft.Icons.INVENTORY, on_click=self._on_click_create_intunewin),
+                ft.Button(i18n.get("btn_manual_cmds") or "Manual Commands", icon=ft.Icons.TERMINAL, on_click=self._show_manual_cmds),
             ], wrap=True)
         )
 
@@ -395,7 +569,7 @@ class ModernAnalyzerView(ft.Column):
             # Cleanup button for nested temp dir
             if result.nested_data.get("temp_dir"):
                 nested_panel.controls.append(
-                    ft.Padding(
+                    ft.Container(
                         padding=10,
                         content=ft.TextButton("Cleanup Temporary Extraction", icon=ft.Icons.DELETE_SWEEP, on_click=lambda _: self._cleanup_temp(result.nested_data))
                     )
@@ -430,7 +604,7 @@ class ModernAnalyzerView(ft.Column):
 
         # 12. View Detailed Button
         self.results_column.controls.append(
-            ft.ElevatedButton("View Detailed Analysis Data", icon=ft.Icons.ZOOM_IN, on_click=lambda _: self._show_detailed_parameters(result))
+            ft.Button("View Detailed Analysis Data", icon=ft.Icons.ZOOM_IN, on_click=lambda _: self._show_detailed_parameters(result))
         )
 
         self.update()
@@ -533,7 +707,7 @@ class ModernAnalyzerView(ft.Column):
             content=ft.Text(i18n.get("confirm_automation_msg") or "This will generate a script, test it, and upload to Intune. Continue?"),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
-                ft.ElevatedButton("Start Flow", bgcolor="RED_700", color="WHITE", on_click=start_flow),
+                ft.Button("Start Flow", bgcolor="RED_700", color="WHITE", on_click=start_flow),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
@@ -651,9 +825,55 @@ class ModernAnalyzerView(ft.Column):
         if not file_path:
             return
 
+        # Check if we are already admin
+        is_admin = False
+        try:
+            import sys
+            if sys.platform == "win32":
+                is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+            else:
+                # Assume non-windows doesn't need elevation or handled differently
+                is_admin = True
+        except Exception:
+            pass
+
+        if not is_admin:
+            def on_restart_confirm(e):
+                restart_dlg.open = False
+                self.app_page.update()
+
+                # Restart as admin
+                try:
+                    import sys
+                    if sys.platform != "win32":
+                         self._show_snack("Elevation only supported on Windows.", "RED")
+                         return
+
+                    executable = sys.executable
+                    params = f'"{sys.argv[0]}"'
+                    if len(sys.argv) > 1:
+                        params += " " + " ".join(f'"{a}"' for a in sys.argv[1:])
+
+                    ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
+                    sys.exit(0)
+                except Exception as ex:
+                    self._show_snack(f"Failed to elevate: {ex}", "RED")
+
+            restart_dlg = ft.AlertDialog(
+                title=ft.Text(i18n.get("admin_required_title") or "Admin Rights Required"),
+                content=ft.Text(i18n.get("admin_required_msg") or "Local testing requires administrative privileges. Would you like to restart SwitchCraft as Administrator?"),
+                actions=[
+                    ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda _: setattr(restart_dlg, "open", False) or self.app_page.update()),
+                    ft.Button(i18n.get("btn_restart_admin") or "Restart as Admin", bgcolor="RED_700", color="WHITE", on_click=on_restart_confirm),
+                ],
+            )
+            self.app_page.open(restart_dlg)
+            return
+
+        # If already admin, proceed with normal confirmation
         def on_confirm(e):
             local_dlg.open = False
-            self.update()
+            self.app_page.update()
 
             path_obj = Path(file_path)
             params_str = " ".join(switches) if switches else ""
@@ -665,6 +885,7 @@ class ModernAnalyzerView(ft.Column):
                 cmd_params = f"/i \"{path_obj}\" {params_str}"
 
             try:
+                # We already checked for admin, but runas ensures UAC if somehow needed
                 ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", cmd_exec, cmd_params, str(path_obj.parent), 1)
                 if int(ret) <= 32:
                     self._show_snack(f"Failed to start process (Code {ret})", "RED")
@@ -672,16 +893,14 @@ class ModernAnalyzerView(ft.Column):
                 self._show_snack(str(ex), "RED")
 
         local_dlg = ft.AlertDialog(
-            title=ft.Text("Run Test Locally"),
-            content=ft.Text(f"Do you want to run the installer locally?\n\nFile: {Path(file_path).name}\n\nWARNING: This will execute with Admin rights."),
+            title=ft.Text(i18n.get("run_local_test") or "Run Test Locally"),
+            content=ft.Text(f"{i18n.get('confirm_local_test_msg') or 'Do you want to run the installer locally?'}\n\nFile: {Path(file_path).name}"),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: setattr(local_dlg, "open", False)),
-                ft.ElevatedButton("Run Now (Admin)", bgcolor="GREEN_700", color="WHITE", on_click=on_confirm),
+                ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda _: setattr(local_dlg, "open", False) or self.app_page.update()),
+                ft.Button(i18n.get("btn_run_now") or "Run Now (Admin)", bgcolor="GREEN_700", color="WHITE", on_click=on_confirm),
             ],
         )
-        self.app_page.dialog = local_dlg
-        local_dlg.open = True
-        self.app_page.update()
+        self.app_page.open(local_dlg)
 
     def _open_manifest_dialog(self, info):
         # Placeholder for Winget Manifest Creation (Similar to Legacy)
@@ -702,13 +921,23 @@ class ModernAnalyzerView(ft.Column):
             )
         ], scroll=ft.ScrollMode.AUTO, tight=True)
 
+        def close_dlg(e):
+            dlg.open = False
+            self.app_page.update()
+
         dlg = ft.AlertDialog(
+            title=ft.Text(i18n.get("detailed_params_title") or "Detailed Parameters Analysis"),
             content=content,
-            actions=[ft.TextButton("Close", on_click=lambda _: setattr(dlg, "open", False))],
+            actions=[ft.TextButton(i18n.get("btn_cancel") or "Close", on_click=close_dlg)],
         )
-        self.app_page.dialog = dlg
-        dlg.open = True
-        self.app_page.update()
+
+        # Use page.open() if available, otherwise fallback to old method
+        if hasattr(self.app_page, 'open'):
+            self.app_page.open(dlg)
+        else:
+            self.app_page.dialog = dlg
+            dlg.open = True
+            self.app_page.update()
 
     def _on_click_create_intunewin(self, e):
         # We need a source folder and output. For simplicity, use installer dir and create alongside.
@@ -720,14 +949,70 @@ class ModernAnalyzerView(ft.Column):
         output = source
         setup_file = installer.name
 
-        self._show_snack("Creating .intunewin package...", "BLUE")
+        # Show progress
+        self._show_snack(i18n.get("creating_intunewin") or "Creating .intunewin package...", "BLUE")
 
         def _bg():
             try:
                 self.intune_service.create_intunewin(str(source), setup_file, str(output), quiet=True)
-                self._show_snack("Package Created Successfully!", "GREEN")
+
+                # Find the created file
+                expected_intunewin = source / (installer.stem + ".intunewin")
+                if expected_intunewin.exists():
+                    output_file = str(expected_intunewin)
+                else:
+                    # Search for any .intunewin in folder
+                    intunewin_files = list(source.glob("*.intunewin"))
+                    output_file = str(intunewin_files[0]) if intunewin_files else str(source)
+
+                # Show success dialog
+                def open_folder(e):
+                    import os
+                    import sys
+                    import subprocess
+
+                    try:
+                        if sys.platform == "win32":
+                            os.startfile(str(source))
+                        elif sys.platform == "darwin":
+                            subprocess.call(["open", str(source)])
+                        else:
+                            subprocess.call(["xdg-open", str(source)])
+                    except Exception as ex:
+                        self._show_snack(f"Failed to open folder: {ex}", "RED")
+
+                    dlg.open = False
+                    self.app_page.update()
+
+                def close_dlg(e):
+                    dlg.open = False
+                    self.app_page.update()
+
+                dlg = ft.AlertDialog(
+                    title=ft.Row([
+                        ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN", size=30),
+                        ft.Text(i18n.get("package_created_title") or "Package Created!", weight=ft.FontWeight.BOLD)
+                    ]),
+                    content=ft.Column([
+                        ft.Text(i18n.get("intunewin_created_success") or "Your .intunewin package was created successfully!"),
+                        ft.Container(height=10),
+                        ft.Text(i18n.get("location") or "Location:", weight=ft.FontWeight.BOLD),
+                        ft.Text(output_file, size=12, selectable=True, color="GREY_400")
+                    ], tight=True),
+                    actions=[
+                        ft.TextButton(i18n.get("btn_close") or "Close", on_click=close_dlg),
+                        ft.Button(
+                            i18n.get("open_folder") or "Open Folder",
+                            icon=ft.Icons.FOLDER_OPEN,
+                            on_click=open_folder
+                        )
+                    ]
+                )
+                self.app_page.open(dlg)
+
             except Exception as ex:
-                self._show_snack(f"Packaging Failed: {ex}", "RED")
+                logger.error(f"IntuneWin creation failed: {ex}")
+                self._show_snack(f"{i18n.get('packaging_failed') or 'Packaging Failed'}: {ex}", "RED")
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -746,9 +1031,12 @@ class ModernAnalyzerView(ft.Column):
                 ft.TextField(value=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, cmd=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait': self._copy_to_clipboard(cmd))),
             ], height=240, spacing=10),
         )
-        self.app_page.dialog = dlg
-        dlg.open = True
-        self.app_page.update()
+        if hasattr(self.app_page, 'open'):
+            self.app_page.open(dlg)
+        else:
+             self.app_page.dialog = dlg
+             dlg.open = True
+             self.app_page.update()
 
     def _copy_to_clipboard(self, text: str):
         """Copy text to clipboard."""
@@ -764,13 +1052,7 @@ class ModernAnalyzerView(ft.Column):
             except Exception:
                 self._show_snack("Failed to copy", "RED")
 
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception:
-             pass
+
 
     def _add_history_entry(self, info, status):
         try:

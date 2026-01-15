@@ -36,6 +36,12 @@ class SessionLogHandler(logging.Handler):
             self.file_handler = logging.FileHandler(self.current_log_path, encoding='utf-8')
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             self.file_handler.setFormatter(formatter)
+            # Set the file handler level to match the session handler level (default INFO)
+            self.file_handler.setLevel(self.level if self.level else logging.DEBUG)
+
+            # Write initial log entry to ensure file is created with content
+            self.file_handler.stream.write(f"# SwitchCraft Log Session Started: {datetime.now().isoformat()}\n")
+            self.file_handler.stream.flush()
 
         except Exception as e:
             print(f"Failed to setup file logging: {e}")

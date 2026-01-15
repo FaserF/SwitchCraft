@@ -10,6 +10,7 @@ class TestUIRegressions:
         """Regression Test: App icon should be set correctly."""
         page = MagicMock(spec=ft.Page)
         page.theme_mode = "System"
+        page.open = MagicMock()
 
         # Mock window object
         page.window = MagicMock()
@@ -30,6 +31,7 @@ class TestUIRegressions:
         page = MagicMock(spec=ft.Page)
         page.theme_mode = "System"
         page.clean = MagicMock()
+        page.open = MagicMock()
 
         app = ModernApp(page)
 
@@ -39,6 +41,7 @@ class TestUIRegressions:
     def test_sidebar_is_compact(self):
         """Regression Test: Sidebar buttons should be compact (no text labels in main column)."""
         page = MagicMock(spec=ft.Page)
+        page.open = MagicMock()
         app = ModernApp(page)
 
         sidebar = app.sidebar
@@ -54,6 +57,7 @@ class TestUIRegressions:
     def test_sidebar_click_navigation_model(self):
         """Regression Test: Sidebar should rely on click navigation (no flyouts)."""
         page = MagicMock(spec=ft.Page)
+        page.open = MagicMock()
         app = ModernApp(page)
 
         sidebar = app.sidebar
@@ -72,6 +76,7 @@ class TestUIRegressions:
         from switchcraft.gui_modern.views.category_view import CategoryView
 
         page = MagicMock(spec=ft.Page)
+        page.open = MagicMock()
         destinations = [MagicMock(icon="icon", label="label")] * 20
         on_navigate = MagicMock()
 

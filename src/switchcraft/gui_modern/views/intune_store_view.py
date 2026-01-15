@@ -4,10 +4,12 @@ import logging
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.nav_constants import NavIndex
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
-class ModernIntuneStoreView(ft.Column):
+class ModernIntuneStoreView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -20,7 +22,7 @@ class ModernIntuneStoreView(ft.Column):
 
         # UI Components
         self.search_field = ft.TextField(
-            hint_text="Search Intune Apps...",
+            hint_text=i18n.get("search_intune_apps", default="Search Intune Apps..."),
             expand=True,
             on_submit=self._run_search
         )
@@ -52,7 +54,7 @@ class ModernIntuneStoreView(ft.Column):
         )
 
         self.controls = [
-            ft.Text("Intune Store", size=24, weight="bold"),
+            ft.Text(i18n.get("intune_store_title") or "Intune Store", size=24, weight="bold"),
             ft.Row([self.left_pane, self.right_pane], expand=True)
         ]
 
@@ -64,7 +66,7 @@ class ModernIntuneStoreView(ft.Column):
                         ft.Text(i18n.get("intune_not_configured") or "Intune is not configured", size=28, weight="bold", text_align=ft.TextAlign.CENTER),
                         ft.Text(i18n.get("intune_config_hint") or "Please configure Microsoft Graph API credentials in Settings.", size=16, color="GREY_400", text_align=ft.TextAlign.CENTER),
                         ft.Container(height=20),
-                        ft.ElevatedButton(
+                        ft.Button(
                             i18n.get("tab_settings") or "Go to Settings",
                             icon=ft.Icons.SETTINGS,
                             on_click=lambda _: self._switch_to_settings()
@@ -78,15 +80,16 @@ class ModernIntuneStoreView(ft.Column):
 
     def _switch_to_settings(self):
         """Helper to jump to settings."""
-        if hasattr(self.app_page, "go"):
+        if hasattr(self.app_page, "switchcraft_app") and hasattr(self.app_page.switchcraft_app, "goto_tab"):
+            self.app_page.switchcraft_app.goto_tab(NavIndex.SETTINGS_GRAPH)
+        elif hasattr(self.app_page, "go"):
             # If using routing
             self.app_page.go("/settings")
         else:
              # Fallback: check if we have a way to signal tab change
              # ModernApp stores 'app' on page in some instances or we can find the rail
              # Since this is a view, we usually just show snackbar or let user navigate.
-             # But for best UX, we attempt to find the navigation method.
-             pass
+             self._show_snack(i18n.get("nav_error") or "Cannot navigate to Settings automatically.", "ORANGE")
 
     def _has_credentials(self):
         tenant_id = SwitchCraftConfig.get_value("GraphTenantId")
@@ -158,11 +161,11 @@ class ModernIntuneStoreView(ft.Column):
 
         # Metadata
         meta_rows = [
-            ("ID", app.get("id")),
-            ("Publisher", app.get("publisher")),
-            ("Created", app.get("createdDateTime")),
-            ("Owner", app.get("owner")),
-            ("App Type", app.get("@odata.type", "").replace("#microsoft.graph.", ""))
+            (i18n.get("field_id", default="ID"), app.get("id")),
+            (i18n.get("field_publisher", default="Publisher"), app.get("publisher")),
+            (i18n.get("field_created", default="Created"), app.get("createdDateTime")),
+            (i18n.get("field_owner", default="Owner"), app.get("owner")),
+            (i18n.get("field_app_type", default="App Type"), app.get("@odata.type", "").replace("#microsoft.graph.", ""))
         ]
 
         for k, v in meta_rows:
@@ -182,8 +185,21 @@ class ModernIntuneStoreView(ft.Column):
         if "installCommandLine" in app or "uninstallCommandLine" in app:
              self.details_area.controls.append(ft.Text("Commands:", weight="bold"))
              if app.get("installCommandLine"):
-                 self.details_area.controls.append(ft.Text(f"Install: `{app.get('installCommandLine')}`", font_family="Consolas"))
+                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_install', default='Install')}: `{app.get('installCommandLine')}`", font_family="Consolas"))
              if app.get("uninstallCommandLine"):
-                 self.details_area.controls.append(ft.Text(f"Uninstall: `{app.get('uninstallCommandLine')}`", font_family="Consolas"))
+                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_uninstall', default='Uninstall')}: `{app.get('uninstallCommandLine')}`", font_family="Consolas"))
+
+        self.details_area.controls.append(ft.Container(height=20))
+        self.details_area.controls.append(
+            ft.Row([
+                ft.Button(
+                    i18n.get("btn_deploy_package") or "Deploy / Package...",
+                    icon=ft.Icons.CLOUD_UPLOAD,
+                    bgcolor="BLUE",
+                    color="WHITE",
+                    on_click=lambda _: self._show_snack(i18n.get("store_deploy_soon") or "Deployment logic coming soon to Store view!", "BLUE")
+                )
+            ])
+        )
 
         self.update()

@@ -10,11 +10,13 @@ from switchcraft.controllers.analysis_controller import AnalysisController
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
 
-class PackagingWizardView(ft.Column):
+class PackagingWizardView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -36,13 +38,21 @@ class PackagingWizardView(ft.Column):
         self.step_content_area = ft.Container(expand=True, padding=20)
 
         # Build UI
+        # Build UI
+        # Wrap everything in a container to provide consistent padding
         self.controls = [
-            ft.Text("End-to-End Packaging Wizard", size=28, weight=ft.FontWeight.BOLD),
-            self._build_stepper_header(),
-            ft.Divider(),
-            self.step_content_area,
-            ft.Divider(),
-            self._build_nav_buttons()
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("End-to-End Packaging Wizard", size=28, weight=ft.FontWeight.BOLD),
+                    self._build_stepper_header(),
+                    ft.Divider(),
+                    self.step_content_area,
+                    ft.Divider(),
+                    self._build_nav_buttons()
+                ], expand=True, spacing=10),
+                padding=20,
+                expand=True
+            )
         ]
 
         self._load_step(0, update=False)
@@ -78,10 +88,10 @@ class PackagingWizardView(ft.Column):
             self.update()
 
     def _build_nav_buttons(self):
-        self.btn_prev = ft.ElevatedButton(
+        self.btn_prev = ft.Button(
             "Previous", on_click=self._prev_step, disabled=True
         )
-        self.btn_next = ft.ElevatedButton(
+        self.btn_next = ft.Button(
             "Next", on_click=self._next_step, bgcolor="BLUE", color="WHITE"
         )
         return ft.Row(
@@ -188,7 +198,7 @@ class PackagingWizardView(ft.Column):
                 ft.Text("Select Installer", size=24, weight=ft.FontWeight.BOLD),
                 ft.Text("Supported: .exe, .msi", color="GREY"),
                 ft.Container(height=20),
-                ft.ElevatedButton("Browse File...", icon=ft.Icons.FOLDER_OPEN, on_click=self._pick_file),
+                ft.Button("Browse File...", icon=ft.Icons.FOLDER_OPEN, on_click=self._pick_file),
                 ft.Container(height=10),
                 self.file_text
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
@@ -207,7 +217,7 @@ class PackagingWizardView(ft.Column):
                 ft.Text("Download from Web", size=24, weight=ft.FontWeight.BOLD),
                 ft.Text("Enter a direct link to an .exe or .msi file", color="GREY"),
                 ft.Container(height=20),
-                ft.Row([self.url_field, ft.ElevatedButton("Download", icon=ft.Icons.DOWNLOAD, on_click=self._start_download)]),
+                ft.Row([self.url_field, ft.Button("Download", icon=ft.Icons.DOWNLOAD, on_click=self._start_download)]),
                 ft.Container(height=10),
                 self.download_progress,
                 self.download_status
@@ -307,7 +317,7 @@ class PackagingWizardView(ft.Column):
         threading.Thread(target=_bg, daemon=True).start()
 
     def _pick_file(self, e):
-        path = FilePickerHelper.pick_file(allowed_extensions=["exe", "msi"])
+        path = FilePickerHelper.pick_file(allowed_extensions=["exe", "msi", "ps1", "bat", "cmd", "vbs", "msp"])
         if path:
             self.installer_path = path
             self.file_text.value = path
@@ -315,40 +325,115 @@ class PackagingWizardView(ft.Column):
 
     # --- Step 1: Analyze ---
     def _step_analyze_ui(self):
-        self.analysis_status = ft.Text("Waiting to start...", italic=True)
+        self.analysis_progress = ft.ProgressBar(width=400, visible=False)
+        self.analysis_status = ft.Text("", italic=True, size=14)
         self.analysis_dt = ft.DataTable(
-            columns=[ft.DataColumn(ft.Text("Prop")), ft.DataColumn(ft.Text("Val"))], rows=[]
+            columns=[
+                ft.DataColumn(ft.Text(i18n.get("table_header_field") or "Property")),
+                ft.DataColumn(ft.Text(i18n.get("table_header_value") or "Value"))
+            ],
+            rows=[],
+            width=float("inf")
         )
+        self.analysis_error_container = ft.Container(visible=False)
+
         return ft.Column([
-            ft.Text("Analyzing Installer...", size=20, weight=ft.FontWeight.BOLD),
+            ft.Text(
+                i18n.get("analyzing_installer") or "Analyzing Installer...",
+                size=20,
+                weight=ft.FontWeight.BOLD
+            ),
+            ft.Container(height=10),
+            self.analysis_progress,
             self.analysis_status,
+            ft.Container(height=10),
+            self.analysis_error_container,
             self.analysis_dt
         ], scroll=ft.ScrollMode.AUTO)
 
     def _run_analysis(self):
-        self.analysis_status.value = "Scanning..."
+        self.analysis_status.value = ""
+        self.analysis_progress.visible = True
+        self.analysis_progress.value = None  # Indeterminate mode
+        self.analysis_error_container.visible = False
+        self.analysis_dt.rows.clear()
         self.update()
 
         def _bg():
-            res = self.analysis_controller.analyze_file(self.installer_path)
-            self.analysis_result = res
-            self.analysis_status.value = "Analysis Complete"
+            try:
+                # Progress callback to update UI
+                def on_progress(pct, msg, eta=None):
+                    self.analysis_progress.value = pct
+                    self.analysis_status.value = msg
+                    self.update()
 
-            # Populate Table
-            info = res.info
-            rows = [
-                ft.DataRow([ft.DataCell(ft.Text("Name")), ft.DataCell(ft.Text(info.product_name))]),
-                ft.DataRow([ft.DataCell(ft.Text("Publisher")), ft.DataCell(ft.Text(info.manufacturer))]),
-                ft.DataRow([ft.DataCell(ft.Text("Version")), ft.DataCell(ft.Text(info.product_version))]),
-                ft.DataRow([
-                    ft.DataCell(ft.Text("Switches")),
-                    ft.DataCell(ft.Text(
-                        " ".join(info.install_switches) if info.install_switches else "None"
-                    ))
-                ]),
-            ]
-            self.analysis_dt.rows = rows
-            self.update()
+                # Use the same analyze_file method as ModernAnalyzerView
+                res = self.analysis_controller.analyze_file(
+                    self.installer_path,
+                    progress_callback=on_progress
+                )
+                self.analysis_result = res
+
+                # Check for errors
+                if res.error:
+                    self.analysis_error_container.content = ft.Container(
+                        content=ft.Row([
+                            ft.Icon(ft.Icons.ERROR_OUTLINE, color="WHITE"),
+                            ft.Text(f"Error: {res.error}", color="WHITE")
+                        ]),
+                        bgcolor="RED_700",
+                        padding=10,
+                        border_radius=8
+                    )
+                    self.analysis_error_container.visible = True
+                    self.analysis_status.value = i18n.get("analysis_failed") or "Analysis failed"
+                    self.analysis_status.color = "RED"
+                    self.analysis_progress.visible = False
+                    self.update()
+                    return
+
+                # Success - populate table
+                self.analysis_progress.visible = False
+                self.analysis_status.value = i18n.get("analysis_complete") or "Analysis Complete"
+                self.analysis_status.color = "GREEN"
+
+                info = res.info
+                if info:
+                    rows = [
+                        ft.DataRow([
+                            ft.DataCell(ft.Text(i18n.get("field_product") or "Name")),
+                            ft.DataCell(ft.Text(info.product_name or "Unknown"))
+                        ]),
+                        ft.DataRow([
+                            ft.DataCell(ft.Text(i18n.get("field_manufacturer") or "Publisher")),
+                            ft.DataCell(ft.Text(info.manufacturer or "Unknown"))
+                        ]),
+                        ft.DataRow([
+                            ft.DataCell(ft.Text(i18n.get("field_version") or "Version")),
+                            ft.DataCell(ft.Text(info.product_version or "Unknown"))
+                        ]),
+                        ft.DataRow([
+                            ft.DataCell(ft.Text(i18n.get("field_type") or "Type")),
+                            ft.DataCell(ft.Text(info.installer_type or "Unknown"))
+                        ]),
+                        ft.DataRow([
+                            ft.DataCell(ft.Text(i18n.get("silent_switches") or "Switches")),
+                            ft.DataCell(ft.Text(
+                                " ".join(info.install_switches) if info.install_switches else "None detected",
+                                color="GREEN" if info.install_switches else "ORANGE"
+                            ))
+                        ]),
+                    ]
+                    self.analysis_dt.rows = rows
+
+                self.update()
+
+            except Exception as ex:
+                logger.error(f"Analysis error: {ex}")
+                self.analysis_progress.visible = False
+                self.analysis_status.value = f"Error: {ex}"
+                self.analysis_status.color = "RED"
+                self.update()
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -376,7 +461,7 @@ class PackagingWizardView(ft.Column):
             ft.Text("Review & Edit Script", size=20, weight=ft.FontWeight.BOLD),
             sign_status,
             self.script_field,
-            ft.ElevatedButton("Regenerate", on_click=lambda _: self._generate_script_content())
+            ft.Button("Regenerate", on_click=lambda _: self._generate_script_content())
         ], scroll=ft.ScrollMode.AUTO)
 
     def _generate_script_content(self):
@@ -435,7 +520,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
     def _step_package_ui(self):
         self.pkg_status = ft.Text("Ready to package.", size=16)
-        self.pkg_btn = ft.ElevatedButton(
+        self.pkg_btn = ft.Button(
             "Start Packaging", on_click=self._run_packaging, bgcolor="GREEN", color="WHITE"
         )
         return ft.Column([
@@ -502,8 +587,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         self.txt_desc = ft.TextField(label="Description", value=f"Packaged by SwitchCraft based on {Path(self.installer_path).name if self.installer_path else 'installer'}", multiline=True)
 
         self.upload_status = ft.Text("Waiting for authentication...", italic=True)
-        self.btn_upload = ft.ElevatedButton("Upload to Intune", on_click=self._run_upload, icon=ft.Icons.CLOUD_UPLOAD, disabled=True)
-        self.btn_connect = ft.ElevatedButton("Connect", on_click=self._connect_intune)
+        self.btn_upload = ft.Button("Upload to Intune", on_click=self._run_upload, icon=ft.Icons.CLOUD_UPLOAD, disabled=True)
+        self.btn_connect = ft.Button("Connect", on_click=self._connect_intune)
 
         return ft.Column([
             ft.Text("Upload to Microsoft Intune", size=20, weight=ft.FontWeight.BOLD),
@@ -856,11 +941,3 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                 logger.error(f"Autopilot error: {ex}")
 
         threading.Thread(target=_bg, daemon=True).start()
-
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception:
-            pass

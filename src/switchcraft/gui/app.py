@@ -529,9 +529,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             # Dev environment fallback (if not found at root in dev)
             if not logo_path.exists():
                 # Try standard project structure relative to this file
-                # src/switchcraft/gui/app.py -> root/images/
-                base = Path(__file__).parent.parent.parent.parent
-                logo_path = base / "images" / "switchcraft_logo.png"
+                # src/switchcraft/gui/app.py -> src/switchcraft/assets/
+                base = Path(__file__).parent.parent
+                logo_path = base / "assets" / "switchcraft_logo.png"
 
             if logo_path.exists():
                 pil_image = Image.open(logo_path)

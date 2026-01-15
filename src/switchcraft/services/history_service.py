@@ -34,6 +34,26 @@ class HistoryService:
             logger.exception(f"Unexpected error loading history from {self.history_file}")
             return []
 
+    def get_recent(self, limit=5):
+        """Get the most recent N history items formatted for display."""
+        history = self.get_history()
+        result = []
+        for item in history[:limit]:
+            # Format for home view
+            title = item.get('filename') or item.get('product') or 'Unknown'
+            action = item.get('status', 'Analyzed')
+            ts = item.get('timestamp', '')
+            try:
+                ts_display = datetime.fromisoformat(ts).strftime("%Y-%m-%d %H:%M")
+            except (ValueError, TypeError):
+                ts_display = ts
+            result.append({
+                'title': f"{title} - {action}",
+                'action': action,
+                'timestamp': ts_display
+            })
+        return result
+
     def add_entry(self, entry):
         """Add a new analysis entry."""
         history = self.get_history()

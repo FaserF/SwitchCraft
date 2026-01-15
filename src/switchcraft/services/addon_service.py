@@ -3,6 +3,8 @@ import logging
 import importlib.util
 import shutil
 import zipfile
+import tempfile
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -257,3 +259,120 @@ class AddonService:
     def install_all_missing():
         """Legacy: No-op for backwards compatibility."""
         return True
+
+    def install_from_github(self, addon_id, app_version_tag=None):
+        """
+        Attempts to download and install an addon from GitHub Releases.
+        - app_version_tag: "v2023.10.0". If None, checks current app version.
+        - Checks for exact matching tag first.
+        - If not found, falls back to 'latest' release with a warning.
+        - Looks for 'switchcraft_{addon_id}.zip' asset.
+        """
+        try:
+            import requests
+        except ImportError:
+            logger.error("requests module not found. Please install it to use this feature.")
+            return False, "Python 'requests' module is missing."
+
+        from switchcraft import __version__ as current_app_version
+
+        repo_owner = "FaserF"
+        repo_name = "SwitchCraft"
+        api_base = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+
+        target_tag = app_version_tag
+        if not target_tag:
+            # Construct tag from current version
+            # Assuming tags are v<Version>
+            target_tag = f"v{current_app_version}"
+
+        logger.info(f"AddonService: Attempting to install '{addon_id}' for tag '{target_tag}'...")
+
+        release_data = None
+        used_tag = None
+        warning_msg = None
+
+        # 1. Try Specific Tag
+        try:
+            resp = requests.get(f"{api_base}/releases/tags/{target_tag}", timeout=5)
+            if resp.status_code == 200:
+                try:
+                    release_data = resp.json()
+                    used_tag = target_tag
+                    logger.info(f"Found specific release: {target_tag}")
+                except json.JSONDecodeError as je:
+                    logger.warning(f"Invalid JSON in release {target_tag}: {je}")
+            else:
+                 logger.warning(f"Release {target_tag} not found (Status {resp.status_code}).")
+        except Exception as e:
+            logger.warning(f"Error checking tag {target_tag}: {e}")
+
+        # 2. Fallback to Latest
+        if not release_data:
+            logger.info("Falling back to latest release...")
+            try:
+                resp = requests.get(f"{api_base}/releases/latest", timeout=5)
+                if resp.status_code == 200:
+                    try:
+                        release_data = resp.json()
+                        used_tag = release_data.get("tag_name")
+                        warning_msg = f"Version mismatch: Installed {addon_id} from {used_tag} (Expected {target_tag}). Compatibility not guaranteed."
+                        logger.warning(warning_msg)
+                    except (ValueError, json.JSONDecodeError):
+                        logger.error("Invalid JSON from latest release.")
+                        return False, "Invalid response from GitHub."
+                else:
+                     logger.error(f"Latest release not found (Status {resp.status_code}).")
+                     return False, "Could not find any releases."
+            except Exception as e:
+                logger.error(f"Error fetching latest release: {e}")
+                return False, f"Failed to fetch latest release: {e}"
+
+        if not release_data:
+             return False, "No release data found."
+
+        # 3. Find Asset
+        # Naming convention: switchcraft_{addon_id}.zip OR {addon_id}.zip
+        # Script produces switchcraft_advanced.zip
+        asset_url = None
+        asset_name = ""
+
+        candidates = [f"switchcraft_{addon_id}.zip", f"{addon_id}.zip"]
+
+        for asset in release_data.get("assets", []):
+            if asset.get("name") in candidates:
+                asset_url = asset.get("browser_download_url")
+                asset_name = asset.get("name")
+                break
+
+        if not asset_url:
+            msg = f"Asset for {addon_id} not found in release {used_tag}."
+            logger.error(msg)
+            return False, msg
+
+        # 4. Download and Install
+        try:
+            logger.info(f"Downloading {asset_name} from {asset_url}...")
+            r = requests.get(asset_url, stream=True, timeout=30)
+            r.raise_for_status()
+
+            tmp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        tmp.write(chunk)
+                    tmp_path = tmp.name
+
+                self.install_addon(tmp_path)
+                logger.info(f"Successfully installed {addon_id} from GitHub.")
+                result_msg = f"Installed {addon_id} ({used_tag})."
+                if warning_msg:
+                    result_msg += f" [Warning: {warning_msg}]"
+                return True, result_msg
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+
+        except Exception as e:
+            logger.error(f"Failed to download/install {addon_id}: {e}")
+            return False, str(e)

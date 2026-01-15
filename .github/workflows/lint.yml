@@ -20,15 +20,4 @@ jobs:
         run: pip install ruff
 
       - name: Run Ruff (Backend)
-        run: ruff check --fix --exit-zero src/
-
-      - name: Commit and Push Fixes
-        if: always()
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/
-          if ! git diff --cached --quiet; then
-            git commit -m "style: auto-fix ruff linting issues"
-            git push
-          fi
+        run: ruff check --exit-zero src/

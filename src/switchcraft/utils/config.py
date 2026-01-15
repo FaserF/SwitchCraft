@@ -273,6 +273,11 @@ class SwitchCraftConfig:
         return None
 
     @classmethod
+    def set_secure_value(cls, value_name: str, value: str):
+        """Stores a sensitive value securely in the system keyring."""
+        cls.set_secret(value_name, value)
+
+    @classmethod
     def get_secret(cls, key_name: str) -> Optional[str]:
         """Retrieve a secret from the system keyring."""
         try:

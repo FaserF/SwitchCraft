@@ -42,7 +42,7 @@ PrivilegesRequiredOverridesAllowed=dialog commandline
 ; Output settings
 OutputDir=dist
 OutputBaseFilename=SwitchCraft-Legacy-Setup
-SetupIconFile=switchcraft_logo.ico
+SetupIconFile=src\switchcraft\assets\switchcraft_logo.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 ; Compression
@@ -81,7 +81,7 @@ Name: "debugmode"; Description: "{cm:DebugMode}"; GroupDescription: "{cm:DebugMo
 Source: "dist\SwitchCraft-Legacy.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Logo/Icon
-Source: "images\switchcraft_logo.png"; DestDir: "{app}"; Flags: ignoreversion
+Source: "src\switchcraft\assets\switchcraft_logo.png"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; Start Menu

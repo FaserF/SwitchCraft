@@ -25,8 +25,8 @@ class TestPhase2Features(unittest.TestCase):
         with patch("switchcraft.utils.config.SwitchCraftConfig.get_value", return_value="local"):
             self.ai = SwitchCraftAI()
             response = self.ai.ask("test")
-            if "requires the AI Addon" in response or "Simulated Response" in response and "test" not in response:
-                self.skipTest("AI Addon not installed or using plain placeholder")
+            if "[AI_STUB]" in response or "requires the AI Addon" in response or "Simulated Response" in response:
+                self.skipTest("AI Addon not installed or using stub")
 
     # --- AI Service Tests ---
     def test_ai_language_fallback(self):

@@ -6,10 +6,11 @@ from switchcraft.services.addon_service import AddonService
 from switchcraft.utils.i18n import i18n
 from pathlib import Path
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
-class ModernWingetView(ft.Row):
+class ModernWingetView(ft.Row, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -41,7 +42,7 @@ class ModernWingetView(ft.Row):
                     ft.Text("Winget Addon not installed.", size=20, weight=ft.FontWeight.BOLD),
                     ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=14, color="grey"),
                     ft.Container(height=10),
-                    ft.ElevatedButton(
+                    ft.Button(
                         i18n.get("btn_go_to_addons") or "Go to Addon Manager",
                         icon=ft.Icons.EXTENSION,
                         bgcolor="BLUE_700",
@@ -95,7 +96,7 @@ class ModernWingetView(ft.Row):
         # Left Pane with filter row
         left_pane = ft.Container(
             content=ft.Column([
-                ft.Text("Winget Explorer", size=18, weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("winget_explorer_title") or "Winget Explorer", size=18, weight=ft.FontWeight.BOLD),
                 ft.Row(
                     [self.filter_dropdown, self.search_field, btn_search],
                     spacing=10,
@@ -108,7 +109,8 @@ class ModernWingetView(ft.Row):
             width=420,
             padding=15,
             bgcolor="SURFACE_CONTAINER_HIGHEST" if hasattr(getattr(ft, "colors", None), "SURFACE_CONTAINER_HIGHEST") else "GREY_900",
-            border_radius=15
+            border_radius=15,
+            margin=ft.Margin.only(left=20, top=20, bottom=20, right=10)
         )
 
         # Right Pane
@@ -116,6 +118,7 @@ class ModernWingetView(ft.Row):
             content=self.details_area,
             expand=True,
             padding=20,
+            margin=ft.Margin.only(right=20, top=20, bottom=20, left=10)
         )
 
         # Initial instruction
@@ -237,7 +240,7 @@ class ModernWingetView(ft.Row):
 
         # Update results count
         count = len(results) if results else 0
-        self.results_count.value = f"Found {count} app{'s' if count != 1 else ''}"
+        self.results_count.value = (i18n.get("apps_found") or "Found {0} apps").format(count) if count != 1 else (i18n.get("app_found") or "Found 1 app")
 
         if not results:
             self.search_results.controls.append(ft.Text(i18n.get("winget_no_results") or "No results found."))
@@ -295,7 +298,7 @@ class ModernWingetView(ft.Row):
         # Description Section (prominent like winstall.app)
         description = info.get('Description') or info.get('description')
         if description:
-            self.details_area.controls.append(ft.Text("About", size=18, weight=ft.FontWeight.BOLD))
+            self.details_area.controls.append(ft.Text(i18n.get("field_about") or "About", size=18, weight=ft.FontWeight.BOLD))
             self.details_area.controls.append(
                 ft.Container(
                     content=ft.Text(description, size=14, selectable=True),
@@ -441,13 +444,13 @@ class ModernWingetView(ft.Row):
         self.details_area.controls.append(ft.Divider())
 
         # Actions
-        btn_copy = ft.ElevatedButton("Copy Command", icon=ft.Icons.COPY, bgcolor="GREY_700", color="WHITE")
+        btn_copy = ft.Button(i18n.get("btn_copy_command") or "Copy Command", icon=ft.Icons.COPY, bgcolor="GREY_700", color="WHITE")
         btn_copy.on_click = lambda e, i=info: self._copy_install_command(i)
 
-        btn_local = ft.ElevatedButton("Install Locally", icon=ft.Icons.DOWNLOAD, bgcolor="GREEN", color="WHITE")
+        btn_local = ft.Button(i18n.get("btn_install_locally") or "Install Locally", icon=ft.Icons.DOWNLOAD, bgcolor="GREEN", color="WHITE")
         btn_local.on_click = self._install_local
 
-        btn_deploy = ft.ElevatedButton("Deploy / Package...", icon=ft.Icons.CLOUD_UPLOAD, bgcolor="BLUE", color="WHITE")
+        btn_deploy = ft.Button(i18n.get("btn_deploy_package") or "Deploy / Package...", icon=ft.Icons.CLOUD_UPLOAD, bgcolor="BLUE", color="WHITE")
         btn_deploy.on_click = lambda e: self._open_deploy_menu(info)
 
         self.details_area.controls.append(ft.Row([btn_copy, btn_local, btn_deploy], wrap=True, spacing=8))
@@ -496,19 +499,19 @@ class ModernWingetView(ft.Row):
                 ft.Text("Select a deployment method:", size=16),
                 ft.Container(height=10),
 
-                ft.ElevatedButton("Winget-AutoUpdate (WAU)", icon=ft.Icons.UPDATE,
+                ft.Button("Winget-AutoUpdate (WAU)", icon=ft.Icons.UPDATE,
                     style=ft.ButtonStyle(bgcolor="GREEN", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_wau(info)], width=250),
                 ft.Text("Best for keeping apps updated automatically.", size=12, italic=True),
 
                 ft.Container(height=5),
-                ft.ElevatedButton("Download & Package", icon=ft.Icons.ARCHIVE,
+                ft.Button("Download & Package", icon=ft.Icons.ARCHIVE,
                     style=ft.ButtonStyle(bgcolor="BLUE", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_package(info)], width=250),
                 ft.Text("Download installer and prepare for Intune.", size=12, italic=True),
 
                 ft.Container(height=5),
-                ft.ElevatedButton("Create Install Script", icon=ft.Icons.CODE,
+                ft.Button("Create Install Script", icon=ft.Icons.CODE,
                     style=ft.ButtonStyle(bgcolor="GREY_700", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_script(info)], width=250),
                 ft.Text("Generate PowerShell script for deployment.", size=12, italic=True),
@@ -574,6 +577,41 @@ class ModernWingetView(ft.Row):
     def _install_local(self, e):
         if not self.current_pkg:
             return
+
+        # Admin check
+        is_admin = False
+        try:
+            import ctypes
+            is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except Exception:
+            pass
+
+        if not is_admin:
+            def on_restart_confirm(e):
+                restart_dlg.open = False
+                self.app_page.update()
+                try:
+                    import sys
+                    executable = sys.executable
+                    params = f'"{sys.argv[0]}"'
+                    if len(sys.argv) > 1:
+                        params += " " + " ".join(f'"{a}"' for a in sys.argv[1:])
+                    ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
+                    sys.exit(0)
+                except Exception as ex:
+                    self._show_snack(f"Failed to elevate: {ex}", "RED")
+
+            restart_dlg = ft.AlertDialog(
+                title=ft.Text(i18n.get("admin_required_title") or "Admin Rights Required"),
+                content=ft.Text(i18n.get("admin_required_msg") or "Local testing requires administrative privileges. Would you like to restart SwitchCraft as Administrator?"),
+                actions=[
+                    ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda _: setattr(restart_dlg, "open", False) or self.app_page.update()),
+                    ft.Button(i18n.get("btn_restart_admin") or "Restart as Admin", bgcolor="RED_700", color="WHITE", on_click=on_restart_confirm),
+                ],
+            )
+            self.app_page.open(restart_dlg)
+            return
+
         pkg_id = self.current_pkg.get('Id')
         cmd = f"winget install --id {pkg_id} --silent --accept-package-agreements --accept-source-agreements"
 
@@ -625,11 +663,3 @@ exit $err
                 self._show_snack(f"Script saved to {path}", "GREEN")
             except Exception as ex:
                 self._show_snack(f"Save failed: {ex}", "RED")
-
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception:
-             pass

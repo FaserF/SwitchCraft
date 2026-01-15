@@ -8,10 +8,12 @@ from switchcraft import __version__
 from switchcraft.utils.app_updater import UpdateChecker
 from switchcraft.services.auth_service import AuthService
 from switchcraft.services.sync_service import SyncService
+from switchcraft.services.intune_service import IntuneService
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
-class ModernSettingsView(ft.Column):
+class ModernSettingsView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page, initial_tab_index=0):
         super().__init__(expand=True)
         self.app_page = page
@@ -31,7 +33,7 @@ class ModernSettingsView(ft.Column):
 
         self.nav_row = ft.Row(scroll=ft.ScrollMode.AUTO, height=50)
         for i, (name, icon, func) in enumerate(self.tab_defs):
-            btn = ft.ElevatedButton(
+            btn = ft.Button(
                 content=ft.Row([ft.Icon(icon), ft.Text(name)]),
                 on_click=lambda e, f=func: self._switch_tab(f),
                 style=ft.ButtonStyle(
@@ -93,7 +95,7 @@ class ModernSettingsView(ft.Column):
         # Language
         lang_dd = ft.Dropdown(
             label=i18n.get("settings_language") or "Language",
-            value=SwitchCraftConfig.get_value("Language", "en"),
+            value=SwitchCraftConfig.get_value("Language", i18n.language),
             options=[
                 ft.dropdown.Option("en", "English"),
                 ft.dropdown.Option("de", "Deutsch"),
@@ -116,14 +118,14 @@ class ModernSettingsView(ft.Column):
         ai_config = self._build_ai_config_section()
 
         # Export/Import buttons
-        btn_export = ft.ElevatedButton(i18n.get("btn_export_settings") or "Export Settings", icon=ft.Icons.UPLOAD_FILE, on_click=self._export_settings)
-        btn_import = ft.ElevatedButton(i18n.get("btn_import_settings") or "Import Settings", icon=ft.Icons.FILE_DOWNLOAD, on_click=self._import_settings)
+        btn_export = ft.Button(i18n.get("btn_export_settings") or "Export Settings", icon=ft.Icons.UPLOAD_FILE, on_click=self._export_settings)
+        btn_import = ft.Button(i18n.get("btn_import_settings") or "Import Settings", icon=ft.Icons.FILE_DOWNLOAD, on_click=self._import_settings)
 
         export_row = ft.Row([btn_export, btn_import])
 
         return ft.ListView(
             controls=[
-                ft.Text(i18n.get("settings_general") or "General Settings", size=24, weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("settings_general") or "General Settings", size=24, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
                 ft.Divider(),
                 company_field,
                 lang_dd,
@@ -133,7 +135,10 @@ class ModernSettingsView(ft.Column):
                 ft.Divider(),
                 ai_config,
                 ft.Divider(),
-                export_row
+                ft.Row([
+                    ft.Button("Test Notification", icon=ft.Icons.NOTIFICATIONS_ACTIVE, on_click=self._send_test_notification),
+                    export_row
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
             ],
             padding=20,
             spacing=15,
@@ -142,8 +147,8 @@ class ModernSettingsView(ft.Column):
     def _build_cloud_sync_section(self):
         self.sync_status_text = ft.Text(i18n.get("sync_checking_status") or "Checking status...", color="GREY")
         self.sync_actions = ft.Row(visible=False)
-        self.login_btn = ft.ElevatedButton(i18n.get("btn_login_github") or "Login with GitHub", icon=ft.Icons.LOGIN, on_click=self._start_github_login)
-        self.logout_btn = ft.ElevatedButton(i18n.get("btn_logout") or "Logout", icon=ft.Icons.LOGOUT, on_click=self._logout_github, color="RED")
+        self.login_btn = ft.Button(i18n.get("btn_login_github") or "Login with GitHub", icon=ft.Icons.LOGIN, on_click=self._start_github_login)
+        self.logout_btn = ft.Button(i18n.get("btn_logout") or "Logout", icon=ft.Icons.LOGOUT, on_click=self._logout_github, color="RED")
 
         self._update_sync_ui(update=False)
 
@@ -163,8 +168,8 @@ class ModernSettingsView(ft.Column):
             self.login_btn.visible = False
             self.sync_actions.visible = True
 
-            btn_up = ft.ElevatedButton(i18n.get("btn_sync_up") or "Sync Up", icon=ft.Icons.CLOUD_UPLOAD, on_click=self._sync_up)
-            btn_down = ft.ElevatedButton(i18n.get("btn_sync_down") or "Sync Down", icon=ft.Icons.CLOUD_DOWNLOAD, on_click=self._sync_down)
+            btn_up = ft.Button(i18n.get("btn_sync_up") or "Sync Up", icon=ft.Icons.CLOUD_UPLOAD, on_click=self._sync_up)
+            btn_down = ft.Button(i18n.get("btn_sync_down") or "Sync Down", icon=ft.Icons.CLOUD_DOWNLOAD, on_click=self._sync_down)
 
             self.sync_actions.controls = [btn_up, btn_down, self.logout_btn]
         else:
@@ -233,22 +238,22 @@ class ModernSettingsView(ft.Column):
         self.changelog_text = ft.Markdown(initial_changelog)
         self.latest_version_text = ft.Text(initial_latest)
 
-        check_btn = ft.ElevatedButton(i18n.get("check_updates") or "Check for Updates", icon=ft.Icons.REFRESH, on_click=self._check_updates)
+        check_btn = ft.Button(i18n.get("check_updates") or "Check for Updates", icon=ft.Icons.REFRESH, on_click=self._check_updates)
 
         return ft.ListView(
             controls=[
-                ft.Text(i18n.get("settings_hdr_update") or "Updates", size=24, weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("settings_hdr_update") or "Updates", size=24, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
                 channel,
                 ft.Row([
                     ft.Text(f"{i18n.get('current_version') or 'Current Version'}: {__version__}", weight=ft.FontWeight.BOLD),
-                ]),
+                ], alignment=ft.MainAxisAlignment.CENTER),
                 ft.Row([
                     ft.Text(f"{i18n.get('latest_version') or 'Latest Version'}: ", weight=ft.FontWeight.BOLD),
                     self.latest_version_text
-                ]),
-                check_btn,
+                ], alignment=ft.MainAxisAlignment.CENTER),
+                ft.Row([check_btn], alignment=ft.MainAxisAlignment.CENTER),
                 ft.Divider(),
-                ft.Text(i18n.get("changelog") or "Changelog", size=18, weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("changelog") or "Changelog", size=18, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
                 ft.Container(
                     content=self.changelog_text,
                     bgcolor="SURFACE_CONTAINER_HIGHEST",
@@ -285,17 +290,17 @@ class ModernSettingsView(ft.Column):
 
         self.cert_status_text = ft.Text(cert_display, color="GREEN" if (saved_thumb or saved_cert_path) else "GREY")
 
-        cert_auto_btn = ft.ElevatedButton(
+        cert_auto_btn = ft.Button(
             i18n.get("btn_auto_detect_cert") or "Auto-Detect",
             icon=ft.Icons.SEARCH,
             on_click=self._auto_detect_signing_cert
         )
-        cert_browse_btn = ft.ElevatedButton(
+        cert_browse_btn = ft.Button(
             i18n.get("btn_browse_cert") or "Browse .pfx",
             icon=ft.Icons.FOLDER_OPEN,
             on_click=self._browse_signing_cert
         )
-        cert_reset_btn = ft.ElevatedButton(
+        cert_reset_btn = ft.Button(
             i18n.get("btn_reset") or "Reset",
             icon=ft.Icons.DELETE,
             bgcolor="RED_900" if hasattr(getattr(ft, "colors", None), "RED_900") else "RED",
@@ -313,26 +318,38 @@ class ModernSettingsView(ft.Column):
         template_display = SwitchCraftConfig.get_value("CustomTemplatePath", "") or (i18n.get("template_default") or "(Default)")
         self.template_status_text = ft.Text(template_display, color="GREY" if "(Default)" in template_display else "GREEN")
 
-        template_browse_btn = ft.ElevatedButton(
+        template_browse_btn = ft.Button(
             i18n.get("btn_browse") or "Browse",
             icon=ft.Icons.FOLDER_OPEN,
             on_click=self._browse_template
         )
-        template_reset_btn = ft.ElevatedButton(
+        template_reset_btn = ft.Button(
             i18n.get("btn_reset") or "Reset",
             icon=ft.Icons.REFRESH,
             on_click=self._reset_template
         )
 
         # Intune API Section
-        tenant = ft.TextField(label=i18n.get("settings_intune_tenant") or "Intune Tenant ID", value=str(SwitchCraftConfig.get_value("IntuneTenantID", "")))
-        tenant.on_blur=lambda e: SwitchCraftConfig.set_user_preference("IntuneTenantID", e.control.value)
+        tenant = ft.TextField(label=i18n.get("settings_entra_tenant") or "Entra Tenant ID", value=str(SwitchCraftConfig.get_value("GraphTenantId", "")))
+        tenant.on_change=lambda e: SwitchCraftConfig.set_user_preference("GraphTenantId", e.control.value)
 
-        client = ft.TextField(label=i18n.get("settings_intune_client") or "Intune Client ID", value=str(SwitchCraftConfig.get_value("IntuneClientID", "")))
-        client.on_blur=lambda e: SwitchCraftConfig.set_user_preference("IntuneClientID", e.control.value)
+        client = ft.TextField(label=i18n.get("settings_entra_client") or "Entra Client ID", value=str(SwitchCraftConfig.get_value("GraphClientId", "")))
+        client.on_change=lambda e: SwitchCraftConfig.set_user_preference("GraphClientId", e.control.value)
 
-        secret = ft.TextField(label=i18n.get("settings_intune_secret") or "Intune Client Secret", value=SwitchCraftConfig.get_secure_value("IntuneClientSecret") or "", password=True, can_reveal_password=True)
-        secret.on_blur=lambda e: SwitchCraftConfig.set_secure_value("IntuneClientSecret", e.control.value)
+        secret = ft.TextField(label=i18n.get("settings_entra_secret") or "Entra Client Secret", value=SwitchCraftConfig.get_secure_value("GraphClientSecret") or "", password=True, can_reveal_password=True)
+        secret.on_change=lambda e: SwitchCraftConfig.set_secret("GraphClientSecret", e.control.value)
+
+        # Store references for test button
+        self.raw_tenant_field = tenant
+        self.raw_client_field = client
+        self.raw_secret_field = secret
+
+        test_btn = ft.Button(
+            "Test Connection",
+            icon=ft.Icons.CHECK_CIRCLE,
+            on_click=self._test_graph_connection
+        )
+        self.test_conn_res = ft.Text("", size=12)
 
         return ft.ListView(
             controls=[
@@ -340,10 +357,11 @@ class ModernSettingsView(ft.Column):
                 ft.Text("Configure your connection to Microsoft Graph. Required for Intune, Entra ID, and Autopilot features.", size=12, color="GREY"),
 
                 # Intune/Graph
-                ft.Text("Azure App Registration Config", size=18, color="BLUE"),
+                ft.Text("Entra Enterprise App Registration Config", size=18, color="BLUE"),
                 tenant,
                 client,
                 secret,
+                ft.Row([test_btn, self.test_conn_res]),
                 ft.Divider(),
 
                 # Code Signing
@@ -376,12 +394,12 @@ class ModernSettingsView(ft.Column):
 
     def _build_help_tab(self):
         links = ft.Row([
-            ft.ElevatedButton(i18n.get("help_github_repo") or "GitHub Repo", icon=ft.Icons.CODE, url="https://github.com/FaserF/SwitchCraft"),
-            ft.ElevatedButton(i18n.get("help_report_issue") or "Report Issue", icon=ft.Icons.BUG_REPORT, url="https://github.com/FaserF/SwitchCraft/issues"),
-            ft.ElevatedButton(i18n.get("help_documentation") or "Documentation", icon=ft.Icons.BOOK, url="https://github.com/FaserF/SwitchCraft/blob/main/README.md"),
+            ft.Button(i18n.get("help_github_repo") or "GitHub Repo", icon=ft.Icons.CODE, url="https://github.com/FaserF/SwitchCraft"),
+            ft.Button(i18n.get("help_report_issue") or "Report Issue", icon=ft.Icons.BUG_REPORT, url="https://github.com/FaserF/SwitchCraft/issues"),
+            ft.Button(i18n.get("help_documentation") or "Documentation", icon=ft.Icons.BOOK, url="https://switchcraft.fabiseitz.de"),
         ])
 
-        logs_btn = ft.ElevatedButton(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs)
+        logs_btn = ft.Button(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs)
 
         # Debug Toggle
         debug_sw = ft.Switch(
@@ -396,7 +414,7 @@ class ModernSettingsView(ft.Column):
             import webbrowser
             webbrowser.open(get_session_handler().get_github_issue_link())
 
-        issue_btn = ft.ElevatedButton(
+        issue_btn = ft.Button(
             i18n.get("help_report_issue_prefilled") or "Report Issue (with Logs)",
             icon=ft.Icons.BUG_REPORT,
             bgcolor="GREY_800",
@@ -422,7 +440,7 @@ class ModernSettingsView(ft.Column):
             self.debug_log_text.visible = self.debug_console_visible
             self.update()
 
-        debug_toggle_btn = ft.ElevatedButton(
+        debug_toggle_btn = ft.Button(
             i18n.get("show_debug_console") or "Show Debug Console",
             icon=ft.Icons.TERMINAL,
             on_click=toggle_debug_console
@@ -439,7 +457,7 @@ class ModernSettingsView(ft.Column):
             content=ft.Column([
                 ft.Text(i18n.get("help_danger_zone") or "Danger Zone", color="RED", weight=ft.FontWeight.BOLD),
                 ft.Text(i18n.get("help_danger_zone_desc") or "Irreversible actions. Proceed with caution.", color="GREY", size=12),
-                ft.ElevatedButton(
+                ft.Button(
                     i18n.get("help_factory_reset") or "Factory Reset (Delete All Data)",
                     icon=ft.Icons.DELETE_FOREVER,
                     bgcolor="RED_900" if hasattr(getattr(ft, "colors", None), "RED_900") else "RED",
@@ -450,30 +468,30 @@ class ModernSettingsView(ft.Column):
             padding=10,
             border=ft.Border.all(1, "RED"),
             border_radius=5,
-            margin=ft.margin.only(top=20)
+            margin=ft.Margin.only(top=20)
         )
 
         return ft.ListView(
             controls=[
-                ft.Text(i18n.get("help_title") or "Help & Resources", size=24, weight=ft.FontWeight.BOLD),
-                links,
-                ft.Row([logs_btn, debug_sw]),
+                ft.Text(i18n.get("help_title") or "Help & Resources", size=24, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
+                ft.Row([links], alignment=ft.MainAxisAlignment.CENTER),
+                ft.Row([logs_btn, debug_sw], alignment=ft.MainAxisAlignment.CENTER),
                 ft.Divider(),
-                ft.Text(i18n.get("help_troubleshooting") or "Troubleshooting", size=18, weight=ft.FontWeight.BOLD),
-                ft.Text(i18n.get("help_shared_settings_msg") or "Settings are shared across all SwitchCraft editions (Modern, Legacy, and CLI).", size=12, italic=True),
+                ft.Text(i18n.get("help_troubleshooting") or "Troubleshooting", size=18, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
+                ft.Text(i18n.get("help_shared_settings_msg") or "Settings are shared across all SwitchCraft editions (Modern, Legacy, and CLI).", size=12, italic=True, text_align=ft.TextAlign.CENTER),
                 ft.Row([
-                    ft.ElevatedButton(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs),
+                    ft.Button(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs),
                     issue_btn
-                ]),
+                ], alignment=ft.MainAxisAlignment.CENTER),
                 ft.Divider(),
-                ft.Text(i18n.get("addon_manager_title") or "Addon Manager", size=18, weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("addon_manager_title") or "Addon Manager", size=18, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
                 addon_section,
                 ft.Divider(),
-                debug_toggle_btn,
+                ft.Row([debug_toggle_btn], alignment=ft.MainAxisAlignment.CENTER),
                 self.debug_log_text,
                 danger_zone,
                 ft.Divider(),
-                ft.Text(f"{i18n.get('about_version') or 'Version'}: {__version__}", color="GREY")
+                ft.Text(f"{i18n.get('about_version') or 'Version'}: {__version__}", color="GREY", text_align=ft.TextAlign.CENTER)
             ],
             padding=20,
             spacing=15
@@ -522,13 +540,7 @@ class ModernSettingsView(ft.Column):
         # Trigger re-check
         self._check_updates(None, only_changelog=True)
 
-    def _on_lang_change(self, val):
-        SwitchCraftConfig.set_user_preference("Language", val)
-        # Attempt to reload i18n strings? i18n is static usually.
-        # But we can try to reload the UI.
-        self._show_snack(i18n.get("restart_required_msg") or "Language changed. Please restart app.", "ORANGE")
-        # Trigger page update just in case
-        self.app_page.update()
+
 
     def _on_theme_change(self, val):
         SwitchCraftConfig.set_user_preference("Theme", val)
@@ -676,13 +688,120 @@ class ModernSettingsView(ft.Column):
             else:
                 self._show_snack(i18n.get("logs_export_failed") or "Log export failed.", "RED")
 
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
+
+
+    def _on_lang_change(self, val):
+        from switchcraft.utils.config import SwitchCraftConfig
+        from switchcraft.utils.i18n import i18n
+
+        # Save preference
+        SwitchCraftConfig.set_user_preference("Language", val)
+
+        # Actually update the i18n singleton
+        i18n.set_language(val)
+
+        # Show restart dialog
+        def do_restart(e):
+            dlg.open = False
             self.app_page.update()
-        except Exception:
-             pass
+            # Request restart
+            import sys
+            import os
+            import subprocess
+
+            try:
+                if getattr(sys, 'frozen', False):
+                    # Running as PyInstaller Bundle
+                    executable = sys.executable
+                    args = sys.argv[1:]
+                    cwd = os.path.dirname(executable)
+                else:
+                    # Running from source
+                    executable = sys.executable
+                    args = sys.argv
+                    cwd = os.getcwd()
+
+                # Environment setup
+                env = os.environ.copy()
+                if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                     # PyInstaller sets _MEIPASS, which wraps runtime files.
+                     # New process needs its own temp folder, so we generally DON'T need to do anything special here,
+                     # but clearing specific env vars might be safer if needed.
+                     pass
+
+                subprocess.Popen([executable] + args, cwd=cwd, env=env)
+                os._exit(0)
+            except Exception as ex:
+                self._show_snack(f"Restart failed: {ex}", "RED")
+
+        def skip_restart(e):
+            dlg.open = False
+            self.app_page.update()
+            self._show_snack(
+                i18n.get("restart_required") or "Some texts will update after restart.",
+                "ORANGE"
+            )
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(i18n.get("language_changed") or "Language Changed"),
+            content=ft.Text(
+                i18n.get("restart_to_apply") or
+                "The application needs to restart to apply the new language. Restart now?"
+            ),
+            actions=[
+                ft.TextButton(i18n.get("btn_later") or "Later", on_click=skip_restart),
+                ft.Button(
+                    i18n.get("btn_restart_now") or "Restart Now",
+                    on_click=do_restart,
+                    bgcolor="BLUE_700",
+                    color="WHITE"
+                ),
+            ]
+        )
+        self.app_page.open(dlg)
+
+    def _test_graph_connection(self, e):
+        t_id = self.raw_tenant_field.value.strip()
+        c_id = self.raw_client_field.value.strip()
+        sec = self.raw_secret_field.value.strip()
+
+        if not t_id or not c_id or not sec:
+            self.test_conn_res.value = i18n.get("settings_verify_incomplete") or "Missing fields!"
+            self.test_conn_res.color = "RED"
+            self.update()
+            return
+
+        self.test_conn_res.value = i18n.get("settings_verify_progress") or "Connecting..."
+        self.test_conn_res.color = "ORANGE"
+        self.update()
+
+        def _run():
+            try:
+                svc = IntuneService()
+                svc.authenticate(t_id, c_id, sec)
+                self.test_conn_res.value = i18n.get("settings_verify_success") or "Connection Successful!"
+                self.test_conn_res.color = "GREEN"
+                self._show_snack(i18n.get("settings_verify_success_title") or "Graph Connection Verified!", "GREEN")
+            except Exception as ex:
+                logger.error(f"Graph Test Failed: {ex}")
+                self.test_conn_res.value = f"{i18n.get('settings_verify_fail') or 'Failed'}: {ex}"
+                self.test_conn_res.color = "RED"
+                self._show_snack(i18n.get("settings_verify_fail_msg", error=str(ex)) or "Graph Connection Failed", "RED")
+
+            self.update()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _send_test_notification(self, e):
+        from switchcraft.services.notification_service import NotificationService
+        ns = NotificationService()
+        ns.add_notification(
+            title=i18n.get("notif_test_title") or "Test Notification",
+            message=i18n.get("notif_test_msg") or "This is a test notification from Settings! It should trigger a Windows Toast.",
+            type="info", # Default info, but forced system notify
+            notify_system=True
+        )
+        self._show_snack(i18n.get("notif_test_sent") or "Test notification sent!", "GREEN")
 
     def _check_managed_settings(self):
         """
@@ -692,7 +811,7 @@ class ModernSettingsView(ft.Column):
         # Map config keys to UI element attribute names
         managed_keys = [
             "EnableWinget", "Language", "Theme", "AIProvider", "SignScripts",
-            "UpdateChannel", "IntuneTenantID", "IntuneClientID", "IntuneClientSecret"
+            "UpdateChannel", "GraphTenantId", "GraphClientId", "GraphClientSecret"
         ]
 
         for key in managed_keys:
@@ -782,7 +901,7 @@ class ModernSettingsView(ft.Column):
                     ft.Text(addon["desc"], size=11, color="GREY")
                 ], expand=True),
                 ft.Text(status_text, color=status_color),
-                ft.ElevatedButton(
+                ft.Button(
                     i18n.get("btn_install") or "Install" if not is_installed else i18n.get("btn_reinstall") or "Reinstall",
                     icon=ft.Icons.DOWNLOAD,
                     on_click=lambda e, aid=addon["id"]: self._install_addon(aid),
@@ -792,14 +911,14 @@ class ModernSettingsView(ft.Column):
             rows.append(row)
 
         # Custom upload button
-        upload_btn = ft.ElevatedButton(
+        upload_btn = ft.Button(
             i18n.get("btn_upload_custom_addon") or "Upload Custom Addon (.zip)",
             icon=ft.Icons.UPLOAD_FILE,
             on_click=self._upload_custom_addon
         )
 
         # Import from URL button
-        url_import_btn = ft.ElevatedButton(
+        url_import_btn = ft.Button(
             i18n.get("btn_import_addon_url") or "Import from URL",
             icon=ft.Icons.LINK,
             on_click=self._import_addon_from_url
@@ -924,7 +1043,7 @@ class ModernSettingsView(ft.Column):
             ], tight=True, height=120),
             actions=[
                 ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=cancel),
-                ft.ElevatedButton(i18n.get("btn_import") or "Import", on_click=do_import, bgcolor="GREEN")
+                ft.Button(i18n.get("btn_import") or "Import", on_click=do_import, bgcolor="GREEN")
             ],
             actions_alignment=ft.MainAxisAlignment.END
         )

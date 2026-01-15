@@ -10,6 +10,7 @@ block_cipher = None
 # We need switchcraft.* and flet
 hidden_imports = [
     'flet', 'flet_desktop', 'defusedxml', 'winotify', 'requests',
+    'xml.parsers.expat', 'pyexpat',
     'switchcraft.utils', 'switchcraft.utils.config', 'switchcraft.utils.app_updater',
     'switchcraft.gui', 'switchcraft.gui_modern',
     'switchcraft.controllers', 'switchcraft.services', 'switchcraft.gui_modern.utils',
@@ -56,8 +57,6 @@ if src_root not in sys.path:
     sys.path.insert(0, src_root)
 
 datas = [
-    ('images/switchcraft_logo.png', '.'),
-    ('images/switchcraft_logo.ico', '.'),
     ('src/switchcraft/assets', 'assets'),
 ]
 
@@ -99,6 +98,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='images/switchcraft_logo.ico',
+    icon='src/switchcraft/assets/switchcraft_logo.ico',
     version='file_version_info.txt'
 )

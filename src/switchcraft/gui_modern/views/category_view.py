@@ -1,4 +1,5 @@
 import flet as ft
+from switchcraft.utils.i18n import i18n
 
 class CategoryView(ft.Container):
     def __init__(self, page: ft.Page, category_name: str, items: list, on_navigate, app_destinations):
@@ -40,7 +41,7 @@ class CategoryView(ft.Container):
             content=ft.Column([
                 ft.Icon(icon, size=40, color="PRIMARY"),
                 ft.Text(label, size=16, weight=ft.FontWeight.BOLD, color="ON_SURFACE"),
-                ft.Text("Click to open", size=12, color="OUTLINE")
+                ft.Text(i18n.get("click_to_open") or "Click to open", size=12, color="OUTLINE")
             ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             width=200,
             height=200,
@@ -49,7 +50,7 @@ class CategoryView(ft.Container):
             padding=20,
             ink=True,
             on_click=lambda e: self.on_navigate(idx),
-            border=ft.border.all(1, "OUTLINE_VARIANT"),
+            border=ft.Border.all(1, "OUTLINE_VARIANT"),
             animate_scale=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
             on_hover=lambda e: setattr(e.control, "scale", 1.05 if e.data == "true" else 1.0) or e.control.update()
         )
