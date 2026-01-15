@@ -11,6 +11,12 @@ logger = logging.getLogger(__name__)
 
 class ModernIntuneStoreView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
+        """
+        Initialize the view: configure state and services, build the search/list left pane and the details right pane, and replace the UI with a credentials prompt when Graph credentials are missing.
+        
+        Parameters:
+            page (ft.Page): The host Flet page used for rendering, navigation, and storing cross-view session data.
+        """
         super().__init__(expand=True)
         self.app_page = page
         self.intune_service = IntuneService()
@@ -146,6 +152,14 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         self.update()
 
     def _update_list(self, apps):
+        """
+        Populate the results list with the given apps and refresh the UI.
+        
+        Renders each app as a ListTile showing the app's display name and publisher, using an app logo when available. If `apps` is empty or falsy, inserts a single "No apps found." message. After building the list, triggers a UI update.
+        
+        Parameters:
+            apps (iterable[dict] | None): Iterable of app objects (as returned by IntuneService). Expected keys that are used: `displayName`, `publisher`, and one of `largeIcon` (dict with `value`), `iconUrl`, or `logoUrl` for the logo image.
+        """
         self.results_list.controls.clear()
         if not apps:
             self.results_list.controls.append(ft.Text("No apps found."))
@@ -183,7 +197,14 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         self.update()
 
     def _handle_app_click(self, app):
-        """Handle click on app tile - wrapper to ensure proper execution."""
+        """
+        Handle selection of an app list item and display its details.
+        
+        Attempts to show the app's details using the page's `run_task` mechanism to ensure UI-thread execution; if `run_task` is unavailable or fails, falls back to a direct call. On error, logs the exception and surfaces an error message in the UI.
+        
+        Parameters:
+            app (dict): Intune app object (as returned by the service) whose details should be displayed.
+        """
         try:
             logger.info(f"App clicked: {app.get('displayName', 'Unknown')}")
             # Use run_task to ensure UI updates happen on the correct thread
@@ -200,7 +221,14 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             self._show_error(f"Failed to show details: {ex}")
 
     def _show_details(self, app):
-        """Show detailed information about an Intune app."""
+        """
+        Render the detailed view for a given Intune app in the details pane.
+        
+        Builds and displays the app's title, metadata, description, assignments (loaded asynchronously), available install/uninstall commands, and a Deploy / Package action. The view shows a loading indicator while content and assignments are fetched and forces a UI update on the enclosing page.
+        
+        Parameters:
+            app (dict): Intune app object (expected keys include `id`, `displayName`, `publisher`, `createdDateTime`, `owner`, `@odata.type`, `description`, `largeIcon`/`iconUrl`/`logoUrl`, `installCommandLine`, `uninstallCommandLine`) used to populate the details UI.
+        """
         try:
             logger.info(f"_show_details called for app: {app.get('displayName', 'Unknown')}")
             self.selected_app = app
@@ -269,6 +297,16 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             self.details_area.controls.append(ft.Divider())
 
             def _load_assignments():
+                """
+                Load and display assignment information for the currently selected app into the view's assignments column.
+                
+                This function fetches app assignments from Intune using the configured token and the current app's id, then clears and populates self.assignments_col.controls with:
+                - A centered configuration prompt if Graph credentials are missing.
+                - "Not assigned." text when no assignments are returned.
+                - Grouped sections for each assignment intent ("Required", "Available", "Uninstall") listing target group identifiers.
+                
+                On failure, the function logs the exception and displays an error message in the assignments column. The view is updated at the end of the operation.
+                """
                 try:
                     token = self._get_token()
                     if not token:
@@ -340,7 +378,14 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 self.update()
 
     def _start_packaging_wizard(self, app):
-        """Navigates to Packaging Wizard and pre-fills info."""
+        """
+        Open the Packaging Wizard for the given Intune app and make the app available to the wizard.
+        
+        If the view's page exposes a `switchcraft_app` with a `goto_tab` method, navigates to the packaging wizard tab and stores the provided `app` in the page's `switchcraft_session` under the key `"pending_packaging_app"` so the wizard can prefill its context. If automatic navigation is not available, shows a notification and does nothing else.
+        
+        Parameters:
+            app (dict): Intune app object (as returned by the Intune service) to be provided to the Packaging Wizard for pre-population.
+        """
         if not hasattr(self.app_page, "switchcraft_app"):
              self._show_snack("Cannot navigate to Wizard automatically.", "ORANGE")
              return

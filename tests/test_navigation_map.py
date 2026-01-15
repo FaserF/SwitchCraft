@@ -58,7 +58,9 @@ def app_instance(monkeypatch):
 
 def test_sidebar_navigation_consistency(app_instance):
     """
-    Verifies that every index in Sidebar categories maps to the CORRECT View class.
+    Verify that each sidebar index opens the intended view.
+    
+    For every index listed in the app's sidebar categories this test switches to the tab and asserts that the view appended to app_instance.content matches the expected view type. For indices mapped to the settings view, the test also verifies the expected initial sub-tab index (2 -> 1, 3 -> 2, 4 -> 3, 13 -> 0). Indices with no defined expectation are skipped.
     """
     # Expected Mapping based on sidebar/app logic
     # We define what we EXPECT index X to be.

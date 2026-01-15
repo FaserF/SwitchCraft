@@ -13,6 +13,11 @@ from switchcraft.services.notification_service import NotificationService
 class TestNotificationService(unittest.TestCase):
     def setUp(self):
         # Clear singleton instance to start fresh
+        """
+        Prepare a clean NotificationService instance and ensure no leftover notifications exist.
+        
+        This resets the NotificationService singleton, creates a new instance on self.service, and clears any existing notifications so each test starts with an empty notification list.
+        """
         NotificationService._instance = None
         self.service = NotificationService()
         # Clear any existing notifications for clean test state

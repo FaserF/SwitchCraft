@@ -10,6 +10,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 
 class TestSettingsLanguage(unittest.TestCase):
     def setUp(self):
+        """
+        Prepare test fixtures: create a mocked `ft.Page` and attach a mocked `switchcraft_app`.
+        
+        The mocked page is assigned to `self.page`. A `switchcraft_app` mock is attached with an initial
+        `_current_tab_index` of 0 and a `goto_tab` mock. The page's `show_snack_bar` is also mocked.
+        """
         self.page = MagicMock(spec=ft.Page)
         self.page.switchcraft_app = MagicMock()
         self.page.switchcraft_app._current_tab_index = 0
@@ -23,8 +29,6 @@ class TestSettingsLanguage(unittest.TestCase):
         from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
         view = ModernSettingsView(self.page)
-        # Mock page property to avoid RuntimeError
-        view.page = self.page
 
         # Simulate language change
         view._on_lang_change("en")
@@ -45,9 +49,6 @@ class TestSettingsLanguage(unittest.TestCase):
         from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
         view = ModernSettingsView(self.page)
-        # Mock page property to avoid RuntimeError
-        view.page = self.page
-
         view._on_lang_change("de")
 
         mock_set_pref.assert_called_once_with("Language", "de")

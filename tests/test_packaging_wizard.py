@@ -10,6 +10,14 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 
 class TestPackagingWizard(unittest.TestCase):
     def setUp(self):
+        """
+        Prepare a mocked Flet Page for tests.
+        
+        Creates self.page as a MagicMock constrained to ft.Page and assigns:
+        - switchcraft_session: an empty dict to simulate session storage
+        - show_snack_bar: a MagicMock for snackbar interactions
+        - update: a MagicMock for page refresh/update calls
+        """
         self.page = MagicMock(spec=ft.Page)
         self.page.switchcraft_session = {}
         self.page.show_snack_bar = MagicMock()

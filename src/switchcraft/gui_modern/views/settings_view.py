@@ -67,6 +67,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self._check_managed_settings()
 
     def _switch_tab(self, builder_func):
+        """
+        Switches the view to a new tab by invoking the provided tab builder and updating the UI.
+        
+        If `builder_func` is callable, its return value is assigned to `self.current_content.content`. If `builder_func` is None, a localized error message is shown. If the builder raises an exception, the error is logged and a fallback error UI (icon, error text, and guidance) is displayed. The method then attempts to refresh the UI; update failures are ignored.
+        
+        Parameters:
+            builder_func (Callable[[], ft.Control] | None): Function that constructs and returns the Flet control for the tab, or None to indicate a missing builder.
+        """
         try:
             if builder_func:
                 self.current_content.content = builder_func()
@@ -87,6 +95,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     def _build_general_tab(self):
         # Company Name
+        """
+        Builds the General settings tab UI.
+        
+        Constructs and returns a ListView containing controls for company name, language selection, Winget integration toggle, cloud sync section, AI configuration, export/import settings actions, and a test notification button.
+        
+        Returns:
+            ft.ListView: A configured ListView that represents the General Settings tab.
+        """
         company_field = ft.TextField(
             label=i18n.get("settings_company_name") or "Company Name",
             value=SwitchCraftConfig.get_company_name(),
@@ -111,7 +127,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
             label=i18n.get("settings_enable_winget") or "Enable Winget Integration",
             value=bool(SwitchCraftConfig.get_value("EnableWinget", True)),
         )
-        winget_sw.on_change = lambda e: self._on_winget_toggle(e.control.value)
+        winget_sw.on_change = lambda e: SwitchCraftConfig.set_user_preference("EnableWinget", e.control.value)
 
         # Cloud Sync Section
         cloud_sync = self._build_cloud_sync_section()
@@ -192,7 +208,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.dropdown.Option("gemini"),
             ],
         )
-        provider.on_change = lambda e: self._on_ai_provider_change(e.control.value)
+        provider.on_change = lambda e: SwitchCraftConfig.set_user_preference("AIProvider", e.control.value)
 
         api_key = ft.TextField(
             label=i18n.get("settings_ai_key_label") or "API Key (if required)",
@@ -211,6 +227,19 @@ class ModernSettingsView(ft.Column, ViewMixin):
         ])
 
     def _build_updates_tab(self):
+        """
+        Builds the Updates settings tab UI.
+        
+        Creates and returns a ListView containing:
+        - An update channel selector (stable/beta/dev) wired to save changes.
+        - Current version and build date display.
+        - Latest version display (updated from cached or live checks).
+        - A "Check for Updates" button that triggers an update check.
+        - A changelog Markdown view populated from cached results or a loading message.
+        
+        Returns:
+            ft.ListView: The assembled ListView for the Updates tab with version info, controls, and changelog.
+        """
         channel = ft.Dropdown(
             label=i18n.get("settings_channel") or "Update Channel",
             value=SwitchCraftConfig.get_value("UpdateChannel", "stable"),
@@ -269,6 +298,16 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     def _build_deployment_tab(self):
         # Code Signing Section
+        """
+        Builds the Deployment / Global Graph API settings tab UI.
+        
+        Constructs and returns a ListView containing controls to configure Entra/Microsoft Graph (tenant, client, secret) with a connection test button, code signing settings (enable switch, certificate display and management buttons), repository and template path fields, and related actions.
+        
+        The method also stores references to the tenant, client, and secret input fields and to status text controls (certificate and template status, and test result) on the instance for use by other methods.
+        
+        Returns:
+            ft.ListView: A ListView populated with controls for Graph/Intune configuration, code signing, paths, and template management.
+        """
         sign_enabled = bool(SwitchCraftConfig.get_value("SignScripts", False))
 
         # Validate if cert actually exists
@@ -395,6 +434,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self._show_snack(f"Debug Mode {'Enabled' if val else 'Disabled'}", "ORANGE" if val else "GREEN")
 
     def _build_help_tab(self):
+        """
+        Builds the Help & Resources tab UI for the settings view.
+        
+        The returned view includes links to the project, issue reporter, and documentation; controls to export logs and toggle debug logging; a debug console with streamed logs; a prefilled GitHub issue reporter flow; an addon manager section; a "Danger Zone" factory reset action; and version/credits footer.
+        
+        Returns:
+            ft.ListView: A ListView containing the assembled controls for the Help & Resources tab.
+        """
         links = ft.Row([
             ft.Button(i18n.get("help_github_repo") or "GitHub Repo", icon=ft.Icons.CODE, url="https://github.com/FaserF/SwitchCraft"),
             ft.Button(i18n.get("help_report_issue") or "Report Issue", icon=ft.Icons.BUG_REPORT, url="https://github.com/FaserF/SwitchCraft/issues"),
@@ -412,6 +459,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         # GitHub Issue Reporter with pre-filled body
         def open_issue_reporter(e):
+            """
+            Open the application's pre-filled GitHub issue reporter for the current session.
+            
+            Attempts to open the generated issue URL in the user's default web browser; if that fails, copies the URL to the clipboard. Shows an in-app notification indicating the action taken and logs successes or failures.
+            
+            Parameters:
+                e: UI event object (ignored).
+            """
             try:
                 from switchcraft.utils.logging_handler import get_session_handler
                 import webbrowser
@@ -562,33 +617,15 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self.app_page.update()
 
     def _on_channel_change(self, val):
-        from switchcraft.utils.config import SwitchCraftConfig
         SwitchCraftConfig.set_user_preference("UpdateChannel", val)
-        # Restart required to apply update channel change
-        self._restart_with_countdown(
-            title=i18n.get("restart_required_title") or "Restart Required",
-            message=i18n.get("restart_to_apply_setting") or "The application needs to restart to apply this setting."
-        )
+        # Clear current latest if switching
+        self.latest_version_text.value = i18n.get("unknown") or "Unknown"
+        self.changelog_text.value = i18n.get("update_loading_changelog") or "Loading changelog..."
+        self.update()
+        # Trigger re-check
+        self._check_updates(None, only_changelog=True)
 
-    def _on_winget_toggle(self, val):
-        """Handle Winget integration toggle - requires restart."""
-        from switchcraft.utils.config import SwitchCraftConfig
-        SwitchCraftConfig.set_user_preference("EnableWinget", val)
-        # Restart required to apply Winget setting
-        self._restart_with_countdown(
-            title=i18n.get("setting_changed") or "Setting Changed",
-            message=i18n.get("restart_to_apply_setting") or "The application needs to restart to apply this setting."
-        )
 
-    def _on_ai_provider_change(self, val):
-        """Handle AI provider change - requires restart."""
-        from switchcraft.utils.config import SwitchCraftConfig
-        SwitchCraftConfig.set_user_preference("AIProvider", val)
-        # Restart required to apply AI provider change
-        self._restart_with_countdown(
-            title=i18n.get("setting_changed") or "Setting Changed",
-            message=i18n.get("restart_to_apply_setting") or "The application needs to restart to apply this setting."
-        )
 
     def _on_theme_change(self, val):
         SwitchCraftConfig.set_user_preference("Theme", val)
@@ -627,7 +664,15 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _start_github_login(self, e):
        # Reuse logic, update references to self.app_page.dialog not self.page.dialog if self.page isn't set on Column?
        # Column gets .page when mounted. but we are using self.app_page.
-        def _flow():
+        """
+       Start an interactive GitHub device‑flow login in a background thread and handle the result.
+       
+       Starts the device authorization flow, presents a dialog with the verification URL and user code, opens the browser when requested, polls for an access token, and on success saves the token, updates the cloud-sync UI, and shows a success or failure notification. All UI interactions and the polling run in a background thread to avoid blocking the main thread.
+       
+       Parameters:
+           e: The triggering event (e.g., button click). The value is accepted but not used by this method.
+       """
+       def _flow():
             flow = AuthService.initiate_device_flow()
             if not flow:
                 self._show_snack("Login init failed")
@@ -682,6 +727,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
         threading.Thread(target=_flow, daemon=True).start()
 
     def _logout_github(self, e):
+        """
+        Logs out the current GitHub/cloud authentication session, refreshes the sync UI, and shows a success or failure notification.
+        
+        Performs the logout action, updates the cloud sync section to reflect the unauthenticated state, and displays a green success snackbar on success or a red failure snackbar if an error occurs.
+        
+        Parameters:
+            e: The triggering event (typically a UI event). This parameter is accepted but not used.
+        """
         try:
             AuthService.logout()
             self._update_sync_ui()
@@ -691,6 +744,12 @@ class ModernSettingsView(ft.Column, ViewMixin):
             self._show_snack(f"{i18n.get('logout_failed') or 'Logout failed'}: {ex}", "RED")
 
     def _sync_up(self, e):
+        """
+        Start an asynchronous upload of user settings to cloud storage and show a success or failure snack.
+        
+        Parameters:
+            e: The triggering UI event (unused).
+        """
         def _run():
             if SyncService.sync_up():
                 self._show_snack(i18n.get("sync_success_up") or "Sync Up Successful", "GREEN")
@@ -707,6 +766,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
         threading.Thread(target=_run, daemon=True).start()
 
     def _export_settings(self, e):
+        """
+        Open a file-save dialog and write current user preferences to a JSON file.
+        
+        Opens a save-file picker prompting the user for a destination (default filename "settings.json"); if a path is selected, exports the application preferences to that file as pretty-printed JSON and shows a success notification.
+        """
         from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
         path = FilePickerHelper.save_file(dialog_title=i18n.get("btn_export_settings") or "Export Settings", file_name="settings.json", allowed_extensions=["json"])
         if path:
@@ -716,6 +780,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
             self._show_snack(f"{i18n.get('export_success') or 'Exported to'} {path}")
 
     def _import_settings(self, e):
+        """
+        Import application settings from a user-selected JSON file.
+        
+        Opens a file picker restricted to a single `.json` file, parses the selected file as JSON, and applies the data via SwitchCraftConfig.import_preferences. Displays a success snack on successful import; on failure shows an error snack and logs the exception. JSON decoding errors are reported as an invalid JSON file.
+        
+        Parameters:
+            e: UI event or trigger that invoked this handler (ignored).
+        """
         try:
             from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
             path = FilePickerHelper.pick_file(allowed_extensions=["json"], allow_multiple=False)
@@ -811,68 +883,89 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
 
 
-    def _restart_with_countdown(self, title: str, message: str):
-        """Generic method to restart the app with a countdown dialog."""
-        import sys
-        import os
-        import subprocess
-        import time
-        import gc
-        import logging
-        import threading
+    def _on_lang_change(self, val):
+        """
+        Handle a change to the UI language and apply it across the application.
+        
+        Saves the selected language to user preferences, updates the i18n singleton, rebuilds the settings view (and main app navigation) to reflect the new language, and shows a confirmation snack. If the app page reference is unavailable, prompts the user to restart the application and performs a restart when confirmed.
+        
+        Parameters:
+            val (str): Language code or identifier to set (e.g., "en", "fr", etc.).
+        """
+        from switchcraft.utils.config import SwitchCraftConfig
+        from switchcraft.utils.i18n import i18n
 
-        # Show countdown dialog with automatic restart
-        countdown_text = ft.Text("", size=18, weight=ft.FontWeight.BOLD)
-        countdown_dlg = ft.AlertDialog(
-            title=ft.Text(title),
-            content=ft.Column([
-                ft.Text(message, size=14),
-                ft.Container(height=10),
-                countdown_text,
-            ], tight=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            modal=True,
-            actions=[
-                ft.TextButton(
-                    i18n.get("btn_cancel") or "Cancel",
-                    on_click=lambda e: setattr(countdown_dlg, "open", False) or self.app_page.update()
-                ),
+        # Save preference
+        SwitchCraftConfig.set_user_preference("Language", val)
+
+        # Actually update the i18n singleton
+        i18n.set_language(val)
+
+        # Immediately refresh the current view to apply language change
+        # Get current tab index and reload the view
+        if hasattr(self.app_page, 'switchcraft_app'):
+            app = self.app_page.switchcraft_app
+            current_idx = getattr(app, '_current_tab_index', 0)
+
+            # Clear ALL view cache to force rebuild with new language
+            if hasattr(app, '_view_cache'):
+                app._view_cache.clear()
+
+            # Rebuild the Settings View itself (since we're in it)
+            # Get current tab index within settings
+            current_settings_tab = self.initial_tab_index
+
+            # Rebuild tab definitions with new language
+            self.tab_defs = [
+                (i18n.get("settings_general") or "General", ft.Icons.SETTINGS, self._build_general_tab),
+                (i18n.get("settings_hdr_update") or "Updates", ft.Icons.UPDATE, self._build_updates_tab),
+                (i18n.get("deployment_title") or "Global Graph API", ft.Icons.CLOUD_UPLOAD, self._build_deployment_tab),
+                (i18n.get("help_title") or "Help", ft.Icons.HELP, self._build_help_tab)
             ]
-        )
-        self.app_page.dialog = countdown_dlg
-        countdown_dlg.open = True
-        self.app_page.update()
 
-        # Countdown and restart function
-        def do_countdown_and_restart():
-            countdown = 5
-            cancelled = [False]  # Use list to allow modification in nested function
+            # Rebuild tab navigation buttons with new language
+            self.nav_row.controls.clear()
+            for i, (name, icon, func) in enumerate(self.tab_defs):
+                btn = ft.Button(
+                    content=ft.Row([ft.Icon(icon), ft.Text(name)]),
+                    on_click=lambda e, f=func: self._switch_tab(f),
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=5),
+                        bgcolor="PRIMARY_CONTAINER" if i == current_settings_tab else None
+                    )
+                )
+                self.nav_row.controls.append(btn)
 
-            def cancel_handler(e):
-                cancelled[0] = True
-                countdown_dlg.open = False
+            # Rebuild current tab content
+            self._switch_tab(self.tab_defs[current_settings_tab][2])
+
+            # Update the nav_row to reflect changes
+            self.update()
+
+            # Reload the main app view to update sidebar labels
+            app.goto_tab(current_idx)
+
+            self._show_snack(
+                i18n.get("language_changed") or "Language changed. UI updated.",
+                "GREEN"
+            )
+        else:
+            # Fallback: Show restart dialog if app reference not available
+            def do_restart(e):
+                """
+                Restart the application by launching a new process and exiting the current process.
+                
+                This function attempts a clean restart by shutting down logging, forcing garbage collection, removing PyInstaller-related environment variables (e.g., `_MEI*`), and spawning a new process with the same executable and arguments. On Windows the new process is started detached and in a new process group. Standard input/output/error are suppressed for the spawned process. If the restart fails, an error snack is shown via self._show_snack.
+                """
+                dlg.open = False
                 self.app_page.update()
+                import sys
+                import os
+                import subprocess
+                import time
+                import gc
+                import logging
 
-            # Update cancel button handler
-            countdown_dlg.actions[0].on_click = cancel_handler
-
-            while countdown > 0 and not cancelled[0]:
-                countdown_text.value = i18n.get("restarting_in") or "Restarting in {seconds} seconds...".format(seconds=countdown)
-                countdown_text.value = countdown_text.value.replace("{seconds}", str(countdown))
-                self.app_page.update()
-                time.sleep(1)
-                countdown -= 1
-
-            if not cancelled[0]:
-                # Update text to "Restarting now..."
-                countdown_text.value = i18n.get("restarting_now") or "Restarting now..."
-                self.app_page.update()
-                time.sleep(0.5)
-
-                # Close dialog
-                countdown_dlg.open = False
-                self.app_page.update()
-
-                # Perform restart
                 try:
                     if getattr(sys, 'frozen', False):
                         executable = sys.executable
@@ -905,7 +998,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     # 5. Launch new process
                     creationflags = 0
                     if sys.platform == 'win32':
-                        creationflags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+                        creationflags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
 
                     subprocess.Popen(
                         [executable] + args,
@@ -924,29 +1017,32 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     # 7. Exit
                     os._exit(0)
                 except Exception as ex:
-                    logger.exception(f"Restart failed: {ex}")
                     self._show_snack(f"Restart failed: {ex}", "RED")
 
-        # Start countdown in background thread
-        threading.Thread(target=do_countdown_and_restart, daemon=True).start()
-
-    def _on_lang_change(self, val):
-        from switchcraft.utils.config import SwitchCraftConfig
-        from switchcraft.utils.i18n import i18n
-
-        # Save preference
-        SwitchCraftConfig.set_user_preference("Language", val)
-
-        # Update i18n singleton for the restart dialog text
-        i18n.set_language(val)
-
-        # Restart with countdown
-        self._restart_with_countdown(
-            title=i18n.get("language_changed") or "Language Changed",
-            message=i18n.get("restart_to_apply") or "The application needs to restart to apply the new language."
-        )
+            dlg = ft.AlertDialog(
+                title=ft.Text(i18n.get("language_changed") or "Language Changed"),
+                content=ft.Text(
+                    i18n.get("restart_to_apply") or
+                    "The application needs to restart to apply the new language. Restart now?"
+                ),
+                actions=[
+                    ft.TextButton(i18n.get("btn_later") or "Later", on_click=lambda e: setattr(dlg, "open", False) or self.app_page.update()),
+                    ft.Button(
+                        i18n.get("btn_restart_now") or "Restart Now",
+                        on_click=do_restart,
+                        bgcolor="BLUE_700",
+                        color="WHITE"
+                    ),
+                ]
+            )
+            self.app_page.open(dlg)
 
     def _test_graph_connection(self, e):
+        """
+        Validate Entra (Microsoft Graph/Intune) credentials from the UI fields and report the result.
+        
+        Reads tenant ID, client ID, and client secret from the view's credential fields; if any are missing, updates the test result text and color to indicate the missing input. If present, starts an asynchronous authentication attempt and updates the test result text and color to show progress, success, or failure. On success or failure a notification snack is displayed. The method does not raise exceptions (authentication errors are reported in the UI).
+        """
         t_id = self.raw_tenant_field.value.strip()
         c_id = self.raw_client_field.value.strip()
         sec = self.raw_secret_field.value.strip()
@@ -1066,7 +1162,15 @@ class ModernSettingsView(ft.Column, ViewMixin):
             logging.getLogger().addHandler(handler)
 
     def _build_addon_manager_section(self):
-        """Build the Addon Manager UI section."""
+        """
+        Create the Addon Manager UI section listing available addons and actions.
+        
+        Each addon row shows the addon's name, description, installation status, and an Install/Reinstall button.
+        The section also includes an "Upload Custom Addon (.zip)" button and an "Import from URL" button.
+        
+        Returns:
+            ft.Column: A Flet Column containing addon rows and a row with upload/import action buttons.
+        """
         from switchcraft.services.addon_service import AddonService
 
         addons = [
@@ -1117,7 +1221,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
         return ft.Column(rows + [ft.Row([upload_btn, url_import_btn])], spacing=10)
 
     def _install_addon(self, addon_id):
-        """Install an addon from the official repository."""
+        """
+        Install the specified addon and update the UI with success or failure feedback.
+        
+        Attempts to install the addon identified by `addon_id` by first locating a bundled ZIP and, if absent, falling back to downloading the addon from the official GitHub releases. The installation runs on a background thread, displays success or failure notifications to the user, and triggers a refresh of the addon manager UI when installation succeeds.
+        
+        Parameters:
+            addon_id (str): Identifier of the addon (filename prefix for the addon ZIP, e.g. "advanced", "winget").
+        """
         from switchcraft.services.addon_service import AddonService
         import sys
         from pathlib import Path
@@ -1148,6 +1259,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
         logger.info(f"Looking for addon ZIP at: {zip_path}")
 
         def _run():
+            """
+            Install an addon ZIP if present; otherwise attempt to download it from GitHub and update the UI with the outcome.
+            
+            Attempts to install the addon located at `zip_path`. If the ZIP is missing, triggers a download from GitHub for `addon_id`. On successful installation, logs the event, shows a success snack, and refreshes the addon manager section in the UI if available. On failure or exception, logs the error and shows a failure snack containing the error message.
+            """
             try:
                 if not zip_path.exists():
                     logger.error(f"Addon ZIP not found at: {zip_path}")
@@ -1178,7 +1294,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
         threading.Thread(target=_run, daemon=True).start()
 
     def _refresh_addon_section(self):
-        """Refresh the addon manager section after installation."""
+        """
+        Attempt to refresh the Addon Manager section in the current settings view.
+        
+        This is a best-effort UI refresh: when an addon is installed or its state changes, the method tries to locate and rebuild the Addon Manager area inside the currently rendered tab. Failures are handled silently and logged for debugging; the method performs no guaranteed action and may be a no-op in some layouts.
+        """
         try:
             # Find the General tab and rebuild addon section
             # This is a bit hacky, but we need to refresh the UI
@@ -1189,7 +1309,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
             logger.debug(f"Failed to refresh addon section: {ex}")
 
     def _download_addon_from_github(self, addon_id):
-        """Download addon from GitHub releases if not found locally."""
+        """
+        Download and install an addon ZIP named "<addon_id>.zip" from the repository's latest GitHub release.
+        
+        Looks up the latest release for the bundled SwitchCraft repository, downloads the release asset matching "{addon_id}.zip", attempts installation via AddonService.install_addon, and removes the temporary download file. Shows user-facing notifications for success or failure and logs errors.
+        
+        Parameters:
+            addon_id (str): Identifier of the addon; corresponds to the asset filename without the ".zip" extension.
+        """
         try:
             import requests
             from switchcraft import __version__
@@ -1429,7 +1556,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
             self._show_snack(i18n.get("template_selected") or "Template selected.", "GREEN")
 
     def _reset_template(self, e):
-        """Reset to default template."""
+        """
+        Reset the custom template selection to the default.
+        
+        Clears the stored CustomTemplatePath user preference, updates the template status label and its color, refreshes the view, and shows a confirmation snackbar.
+        """
         SwitchCraftConfig.set_user_preference("CustomTemplatePath", "")
         self.template_status_text.value = i18n.get("template_default") or "(Default)"
         self.template_status_text.color = "GREY"
@@ -1437,7 +1568,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self._show_snack(i18n.get("template_reset") or "Template reset to default.", "GREY")
 
     def _get_build_date(self):
-        """Get build date/time from file modification time or build info."""
+        """
+        Return a human-readable build date/time derived from the application's file modification time.
+        
+        If the application is running from a frozen (packaged) executable the executable's modification time is used; otherwise the package's __init__.py (or this file as a fallback) is used. If the build date cannot be determined, returns "Unknown".
+        
+        Returns:
+            A string containing the build date/time in "YYYY-MM-DD HH:MM:SS" format, or "Unknown" if unavailable.
+        """
         try:
             import sys
             import os

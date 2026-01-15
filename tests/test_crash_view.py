@@ -12,6 +12,13 @@ from switchcraft.gui_modern.views.crash_view import CrashDumpView
 
 class TestCrashView(unittest.TestCase):
     def setUp(self):
+        """
+        Prepare a mocked flet Page object with commonly used attributes for tests.
+        
+        Creates self.page as a MagicMock(spec=ft.Page) and configures attributes used by the test suite:
+        - snack_bar set to None
+        - set_clipboard, update, clean, add, show_snack_bar set to MagicMock instances
+        """
         self.page = MagicMock(spec=ft.Page)
         self.page.snack_bar = None
         self.page.set_clipboard = MagicMock()
@@ -40,12 +47,6 @@ class TestCrashView(unittest.TestCase):
         error = ValueError("Test error")
         view = CrashDumpView(self.page, error, "Test traceback")
 
-        # Try to import pyperclip, skip test if not available
-        try:
-            import pyperclip
-        except ImportError:
-            self.skipTest("pyperclip not available")
-
         with patch('pyperclip.copy') as mock_copy:
             event = MagicMock()
             view._copy_error(event)
@@ -55,16 +56,6 @@ class TestCrashView(unittest.TestCase):
         """Test copying error falls back to Flet clipboard if pyperclip fails."""
         error = ValueError("Test error")
         view = CrashDumpView(self.page, error, "Test traceback")
-
-        # Try to import pyperclip, skip test if not available
-        try:
-            import pyperclip
-        except ImportError:
-            # If pyperclip is not available, test that Flet clipboard is used
-            event = MagicMock()
-            view._copy_error(event)
-            self.page.set_clipboard.assert_called_once_with("Test traceback")
-            return
 
         with patch('pyperclip.copy', side_effect=Exception("pyperclip failed")):
             event = MagicMock()

@@ -123,7 +123,11 @@ class TestI18nIntegrity(unittest.TestCase):
         self.assertFalse(missing, f"Found i18n keys in code missing from JSON: {missing}")
 
     def test_german_du_form(self):
-        """Ensure German texts use Du-Form (informal) instead of Sie-Form (formal)."""
+        """
+        Check that German translations use the informal Du-form rather than the formal Sie-form.
+        
+        Scans each value in the loaded German translations for capitalized Sie-form tokens and common formal phrases (e.g., "Sie", "Ihnen", "können Sie"). Records any occurrences (except the ambiguous "Ihr") with their translation key and fails the test if any violations are found.
+        """
         # Patterns that indicate Sie-Form (formal German)
         # Note: We check for capitalized forms only, as lowercase "sie" means "they" (3rd person plural)
         # We use word boundaries and case-sensitive matching to avoid false positives
