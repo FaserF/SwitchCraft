@@ -30,7 +30,7 @@ jobs:
       workflows: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Trigger Release Workflow
         run: |
           gh workflow run release.yml -f release_type=development
