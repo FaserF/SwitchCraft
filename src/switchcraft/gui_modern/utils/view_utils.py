@@ -41,7 +41,9 @@ class ViewMixin:
         except Exception as e:
             logger.debug(f"Default opener failed, falling back to webbrowser: {e}")
             try:
-                webbrowser.open(f"file:///{path}")
+                from pathlib import Path
+                uri = Path(path).as_uri()
+                webbrowser.open(uri)
             except Exception as e2:
                 self._show_snack(f"Failed to open path: {path}", "RED")
                 logger.error(f"Failed to open path: {e2}")
@@ -60,12 +62,12 @@ class ViewMixin:
             if hasattr(page, "close"):
                 try:
                     page.close(dialog)
-                except:
+                except Exception:
                     pass
             elif hasattr(page, "close_dialog"):
                 try:
                     page.close_dialog()
-                except:
+                except Exception:
                     pass
 
             page.update()

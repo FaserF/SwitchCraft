@@ -424,12 +424,12 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self._show_snack(f"Failed to add member: {ex}", "RED")
                 threading.Thread(target=_bg, daemon=True).start()
 
-            add_dlg = ft.AlertDialog(
+            self.dlg_add_member = ft.AlertDialog(
                 title=ft.Text(i18n.get("dlg_add_member") or "Add Member"),
                 content=ft.Column([search_box, results_list], height=300, width=400),
-                actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(self.app_page.dialog))]
+                actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(self.dlg_add_member))]
             )
-            self.app_page.open(add_dlg)
+            self.app_page.open(self.dlg_add_member)
             self.app_page.update()
 
         title_tmpl = i18n.get("members_title") or "Members: {group}"

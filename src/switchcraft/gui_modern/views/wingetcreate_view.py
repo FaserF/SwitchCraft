@@ -688,11 +688,6 @@ class WingetCreateView(ft.Column, ViewMixin):
         """Open the manifest directory in file explorer."""
         try:
             path = str(self.manifest_dir)
-            if sys.platform == "win32":
-                self._open_path(path)
-            elif sys.platform == "darwin":
-                subprocess.Popen(["open", path])
-            else:
-                subprocess.Popen(["xdg-open", path])
+            self._open_path(path)
         except Exception as ex:
             logger.error(f"Failed to open manifest dir: {ex}")

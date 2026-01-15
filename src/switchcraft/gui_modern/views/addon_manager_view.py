@@ -140,15 +140,15 @@ class AddonManagerView(ft.Column, ViewMixin):
                     if self.addon_service.delete_addon(aid) is False:
                          self._show_snack("Delete failed (File in use?)", "RED")
                     else:
-                        self._show_snack("Addon deleted.", "GREEN")
-                        self.selected_addon = None
-                        self._close_dialog(self.import_dlg)
-                        self._load_data()
+                         self._show_snack("Addon deleted.", "GREEN")
+                         self.selected_addon = None
+                         self._close_dialog(self.import_dlg)
+                         self._load_data()
                 except Exception as ex:
                      self._show_snack(f"Delete failed: {ex}", "RED")
             threading.Thread(target=_bg, daemon=True).start()
 
-        dlg = ft.AlertDialog(
+        self.import_dlg = ft.AlertDialog(
             title=ft.Text("Confirm Deletion"),
             content=ft.Text(f"Delete addon '{self.selected_addon.get('name')}'?"),
             actions=[
@@ -156,6 +156,5 @@ class AddonManagerView(ft.Column, ViewMixin):
                 ft.Button("Delete", on_click=delete, bgcolor="RED", color="WHITE")
             ]
         )
-        self.app_page.dialog = dlg
-        dlg.open = True
+        self.app_page.open(self.import_dlg)
         self.app_page.update()

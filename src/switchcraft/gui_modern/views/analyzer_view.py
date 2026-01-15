@@ -950,7 +950,12 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             content=ft.Column([
                 ft.Text("Quickly generate a local manifest structure based on analysis results."),
                 ft.Text(f"Target: {info.manufacturer}.{info.product_name}", size=12, italic=True),
-            ], height=80, tight=True),
+                ft.Container(height=5),
+                ft.Row([
+                    ft.Icon(ft.Icons.WARNING_AMBER, color="ORANGE", size=16),
+                    ft.Text("Note: Manifests use a placeholder SHA256. Manual update required before submission.", size=11, color="ORANGE", italic=True)
+                ], vertical_alignment=ft.CrossAxisAlignment.CENTER)
+            ], height=110, tight=True),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False) or self.app_page.update()),
                 ft.TextButton("Open Manager", on_click=open_winget_manager),
@@ -1026,17 +1031,8 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
                 # Show success dialog
                 def open_folder(e):
-                    import os
-                    import sys
-                    import subprocess
-
                     try:
-                        if sys.platform == "win32":
-                            self._open_path(str(source))
-                        elif sys.platform == "darwin":
-                            subprocess.call(["open", str(source)])
-                        else:
-                            subprocess.call(["xdg-open", str(source)])
+                        self._open_path(str(source))
                     except Exception as ex:
                         self._show_snack(f"Failed to open folder: {ex}", "RED")
 

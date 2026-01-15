@@ -1,4 +1,5 @@
 import logging
+import re
 from switchcraft.services.addon_service import AddonService
 from switchcraft.utils.i18n import i18n
 
@@ -22,7 +23,6 @@ else:
         @staticmethod
         def _is_greeting(query: str) -> bool:
             """Check if the query is a greeting using regex word boundaries."""
-            import re
             q = query.lower()
             return bool(re.search(r'\b(hi|hello|hallo|hey|moin|servus)\b', q))
 

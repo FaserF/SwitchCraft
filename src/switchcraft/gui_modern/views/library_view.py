@@ -1,6 +1,7 @@
 import flet as ft
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 import logging
 from datetime import datetime
@@ -11,7 +12,7 @@ import sys
 logger = logging.getLogger(__name__)
 
 
-class LibraryView(ft.Column):
+class LibraryView(ft.Column, ViewMixin):
     """Library view that displays recent .intunewin packages."""
 
     def __init__(self, page: ft.Page):
@@ -301,16 +302,9 @@ class LibraryView(ft.Column):
 
     def _open_folder(self, path):
         """Open the folder containing the file."""
-
-        import subprocess
         try:
             folder = os.path.dirname(path)
-            if sys.platform == "win32":
-                self._open_path(folder)
-            elif sys.platform == "darwin":
-                subprocess.call(["open", folder])
-            else:
-                subprocess.call(["xdg-open", folder])
+            self._open_path(folder)
         except Exception as ex:
             logger.error(f"Failed to open folder: {ex}")
 
