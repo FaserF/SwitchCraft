@@ -14,7 +14,7 @@ class TestIntuneServiceCore(unittest.TestCase):
     def setUp(self):
         """
         Prepare test fixture for each test by creating an IntuneService instance.
-        
+
         Assigns a new IntuneService to `self.service` so individual test methods have a fresh service instance.
         """
         self.service = IntuneService()
@@ -47,13 +47,20 @@ class TestIntuneServiceCore(unittest.TestCase):
 
     @patch('requests.get')
     @patch('pathlib.Path.mkdir')
+    @patch('os.stat')
+    @patch('os.chmod')
     @patch('builtins.open', new_callable=mock_open)
-    def test_download_tool_mock(self, mock_file, mock_mkdir, mock_get):
+    def test_download_tool_mock(self, mock_file, mock_chmod, mock_stat, mock_mkdir, mock_get):
         """Test downloading IntuneWinAppUtil with mocked requests."""
         mock_response = MagicMock()
         mock_response.iter_content.return_value = [b'fake', b'content']
         mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
+
+        # Mock os.stat to return a mock stat object
+        mock_stat_obj = MagicMock()
+        mock_stat_obj.st_mode = 0o644
+        mock_stat.return_value = mock_stat_obj
 
         result = self.service.download_tool()
         self.assertTrue(result)

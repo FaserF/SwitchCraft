@@ -937,8 +937,13 @@ class ModernSettingsView(ft.Column, ViewMixin):
             # Rebuild current tab content
             self._switch_tab(self.tab_defs[current_settings_tab][2])
 
-            # Update the nav_row to reflect changes
-            self.update()
+            # Update the nav_row to reflect changes (only if page is attached)
+            try:
+                if hasattr(self, 'page') and self.page:
+                    self.update()
+            except RuntimeError:
+                # Control not attached to page yet, skip update
+                pass
 
             # Reload the main app view to update sidebar labels
             app.goto_tab(current_idx)

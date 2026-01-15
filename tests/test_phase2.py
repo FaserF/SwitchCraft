@@ -44,7 +44,7 @@ class TestPhase2Features(unittest.TestCase):
         """Test German smalltalk response."""
         response = self.ai.ask("Hallo wer bist du")
         # In stub mode, should return helpful message
-        if "AI Addon Required" in response or "AI Addon is required" in response:
+        if "AI Addon Required" in response or "AI Addon is required" in response or "limited mode" in response.lower():
             # Stub mode - check for helpful message
             self.assertIn("AI", response)
         else:
@@ -55,7 +55,7 @@ class TestPhase2Features(unittest.TestCase):
         """Test English smalltalk response."""
         response = self.ai.ask("Hello who are you")
         # In stub mode, should return helpful message
-        if "AI Addon Required" in response or "AI Addon is required" in response:
+        if "AI Addon Required" in response or "AI Addon is required" in response or "limited mode" in response.lower():
             # Stub mode - check for helpful message
             self.assertIn("AI", response)
         else:

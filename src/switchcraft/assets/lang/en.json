@@ -852,7 +852,6 @@
     "restarting_now": "Restarting now...",
     "btn_restart_now": "Restart Now",
     "btn_later": "Later",
-    "btn_cancel": "Cancel",
     "setting_changed": "Setting Changed",
     "restart_to_apply_setting": "The application needs to restart to apply this setting.",
     "btn_close": "Close",
