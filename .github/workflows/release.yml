@@ -66,6 +66,20 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_ENV"
 
+      - name: Generate Summary Table
+        id: summary
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+          python .github/scripts/release_summary.py "$VERSION" "$REPO_URL" > summary.md
+          # Read summary content into a variable safely (multiline)
+          {
+            echo 'SUMMARY_BODY<<EOF'
+            cat summary.md
+            echo ""
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
       - name: Commit and Tag
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -94,9 +108,14 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: ${{ github.event.inputs.release_type == 'stable' && format('Release v{0}', steps.version.outputs.version) || github.event.inputs.release_type == 'prerelease' && format('Pre-release v{0}', steps.version.outputs.version) || format('Development Build v{0}', steps.version.outputs.version) }}
           body: |
-            ![Downloads](https://img.shields.io/github/downloads/FaserF/SwitchCraft/v${{ steps.version.outputs.version }}/total?color=blue&style=flat-square)
+            [![GitHub all releases](https://img.shields.io/github/downloads/${{ github.repository }}/total?color=blue&style=flat-square&logo=github&label=Total%20Downloads)](https://github.com/${{ github.repository }}/releases)
+            ![Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/v${{ steps.version.outputs.version }}/total?color=blue&style=flat-square)
 
             ${{ env.CHANGELOG_BODY }}
+
+            ---
+
+            ${{ env.SUMMARY_BODY }}
 
           draft: false
           prerelease: ${{ github.event.inputs.release_type != 'stable' }}

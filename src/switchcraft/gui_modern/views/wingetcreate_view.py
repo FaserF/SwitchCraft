@@ -689,7 +689,7 @@ class WingetCreateView(ft.Column, ViewMixin):
         try:
             path = str(self.manifest_dir)
             if sys.platform == "win32":
-                os.startfile(path)
+                self._open_path(path)
             elif sys.platform == "darwin":
                 subprocess.Popen(["open", path])
             else:

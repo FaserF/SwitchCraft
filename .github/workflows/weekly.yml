@@ -1,0 +1,36 @@
+name: Weekly Release
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Every Sunday at 00:00
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  check_relevance:
+    runs-on: ubuntu-latest
+    outputs:
+      relevance: ${{ steps.check.outputs.relevance }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Check for relevant changes
+        id: check
+        run: |
+          RELEVANCE=$(python .github/scripts/check_relevance.py | grep "relevance=" | cut -d= -f2)
+          echo "relevance=$RELEVANCE" >> "$GITHUB_OUTPUT"
+
+  trigger_release:
+    needs: check_relevance
+    if: needs.check_relevance.outputs.relevance == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Release Workflow
+        run: |
+          gh workflow run release.yml -f release_type=development
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -306,7 +306,7 @@ class LibraryView(ft.Column):
         try:
             folder = os.path.dirname(path)
             if sys.platform == "win32":
-                os.startfile(folder)
+                self._open_path(folder)
             elif sys.platform == "darwin":
                 subprocess.call(["open", folder])
             else:

@@ -67,12 +67,24 @@ class ModernHomeView(ft.Container):
         if not username:
             username = os.getenv("USERNAME") or os.getenv("USER") or i18n.get("default_user") or "User"
 
+        # Admin Privilege Check
+        is_admin = False
+        try:
+            import ctypes
+            is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except Exception:
+            pass
+
+        privilege_text = i18n.get("running_as_admin" if is_admin else "running_as_user") or \
+                        (f"Status: {'Administrator ✅' if is_admin else 'Standard User 👤'}")
+
         # Dynamic subtitle based on status
         subtitle = i18n.get("home_subtitle") or "Here is what's happening with your deployments."
 
         return ft.Column([
             # Header
             ft.Text(f"{greeting}, {username}", size=32, weight=ft.FontWeight.BOLD, color="PRIMARY"),
+            ft.Text(privilege_text, size=14, color="SECONDARY", weight=ft.FontWeight.W_500),
             ft.Text(subtitle, size=14, color="SECONDARY"),
 
             ft.Divider(height=30, color="TRANSPARENT"),

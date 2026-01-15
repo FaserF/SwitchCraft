@@ -19,8 +19,19 @@ else:
             logger.warning("SwitchCraftAI running in Stub mode (Addon missing).")
             self.context = {}
 
+        @staticmethod
+        def _is_greeting(query: str) -> bool:
+            """Check if the query is a greeting using regex word boundaries."""
+            import re
+            q = query.lower()
+            return bool(re.search(r'\b(hi|hello|hallo|hey|moin|servus)\b', q))
+
         def update_context(self, data: dict):
             self.context = data
+            query = self.context.get('query', '')
+
+            if self._is_greeting(query):
+                return i18n.get("ai_stub_greeting") or "Hello! I am your local AI assistant. I can help you with packaging questions."
 
             title = i18n.get("ai_addon_required_title") or "🤖 **AI Addon Required**"
             msg = i18n.get("ai_addon_required_msg") or (
@@ -42,6 +53,9 @@ else:
 
         def ask(self, query):
             """Stub ask method - returns a message indicating the AI addon is missing."""
+            if self._is_greeting(query):
+                return i18n.get("ai_stub_welcome") or "Hello! I am the local SwitchCraft AI helper."
+
             title = i18n.get("ai_addon_required_title") or "AI Addon Required"
             msg = i18n.get("ai_addon_required_msg") or "This feature requires the AI Addon."
 

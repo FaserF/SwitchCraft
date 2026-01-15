@@ -1,22 +1,6 @@
-import subprocess
-import os
-import re
 import argparse
+from git_utils import get_last_tag
 
-def get_last_tag():
-    """Returns the most recent git tag."""
-    try:
-        # Get all tags sorted by date desc
-        result = subprocess.run(
-            ["git", "tag", "--sort=-creatordate"],
-            capture_output=True, text=True, check=True
-        )
-        tags = result.stdout.strip().split('\n')
-        if not tags or tags[0] == "":
-            return None
-        return tags[0]
-    except subprocess.CalledProcessError:
-        return None
 
 def get_commits(since_tag=None):
     """Returns list of commit messages since the given tag (or all if None)."""
@@ -40,7 +24,8 @@ def parse_commits(commits):
 
     categories = {
         "Features": [],
-        "Fixes": [],
+        "Bug Fixes": [],
+        "Styling": [],
         "Documentation": [],
         "Maintenance": [],
         "Other": []
@@ -57,10 +42,12 @@ def parse_commits(commits):
         if lower_commit.startswith("feat"):
             categories["Features"].append(commit)
         elif lower_commit.startswith("fix"):
-            categories["Fixes"].append(commit)
+            categories["Bug Fixes"].append(commit)
+        elif lower_commit.startswith("style"):
+            categories["Styling"].append(commit)
         elif lower_commit.startswith("docs"):
             categories["Documentation"].append(commit)
-        elif lower_commit.startswith(tuple(["chore", "refactor", "style", "test", "ci", "build"])):
+        elif lower_commit.startswith(tuple(["chore", "refactor", "test", "ci", "build"])):
             categories["Maintenance"].append(commit)
         else:
             # Filter out merge commits from "Other" list if we want clean output
@@ -73,8 +60,8 @@ def generate_markdown(categories):
     """Generates markdown string from categories."""
     md = []
 
-    # Order: Feat, Fix, Docs, Maint, Other
-    order = ["Features", "Fixes", "Documentation", "Maintenance", "Other"]
+    # Order: Feat, Fix, Style, Docs, Maint, Other
+    order = ["Features", "Bug Fixes", "Styling", "Documentation", "Maintenance", "Other"]
 
     for cat in order:
         items = categories.get(cat, [])
@@ -102,15 +89,11 @@ def main():
     pr_count, categories = parse_commits(commits)
     print(f"Detected {pr_count} Pull Requests")
 
-    # Threshold: If less than 2 PRs, generate commit-based changelog
-    if pr_count < 2:
-        print("Generating commit-based changelog...")
-        changelog_md = generate_markdown(categories)
-        if not changelog_md:
-            changelog_md = "No significant changes detected."
-    else:
-        print("Sufficient PRs detected. Skipping custom changelog generation.")
-        changelog_md = ""
+    # Always generate categorized output if we have commits
+    print("Generating categorized changelog...")
+    changelog_md = generate_markdown(categories)
+    if not changelog_md:
+        changelog_md = "No significant changes detected."
 
     if args.output:
         with open(args.output, "w", encoding='utf-8') as f:
