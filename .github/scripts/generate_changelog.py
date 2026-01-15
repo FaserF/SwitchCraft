@@ -1,4 +1,14 @@
 import argparse
+import subprocess
+import os
+import re
+import sys
+
+# Ensure the script's directory is in sys.path for git_utils import
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+
 from git_utils import get_last_tag
 
 
@@ -47,7 +57,7 @@ def parse_commits(commits):
             categories["Styling"].append(commit)
         elif lower_commit.startswith("docs"):
             categories["Documentation"].append(commit)
-        elif lower_commit.startswith(tuple(["chore", "refactor", "test", "ci", "build"])):
+        elif lower_commit.startswith(("chore", "refactor", "test", "ci", "build")):
             categories["Maintenance"].append(commit)
         else:
             # Filter out merge commits from "Other" list if we want clean output

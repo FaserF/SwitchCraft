@@ -1,6 +1,12 @@
 import subprocess
 import sys
 import os
+
+# Ensure the script's directory is in sys.path for git_utils import
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+
 from git_utils import get_last_tag
 
 def has_relevant_changes(since_tag):
