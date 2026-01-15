@@ -36,11 +36,16 @@ class AnalyzerView(ctk.CTkFrame):
 
     def setup_ui(self):
         # Drop Zone
+        """
+        Constructs and lays out the analyzer view's UI components.
+        
+        Creates an optional addon warning (shown when the "advanced" addon is not installed), a browseable drop zone that accepts drag-and-drop installer files, a scrollable results area configured to expand, a status bar, and a hidden progress bar initialized to zero. Also registers the drop target and binds drop and browse actions to the view's handlers, and configures grid weights so only the results area expands.
+        """
         row_offset = 0
 
         # Check for Advanced Addon
         from switchcraft.services.addon_service import AddonService
-        if not AddonService.is_addon_installed("advanced"):
+        if not AddonService.is_addon_installed_static("advanced"):
             self._create_addon_warning(row_offset)
             row_offset += 1
 

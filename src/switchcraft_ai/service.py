@@ -165,7 +165,19 @@ class SwitchCraftAI:
             return f"Gemini Error: {e}"
 
     def _execute_tool(self, name, args):
-        """Execute local functions based on AI request."""
+        """
+        Execute a named tool operation requested by the AI assistant.
+        
+        Parameters:
+            name (str): The tool identifier to run (e.g., "get_installer_info", "generate_install_script").
+            args (dict): Parsed arguments for the tool.
+        
+        Returns:
+            dict: Result object whose shape depends on the tool:
+              - For "get_installer_info": the stored analysis context dictionary, or {"error": "No file analyzed yet."} if no context is available.
+              - For "generate_install_script": {"status": "success", "info": "..."} indicating a simulated script generation.
+              - For unknown tool names: {"error": "Unknown tool"}.
+        """
         logger.info(f"AI executing tool: {name} with {args}")
 
         if name == "get_installer_info":
@@ -181,13 +193,44 @@ class SwitchCraftAI:
 
         return {"error": "Unknown tool"}
 
+    @staticmethod
+    def _is_greeting(query: str) -> bool:
+        """
+        Determine whether the input text contains a standalone greeting word (e.g., "hi", "hello", "hallo", "hey", "moin", "servus").
+        
+        Parameters:
+            query (str): Text to analyze for a greeting.
+        
+        Returns:
+            `true` if a greeting word is present as a separate word, `false` otherwise.
+        """
+        q = query.lower()
+        return bool(re.search(r'\b(hi|hello|hallo|hey|moin|servus)\b', q))
+
     def _ask_smart_regex(self, query: str) -> str:
-        """Enhanced Rule-based Logic."""
+        """
+        Provide a localized, rule-based response to diagnostic, installation, or smalltalk queries using simple regex heuristics and optional analyzer context.
+        
+        Analyzes `query` to detect language (German or English), greetings, errors, logs, installer-related topics, and other common packaging/support concerns. If `self.context` is available and the query references switches/parameters, returns a context-aware installer message. Otherwise returns a topic-specific explanation, a smalltalk reply, or a general fallback message, all localized via the i18n layer.
+        
+        Parameters:
+            query (str): The user's input text to analyze.
+        
+        Returns:
+            str: A localized response string containing a greeting, a diagnostic/installer explanation, a smalltalk reply, or a general fallback message.
+        """
         q = query.lower()
 
         # 0. Language Check
         is_de = any(w in q for w in ["hallo", "wer", "was", "wie", "ist", "kannst", "machen", "unterstützt", "du", "neueste", "version", "welche", "für", "geht"])
         lang = "de" if is_de else "en"
+
+        # Check for greetings first
+        if self._is_greeting(query):
+            if lang == "de":
+                return "Hallo! 👋 Ich bin SwitchCraft AI, dein Paketierungs-Assistent. Wie kann ich dir helfen?"
+            else:
+                return "Hello! 👋 I'm SwitchCraft AI, your packaging assistant. How can I help you?"
 
         # 1. Exit Codes / Reboot
         if any(x in q for x in ["code", "exit", "return", "3010", "1641", "1618", "1603", "fehler", "error"]):
@@ -244,5 +287,5 @@ class SwitchCraftAI:
         if re.search(r"(was kannst du|what can you do)", q):
              return i18n.get("ai_smalltalk_what", lang=lang)
 
-        # Fallback
+        # Fallback - provide helpful response (no simulated responses)
         return i18n.get("ai_fallback", lang=lang)

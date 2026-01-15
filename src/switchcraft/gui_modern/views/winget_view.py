@@ -12,6 +12,14 @@ logger = logging.getLogger(__name__)
 
 class ModernWingetView(ft.Row, ViewMixin):
     def __init__(self, page: ft.Page):
+        """
+        Initialize the ModernWingetView attached to the given Flet page.
+        
+        Attempts to load the Winget addon helper and, if absent, configures a centered prompt with a button to navigate to the Addon Manager. If the helper is available, initializes UI state (search results pane, details pane, results count), builds the filter dropdown, search field, search button, and the left/right layout panes with an initial instruction in the results area. Binds search and action handlers and stores the current package state.
+        
+        Parameters:
+            page (ft.Page): The Flet page instance used for rendering, navigation, and snack messages.
+        """
         super().__init__(expand=True)
         self.app_page = page
         self.winget = None
@@ -29,17 +37,26 @@ class ModernWingetView(ft.Row, ViewMixin):
         if not self.winget:
             def go_to_addons(e):
                 # Navigate to Addon Manager (tab index 16)
+                """
+                Navigate the app to the Addon Manager tab or show a manual-navigation prompt.
+                
+                If the page exposes a `switchcraft_app.goto_tab` method, calls it with index 16 to switch to the Addon Manager.
+                Otherwise displays an orange snackbar instructing the user to navigate to the Addons tab manually and updates the page.
+                
+                Parameters:
+                    e: Event object from the UI control (unused).
+                """
                 if hasattr(page, 'switchcraft_app') and hasattr(page.switchcraft_app, 'goto_tab'):
                     page.switchcraft_app.goto_tab(16)
                 else:
-                    page.snack_bar = ft.SnackBar(ft.Text("Please navigate to Addons tab manually"), bgcolor="ORANGE")
+                    page.snack_bar = ft.SnackBar(ft.Text(i18n.get("please_navigate_manually") or "Please navigate to Addons tab manually"), bgcolor="ORANGE")
                     page.snack_bar.open = True
                     page.update()
 
             self.controls = [
                 ft.Column([
                     ft.Icon(ft.Icons.EXTENSION_OFF, color="orange", size=50),
-                    ft.Text("Winget Addon not installed.", size=20, weight=ft.FontWeight.BOLD),
+                    ft.Text(i18n.get("winget_addon_not_installed") or "Winget Addon not installed.", size=20, weight=ft.FontWeight.BOLD),
                     ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=14, color="grey"),
                     ft.Container(height=10),
                     ft.Button(
@@ -137,6 +154,18 @@ class ModernWingetView(ft.Row, ViewMixin):
         self.controls = [left_pane, right_pane]
 
     def _run_search(self, e):
+        """
+        Initiates a package search for the current query, updates the UI to show progress, and asynchronously displays results or an error/timeout message.
+        
+        Performs a search using the winget helper for the text currently in the search field, clears previous results, shows a searching indicator, and starts a background thread that:
+        - waits up to 60 seconds for the search to complete,
+        - on success updates the results list via _show_list,
+        - on timeout replaces the progress indicator with a localized timeout message,
+        - on error replaces the progress indicator with a localized error message.
+        
+        Parameters:
+            e: Event object from the UI action that triggered the search (may be None).
+        """
         query = self.search_field.value
         if not query:
             return
@@ -162,6 +191,19 @@ class ModernWingetView(ft.Row, ViewMixin):
             pass
 
         def _search():
+            """
+            Perform a winget package search on a background thread and update the UI with results, a timeout message, or an error display.
+            
+            This helper launches a background search for the current query and:
+            - waits up to 60 seconds for the search to complete,
+            - on success passes the results to self._show_list(filtered_by, query),
+            - on timeout replaces self.search_results with a localized timeout message,
+            - on exception replaces self.search_results with a localized error message and logs the error.
+            The function updates the page when the UI is modified.
+            
+            Returns:
+                None
+            """
             try:
                 result_holder = {"data": None, "error": None}
 
@@ -173,16 +215,17 @@ class ModernWingetView(ft.Row, ViewMixin):
 
                 t = threading.Thread(target=target)
                 t.start()
-                t.join(timeout=30)  # Reduced to 30 seconds
+                t.join(timeout=60)  # Increased to 60 seconds to allow PowerShell/API/CLI fallbacks
 
                 if t.is_alive():
+                    logger.warning(f"Winget search timeout after 60s for query: {query}")
                     self.search_results.controls.clear()
                     self.search_results.controls.append(
                         ft.Container(
                             content=ft.Column([
                                 ft.Icon(ft.Icons.WARNING, color="ORANGE", size=40),
                                 ft.Text(i18n.get("winget_search_timeout") or "Search is taking too long...", color="ORANGE"),
-                                ft.Text(i18n.get("winget_search_timeout_hint") or "Try a more specific search term.", size=12, color="GREY_500")
+                                ft.Text(i18n.get("winget_search_timeout_hint") or "Try a more specific search term or check your internet connection.", size=12, color="GREY_500")
                             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                             alignment=ft.Alignment(0, 0),
                             padding=40
@@ -205,7 +248,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                     ft.Container(
                         content=ft.Column([
                             ft.Icon(ft.Icons.ERROR, color="RED", size=40),
-                            ft.Text(f"Error: {ex}", color="RED")
+                            ft.Text(f"{i18n.get('error_prefix') or 'Error:'} {ex}", color="RED")
                         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                         alignment=ft.Alignment(0, 0),
                         padding=40
@@ -219,6 +262,16 @@ class ModernWingetView(ft.Row, ViewMixin):
         threading.Thread(target=_search, daemon=True).start()
 
     def _show_list(self, results, filter_by="all", query=""):
+        """
+        Populate the search results pane with matching Winget packages and update the results count.
+        
+        Filters the provided package list by `filter_by` ("all", "name", "id", or "publisher") when `query` is present, updates the visible results count text, and renders a ListTile for each package (attempting to use a package logo when available). Each rendered tile is bound to load the package details when clicked and the view is refreshed.
+        
+        Parameters:
+            results (iterable[dict] | None): Iterable of package short-info dictionaries (expected keys: 'Id', 'Name', 'Version').
+            filter_by (str): Which field to filter on; one of "all", "name", "id", or "publisher". Defaults to "all".
+            query (str): Case-insensitive query string used when a non-"all" filter is selected. If empty, no filtering is applied.
+        """
         logger.debug(f"Showing Winget results: count={len(results) if results else 0}, filter={filter_by}, query='{query}'")
         self.search_results.controls.clear()
 
@@ -246,9 +299,26 @@ class ModernWingetView(ft.Row, ViewMixin):
             self.search_results.controls.append(ft.Text(i18n.get("winget_no_results") or "No results found."))
         else:
             for item in results:
+                # Try to get logo from winstall.app or manifest
+                pkg_id = item.get('Id', '')
+                logo_url = None
+                if pkg_id:
+                    # Try winstall.app logo API
+                    try:
+                        logo_url = f"https://cdn.winstall.app/packages/{pkg_id.replace('.', '/')}/icon.png"
+                    except Exception:
+                        pass
+
+                leading_widget = ft.Icon(ft.Icons.APPS)
+                if logo_url:
+                    try:
+                        leading_widget = ft.Image(src=logo_url, width=40, height=40, fit=ft.ImageFit.CONTAIN, error_content=ft.Icon(ft.Icons.APPS))
+                    except Exception:
+                        pass
+
                 tile = ft.ListTile(
-                    leading=ft.Icon(ft.Icons.APPS),
-                    title=ft.Text(item.get('Name', 'Unknown')),
+                    leading=leading_widget,
+                    title=ft.Text(item.get('Name', i18n.get("unknown") or "Unknown")),
                     subtitle=ft.Text(f"{item.get('Id', '')} - {item.get('Version', '')}"),
                 )
                 # Capture item in lambda default arg
@@ -275,14 +345,56 @@ class ModernWingetView(ft.Row, ViewMixin):
         threading.Thread(target=_fetch, daemon=True).start()
 
     def _show_details_ui(self, info):
+        """
+        Render detailed package information into the view's details_area and update the UI.
+        
+        Renders a header (including a fetched CDN logo when available), version badge, description, publisher/author, license, tags (up to 10), relevant external links (homepage, publisher site, privacy, release notes, GitHub manifest, winstall.app), and action buttons for copy/install/deploy. Uses localized labels from i18n where available and calls self.update() after composing the UI.
+        
+        Parameters:
+            info (dict): Package metadata used to populate the details view. Common keys:
+                - Id: package identifier (used for logo, winstall and manifest links)
+                - Name: display name
+                - Version: version string
+                - Description / description: long description text
+                - Publisher / publisher / Author / author: publisher or author name
+                - License / license and LicenseUrl / license url: license text or URL
+                - Tags / tags: comma- or newline-separated tags
+                - Homepage / homepage, PublisherUrl / publisher url, PrivacyUrl / privacy url,
+                  ReleaseNotesUrl / release notes url, ManifestUrl: URLs surfaced as link buttons
+        
+        Side effects:
+            - Mutates self.details_area.controls.
+            - Calls self.update() to refresh the UI.
+            - May call self._open_url, self._copy_install_command, self._install_local, or self._open_deploy_menu via button callbacks.
+        """
         self.details_area.controls.clear()
 
-        # Header Section
-        self.details_area.controls.append(ft.Text(info.get('Name', 'Unknown'), size=28, weight=ft.FontWeight.BOLD))
-        self.details_area.controls.append(ft.Text(info.get('Id', ''), color="grey", size=14))
+        # Try to get logo
+        pkg_id = info.get('Id', '')
+        logo_url = None
+        if pkg_id:
+            try:
+                logo_url = f"https://cdn.winstall.app/packages/{pkg_id.replace('.', '/')}/icon.png"
+            except Exception:
+                pass
+
+        # Header Section with Logo
+        header_row = []
+        if logo_url:
+            try:
+                header_row.append(ft.Image(src=logo_url, width=64, height=64, fit=ft.ImageFit.CONTAIN, error_content=ft.Icon(ft.Icons.APPS, size=64)))
+            except Exception:
+                pass
+
+        header_row.append(ft.Column([
+            ft.Text(info.get('Name', i18n.get("unknown") or "Unknown"), size=28, weight=ft.FontWeight.BOLD),
+            ft.Text(info.get('Id', ''), color="grey", size=14)
+        ], spacing=4, expand=True))
+
+        self.details_area.controls.append(ft.Row(header_row, spacing=15, vertical_alignment=ft.CrossAxisAlignment.START))
 
         # Version Badge
-        version = info.get('Version', 'Unknown')
+        version = info.get('Version', i18n.get("unknown") or "Unknown")
         self.details_area.controls.append(
             ft.Container(
                 content=ft.Text(f"v{version}", color="WHITE", size=12),
@@ -314,7 +426,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             self.details_area.controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.BUSINESS, size=16, color="GREY_500"),
-                    ft.Text("Publisher: ", weight=ft.FontWeight.BOLD, size=14),
+                    ft.Text(f"{i18n.get('field_publisher') or 'Publisher'}: ", weight=ft.FontWeight.BOLD, size=14),
                     ft.Text(pub_text, size=14)
                 ], spacing=4)
             )
@@ -325,11 +437,11 @@ class ModernWingetView(ft.Row, ViewMixin):
         if license_val or license_url:
             license_row = [
                 ft.Icon(ft.Icons.GAVEL, size=16, color="GREY_500"),
-                ft.Text("License: ", weight=ft.FontWeight.BOLD, size=14),
+                ft.Text(f"{i18n.get('field_license') or 'License'}: ", weight=ft.FontWeight.BOLD, size=14),
             ]
             if license_url:
                 license_row.append(ft.TextButton(
-                    content=ft.Text(license_val or "View License"),
+                    content=ft.Text(license_val or i18n.get("field_view_license") or "View License"),
                     on_click=lambda e, url=license_url: self._open_url(url)
                 ))
             else:
@@ -357,7 +469,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 self.details_area.controls.append(
                     ft.Row([
                         ft.Icon(ft.Icons.LABEL, size=16, color="GREY_500"),
-                        ft.Text("Tags: ", weight=ft.FontWeight.BOLD, size=14),
+                        ft.Text(f"{i18n.get('field_tags') or 'Tags'}: ", weight=ft.FontWeight.BOLD, size=14),
                     ], spacing=4)
                 )
                 self.details_area.controls.append(ft.Row(tag_chips, wrap=True, spacing=6))
@@ -365,7 +477,7 @@ class ModernWingetView(ft.Row, ViewMixin):
         self.details_area.controls.append(ft.Container(height=12))
 
         # Links Section
-        self.details_area.controls.append(ft.Text("Links", size=16, weight=ft.FontWeight.BOLD))
+        self.details_area.controls.append(ft.Text(i18n.get("field_links") or "Links", size=16, weight=ft.FontWeight.BOLD))
 
         # Homepage
         homepage = info.get('Homepage') or info.get('homepage')
@@ -373,7 +485,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             self.details_area.controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.HOME, size=16, color="BLUE_400"),
-                    ft.TextButton(content=ft.Text("Homepage"), on_click=lambda e, url=homepage: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_homepage") or "Homepage"), on_click=lambda e, url=homepage: self._open_url(url))
                 ], spacing=4)
             )
 
@@ -383,7 +495,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             self.details_area.controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.BUSINESS, size=16, color="BLUE_400"),
-                    ft.TextButton(content=ft.Text("Publisher Website"), on_click=lambda e, url=pub_url: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_publisher_website") or "Publisher Website"), on_click=lambda e, url=pub_url: self._open_url(url))
                 ], spacing=4)
             )
 
@@ -393,7 +505,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             self.details_area.controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.PRIVACY_TIP, size=16, color="BLUE_400"),
-                    ft.TextButton(content=ft.Text("Privacy Policy"), on_click=lambda e, url=privacy_url: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_privacy_policy") or "Privacy Policy"), on_click=lambda e, url=privacy_url: self._open_url(url))
                 ], spacing=4)
             )
 
@@ -403,7 +515,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             self.details_area.controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.NEW_RELEASES, size=16, color="BLUE_400"),
-                    ft.TextButton(content=ft.Text("Release Notes"), on_click=lambda e, url=release_notes_url: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_release_notes") or "Release Notes"), on_click=lambda e, url=release_notes_url: self._open_url(url))
                 ], spacing=4)
             )
 
@@ -426,7 +538,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             self.details_area.controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.CODE, size=16, color="BLUE_400"),
-                    ft.TextButton(content=ft.Text("View Manifest on GitHub"), on_click=lambda e, url=manifest: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_view_manifest_github") or "View Manifest on GitHub"), on_click=lambda e, url=manifest: self._open_url(url))
                 ], spacing=4)
             )
 
@@ -437,7 +549,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             self.details_area.controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.WEB, size=16, color="PURPLE_400"),
-                    ft.TextButton(content=ft.Text("View on winstall.app"), on_click=lambda e, url=winstall_url: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_view_winstall") or "View on winstall.app"), on_click=lambda e, url=winstall_url: self._open_url(url))
                 ], spacing=4)
             )
 
@@ -457,7 +569,7 @@ class ModernWingetView(ft.Row, ViewMixin):
 
         # Tip
         self.details_area.controls.append(ft.Container(height=20))
-        self.details_area.controls.append(ft.Text("Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color="GREY", italic=True))
+        self.details_area.controls.append(ft.Text(i18n.get("winget_tip_autoupdate") or "Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color="GREY", italic=True))
 
         self.update()
 
@@ -489,6 +601,19 @@ class ModernWingetView(ft.Row, ViewMixin):
                 pass
 
     def _open_deploy_menu(self, info):
+        """
+        Open a modal dialog that lets the user choose a deployment method for the given package.
+        
+        Displays a centered alert dialog titled "Deploy <Name>" with three deployment options:
+        - Winget-AutoUpdate (opens WAU info via _deploy_wau),
+        - Download & Package (downloads installer and prepares a package via _deploy_package),
+        - Create Install Script (generates a PowerShell install script via _deploy_script).
+        
+        The dialog closes before invoking the selected handler. Dialog text and descriptions use i18n lookups when available. The dialog is assigned to self.app_page.dialog, opened, and the page is updated.
+        
+        Parameters:
+            info (dict): Package metadata dictionary expected to contain at least the 'Name' key used in the dialog title.
+        """
         def close_dlg(e):
             self.app_page.dialog.open = False
             self.app_page.update()
@@ -496,25 +621,25 @@ class ModernWingetView(ft.Row, ViewMixin):
         dlg = ft.AlertDialog(
             title=ft.Text(f"Deploy {info.get('Name')}", size=20, weight=ft.FontWeight.BOLD),
             content=ft.Column([
-                ft.Text("Select a deployment method:", size=16),
+                ft.Text(i18n.get("winget_deploy_select_method") or "Select a deployment method:", size=16),
                 ft.Container(height=10),
 
                 ft.Button("Winget-AutoUpdate (WAU)", icon=ft.Icons.UPDATE,
                     style=ft.ButtonStyle(bgcolor="GREEN", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_wau(info)], width=250),
-                ft.Text("Best for keeping apps updated automatically.", size=12, italic=True),
+                ft.Text(i18n.get("winget_deploy_wau_desc") or "Best for keeping apps updated automatically.", size=12, italic=True),
 
                 ft.Container(height=5),
                 ft.Button("Download & Package", icon=ft.Icons.ARCHIVE,
                     style=ft.ButtonStyle(bgcolor="BLUE", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_package(info)], width=250),
-                ft.Text("Download installer and prepare for Intune.", size=12, italic=True),
+                ft.Text(i18n.get("winget_deploy_package_desc") or "Download installer and prepare for Intune.", size=12, italic=True),
 
                 ft.Container(height=5),
                 ft.Button("Create Install Script", icon=ft.Icons.CODE,
                     style=ft.ButtonStyle(bgcolor="GREY_700", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_script(info)], width=250),
-                ft.Text("Generate PowerShell script for deployment.", size=12, italic=True),
+                ft.Text(i18n.get("winget_deploy_script_desc") or "Generate PowerShell script for deployment.", size=12, italic=True),
             ], height=300, width=400, alignment=ft.MainAxisAlignment.CENTER),
             actions=[ft.TextButton("Cancel", on_click=close_dlg)],
         )
@@ -575,6 +700,11 @@ class ModernWingetView(ft.Row, ViewMixin):
         # Enhancing existing method to be more advanced is better.
 
     def _install_local(self, e):
+        """
+        Initiates a local installation of the currently selected package using winget, prompting to restart the app with elevated (administrator) privileges if required.
+        
+        If no package is selected, the function does nothing. If the current process is not running with administrator rights, a confirmation dialog is shown offering to restart the application elevated; accepting will attempt to relaunch the application as administrator and exit the current process. If running as administrator, the function builds a winget install command for the selected package and launches it in a new command prompt window. User-facing status is reported via snack messages for start, success, and failure conditions.
+        """
         if not self.current_pkg:
             return
 
@@ -588,15 +718,46 @@ class ModernWingetView(ft.Row, ViewMixin):
 
         if not is_admin:
             def on_restart_confirm(e):
+                """
+                Request elevation and restart the current application process with Administrator privileges.
+                
+                Attempts to close UI dialog, flush logging, perform a brief cleanup and garbage collection, then relaunch the current Python executable with the same command-line arguments using a Windows elevation (runas) request. If the elevated process is started, the current process exits. On failure, a red snack is shown with the error message.
+                
+                Parameters:
+                    e: The event object from the confirmation button click that triggered the restart.
+                """
                 restart_dlg.open = False
                 self.app_page.update()
                 try:
                     import sys
+                    import time
+                    import gc
+                    import logging
+
+                    # 1. Close all file handles and release resources
+                    try:
+                        logging.shutdown()
+                    except Exception:
+                        pass
+
+                    # 2. Force garbage collection
+                    gc.collect()
+
+                    # 3. Small delay to allow file handles to be released
+                    time.sleep(0.2)
+
                     executable = sys.executable
                     params = f'"{sys.argv[0]}"'
                     if len(sys.argv) > 1:
                         params += " " + " ".join(f'"{a}"' for a in sys.argv[1:])
+
+                    # 4. Launch as admin
                     ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
+
+                    # 5. Give the new process a moment to start
+                    time.sleep(0.3)
+
+                    # 6. Exit
                     sys.exit(0)
                 except Exception as ex:
                     self._show_snack(f"Failed to elevate: {ex}", "RED")

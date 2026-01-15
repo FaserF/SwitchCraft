@@ -76,6 +76,9 @@ try:
     # Explicitly import updater to ensure PyInstaller bundles it
     import switchcraft.utils.app_updater # noqa: F401
 
+    # Import i18n early for loading screen text
+    from switchcraft.utils.i18n import i18n  # noqa: E402
+
     from switchcraft.gui_modern.app import ModernApp  # noqa: E402
     from switchcraft.utils.logging_handler import setup_session_logging  # noqa: E402
     from switchcraft.utils.protocol_handler import (
@@ -88,6 +91,25 @@ try:
 except Exception:
     _IMPORT_ERROR = True
     _IMPORT_EXC_INFO = sys.exc_info()
+    # Ensure i18n is available even if import failed
+    try:
+        from switchcraft.utils.i18n import i18n  # noqa: E402
+    except Exception:
+        # Fallback: create a simple i18n mock
+        class SimpleI18n:
+            def get(self, key, default=None):
+                """
+                Always return the provided default value.
+                
+                Parameters:
+                    key: The lookup key (ignored by this implementation).
+                    default: The value to return.
+                
+                Returns:
+                    The provided `default` value.
+                """
+                return default
+        i18n = SimpleI18n()
 
 # Parse command line for protocol URL
 _INITIAL_ACTION = None
@@ -174,7 +196,66 @@ def write_crash_dump(exc_info):
     return dump_file
 
 def main(page: ft.Page):
-    """Entry point for the Modern Flet GUI."""
+    """
+    Initialize and run the Modern Flet GUI, handling early command-line options, applying compatibility patches to the provided Page, showing an immediate loading screen, and starting the ModernApp instance.
+    
+    This function:
+    - Processes top-level CLI flags (--help, --version, --factory-reset, protocol handling) before performing any UI initialization.
+    - Patches legacy Flet Page APIs (open, close, set_clipboard, show_snack_bar) to provide a consistent runtime surface across Flet versions.
+    - Displays a lightweight loading screen immediately to ensure the user sees progress while heavy imports and initialization happen.
+    - Attempts non-critical tasks such as registering a protocol handler, constructs the ModernApp, and dispatches any initial protocol-driven action.
+    - On any initialization failure, writes a crash dump and replaces the UI with a crash screen that exposes the dump path and actions to open/copy it.
+    
+    Parameters:
+        page (ft.Page): The Flet Page instance provided by ft.app; used for UI composition, updates, and patched legacy behaviors.
+    """
+    # --- Handle Command Line Arguments FIRST ---
+    import sys
+
+    # Check for help/version flags (before UI initialization)
+    if "--help" in sys.argv or "-h" in sys.argv or "/?" in sys.argv:
+        print("SwitchCraft - Packaging Assistant for IT Professionals")
+        print("\nUsage: SwitchCraft.exe [OPTIONS]")
+        print("\nOptions:")
+        print("  --help, -h, /?          Show this help message")
+        print("  --version, -v           Show version information")
+        print("  --wizard                Open Packaging Wizard on startup")
+        print("  --analyzer, --all-in-one Open Installer Analyzer on startup")
+        print("  --factory-reset         Delete all user data and settings (requires confirmation)")
+        print("  --protocol <URL>        Handle protocol URL (switchcraft://...)")
+        print("  --silent                Silent mode (minimize UI, auto-accept prompts)")
+        print("\nExamples:")
+        print("  SwitchCraft.exe --wizard")
+        print("  SwitchCraft.exe --analyzer")
+        print("  SwitchCraft.exe --factory-reset")
+        print("  SwitchCraft.exe switchcraft://analyzer")
+        sys.exit(0)
+
+    if "--version" in sys.argv or "-v" in sys.argv:
+        try:
+            from switchcraft import __version__
+            print(f"SwitchCraft v{__version__}")
+        except ImportError:
+            print("SwitchCraft (version unknown)")
+        sys.exit(0)
+
+    # Handle factory reset (before UI initialization)
+    if "--factory-reset" in sys.argv:
+        try:
+            from switchcraft.utils.config import SwitchCraftConfig
+            print("WARNING: This will delete ALL user data, settings, and secrets.")
+            print("Are you sure? (Type 'yes' to confirm)")
+            confirmation = input("> ")
+            if confirmation.strip().lower() == "yes":
+                SwitchCraftConfig.delete_all_application_data()
+                print("Factory reset complete.")
+            else:
+                print("Aborted.")
+            sys.exit(0)
+        except Exception as e:
+            print(f"Factory reset failed: {e}")
+            sys.exit(1)
+
     # --- Robust Page Patching ---
 
     # Patch page.open (Flet < 0.21.0 used page.dialog.open = True)
@@ -242,6 +323,40 @@ def main(page: ft.Page):
              # but we want to ensure we pass the specific EXC_INFO to write_crash_dump
              pass
 
+    # Show loading screen IMMEDIATELY - FIRST THING, before ANY other operations
+    # This must be the very first thing we do to ensure it's visible
+    loading_container = ft.Container(
+        content=ft.Column(
+            controls=[
+                ft.Icon(ft.Icons.INSTALL_DESKTOP, size=80, color="BLUE_400"),
+                ft.Text(i18n.get("app_title") or "SwitchCraft", size=32, weight=ft.FontWeight.BOLD),
+                ft.Container(height=20),
+                ft.ProgressRing(width=50, height=50, stroke_width=4, color="BLUE_400"),
+                ft.Container(height=10),
+                ft.Text(i18n.get("loading_switchcraft") or "Loading SwitchCraft...", size=18, color="GREY_400"),
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=10,
+        ),
+        expand=True,
+        alignment=ft.Alignment(0, 0),
+        bgcolor="SURFACE" if hasattr(ft.colors, "SURFACE") else "BLACK",
+    )
+
+    # Add loading screen FIRST - before any other operations
+    page.add(loading_container)
+
+    # Force immediate rendering - multiple updates to ensure visibility
+    page.update()
+    page.update()  # Second update to force render
+    page.update()  # Third update to really ensure it's visible
+
+    # Give Flet time to actually render the loading screen before heavy operations
+    import time
+    time.sleep(0.3)  # 300ms delay to ensure loading screen is rendered and visible
+    page.update()  # Final update after delay
+
     try:
         # If we had an import error, we shouldn't even be here effectively,
         # but let's handle the control flow.
@@ -256,6 +371,8 @@ def main(page: ft.Page):
             pass  # Non-critical
 
         # Pass splash proc to app for cleanup
+        # Access global splash_proc variable (declared at module level)
+        global splash_proc
         app = ModernApp(page, splash_proc=splash_proc)
 
         # Handle initial action from protocol URL
@@ -372,7 +489,14 @@ def main(page: ft.Page):
                     ft.Container(height=30),
                     ft.Divider(color="GREY_800"),
                     ft.Text("Error Details:", size=14, weight=ft.FontWeight.W_500, color="GREY_400"),
-                    ft.Text(f"{sys.exc_info()[1]}", size=14, color="RED_400", italic=True),
+                    ft.Text(
+                        f"{sys.exc_info()[1]}",
+                        size=14,
+                        color="RED_400",
+                        italic=True,
+                        selectable=True,  # Make error text selectable for copying
+                        font_family="Consolas"  # Use monospace font for better readability
+                    ),
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 alignment=ft.Alignment(0, 0),
                 expand=True,

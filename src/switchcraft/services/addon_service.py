@@ -221,12 +221,31 @@ class AddonService:
 
     def is_addon_installed(self, addon_id):
         """
-        Checks if an addon is installed by ID.
+        Determine whether an addon with the given id is installed.
+        
+        Parameters:
+        	addon_id (str): The addon identifier to look for.
+        
+        Returns:
+        	`true` if an addon with the given id is installed, `false` otherwise.
         """
         for _, data in self._iter_addons():
             if data.get("id") == addon_id:
                 return True
         return False
+
+    @staticmethod
+    def is_addon_installed_static(addon_id):
+        """
+        Check whether an addon with the given identifier is installed.
+        
+        Parameters:
+            addon_id (str): Addon identifier to check.
+        
+        Returns:
+            True if an addon with that id is installed, False otherwise.
+        """
+        return _get_addon_service_instance().is_addon_installed(addon_id)
 
     def uninstall_addon(self, addon_id):
         """Legacy alias for delete_addon."""

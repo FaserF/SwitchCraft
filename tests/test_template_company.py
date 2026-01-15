@@ -8,8 +8,22 @@ class TestTemplateWithCompany(unittest.TestCase):
         self.output_path = Path("test_output.ps1")
 
     def tearDown(self):
+        """
+        Remove the test output file if it exists.
+        
+        If the configured output path exists, attempt to delete it. On a PermissionError (e.g., file temporarily locked) the method waits 0.1 seconds and retries once; any PermissionError or FileNotFoundError on the retry is ignored.
+        """
         if self.output_path.exists():
-            self.output_path.unlink()
+            try:
+                self.output_path.unlink()
+            except PermissionError:
+                # File might still be open, try again after a short delay
+                import time
+                time.sleep(0.1)
+                try:
+                    self.output_path.unlink()
+                except (PermissionError, FileNotFoundError):
+                    pass  # File was deleted or still locked, skip
 
     @patch("switchcraft.utils.config.SwitchCraftConfig.get_value")
     @patch("switchcraft.utils.config.SwitchCraftConfig.get_company_name")

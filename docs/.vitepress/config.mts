@@ -14,7 +14,7 @@ export default defineConfig({
         ['meta', { name: 'og:type', content: 'website' }],
         ['meta', { name: 'og:title', content: 'SwitchCraft - The Ultimate Packaging Assistant' }],
         ['meta', { name: 'og:description', content: 'Streamline your IT packaging workflow with smart analysis, Intune integration, and AI assistance.' }],
-        ['meta', { name: 'og:image', content: 'https://github.com/FaserF/SwitchCraft/raw/main/images/switchcraft_logo_with_Text.png' }],
+        ['meta', { name: 'og:image', content: 'https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_logo_with_Text.png' }],
         ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ],
 
@@ -25,7 +25,7 @@ export default defineConfig({
     lastUpdated: true,
 
     themeConfig: {
-        logo: 'https://github.com/FaserF/SwitchCraft/raw/main/images/switchcraft_logo_with_Text.png',
+        logo: '/public/screenshots/switchcraft_logo_with_Text.png',
         siteTitle: 'SwitchCraft',
 
         nav: [

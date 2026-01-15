@@ -87,12 +87,29 @@ class DashboardView(ft.Column):
 
     def _refresh_ui(self):
         # Stats
+        """
+        Refreshes the dashboard view's visual components to reflect the current stats, chart data, and recent activity.
+        
+        Rebuilds:
+        - The stats row from self.stats using localized labels with sensible fallbacks.
+        - The activity chart in self.chart_container from self.chart_data (produces a vertical bar per day).
+        - The recent activity list in self.recent_container from self.recent_items; timestamps are formatted as "YYYY-MM-DD HH:MM" when ISO parsing succeeds, otherwise the raw timestamp is shown. Status values map to icons with fallbacks.
+        
+        After rebuilding, the method attempts to call update() on the stats row, chart container, recent container, and the view itself; any exceptions raised during these update attempts are caught and ignored.
+        """
         self.stats_row.controls = [
             self._stat_card(i18n.get("stat_analyzed") or "Analyzed", str(self.stats["analyzed"]), ft.Icons.ANALYTICS, "BLUE"),
             self._stat_card(i18n.get("stat_packaged") or "Packaged", str(self.stats["packaged"]), ft.Icons.INVENTORY_2, "ORANGE"),
             self._stat_card(i18n.get("stat_deployed") or "Deployed", str(self.stats["deployed"]), ft.Icons.ROCKET_LAUNCH, "GREEN"),
             self._stat_card(i18n.get("stat_errors") or "Errors", str(self.stats["errors"]), ft.Icons.ERROR_OUTLINE, "RED"),
         ]
+
+        # Force update of stats row
+        if hasattr(self, 'stats_row'):
+            try:
+                self.stats_row.update()
+            except Exception:
+                pass
 
         # Chart
         bars = []
@@ -157,8 +174,28 @@ class DashboardView(ft.Column):
              ft.ListView(recent_list, expand=True, spacing=0)
         ])
 
+        # Force update of all containers
+        try:
+            self.chart_container.update()
+            self.recent_container.update()
+            self.update()
+        except Exception:
+            pass
+
 
     def _stat_card(self, label, value, icon, color):
+        """
+        Create a styled statistic card container used in the dashboard.
+        
+        Parameters:
+        	label (str): Text label shown under the main value (e.g., "Analyzed").
+        	value (str | int): Primary statistic displayed prominently.
+        	icon: Icon identifier used for the leading icon.
+        	color (str): Color applied to the leading icon.
+        
+        Returns:
+        	ft.Container: A container holding an icon at the left and a column with the value and label, styled for dashboard stat display.
+        """
         return ft.Container(
             content=ft.Row([
                 ft.Icon(icon, color=color, size=40),

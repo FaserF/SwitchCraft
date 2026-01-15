@@ -59,7 +59,14 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
     def did_mount(self):
         # Check for pre-filled data from Intune Store
-        pending_app = self.app_page.session.get("pending_packaging_app")
+        # Use switchcraft_session dict instead of page.session
+        """
+        Populate upload fields from any pending packaging data stored in the app's session.
+        
+        If a 'pending_packaging_app' entry exists in self.app_page.switchcraft_session, copy its `displayName`, `publisher`, and `description` into self.upload_info, clear the pending entry, and show a notification to the user.
+        """
+        session_storage = getattr(self.app_page, 'switchcraft_session', {})
+        pending_app = session_storage.get("pending_packaging_app")
         if pending_app:
             self.upload_info = {
                 "displayName": pending_app.get("displayName"),
@@ -68,10 +75,19 @@ class PackagingWizardView(ft.Column, ViewMixin):
             }
             # If we have a download URL or similar, we could pre-fill it too.
             # For now, just pre-filling the upload info.
-            self.app_page.session.set("pending_packaging_app", None) # Clear it
+            session_storage["pending_packaging_app"] = None  # Clear it
             self._show_snack(f"Pre-filled info for {pending_app.get('displayName')}", "BLUE")
 
     def _build_stepper_header(self):
+        """
+        Create the header row containing the wizard's five step indicators.
+        
+        The indicators (Select, Analyze, Script, Package, Upload) are created and stored on
+        self.steps_indicators for later updates.
+        
+        Returns:
+            ft.Row: A row widget with the five step indicators centered and spaced by 20.
+        """
         self.steps_indicators = [
             self._create_step_indicator(0, "Select", ft.Icons.FILE_UPLOAD),
             self._create_step_indicator(1, "Analyze", ft.Icons.ANALYTICS),

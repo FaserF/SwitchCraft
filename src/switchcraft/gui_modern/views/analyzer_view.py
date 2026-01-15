@@ -824,6 +824,15 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         threading.Thread(target=_bg, daemon=True).start()
 
     def _run_local_test_action(self, file_path, switches):
+        """
+        Prompt the user to run the installer locally with elevated privileges and execute it if confirmed.
+        
+        If the current process lacks administrative rights, shows a confirmation dialog that attempts to restart the application as Administrator (Windows only). If already running as admin, shows a confirmation dialog to run the installer now; constructs an msiexec command for .msi files or uses the installer path directly for other file types, appends provided switches, and launches the command via a UAC-elevated ShellExecute call. Displays user-facing status/snack messages for failures or unsupported platforms.
+        
+        Parameters:
+            file_path (str): Path to the installer file to run.
+            switches (Sequence[str]): Command-line switches/arguments to pass to the installer.
+        """
         if not file_path:
             return
 
@@ -841,22 +850,52 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         if not is_admin:
             def on_restart_confirm(e):
+                """
+                Attempt to relaunch the application with elevated (administrator) privileges on Windows and exit the current process.
+                
+                Closes the restart dialog, performs preparatory resource cleanup, launches a new process with administrator rights, and then terminates the current process. If the platform is not Windows or elevation fails, a user-facing error snack is shown instead of relaunching.
+                
+                Parameters:
+                    e: The confirmation event from the restart dialog (unused beyond dismissing the dialog).
+                """
                 restart_dlg.open = False
                 self.app_page.update()
 
                 # Restart as admin
                 try:
                     import sys
+                    import time
+                    import gc
+                    import logging
+
                     if sys.platform != "win32":
                          self._show_snack("Elevation only supported on Windows.", "RED")
                          return
+
+                    # 1. Close all file handles and release resources
+                    try:
+                        logging.shutdown()
+                    except Exception:
+                        pass
+
+                    # 2. Force garbage collection
+                    gc.collect()
+
+                    # 3. Small delay to allow file handles to be released
+                    time.sleep(0.2)
 
                     executable = sys.executable
                     params = f'"{sys.argv[0]}"'
                     if len(sys.argv) > 1:
                         params += " " + " ".join(f'"{a}"' for a in sys.argv[1:])
 
+                    # 4. Launch as admin
                     ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
+
+                    # 5. Give the new process a moment to start
+                    time.sleep(0.3)
+
+                    # 6. Exit
                     sys.exit(0)
                 except Exception as ex:
                     self._show_snack(f"Failed to elevate: {ex}", "RED")

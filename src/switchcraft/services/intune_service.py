@@ -395,15 +395,66 @@ class IntuneService:
 
     def search_apps(self, token, query):
         """
-        Search apps by name.
+        Finds Intune apps whose displayName contains the provided query using case-insensitive matching.
+        
+        Attempts a server-side case-insensitive filter first (using tolower). If that is not supported or returns no results, falls back to a server-side contains filter and then applies client-side case-insensitive filtering. As a last resort, retrieves all apps and filters client-side. An empty or whitespace-only query returns an empty list.
+        
+        Parameters:
+            token: Authentication token used for Graph API requests.
+            query: Substring to search for in app display names.
+        
+        Returns:
+            A list of app objects whose `displayName` contains `query`, matched case-insensitively.
+        
+        Raises:
+            Exception: Re-raises the original error from the Graph requests if all search attempts fail.
         """
+        if not query or not query.strip():
+            return []
+
+        # Escape single quotes for OData
         escaped_query = query.replace("'", "''")
-        filter_str = f"contains(displayName, '{escaped_query}')"
-        return self.list_apps(token, filter_query=filter_str)
+
+        # Try case-insensitive search using tolower() - if that fails, fall back to regular contains
+        # Some Graph API versions might not support tolower(), so we try both
+        try:
+            filter_str = f"contains(tolower(displayName), tolower('{escaped_query}'))"
+            apps = self.list_apps(token, filter_query=filter_str)
+            # If we got results, return them
+            if apps:
+                return apps
+        except Exception as e:
+            logger.debug(f"tolower() search failed, trying simple contains: {e}")
+
+        # Fallback: simple contains (case-sensitive but more compatible)
+        try:
+            filter_str = f"contains(displayName, '{escaped_query}')"
+            apps = self.list_apps(token, filter_query=filter_str)
+            # Filter results client-side for case-insensitive match
+            query_lower = query.lower()
+            filtered_apps = [app for app in apps if query_lower in app.get('displayName', '').lower()]
+            return filtered_apps
+        except Exception as e:
+            logger.error(f"Search failed with both methods: {e}")
+            # Last resort: get all apps and filter client-side
+            try:
+                all_apps = self.list_apps(token)
+                query_lower = query.lower()
+                return [app for app in all_apps if query_lower in app.get('displayName', '').lower()]
+            except Exception as e2:
+                logger.error(f"Fallback search also failed: {e2}")
+                raise e  # Re-raise original error
 
     def get_app_details(self, token, app_id):
         """
-        Fetch details for a specific app.
+        Retrieve details for a specific Intune mobile app.
+        
+        Parameters:
+            token (str): OAuth2 access token with Graph API permissions.
+            app_id (str): The mobileApp resource identifier.
+        
+        Returns:
+            dict: JSON-decoded app resource as returned by Microsoft Graph.
         """
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         base_url = f"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{app_id}"

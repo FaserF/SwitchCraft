@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # API Configuration
 WINGET_API_BASE = "https://winget-pkg-api.onrender.com/api/v1"
-WINGET_API_TIMEOUT = 10  # seconds
+WINGET_API_TIMEOUT = 20  # seconds - increased for slow connections
 
 class WingetHelper:
     # Class-level cache for search results
@@ -44,8 +44,15 @@ class WingetHelper:
 
     def search_packages(self, query: str) -> List[Dict[str, str]]:
         """
-        Search for packages. Tries API first, then falls back to local CLI.
-        Results are cached for 5 minutes.
+        Search for Winget packages matching a query using multiple sources and cache results.
+        
+        Performs searches in this order: PowerShell (Microsoft.WinGet.Client), then the online Winget API, and finally the local Winget CLI as a fallback. Results are cached for 5 minutes.
+        
+        Parameters:
+            query (str): The search term to query for; ignored if empty.
+        
+        Returns:
+            results (List[Dict[str, str]]): A list of result dictionaries (keys include `Name`, `Id`, `Version`, `Source`); empty list if no matches or if `query` is falsy.
         """
         if not query:
             return []
@@ -58,16 +65,17 @@ class WingetHelper:
                 logger.debug(f"Winget cache hit for '{query}'")
                 return cached_results
 
-        # Try API first (faster)
-        results = self._search_via_api(query)
+        # Try PowerShell first (most reliable, uses Microsoft.WinGet.Client module)
+        results = self._search_via_powershell(query)
 
-        # If API returns empty or fails, try local CLI
+        # If PowerShell fails, try API (fast online API)
         if not results:
-            logger.info(f"API returned no results for '{query}', trying local CLI...")
-            results = self._search_via_powershell(query)
+            logger.info(f"PowerShell search returned no results for '{query}', trying API...")
+            results = self._search_via_api(query)
 
-        # If PowerShell fails, try CLI directly
+        # If API also fails, try CLI directly as last resort
         if not results:
+            logger.info(f"API returned no results for '{query}', trying CLI as fallback...")
             results = self._search_via_cli(query)
 
         # Cache results
@@ -109,13 +117,21 @@ class WingetHelper:
         return []
 
     def _search_via_powershell(self, query: str) -> List[Dict[str, str]]:
-        """Search using PowerShell Microsoft.WinGet.Client module."""
+        """
+        Perform a Winget package search via PowerShell and return normalized results.
+        
+        Parameters:
+            query (str): Search query string used to find matching packages.
+        
+        Returns:
+            List[Dict[str, str]]: A list of result dictionaries with keys 'Name', 'Id', 'Version', and 'Source'. Returns an empty list when no results are found or on error.
+        """
         try:
             ps_script = f"Find-WinGetPackage -Query '{query}' | Select-Object Name, Id, Version, Source | ConvertTo-Json -Depth 1"
             cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script]
             startupinfo = self._get_startup_info()
 
-            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo, timeout=30)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo, timeout=45)
 
             if proc.returncode != 0:
                 logger.debug(f"PowerShell search failed: {proc.stderr[:200] if proc.stderr else 'No error'}")

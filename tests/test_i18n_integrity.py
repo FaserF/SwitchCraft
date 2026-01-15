@@ -122,5 +122,41 @@ class TestI18nIntegrity(unittest.TestCase):
 
         self.assertFalse(missing, f"Found i18n keys in code missing from JSON: {missing}")
 
+    def test_german_du_form(self):
+        """
+        Check that German translations use the informal Du-form rather than the formal Sie-form.
+        
+        Scans each value in the loaded German translations for capitalized Sie-form tokens and common formal phrases (e.g., "Sie", "Ihnen", "können Sie"). Records any occurrences (except the ambiguous "Ihr") with their translation key and fails the test if any violations are found.
+        """
+        # Patterns that indicate Sie-Form (formal German)
+        # Note: We check for capitalized forms only, as lowercase "sie" means "they" (3rd person plural)
+        # We use word boundaries and case-sensitive matching to avoid false positives
+        sie_patterns = [
+            r'\bSie\b',  # "Sie" (you formal) - capitalized only
+            r'\bIhnen\b',  # "Ihnen" (to you formal) - capitalized
+            r'\bIhre\b',  # "Ihre" (your formal, plural/feminine) - capitalized
+            r'\bIhren\b',  # "Ihren" (your formal, accusative) - capitalized
+            r'\bIhrem\b',  # "Ihrem" (your formal, dative) - capitalized
+            r'\bIhres\b',  # "Ihres" (your formal, genitive) - capitalized
+            r'\bkönnen Sie\b',  # "can you" formal
+            r'\bmüssen Sie\b',  # "must you" formal
+            r'\bsollten Sie\b',  # "should you" formal
+        ]
+
+        violations = []
+        for key, value in self.de.items():
+            text = str(value)
+            for pattern in sie_patterns:
+                # Use case-sensitive search (no IGNORECASE flag) to only catch capitalized forms
+                matches = re.finditer(pattern, text)
+                for match in matches:
+                    matched_text = match.group()
+                    # Skip "Ihr" as it can be ambiguous (could be "their" in some contexts)
+                    # But flag all other capitalized forms
+                    if matched_text != "Ihr":  # "Ihr" is too ambiguous
+                        violations.append(f"{key}: Contains Sie-Form: '{matched_text}'")
+
+        self.assertFalse(violations, f"Found Sie-Form (formal) in German texts. Use Du-Form instead:\n" + "\n".join(violations))
+
 if __name__ == '__main__':
     unittest.main()

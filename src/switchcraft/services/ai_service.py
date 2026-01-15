@@ -27,6 +27,15 @@ else:
             return bool(re.search(r'\b(hi|hello|hallo|hey|moin|servus)\b', q))
 
         def update_context(self, data: dict):
+            """
+            Produce a localized guidance message based on the provided context when the AI addon is not available.
+            
+            Parameters:
+                data (dict): Context data to store; expected to contain a 'query' string that will be used to determine if the user is greeting and to echo back in the response.
+            
+            Returns:
+                str: A localized greeting if the query is recognized as a greeting; otherwise a localized notice that the AI addon is required followed by a tips header, a list of installer usage tips, and the echoed user query.
+            """
             self.context = data
             query = self.context.get('query', '')
 
@@ -52,12 +61,36 @@ else:
             )
 
         def ask(self, query):
-            """Stub ask method - returns a message indicating the AI addon is missing."""
+            """
+            Provide a user-facing reply when the AI addon is not installed.
+            
+            If `query` appears to be a greeting, returns a localized greeting message directing the user to install the AI Addon. For other queries, returns a localized, formatted guidance message that explains the AI addon is required, lists practical installation/usage tips for common installer types (MSI, NSIS, Inno Setup, InstallShield), and echoes the user's question.
+            
+            Parameters:
+                query (str): The user's input or question.
+            
+            Returns:
+                str: A localized greeting or a multi-line guidance string describing that the AI Addon is required, including actionable tips and the echoed user query.
+            """
             if self._is_greeting(query):
-                return i18n.get("ai_stub_welcome") or "Hello! I am the local SwitchCraft AI helper."
+                return i18n.get("ai_stub_welcome") or "Hello! I am the local SwitchCraft AI helper. Install the AI Addon for full functionality."
 
-            title = i18n.get("ai_addon_required_title") or "AI Addon Required"
-            msg = i18n.get("ai_addon_required_msg") or "This feature requires the AI Addon."
+            # Provide helpful response even without addon
+            title = i18n.get("ai_addon_required_title") or "🤖 **AI Addon Required**"
+            msg = i18n.get("ai_addon_required_msg") or (
+                "The AI Assistant addon is not installed. This feature requires the AI Addon "
+                "to be installed via the Addon Manager to get intelligent responses."
+            )
+            tips_header = i18n.get("ai_tips_header") or "**In the meantime, here are some tips:**"
 
-            # Include a machine-readable token for tests to easily detect the stub
-            return f"[AI_STUB] {title}: {msg}\n\nYour query: {query}"
+            # Use the same helpful format as update_context
+            return (
+                f"{title}\n\n"
+                f"{msg}\n\n"
+                f"{tips_header}\n"
+                "• For MSI files: Use `/qn /norestart` for silent install\n"
+                "• For NSIS: Use `/S` (case sensitive)\n"
+                "• For Inno Setup: Use `/VERYSILENT /SUPPRESSMSGBOXES`\n"
+                "• For InstallShield: Use `/s /v\"/qn\"`\n\n"
+                f"Your question: *{query}*"
+            )

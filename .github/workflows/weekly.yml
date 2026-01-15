@@ -27,7 +27,8 @@ jobs:
     if: needs.check_relevance.outputs.relevance == 'true'
     runs-on: ubuntu-latest
     permissions:
-      workflows: write
+      contents: write
+      actions: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

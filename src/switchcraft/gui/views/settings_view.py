@@ -848,6 +848,14 @@ class SettingsView(ctk.CTkFrame):
         self.tool_entry.grid(row=1, column=1, padx=5)
 
     def _setup_intune_settings(self, parent):
+        """
+        Builds the Intune/Graph integration UI within the given parent frame and binds inputs to persisted configuration.
+        
+        Creates input fields for Graph Tenant ID, Client ID, and Client Secret (masked), populates them from stored configuration, and provides Save and Verify buttons. If the required "advanced" addon is not installed, displays a warning and a button to open the Addon Manager and does not render the integration inputs.
+        
+        Parameters:
+            parent: The container widget to host the Intune/Graph settings UI.
+        """
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(frame, text=i18n.get("settings_hdr_integrations") or "Integrations", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=5)
@@ -858,7 +866,7 @@ class SettingsView(ctk.CTkFrame):
         auth_grid.grid_columnconfigure(1, weight=1)
 
         from switchcraft.services.addon_service import AddonService
-        if not AddonService.is_addon_installed("advanced"):
+        if not AddonService.is_addon_installed_static("advanced"):
             ctk.CTkLabel(frame, text=i18n.get("addon_advanced_required"), text_color="orange").pack(pady=5)
             ctk.CTkButton(frame, text=i18n.get("btn_goto_addon_manager"), command=lambda: self.tabview.set(i18n.get("help_title") or "Help")).pack(pady=5)
             # Disable the rest
@@ -1017,6 +1025,17 @@ class SettingsView(ctk.CTkFrame):
         pass
 
     def _setup_addon_manager(self, parent):
+        """
+        Create and populate the Addon Manager UI section inside the given parent widget.
+        
+        Builds a list of known addons (Advanced, Winget, AI), queries installation status via
+        AddonService.is_addon_installed_static, and for each addon displays its name, a
+        status label (green for installed, orange for not installed), a manual upload
+        button, and—when not installed—a download/install button. Also adds a global
+        "Upload Custom Addon" button. Button actions are bound to self._install_addon and
+        self._upload_custom_addon; the constructed widgets are packed into the provided
+        parent.
+        """
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
 
@@ -1036,7 +1055,7 @@ class SettingsView(ctk.CTkFrame):
             row = ctk.CTkFrame(frame)
             row.pack(fill="x", padx=5, pady=2)
 
-            is_installed = AddonService.is_addon_installed(addon["id"])
+            is_installed = AddonService.is_addon_installed_static(addon["id"])
             status_color = "green" if is_installed else "orange"
             status_text = i18n.get("status_installed") if is_installed else i18n.get("status_not_installed")
 

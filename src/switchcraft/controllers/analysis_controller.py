@@ -40,14 +40,27 @@ class AnalysisController:
         self, file_path_str: str, progress_callback: Callable[[float, str, Optional[float]], None] = None
     ) -> AnalysisResult:
         """
-        Runs the full analysis pipeline on the given file.
-
-        Args:
-            file_path_str: Path to the installer file.
-            progress_callback: Optional callback (percent [0.0-1.0], message, eta_seconds).
-
+        Execute the full installer analysis pipeline for the given file.
+        
+        Performs analyzer-specific detection, universal/brute-force analysis, optional nested extraction,
+        community database lookup, Winget search (if enabled), and updates AI context when available.
+        Returns a consolidated AnalysisResult summarizing detections, discovered switches, auxiliary data,
+        and any error encountered.
+        
+        Parameters:
+            file_path_str (str): Path to the installer file to analyze.
+            progress_callback (Callable[[float, str, Optional[float]], None], optional): Callback invoked with
+                (progress_fraction [0.0-1.0], message, eta_seconds) to report progress and ETA. May be None.
+        
         Returns:
-            AnalysisResult object containing all findings.
+            AnalysisResult: Container with analysis outcomes:
+                - info: InstallerInfo or None if analysis failed.
+                - winget_url: Optional[str] URL found via Winget (or None).
+                - brute_force_data: Optional[str] output from brute-force analysis.
+                - nested_data: Optional[Dict] results from nested extraction/analysis.
+                - silent_disabled_info: Optional[Dict] data about silent/disabled detection.
+                - community_match: bool indicating whether community DB switches were applied.
+                - error: Optional[str] error message when analysis could not complete.
         """
         path = Path(file_path_str)
         if not path.exists():
@@ -155,7 +168,8 @@ class AnalysisController:
             if SwitchCraftConfig.get_value("EnableWinget", True):
                 try:
                     from switchcraft.services.addon_service import AddonService
-                    winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+                    addon_service = AddonService()
+                    winget_mod = addon_service.import_addon_module("winget", "utils.winget")
                     if winget_mod and info.product_name:
                         winget = winget_mod.WingetHelper()
                         winget_url = winget.search_by_name(info.product_name)

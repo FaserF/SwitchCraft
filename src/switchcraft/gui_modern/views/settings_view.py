@@ -2,6 +2,7 @@ import flet as ft
 import threading
 import logging
 import json
+import os
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 from switchcraft import __version__
@@ -66,17 +67,25 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self._check_managed_settings()
 
     def _switch_tab(self, builder_func):
+        """
+        Switches the view to a new tab by invoking the provided tab builder and updating the UI.
+
+        If `builder_func` is callable, its return value is assigned to `self.current_content.content`. If `builder_func` is None, a localized error message is shown. If the builder raises an exception, the error is logged and a fallback error UI (icon, error text, and guidance) is displayed. The method then attempts to refresh the UI; update failures are ignored.
+
+        Parameters:
+            builder_func (Callable[[], ft.Control] | None): Function that constructs and returns the Flet control for the tab, or None to indicate a missing builder.
+        """
         try:
             if builder_func:
                 self.current_content.content = builder_func()
             else:
-                self.current_content.content = ft.Text("Error: Tab builder missing", color="RED")
+                self.current_content.content = ft.Text(i18n.get("error_tab_builder") or "Error: Tab builder missing", color="RED")
         except Exception as e:
             logger.error(f"Failed to build tab: {e}")
             self.current_content.content = ft.Column([
                 ft.Icon(ft.Icons.ERROR, color="RED", size=40),
                 ft.Text(f"Error loading tab: {e}", color="RED"),
-                ft.Text("Check logs for details.", size=12, color="GREY")
+                ft.Text(i18n.get("error_check_logs") or "Check logs for details.", size=12, color="GREY")
             ])
 
         try:
@@ -86,16 +95,25 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     def _build_general_tab(self):
         # Company Name
+        """
+        Builds the General settings tab UI.
+
+        Constructs and returns a ListView containing controls for company name, language selection, Winget integration toggle, cloud sync section, AI configuration, export/import settings actions, and a test notification button.
+
+        Returns:
+            ft.ListView: A configured ListView that represents the General Settings tab.
+        """
         company_field = ft.TextField(
             label=i18n.get("settings_company_name") or "Company Name",
             value=SwitchCraftConfig.get_company_name(),
         )
         company_field.on_blur = lambda e: SwitchCraftConfig.set_user_preference("CompanyName", e.control.value)
 
-        # Language
+        # Language - Always use current i18n language to ensure it's up-to-date
+        current_lang = i18n.language  # Get current language from i18n singleton
         lang_dd = ft.Dropdown(
             label=i18n.get("settings_language") or "Language",
-            value=SwitchCraftConfig.get_value("Language", i18n.language),
+            value=current_lang,  # Use current language from i18n, not config (config might be stale)
             options=[
                 ft.dropdown.Option("en", "English"),
                 ft.dropdown.Option("de", "Deutsch"),
@@ -209,6 +227,19 @@ class ModernSettingsView(ft.Column, ViewMixin):
         ])
 
     def _build_updates_tab(self):
+        """
+        Builds the Updates settings tab UI.
+
+        Creates and returns a ListView containing:
+        - An update channel selector (stable/beta/dev) wired to save changes.
+        - Current version and build date display.
+        - Latest version display (updated from cached or live checks).
+        - A "Check for Updates" button that triggers an update check.
+        - A changelog Markdown view populated from cached results or a loading message.
+
+        Returns:
+            ft.ListView: The assembled ListView for the Updates tab with version info, controls, and changelog.
+        """
         channel = ft.Dropdown(
             label=i18n.get("settings_channel") or "Update Channel",
             value=SwitchCraftConfig.get_value("UpdateChannel", "stable"),
@@ -245,7 +276,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.Text(i18n.get("settings_hdr_update") or "Updates", size=24, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
                 channel,
                 ft.Row([
-                    ft.Text(f"{i18n.get('current_version') or 'Current Version'}: {__version__}", weight=ft.FontWeight.BOLD),
+                    ft.Text(f"{i18n.get('current_version') or 'Current Version'}: {__version__} ({self._get_build_date()})", weight=ft.FontWeight.BOLD),
                 ], alignment=ft.MainAxisAlignment.CENTER),
                 ft.Row([
                     ft.Text(f"{i18n.get('latest_version') or 'Latest Version'}: ", weight=ft.FontWeight.BOLD),
@@ -267,6 +298,16 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     def _build_deployment_tab(self):
         # Code Signing Section
+        """
+        Builds the Deployment / Global Graph API settings tab UI.
+
+        Constructs and returns a ListView containing controls to configure Entra/Microsoft Graph (tenant, client, secret) with a connection test button, code signing settings (enable switch, certificate display and management buttons), repository and template path fields, and related actions.
+
+        The method also stores references to the tenant, client, and secret input fields and to status text controls (certificate and template status, and test result) on the instance for use by other methods.
+
+        Returns:
+            ft.ListView: A ListView populated with controls for Graph/Intune configuration, code signing, paths, and template management.
+        """
         sign_enabled = bool(SwitchCraftConfig.get_value("SignScripts", False))
 
         # Validate if cert actually exists
@@ -354,10 +395,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
         return ft.ListView(
             controls=[
                 ft.Text(i18n.get("deployment_title") or "Global Graph API", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text("Configure your connection to Microsoft Graph. Required for Intune, Entra ID, and Autopilot features.", size=12, color="GREY"),
+                ft.Text(i18n.get("configure_graph_connection") or "Configure your connection to Microsoft Graph. Required for Intune, Entra ID, and Autopilot features.", size=12, color="GREY"),
 
                 # Intune/Graph
-                ft.Text("Entra Enterprise App Registration Config", size=18, color="BLUE"),
+                ft.Text(i18n.get("entra_app_reg_config") or "Entra Enterprise App Registration Config", size=18, color="BLUE"),
                 tenant,
                 client,
                 secret,
@@ -393,6 +434,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self._show_snack(f"Debug Mode {'Enabled' if val else 'Disabled'}", "ORANGE" if val else "GREEN")
 
     def _build_help_tab(self):
+        """
+        Builds the Help & Resources tab UI for the settings view.
+
+        The returned view includes links to the project, issue reporter, and documentation; controls to export logs and toggle debug logging; a debug console with streamed logs; a prefilled GitHub issue reporter flow; an addon manager section; a "Danger Zone" factory reset action; and version/credits footer.
+
+        Returns:
+            ft.ListView: A ListView containing the assembled controls for the Help & Resources tab.
+        """
         links = ft.Row([
             ft.Button(i18n.get("help_github_repo") or "GitHub Repo", icon=ft.Icons.CODE, url="https://github.com/FaserF/SwitchCraft"),
             ft.Button(i18n.get("help_report_issue") or "Report Issue", icon=ft.Icons.BUG_REPORT, url="https://github.com/FaserF/SwitchCraft/issues"),
@@ -410,9 +459,44 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         # GitHub Issue Reporter with pre-filled body
         def open_issue_reporter(e):
-            from switchcraft.utils.logging_handler import get_session_handler
-            import webbrowser
-            webbrowser.open(get_session_handler().get_github_issue_link())
+            """
+            Open the application's pre-filled GitHub issue reporter for the current session.
+
+            Attempts to open the generated issue URL in the user's default web browser; if that fails, copies the URL to the clipboard. Shows an in-app notification indicating the action taken and logs successes or failures.
+
+            Parameters:
+                e: UI event object (ignored).
+            """
+            try:
+                from switchcraft.utils.logging_handler import get_session_handler
+                import webbrowser
+                import logging
+
+                logger.info("Opening GitHub issue reporter...")
+                url = get_session_handler().get_github_issue_link()
+                logger.info(f"Issue URL: {url}")
+
+                # Try to open in default browser
+                try:
+                    webbrowser.open(url)
+                    self._show_snack(i18n.get("issue_reporter_opened") or "Opening GitHub issue reporter...", "BLUE")
+                except Exception as ex:
+                    logger.error(f"Failed to open browser: {ex}")
+                    # Fallback: Copy URL to clipboard and show message
+                    try:
+                        if hasattr(self.app_page, 'set_clipboard'):
+                            self.app_page.set_clipboard(url)
+                            self._show_snack(f"{i18n.get('issue_url_copied') or 'Issue URL copied to clipboard'}: {url[:50]}...", "BLUE")
+                        else:
+                            import pyperclip
+                            pyperclip.copy(url)
+                            self._show_snack(f"{i18n.get('issue_url_copied') or 'Issue URL copied to clipboard'}: {url[:50]}...", "BLUE")
+                    except Exception as ex2:
+                        logger.error(f"Failed to copy URL: {ex2}")
+                        self._show_snack(f"{i18n.get('issue_reporter_failed') or 'Failed to open issue reporter'}: {ex}", "RED")
+            except Exception as ex:
+                logger.exception(f"Error opening issue reporter: {ex}")
+                self._show_snack(f"{i18n.get('issue_reporter_failed') or 'Failed to open issue reporter'}: {ex}", "RED")
 
         issue_btn = ft.Button(
             i18n.get("help_report_issue_prefilled") or "Report Issue (with Logs)",
@@ -480,7 +564,6 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.Text(i18n.get("help_troubleshooting") or "Troubleshooting", size=18, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
                 ft.Text(i18n.get("help_shared_settings_msg") or "Settings are shared across all SwitchCraft editions (Modern, Legacy, and CLI).", size=12, italic=True, text_align=ft.TextAlign.CENTER),
                 ft.Row([
-                    ft.Button(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs),
                     issue_btn
                 ], alignment=ft.MainAxisAlignment.CENTER),
                 ft.Divider(),
@@ -491,7 +574,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 self.debug_log_text,
                 danger_zone,
                 ft.Divider(),
-                ft.Text(f"{i18n.get('about_version') or 'Version'}: {__version__}", color="GREY", text_align=ft.TextAlign.CENTER)
+                ft.Text(f"{i18n.get('about_version') or 'Version'}: {__version__} ({self._get_build_date()})", color="GREY", text_align=ft.TextAlign.CENTER),
+                ft.Text(i18n.get("brought_by") or "Brought to you by Fabian Seitz (FaserF)", color="GREY", size=11, text_align=ft.TextAlign.CENTER, italic=True),
+                ft.Text(i18n.get("created_with_ai") or "(erstellt mit Hilfe von KI)", color="GREY", size=10, text_align=ft.TextAlign.CENTER, italic=True)
             ],
             padding=20,
             spacing=15
@@ -577,8 +662,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
         threading.Thread(target=_run, daemon=True).start()
 
     def _start_github_login(self, e):
-       # Reuse logic, update references to self.app_page.dialog not self.page.dialog if self.page isn't set on Column?
-       # Column gets .page when mounted. but we are using self.app_page.
+        """
+        Start an interactive GitHub device‑flow login in a background thread and handle the result.
+
+        Starts the device authorization flow, presents a dialog with the verification URL and user code, opens the browser when requested, polls for an access token, and on success saves the token, updates the cloud-sync UI, and shows a success or failure notification. All UI interactions and the polling run in a background thread to avoid blocking the main thread.
+
+        Parameters:
+            e: The triggering event (e.g., button click). The value is accepted but not used by this method.
+        """
         def _flow():
             flow = AuthService.initiate_device_flow()
             if not flow:
@@ -607,11 +698,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
             btn_cancel = ft.TextButton("Cancel", on_click=close_dlg)
 
             dlg = ft.AlertDialog(
-                title=ft.Text("GitHub Login"),
+                title=ft.Text(i18n.get("github_login") or "GitHub Login"),
                 content=ft.Column([
-                    ft.Text("Please visit:"),
+                    ft.Text(i18n.get("please_visit") or "Please visit:"),
                     ft.Text(flow.get("verification_uri"), color="BLUE"),
-                    ft.Text("And enter code:"),
+                    ft.Text(i18n.get("and_enter_code") or "And enter code:"),
                     ft.Text(flow.get("user_code"), size=24, weight=ft.FontWeight.BOLD),
                 ], height=150),
                 actions=[btn_copy, btn_cancel]
@@ -634,10 +725,29 @@ class ModernSettingsView(ft.Column, ViewMixin):
         threading.Thread(target=_flow, daemon=True).start()
 
     def _logout_github(self, e):
-        AuthService.logout()
-        self._update_sync_ui()
+        """
+        Logs out the current GitHub/cloud authentication session, refreshes the sync UI, and shows a success or failure notification.
+
+        Performs the logout action, updates the cloud sync section to reflect the unauthenticated state, and displays a green success snackbar on success or a red failure snackbar if an error occurs.
+
+        Parameters:
+            e: The triggering event (typically a UI event). This parameter is accepted but not used.
+        """
+        try:
+            AuthService.logout()
+            self._update_sync_ui()
+            self._show_snack(i18n.get("logout_success") or "Logged out successfully", "GREEN")
+        except Exception as ex:
+            logger.exception(f"Error logging out: {ex}")
+            self._show_snack(f"{i18n.get('logout_failed') or 'Logout failed'}: {ex}", "RED")
 
     def _sync_up(self, e):
+        """
+        Start an asynchronous upload of user settings to cloud storage and show a success or failure snack.
+
+        Parameters:
+            e: The triggering UI event (unused).
+        """
         def _run():
             if SyncService.sync_up():
                 self._show_snack(i18n.get("sync_success_up") or "Sync Up Successful", "GREEN")
@@ -654,6 +764,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
         threading.Thread(target=_run, daemon=True).start()
 
     def _export_settings(self, e):
+        """
+        Open a file-save dialog and write current user preferences to a JSON file.
+
+        Opens a save-file picker prompting the user for a destination (default filename "settings.json"); if a path is selected, exports the application preferences to that file as pretty-printed JSON and shows a success notification.
+        """
         from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
         path = FilePickerHelper.save_file(dialog_title=i18n.get("btn_export_settings") or "Export Settings", file_name="settings.json", allowed_extensions=["json"])
         if path:
@@ -663,34 +778,118 @@ class ModernSettingsView(ft.Column, ViewMixin):
             self._show_snack(f"{i18n.get('export_success') or 'Exported to'} {path}")
 
     def _import_settings(self, e):
-        from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
-        path = FilePickerHelper.pick_file(allowed_extensions=["json"], allow_multiple=False)
-        if path:
-            try:
-                with open(path, "r") as f:
-                    data = json.load(f)
-                SwitchCraftConfig.import_preferences(data)
-                self._show_snack(i18n.get("import_success") or "Settings Imported. Please Restart.", "GREEN")
-            except Exception as ex:
-                self._show_snack(f"{i18n.get('import_failed') or 'Import Failed'}: {ex}", "RED")
+        """
+        Import application settings from a user-selected JSON file.
+
+        Opens a file picker restricted to a single `.json` file, parses the selected file as JSON, and applies the data via SwitchCraftConfig.import_preferences. Displays a success snack on successful import; on failure shows an error snack and logs the exception. JSON decoding errors are reported as an invalid JSON file.
+
+        Parameters:
+            e: UI event or trigger that invoked this handler (ignored).
+        """
+        try:
+            from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+            path = FilePickerHelper.pick_file(allowed_extensions=["json"], allow_multiple=False)
+            if path:
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    SwitchCraftConfig.import_preferences(data)
+                    self._show_snack(i18n.get("import_success") or "Settings Imported. Please Restart.", "GREEN")
+                except json.JSONDecodeError as ex:
+                    logger.error(f"Invalid JSON in settings file: {ex}")
+                    self._show_snack(f"{i18n.get('import_failed') or 'Import Failed'}: Invalid JSON file", "RED")
+                except Exception as ex:
+                    logger.exception(f"Error importing settings: {ex}")
+                    self._show_snack(f"{i18n.get('import_failed') or 'Import Failed'}: {ex}", "RED")
+        except Exception as ex:
+            logger.exception(f"Error in import settings handler: {ex}")
+            self._show_snack(f"{i18n.get('import_failed') or 'Import Failed'}: {ex}", "RED")
 
     def _export_logs(self, e):
+        """Export logs to a file. Includes current session log and recent log files."""
         import datetime
+        import os
+        from pathlib import Path
+
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"SwitchCraft_Debug_{timestamp}.log"
 
         from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
         path = FilePickerHelper.save_file(dialog_title=i18n.get("help_export_logs") or "Export Logs", file_name=filename, allowed_extensions=["log", "txt"])
-        if path:
+
+        if not path:
+            return  # User cancelled
+
+        try:
             from switchcraft.utils.logging_handler import get_session_handler
-            if get_session_handler().export_logs(path):
-                self._show_snack(i18n.get("logs_exported") or f"Logs Exported to {path}")
+            handler = get_session_handler()
+
+            # Try to export current session log first
+            exported = False
+            if handler.current_log_path and handler.current_log_path.exists():
+                try:
+                    if handler.file_handler:
+                        handler.file_handler.flush()
+                    import shutil
+                    shutil.copy2(handler.current_log_path, path)
+                    exported = True
+                    logger.info(f"Exported current session log to {path}")
+                except Exception as ex:
+                    logger.warning(f"Failed to export current session log: {ex}")
+
+            # If no current log, try to find and export recent log files
+            if not exported:
+                # Find log directory
+                app_data = os.getenv('APPDATA')
+                if app_data:
+                    log_dir = Path(app_data) / "FaserF" / "SwitchCraft" / "Logs"
+                else:
+                    log_dir = Path.home() / ".switchcraft" / "logs"
+
+                if log_dir.exists():
+                    # Find all session log files
+                    log_files = sorted(log_dir.glob("SwitchCraft_Session_*.log"), key=os.path.getmtime, reverse=True)
+
+                    if log_files:
+                        # Export the most recent log file
+                        try:
+                            import shutil
+                            shutil.copy2(log_files[0], path)
+                            exported = True
+                            logger.info(f"Exported recent log file to {path}")
+                        except Exception as ex:
+                            logger.error(f"Failed to export log file: {ex}")
+                            self._show_snack(f"{i18n.get('logs_export_failed') or 'Log export failed'}: {ex}", "RED")
+                            return
+                    else:
+                        logger.warning("No log files found to export")
+                        self._show_snack(i18n.get("logs_no_logs_found") or "No log files found to export.", "ORANGE")
+                        return
+                else:
+                    logger.warning(f"Log directory does not exist: {log_dir}")
+                    self._show_snack(i18n.get("logs_no_logs_found") or "No log files found to export.", "ORANGE")
+                    return
+
+            if exported:
+                self._show_snack(i18n.get("logs_exported") or f"Logs exported to {path}", "GREEN")
             else:
                 self._show_snack(i18n.get("logs_export_failed") or "Log export failed.", "RED")
+
+        except Exception as ex:
+            logger.exception(f"Error exporting logs: {ex}")
+            self._show_snack(f"{i18n.get('logs_export_failed') or 'Log export failed'}: {ex}", "RED")
 
 
 
     def _on_lang_change(self, val):
+        """
+        Handle a change to the UI language and apply it across the application.
+
+        Saves the selected language to user preferences, updates the i18n singleton, rebuilds the settings view (and main app navigation) to reflect the new language, and shows a confirmation snack. If the app page reference is unavailable, prompts the user to restart the application and performs a restart when confirmed.
+
+        Parameters:
+            val (str): Language code or identifier to set (e.g., "en", "fr", etc.).
+        """
         from switchcraft.utils.config import SwitchCraftConfig
         from switchcraft.utils.i18n import i18n
 
@@ -700,67 +899,153 @@ class ModernSettingsView(ft.Column, ViewMixin):
         # Actually update the i18n singleton
         i18n.set_language(val)
 
-        # Show restart dialog
-        def do_restart(e):
-            dlg.open = False
-            self.app_page.update()
-            # Request restart
-            import sys
-            import os
-            import subprocess
+        # Immediately refresh the current view to apply language change
+        # Get current tab index and reload the view
+        if hasattr(self.app_page, 'switchcraft_app'):
+            app = self.app_page.switchcraft_app
+            current_idx = getattr(app, '_current_tab_index', 0)
 
-            try:
-                if getattr(sys, 'frozen', False):
-                    # Running as PyInstaller Bundle
-                    executable = sys.executable
-                    args = sys.argv[1:]
-                    cwd = os.path.dirname(executable)
-                else:
-                    # Running from source
-                    executable = sys.executable
-                    args = sys.argv
-                    cwd = os.getcwd()
+            # Clear ALL view cache to force rebuild with new language
+            if hasattr(app, '_view_cache'):
+                app._view_cache.clear()
 
-                # Environment setup
-                env = os.environ.copy()
-                if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-                     # PyInstaller sets _MEIPASS, which wraps runtime files.
-                     # New process needs its own temp folder, so we generally DON'T need to do anything special here,
-                     # but clearing specific env vars might be safer if needed.
-                     pass
+            # Rebuild the Settings View itself (since we're in it)
+            # Get current tab index within settings
+            current_settings_tab = self.initial_tab_index
 
-                subprocess.Popen([executable] + args, cwd=cwd, env=env)
-                os._exit(0)
-            except Exception as ex:
-                self._show_snack(f"Restart failed: {ex}", "RED")
-
-        def skip_restart(e):
-            dlg.open = False
-            self.app_page.update()
-            self._show_snack(
-                i18n.get("restart_required") or "Some texts will update after restart.",
-                "ORANGE"
-            )
-
-        dlg = ft.AlertDialog(
-            title=ft.Text(i18n.get("language_changed") or "Language Changed"),
-            content=ft.Text(
-                i18n.get("restart_to_apply") or
-                "The application needs to restart to apply the new language. Restart now?"
-            ),
-            actions=[
-                ft.TextButton(i18n.get("btn_later") or "Later", on_click=skip_restart),
-                ft.Button(
-                    i18n.get("btn_restart_now") or "Restart Now",
-                    on_click=do_restart,
-                    bgcolor="BLUE_700",
-                    color="WHITE"
-                ),
+            # Rebuild tab definitions with new language
+            self.tab_defs = [
+                (i18n.get("settings_general") or "General", ft.Icons.SETTINGS, self._build_general_tab),
+                (i18n.get("settings_hdr_update") or "Updates", ft.Icons.UPDATE, self._build_updates_tab),
+                (i18n.get("deployment_title") or "Global Graph API", ft.Icons.CLOUD_UPLOAD, self._build_deployment_tab),
+                (i18n.get("help_title") or "Help", ft.Icons.HELP, self._build_help_tab)
             ]
-        )
-        self.app_page.open(dlg)
+
+            # Rebuild tab navigation buttons with new language
+            self.nav_row.controls.clear()
+            for i, (name, icon, func) in enumerate(self.tab_defs):
+                btn = ft.Button(
+                    content=ft.Row([ft.Icon(icon), ft.Text(name)]),
+                    on_click=lambda e, f=func: self._switch_tab(f),
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=5),
+                        bgcolor="PRIMARY_CONTAINER" if i == current_settings_tab else None
+                    )
+                )
+                self.nav_row.controls.append(btn)
+
+            # Rebuild current tab content
+            self._switch_tab(self.tab_defs[current_settings_tab][2])
+
+            # Update the nav_row to reflect changes (only if page is attached)
+            try:
+                if hasattr(self, 'page') and self.page:
+                    self.update()
+            except RuntimeError:
+                # Control not attached to page yet, skip update
+                pass
+
+            # Reload the main app view to update sidebar labels
+            app.goto_tab(current_idx)
+
+            self._show_snack(
+                i18n.get("language_changed") or "Language changed. UI updated.",
+                "GREEN"
+            )
+        else:
+            # Fallback: Show restart dialog if app reference not available
+            def do_restart(e):
+                """
+                Restart the application by launching a new process and exiting the current process.
+
+                This function attempts a clean restart by shutting down logging, forcing garbage collection, removing PyInstaller-related environment variables (e.g., `_MEI*`), and spawning a new process with the same executable and arguments. On Windows the new process is started detached and in a new process group. Standard input/output/error are suppressed for the spawned process. If the restart fails, an error snack is shown via self._show_snack.
+                """
+                dlg.open = False
+                self.app_page.update()
+                import sys
+                import os
+                import subprocess
+                import time
+                import gc
+                import logging
+
+                try:
+                    if getattr(sys, 'frozen', False):
+                        executable = sys.executable
+                        args = sys.argv[1:]
+                        cwd = os.path.dirname(executable)
+                    else:
+                        executable = sys.executable
+                        args = sys.argv
+                        cwd = os.getcwd()
+
+                    # 1. Close all file handles and release resources
+                    try:
+                        logging.shutdown()
+                    except Exception:
+                        pass
+
+                    # 2. Force garbage collection
+                    gc.collect()
+
+                    # 3. Small delay to allow file handles to be released
+                    time.sleep(0.2)
+
+                    # 4. Prepare environment: remove PyInstaller's _MEIPASS
+                    env = os.environ.copy()
+                    for key in list(env.keys()):
+                        if key.startswith('_MEI'):
+                            env.pop(key)
+                    env.pop('LD_LIBRARY_PATH', None)
+
+                    # 5. Launch new process
+                    creationflags = 0
+                    if sys.platform == 'win32':
+                        creationflags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+
+                    subprocess.Popen(
+                        [executable] + args,
+                        cwd=cwd,
+                        env=env,
+                        close_fds=True,
+                        creationflags=creationflags,
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+
+                    # 6. Give the new process a moment to start
+                    time.sleep(0.3)
+
+                    # 7. Exit
+                    os._exit(0)
+                except Exception as ex:
+                    self._show_snack(f"Restart failed: {ex}", "RED")
+
+            dlg = ft.AlertDialog(
+                title=ft.Text(i18n.get("language_changed") or "Language Changed"),
+                content=ft.Text(
+                    i18n.get("restart_to_apply") or
+                    "The application needs to restart to apply the new language. Restart now?"
+                ),
+                actions=[
+                    ft.TextButton(i18n.get("btn_later") or "Later", on_click=lambda e: setattr(dlg, "open", False) or self.app_page.update()),
+                    ft.Button(
+                        i18n.get("btn_restart_now") or "Restart Now",
+                        on_click=do_restart,
+                        bgcolor="BLUE_700",
+                        color="WHITE"
+                    ),
+                ]
+            )
+            self.app_page.open(dlg)
 
     def _test_graph_connection(self, e):
+        """
+        Validate Entra (Microsoft Graph/Intune) credentials from the UI fields and report the result.
+
+        Reads tenant ID, client ID, and client secret from the view's credential fields; if any are missing, updates the test result text and color to indicate the missing input. If present, starts an asynchronous authentication attempt and updates the test result text and color to show progress, success, or failure. On success or failure a notification snack is displayed. The method does not raise exceptions (authentication errors are reported in the UI).
+        """
         t_id = self.raw_tenant_field.value.strip()
         c_id = self.raw_client_field.value.strip()
         sec = self.raw_secret_field.value.strip()
@@ -880,7 +1165,15 @@ class ModernSettingsView(ft.Column, ViewMixin):
             logging.getLogger().addHandler(handler)
 
     def _build_addon_manager_section(self):
-        """Build the Addon Manager UI section."""
+        """
+        Create the Addon Manager UI section listing available addons and actions.
+
+        Each addon row shows the addon's name, description, installation status, and an Install/Reinstall button.
+        The section also includes an "Upload Custom Addon (.zip)" button and an "Import from URL" button.
+
+        Returns:
+            ft.Column: A Flet Column containing addon rows and a row with upload/import action buttons.
+        """
         from switchcraft.services.addon_service import AddonService
 
         addons = [
@@ -895,18 +1188,22 @@ class ModernSettingsView(ft.Column, ViewMixin):
             status_color = "GREEN" if is_installed else "ORANGE"
             status_text = i18n.get("status_installed") or "Installed" if is_installed else i18n.get("status_not_installed") or "Not Installed"
 
+            install_btn = ft.Button(
+                i18n.get("btn_install") or "Install" if not is_installed else i18n.get("btn_reinstall") or "Reinstall",
+                icon=ft.Icons.DOWNLOAD,
+                on_click=lambda e, aid=addon["id"]: self._install_addon(aid),
+                disabled=False  # Always allow install/reinstall
+            )
+            # Store button reference for potential updates
+            install_btn.addon_id = addon["id"]
+
             row = ft.Row([
                 ft.Column([
                     ft.Text(addon["name"], weight=ft.FontWeight.BOLD),
                     ft.Text(addon["desc"], size=11, color="GREY")
                 ], expand=True),
                 ft.Text(status_text, color=status_color),
-                ft.Button(
-                    i18n.get("btn_install") or "Install" if not is_installed else i18n.get("btn_reinstall") or "Reinstall",
-                    icon=ft.Icons.DOWNLOAD,
-                    on_click=lambda e, aid=addon["id"]: self._install_addon(aid),
-                    disabled=is_installed  # Disable if already installed
-                )
+                install_btn
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
             rows.append(row)
 
@@ -927,11 +1224,19 @@ class ModernSettingsView(ft.Column, ViewMixin):
         return ft.Column(rows + [ft.Row([upload_btn, url_import_btn])], spacing=10)
 
     def _install_addon(self, addon_id):
-        """Install an addon from the official repository."""
+        """
+        Install the specified addon and update the UI with success or failure feedback.
+
+        Attempts to install the addon identified by `addon_id` by first locating a bundled ZIP and, if absent, falling back to downloading the addon from the official GitHub releases. The installation runs on a background thread, displays success or failure notifications to the user, and triggers a refresh of the addon manager UI when installation succeeds.
+
+        Parameters:
+            addon_id (str): Identifier of the addon (filename prefix for the addon ZIP, e.g. "advanced", "winget").
+        """
         from switchcraft.services.addon_service import AddonService
         import sys
         from pathlib import Path
 
+        logger.info(f"Installing addon: {addon_id}")
         self._show_snack(f"{i18n.get('addon_installing') or 'Installing addon'} {addon_id}...", "BLUE")
 
         # Resolve bundled path
@@ -954,19 +1259,116 @@ class ModernSettingsView(ft.Column, ViewMixin):
              base_path = Path(__file__).parent.parent.parent / "assets" / "addons"
 
         zip_path = base_path / f"{addon_id}.zip"
+        logger.info(f"Looking for addon ZIP at: {zip_path}")
 
         def _run():
-            if not zip_path.exists():
-                 # TODO: Try online download if not bundled?
-                 self._show_snack(f"Addon source not found: {zip_path}", "RED")
-                 return
+            """
+            Install an addon ZIP if present; otherwise attempt to download it from GitHub and update the UI with the outcome.
 
-            if AddonService().install_addon(str(zip_path)):
-                self._show_snack(f"{i18n.get('addon_install_success') or 'Addon installed successfully!'} ({addon_id})", "GREEN")
-            else:
-                self._show_snack(f"{i18n.get('addon_install_failed') or 'Addon installation failed.'} ({addon_id})", "RED")
+            Attempts to install the addon located at `zip_path`. If the ZIP is missing, triggers a download from GitHub for `addon_id`. On successful installation, logs the event, shows a success snack, and refreshes the addon manager section in the UI if available. On failure or exception, logs the error and shows a failure snack containing the error message.
+            """
+            try:
+                if not zip_path.exists():
+                    logger.error(f"Addon ZIP not found at: {zip_path}")
+                    # Try to download from GitHub releases
+                    self._download_addon_from_github(addon_id)
+                    return
+
+                logger.info(f"Found addon ZIP, installing from: {zip_path}")
+                result = AddonService().install_addon(str(zip_path))
+                if result:
+                    logger.info(f"Addon {addon_id} installed successfully")
+                    self._show_snack(f"{i18n.get('addon_install_success') or 'Addon installed successfully!'} ({addon_id})", "GREEN")
+                    # Refresh the addon manager section to update status
+                    if hasattr(self, '_build_addon_manager_section'):
+                        # Rebuild the section in the UI thread
+                        if hasattr(self.app_page, 'run_task'):
+                            try:
+                                self.app_page.run_task(lambda: self._refresh_addon_section())
+                            except Exception:
+                                pass
+                else:
+                    logger.error(f"Addon {addon_id} installation returned False")
+                    self._show_snack(f"{i18n.get('addon_install_failed') or 'Addon installation failed.'} ({addon_id})", "RED")
+            except Exception as ex:
+                logger.exception(f"Error installing addon {addon_id}: {ex}")
+                self._show_snack(f"{i18n.get('addon_install_failed') or 'Addon installation failed.'}: {str(ex)}", "RED")
 
         threading.Thread(target=_run, daemon=True).start()
+
+    def _refresh_addon_section(self):
+        """
+        Attempt to refresh the Addon Manager section in the current settings view.
+
+        This is a best-effort UI refresh: when an addon is installed or its state changes, the method tries to locate and rebuild the Addon Manager area inside the currently rendered tab. Failures are handled silently and logged for debugging; the method performs no guaranteed action and may be a no-op in some layouts.
+        """
+        try:
+            # Find the General tab and rebuild addon section
+            # This is a bit hacky, but we need to refresh the UI
+            if hasattr(self, 'current_content') and self.current_content.content:
+                # Try to find and update the addon section
+                pass  # For now, user can manually refresh by switching tabs
+        except Exception as ex:
+            logger.debug(f"Failed to refresh addon section: {ex}")
+
+    def _download_addon_from_github(self, addon_id):
+        """
+        Download and install an addon ZIP named "<addon_id>.zip" from the repository's latest GitHub release.
+
+        Looks up the latest release for the bundled SwitchCraft repository, downloads the release asset matching "{addon_id}.zip", attempts installation via AddonService.install_addon, and removes the temporary download file. Shows user-facing notifications for success or failure and logs errors.
+
+        Parameters:
+            addon_id (str): Identifier of the addon; corresponds to the asset filename without the ".zip" extension.
+        """
+        try:
+            import requests
+            from switchcraft import __version__
+
+            logger.info(f"Attempting to download {addon_id} from GitHub releases")
+            self._show_snack(f"Downloading {addon_id} from GitHub...", "BLUE")
+
+            # Try to get from latest release
+            repo = "FaserF/SwitchCraft"
+            api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+
+            response = requests.get(api_url, timeout=10)
+            if response.status_code == 200:
+                release = response.json()
+                assets = release.get("assets", [])
+
+                # Look for the addon ZIP in assets
+                asset = next((a for a in assets if a["name"] == f"{addon_id}.zip"), None)
+                if asset:
+                    download_url = asset["browser_download_url"]
+                    logger.info(f"Found {addon_id}.zip in release, downloading from: {download_url}")
+
+                    # Download to temp location
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+                        download_response = requests.get(download_url, timeout=30)
+                        download_response.raise_for_status()
+                        tmp.write(download_response.content)
+                        tmp_path = tmp.name
+
+                    # Install from downloaded file
+                    if AddonService().install_addon(tmp_path):
+                        self._show_snack(f"{i18n.get('addon_install_success') or 'Addon installed successfully!'} ({addon_id})", "GREEN")
+                    else:
+                        self._show_snack(f"{i18n.get('addon_install_failed') or 'Addon installation failed.'} ({addon_id})", "RED")
+
+                    # Cleanup
+                    try:
+                        os.unlink(tmp_path)
+                    except Exception:
+                        pass
+                    return
+
+            # If not found in latest release, show error
+            logger.warning(f"Addon {addon_id}.zip not found in GitHub releases")
+            self._show_snack(f"Addon {addon_id} not found. Please download manually from GitHub.", "RED")
+        except Exception as ex:
+            logger.exception(f"Failed to download addon from GitHub: {ex}")
+            self._show_snack(f"Failed to download addon: {str(ex)}", "RED")
 
     def _upload_custom_addon(self, e):
         """Upload and install a custom addon from a .zip file."""
@@ -1157,9 +1559,44 @@ class ModernSettingsView(ft.Column, ViewMixin):
             self._show_snack(i18n.get("template_selected") or "Template selected.", "GREEN")
 
     def _reset_template(self, e):
-        """Reset to default template."""
+        """
+        Reset the custom template selection to the default.
+
+        Clears the stored CustomTemplatePath user preference, updates the template status label and its color, refreshes the view, and shows a confirmation snackbar.
+        """
         SwitchCraftConfig.set_user_preference("CustomTemplatePath", "")
         self.template_status_text.value = i18n.get("template_default") or "(Default)"
         self.template_status_text.color = "GREY"
         self.update()
         self._show_snack(i18n.get("template_reset") or "Template reset to default.", "GREY")
+
+    def _get_build_date(self):
+        """
+        Return a human-readable build date/time derived from the application's file modification time.
+
+        If the application is running from a frozen (packaged) executable the executable's modification time is used; otherwise the package's __init__.py (or this file as a fallback) is used. If the build date cannot be determined, returns "Unknown".
+
+        Returns:
+            A string containing the build date/time in "YYYY-MM-DD HH:MM:SS" format, or "Unknown" if unavailable.
+        """
+        try:
+            import sys
+            import os
+            from datetime import datetime
+
+            # Try to get build date from __init__.py modification time
+            if getattr(sys, 'frozen', False):
+                # In frozen build, use executable modification time
+                build_time = os.path.getmtime(sys.executable)
+            else:
+                # In dev, use __init__.py modification time
+                init_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "__init__.py")
+                if os.path.exists(init_file):
+                    build_time = os.path.getmtime(init_file)
+                else:
+                    build_time = os.path.getmtime(__file__)
+
+            dt = datetime.fromtimestamp(build_time)
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            return "Unknown"

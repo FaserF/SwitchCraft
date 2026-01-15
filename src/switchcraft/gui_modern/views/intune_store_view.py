@@ -11,6 +11,12 @@ logger = logging.getLogger(__name__)
 
 class ModernIntuneStoreView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
+        """
+        Initialize the view: configure state and services, build the search/list left pane and the details right pane, and replace the UI with a credentials prompt when Graph credentials are missing.
+        
+        Parameters:
+            page (ft.Page): The host Flet page used for rendering, navigation, and storing cross-view session data.
+        """
         super().__init__(expand=True)
         self.app_page = page
         self.intune_service = IntuneService()
@@ -50,7 +56,18 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             expand=True,
             padding=20,
             bgcolor="BLACK12",
-            border_radius=10
+            border_radius=10,
+            visible=True  # Ensure it's visible
+        )
+
+        # Add initial placeholder text
+        self.details_area.controls.append(
+            ft.Text(
+                i18n.get("intune_store_select_app") or "Select an app from the list to view details.",
+                size=16,
+                color="GREY_500",
+                italic=True
+            )
         )
 
         self.controls = [
@@ -135,108 +152,240 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         self.update()
 
     def _update_list(self, apps):
+        """
+        Populate the results list with the given apps and refresh the UI.
+        
+        Renders each app as a ListTile showing the app's display name and publisher, using an app logo when available. If `apps` is empty or falsy, inserts a single "No apps found." message. After building the list, triggers a UI update.
+        
+        Parameters:
+            apps (iterable[dict] | None): Iterable of app objects (as returned by IntuneService). Expected keys that are used: `displayName`, `publisher`, and one of `largeIcon` (dict with `value`), `iconUrl`, or `logoUrl` for the logo image.
+        """
         self.results_list.controls.clear()
         if not apps:
             self.results_list.controls.append(ft.Text("No apps found."))
         else:
             for app in apps:
-                self.results_list.controls.append(
-                    ft.ListTile(
-                        leading=ft.Icon(ft.Icons.APPS),
-                        title=ft.Text(app.get("displayName", "Unknown"), selectable=True),
-                        subtitle=ft.Text(app.get("publisher", ""), selectable=True),
-                        on_click=lambda e, a=app: self._show_details(a)
-                    )
+                # Try to get logo - robust extraction
+                logo_url = None
+                large_icon = app.get("largeIcon")
+                if isinstance(large_icon, dict):
+                    logo_url = large_icon.get("value")
+                    # If it's base64, format as data URL
+                    if logo_url and not logo_url.startswith(("http://", "https://", "data:")):
+                        logo_url = f"data:image/png;base64,{logo_url}"
+                elif not logo_url:
+                    logo_url = app.get("iconUrl") or app.get("logoUrl")
+
+                leading_widget = ft.Icon(ft.Icons.APPS)
+                if logo_url:
+                    try:
+                        leading_widget = ft.Image(src=logo_url, width=40, height=40, fit=ft.ImageFit.CONTAIN, error_content=ft.Icon(ft.Icons.APPS))
+                    except Exception as ex:
+                        logger.debug(f"Failed to load logo in list: {ex}")
+                        pass
+
+                # Create ListTile with direct lambda (like winget_view does)
+                # Capture app in lambda default argument to avoid closure issues
+                app_copy = app  # Create a copy reference for closure
+                tile = ft.ListTile(
+                    leading=leading_widget,
+                    title=ft.Text(app.get("displayName", i18n.get("unknown") or "Unknown"), selectable=True),
+                    subtitle=ft.Text(app.get("publisher", ""), selectable=True),
+                    on_click=lambda e, a=app_copy: self._handle_app_click(a)
                 )
+                self.results_list.controls.append(tile)
         self.update()
+
+    def _handle_app_click(self, app):
+        """
+        Handle selection of an app list item and display its details.
+        
+        Attempts to show the app's details using the page's `run_task` mechanism to ensure UI-thread execution; if `run_task` is unavailable or fails, falls back to a direct call. On error, logs the exception and surfaces an error message in the UI.
+        
+        Parameters:
+            app (dict): Intune app object (as returned by the service) whose details should be displayed.
+        """
+        try:
+            logger.info(f"App clicked: {app.get('displayName', 'Unknown')}")
+            # Use run_task to ensure UI updates happen on the correct thread
+            if hasattr(self.app_page, 'run_task'):
+                try:
+                    self.app_page.run_task(lambda: self._show_details(app))
+                except Exception:
+                    # Fallback if run_task fails
+                    self._show_details(app)
+            else:
+                self._show_details(app)
+        except Exception as ex:
+            logger.exception(f"Error handling app click: {ex}")
+            self._show_error(f"Failed to show details: {ex}")
 
     def _show_details(self, app):
-        self.selected_app = app
-        self.details_area.controls.clear()
+        """
+        Render the detailed view for a given Intune app in the details pane.
+        
+        Builds and displays the app's title, metadata, description, assignments (loaded asynchronously), available install/uninstall commands, and a Deploy / Package action. The view shows a loading indicator while content and assignments are fetched and forces a UI update on the enclosing page.
+        
+        Parameters:
+            app (dict): Intune app object (expected keys include `id`, `displayName`, `publisher`, `createdDateTime`, `owner`, `@odata.type`, `description`, `largeIcon`/`iconUrl`/`logoUrl`, `installCommandLine`, `uninstallCommandLine`) used to populate the details UI.
+        """
+        try:
+            logger.info(f"_show_details called for app: {app.get('displayName', 'Unknown')}")
+            self.selected_app = app
 
-        # Title
-        self.details_area.controls.append(
-            ft.Text(app.get("displayName", "Unknown"), size=28, weight="bold", selectable=True)
-        )
+            # Show loading indicator immediately
+            self.details_area.controls.clear()
+            self.details_area.controls.append(ft.ProgressBar())
+            # Force update on the page, not just self
+            if hasattr(self, 'app_page'):
+                self.app_page.update()
+            else:
+                self.update()
 
-        # Metadata
-        meta_rows = [
-            (i18n.get("field_id", default="ID"), app.get("id")),
-            (i18n.get("field_publisher", default="Publisher"), app.get("publisher")),
-            (i18n.get("field_created", default="Created"), app.get("createdDateTime")),
-            (i18n.get("field_owner", default="Owner"), app.get("owner")),
-            (i18n.get("field_app_type", default="App Type"), app.get("@odata.type", "").replace("#microsoft.graph.", ""))
-        ]
+            # Logo and Title - robust extraction
+            logo_url = None
+            large_icon = app.get("largeIcon")
+            if isinstance(large_icon, dict):
+                logo_url = large_icon.get("value")
+                # If it's base64, format as data URL
+                if logo_url and not logo_url.startswith(("http://", "https://", "data:")):
+                    logo_url = f"data:image/png;base64,{logo_url}"
+            elif not logo_url:
+                logo_url = app.get("iconUrl") or app.get("logoUrl")
 
-        for k, v in meta_rows:
-            if v:
-                self.details_area.controls.append(ft.Text(f"{k}: {v}", selectable=True))
+            # Remove progress bar and add content
+            self.details_area.controls.clear()
 
-        self.details_area.controls.append(ft.Divider())
+            title_row = [ft.Text(app.get("displayName", i18n.get("unknown") or "Unknown"), size=28, weight="bold", selectable=True)]
+            if logo_url:
+                try:
+                    title_row.insert(0, ft.Image(src=logo_url, width=64, height=64, fit=ft.ImageFit.CONTAIN, error_content=ft.Icon(ft.Icons.APPS, size=64)))
+                except Exception as ex:
+                    logger.debug(f"Failed to load logo: {ex}")
+                    pass
 
-        # Description
-        desc = app.get("description", "No description.")
-        self.details_area.controls.append(ft.Text("Description:", weight="bold", selectable=True))
-        self.details_area.controls.append(ft.Text(desc, selectable=True))
+            self.details_area.controls.append(
+                ft.Row(title_row, spacing=15, vertical_alignment=ft.CrossAxisAlignment.START)
+            )
 
-        self.details_area.controls.append(ft.Divider())
+            # Metadata
+            meta_rows = [
+                (i18n.get("field_id", default="ID"), app.get("id")),
+                (i18n.get("field_publisher", default="Publisher"), app.get("publisher")),
+                (i18n.get("field_created", default="Created"), app.get("createdDateTime")),
+                (i18n.get("field_owner", default="Owner"), app.get("owner")),
+                (i18n.get("field_app_type", default="App Type"), app.get("@odata.type", "").replace("#microsoft.graph.", ""))
+            ]
 
-        # Assignments (Async Loading)
-        self.assignments_col = ft.Column([ft.ProgressBar(width=200)])
-        self.details_area.controls.append(ft.Text("Group Assignments:", weight="bold", selectable=True))
-        self.details_area.controls.append(self.assignments_col)
-        self.details_area.controls.append(ft.Divider())
+            for k, v in meta_rows:
+                if v:
+                    self.details_area.controls.append(ft.Text(f"{k}: {v}", selectable=True))
 
-        def _load_assignments():
-            try:
-                token = self._get_token()
-                assignments = self.intune_service.list_app_assignments(token, app.get("id"))
-                self.assignments_col.controls.clear()
-                if not assignments:
-                    self.assignments_col.controls.append(ft.Text("Not assigned.", italic=True, selectable=True))
-                else:
-                    # Filter for Required, Available, Uninstall
-                    types = ["required", "available", "uninstall"]
-                    for t in types:
-                        typed_assignments = [asgn for asgn in assignments if asgn.get("intent") == t]
-                        if typed_assignments:
-                            self.assignments_col.controls.append(ft.Text(f"{t.capitalize()}:", weight="bold", size=12, selectable=True))
-                            for ta in typed_assignments:
-                                target = ta.get("target", {})
-                                group_id = target.get("groupId") or "All Users/Devices"
-                                self.assignments_col.controls.append(ft.Text(f" • {group_id}", size=12, selectable=True))
-            except Exception as ex:
-                self.assignments_col.controls.clear()
-                self.assignments_col.controls.append(ft.Text(f"Error: {ex}", color="red", selectable=True))
-            self.update()
+            self.details_area.controls.append(ft.Divider())
 
-        threading.Thread(target=_load_assignments, daemon=True).start()
+            # Description
+            desc = app.get("description") or i18n.get("no_description") or "No description."
+            self.details_area.controls.append(ft.Text(i18n.get("field_description") or "Description:", weight="bold", selectable=True))
+            self.details_area.controls.append(ft.Text(desc, selectable=True))
 
-        # Install Info
-        if "installCommandLine" in app or "uninstallCommandLine" in app:
-             self.details_area.controls.append(ft.Text("Commands:", weight="bold", selectable=True))
-             if app.get("installCommandLine"):
-                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_install', default='Install')}: `{app.get('installCommandLine')}`", font_family="Consolas", selectable=True))
-             if app.get("uninstallCommandLine"):
-                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_uninstall', default='Uninstall')}: `{app.get('uninstallCommandLine')}`", font_family="Consolas", selectable=True))
+            self.details_area.controls.append(ft.Divider())
 
-        self.details_area.controls.append(ft.Container(height=20))
-        self.details_area.controls.append(
-            ft.Row([
-                ft.Button(
-                    i18n.get("btn_deploy_package") or "Deploy / Package...",
-                    icon=ft.Icons.CLOUD_UPLOAD,
-                    bgcolor="BLUE",
-                    color="WHITE",
-                    on_click=lambda _: self._start_packaging_wizard(app)
-                )
-            ])
-        )
+            # Assignments (Async Loading)
+            self.assignments_col = ft.Column([ft.ProgressBar(width=200)])
+            self.details_area.controls.append(ft.Text(i18n.get("group_assignments") or "Group Assignments:", weight="bold", selectable=True))
+            self.details_area.controls.append(self.assignments_col)
+            self.details_area.controls.append(ft.Divider())
 
-        self.update()
+            def _load_assignments():
+                """
+                Load and display assignment information for the currently selected app into the view's assignments column.
+                
+                This function fetches app assignments from Intune using the configured token and the current app's id, then clears and populates self.assignments_col.controls with:
+                - A centered configuration prompt if Graph credentials are missing.
+                - "Not assigned." text when no assignments are returned.
+                - Grouped sections for each assignment intent ("Required", "Available", "Uninstall") listing target group identifiers.
+                
+                On failure, the function logs the exception and displays an error message in the assignments column. The view is updated at the end of the operation.
+                """
+                try:
+                    token = self._get_token()
+                    if not token:
+                        self.assignments_col.controls.clear()
+                        self.assignments_col.controls.append(ft.Text(i18n.get("intune_not_configured") or "Intune not configured.", italic=True, selectable=True))
+                        self.update()
+                        return
+
+                    assignments = self.intune_service.list_app_assignments(token, app.get("id"))
+                    self.assignments_col.controls.clear()
+                    if not assignments:
+                        self.assignments_col.controls.append(ft.Text(i18n.get("not_assigned") or "Not assigned.", italic=True, selectable=True))
+                    else:
+                        # Filter for Required, Available, Uninstall
+                        types = ["required", "available", "uninstall"]
+                        for t in types:
+                            typed_assignments = [asgn for asgn in assignments if asgn.get("intent") == t]
+                            if typed_assignments:
+                                self.assignments_col.controls.append(ft.Text(f"{t.capitalize()}:", weight="bold", size=12, selectable=True))
+                                for ta in typed_assignments:
+                                    target = ta.get("target", {})
+                                    group_id = target.get("groupId") or i18n.get("all_users_devices") or "All Users/Devices"
+                                    self.assignments_col.controls.append(ft.Text(f" • {group_id}", size=12, selectable=True))
+                except Exception as ex:
+                    logger.exception("Failed to load assignments")
+                    self.assignments_col.controls.clear()
+                    self.assignments_col.controls.append(ft.Text(f"{i18n.get('error') or 'Error'}: {ex}", color="red", selectable=True))
+                finally:
+                    self.update()
+
+            threading.Thread(target=_load_assignments, daemon=True).start()
+
+            # Install Info
+            if "installCommandLine" in app or "uninstallCommandLine" in app:
+                 self.details_area.controls.append(ft.Text(i18n.get("commands") or "Commands:", weight="bold", selectable=True))
+                 if app.get("installCommandLine"):
+                     self.details_area.controls.append(ft.Text(f"{i18n.get('field_install', default='Install')}: `{app.get('installCommandLine')}`", font_family="Consolas", selectable=True))
+                 if app.get("uninstallCommandLine"):
+                     self.details_area.controls.append(ft.Text(f"{i18n.get('field_uninstall', default='Uninstall')}: `{app.get('uninstallCommandLine')}`", font_family="Consolas", selectable=True))
+
+            self.details_area.controls.append(ft.Container(height=20))
+            self.details_area.controls.append(
+                ft.Row([
+                    ft.Button(
+                        i18n.get("btn_deploy_package") or "Deploy / Package...",
+                        icon=ft.Icons.CLOUD_UPLOAD,
+                        bgcolor="BLUE",
+                        color="WHITE",
+                        on_click=lambda e, a=app: self._start_packaging_wizard(a)
+                    )
+                ])
+            )
+
+            # Force update on the page to ensure details are visible
+            if hasattr(self, 'app_page'):
+                self.app_page.update()
+            else:
+                self.update()
+
+            logger.info(f"Details displayed for: {app.get('displayName', 'Unknown')}")
+        except Exception as ex:
+            logger.exception(f"Failed to show app details: {ex}")
+            self.details_area.controls.clear()
+            self.details_area.controls.append(ft.Text(f"{i18n.get('error') or 'Error'}: {str(ex)}", color="red", selectable=True))
+            # Force update on the page
+            if hasattr(self, 'app_page'):
+                self.app_page.update()
+            else:
+                self.update()
 
     def _start_packaging_wizard(self, app):
-        """Navigates to Packaging Wizard and pre-fills info."""
+        """
+        Open the Packaging Wizard for the given Intune app and make the app available to the wizard.
+        
+        If the view's page exposes a `switchcraft_app` with a `goto_tab` method, navigates to the packaging wizard tab and stores the provided `app` in the page's `switchcraft_session` under the key `"pending_packaging_app"` so the wizard can prefill its context. If automatic navigation is not available, shows a notification and does nothing else.
+        
+        Parameters:
+            app (dict): Intune app object (as returned by the Intune service) to be provided to the Packaging Wizard for pre-population.
+        """
         if not hasattr(self.app_page, "switchcraft_app"):
              self._show_snack("Cannot navigate to Wizard automatically.", "ORANGE")
              return
@@ -247,6 +396,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
              app_ref.goto_tab(NavIndex.PACKAGING_WIZARD)
              # Wait a bit and try to populate? Better if we have a state manager.
              # In this architecture, we can try to find the view in the cache or wait for it to be created.
-             # Alternatively, we could store it in a 'pending_packaging' state in page.session
-             self.app_page.session.set("pending_packaging_app", app)
+             # Store it in switchcraft_session dict for inter-view communication
+             session_storage = getattr(self.app_page, 'switchcraft_session', {})
+             session_storage["pending_packaging_app"] = app
              self._show_snack(f"Starting wizard for {app.get('displayName')}...", "BLUE")

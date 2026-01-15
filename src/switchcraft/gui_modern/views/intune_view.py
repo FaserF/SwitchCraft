@@ -2,6 +2,7 @@ import flet as ft
 import threading
 import logging
 import os
+from pathlib import Path
 
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
@@ -136,6 +137,14 @@ class ModernIntuneView(ft.Column, ViewMixin):
     # --- Uploader Tab ---
     def _build_uploader_tab(self):
         # Credentials
+        """
+        Builds the "Uploader & Update" tab UI used for uploading .intunewin packages to Intune and managing supersedence.
+        
+        The tab includes connection controls (tenant/client credential usage and a Connect button), file and app metadata fields (file, display name, publisher, description, install/uninstall commands), upload controls (status text and an Upload button), and supersedence tools (search field, progress indicator, results dropdown, copy-metadata button, and an uninstall-previous-version switch). Long-running actions (authentication, search, metadata fetch, file picking, and upload) are started on background threads and update the UI when complete.
+        
+        Returns:
+            ft.Container: A Flet container holding the uploader tab layout and interactive controls.
+        """
         self.tenant_id = SwitchCraftConfig.get_value("IntuneTenantID", "")
         self.client_id = SwitchCraftConfig.get_value("IntuneClientID", "")
         self.client_secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret") or ""
@@ -158,6 +167,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
         # Supersedence UI
         self.search_supersede_field = ft.TextField(label=i18n.get("lbl_search_replace") or "Search App to Replace/Update", height=40, expand=True)
+        self.supersede_search_progress = ft.ProgressBar(visible=False, width=300)
         self.supersede_options = ft.Dropdown(label=i18n.get("lbl_select_app") or "Select App", options=[], visible=False)
         self.supersede_copy_btn = ft.Button(
             i18n.get("btn_copy_metadata") or "Copy Metadata",
@@ -206,53 +216,126 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
         # Supersedence Logic
         def search_apps(e):
+            """
+            Searches Intune for apps matching the supersedence query and updates the uploader UI with progress, results, and status.
+            
+            Runs the network search in a background thread. While searching, shows a progress indicator and hides results; on success caches found apps, populates the supersedence dropdown with labeled options, and updates the status text and colors; on failure updates the status with an error message and hides result controls. If the user is not connected or the query is empty, shows an appropriate snack message and returns without starting a search.
+            
+            Parameters:
+                e: Event object from the UI interaction that triggered the search (may be None or unused).
+            """
             if not hasattr(self, 'token'):
-                self._show_snack("Connect first", "RED")
+                self._show_snack(i18n.get("connect_first") or "Connect first", "RED")
                 return
             query = self.search_supersede_field.value
-            if not query: return
+            if not query:
+                self._show_snack(i18n.get("enter_search_query") or "Please enter a search query", "ORANGE")
+                return
 
-            self.supersede_status_text.value = "Searching..."
+            # Show loading indicator
+            self.supersede_status_text.value = i18n.get("searching") or "Searching..."
+            self.supersede_search_progress.visible = True
+            self.supersede_options.visible = False
+            self.supersede_copy_btn.visible = False
             self.update()
 
             def _bg():
+                """
+                Perform the supersedence app search and apply results to the UI.
+                
+                Executes intune_service.search_apps(self.token, query), logs the outcome, and updates UI elements:
+                - hides the progress indicator,
+                - when no apps are found sets the status text to "No apps found" (localized), hides options and copy button,
+                - when apps are found caches them in self.found_apps, populates self.supersede_options with descriptive labels, and sets a localized found count and green status.
+                
+                UI updates are scheduled via self.app_page.run_task when available; on exceptions the updates are applied directly. Any exceptions during the search are logged and reported to the UI with a localized error message and red status.
+                """
                 try:
+                    logger.info(f"Searching for apps with query: {query}")
                     apps = self.intune_service.search_apps(self.token, query)
+                    logger.info(f"Search returned {len(apps) if apps else 0} apps")
 
                     def update_results():
-                        self.found_apps = {app['id']: app for app in apps}
-                        options = [ft.dropdown.Option(app['id'], f"{app['displayName']} ({app.get('appVersion', 'Unknown')})") for app in apps]
+                        self.supersede_search_progress.visible = False
 
-                        if not options:
-                            self.supersede_status_text.value = "No apps found"
+                        if not apps:
+                            self.supersede_status_text.value = i18n.get("no_apps_found") or "No apps found"
+                            self.supersede_status_text.color = "GREY"
                             self.supersede_options.visible = False
                             self.supersede_copy_btn.visible = False
                         else:
+                            self.found_apps = {app['id']: app for app in apps}
+                            options = [ft.dropdown.Option(
+                                app['id'],
+                                f"{app.get('displayName', i18n.get('unknown') or 'Unknown')} ({app.get('appVersion', app.get('version', i18n.get('unknown') or 'Unknown'))})"
+                            ) for app in apps]
+
                             self.supersede_options.options = options
                             self.supersede_options.visible = True
-                            self.supersede_status_text.value = f"Found {len(apps)} apps"
+                            self.supersede_status_text.value = (i18n.get("found_apps") or "Found {count} apps").format(count=len(apps))
+                            self.supersede_status_text.color = "GREEN"
                         self.update()
-                    self.app_page.run_task(update_results)
+
+                    # Use run_task if available, otherwise update directly
+                    try:
+                        self.app_page.run_task(update_results)
+                    except Exception:
+                        update_results()
 
                 except Exception as ex:
+                    logger.exception(f"Error searching apps: {ex}")
                     def update_error():
-                        self.supersede_status_text.value = f"Search Error: {ex}"
+                        self.supersede_search_progress.visible = False
+                        self.supersede_status_text.value = f"{i18n.get('search_error') or 'Search Error'}: {str(ex)}"
+                        self.supersede_status_text.color = "RED"
+                        self.supersede_options.visible = False
+                        self.supersede_copy_btn.visible = False
                         self.update()
-                    self.app_page.run_task(update_error)
+
+                    try:
+                        self.app_page.run_task(update_error)
+                    except Exception:
+                        update_error()
+
             threading.Thread(target=_bg, daemon=True).start()
 
         def on_app_select(e):
+            """
+            Handle selection of an app from the supersedence results and populate UI fields.
+            
+            Sets the selected_supersede_id from the dropdown, enables and shows the Copy Metadata button,
+            then either auto-fills metadata from cached app data or triggers a fetch of full app details.
+            Requests a UI refresh after updating state.
+            """
             self.selected_supersede_id = self.supersede_options.value
             self.supersede_copy_btn.disabled = False
             self.supersede_copy_btn.visible = True
+
+            # Automatically copy metadata when app is selected
+            if self.selected_supersede_id and hasattr(self, 'found_apps') and self.selected_supersede_id in self.found_apps:
+                # Use cached app data if available
+                app_data = self.found_apps[self.selected_supersede_id]
+                self._auto_fill_from_app(app_data)
+            else:
+                # Fetch full details if not in cache
+                self._copy_metadata_from_supersedence(None)
+
             self.update()
 
         self.supersede_options.on_change = on_app_select
 
         def pick_intunewin(e):
+            """
+            Prompt the user to select a `.intunewin` file, set the upload file field to the chosen path, and attempt to extract and apply metadata from the package.
+            
+            Parameters:
+                e: Event object from the UI click/activation (unused).
+            """
             path = FilePickerHelper.pick_file(allowed_extensions=["intunewin"])
             if path:
                 self.up_file_field.value = path
+                # Try to extract info from intunewin file automatically
+                self._extract_info_from_intunewin(path)
                 self.update()
 
         btn_pick = ft.IconButton(ft.Icons.FILE_OPEN, on_click=pick_intunewin)
@@ -265,10 +348,15 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
                 ft.Text(i18n.get("hdr_supersedence") or "Update Existing App (Supersedence)", weight=ft.FontWeight.BOLD, color="BLUE"),
                 ft.Row([self.search_supersede_field, ft.IconButton(ft.Icons.SEARCH, on_click=search_apps)]),
+                ft.Container(
+                    content=ft.Column([
+                        self.supersede_search_progress,
+                        self.supersede_status_text
+                    ], tight=True, spacing=5),
+                ),
                 self.supersede_options,
                 self.supersede_copy_btn,
                 self.supersede_uninstall_sw,
-                self.supersede_status_text,
                 ft.Divider(),
 
                 ft.Text(i18n.get("hdr_app_details") or "New App Details", weight=ft.FontWeight.BOLD),
@@ -285,51 +373,191 @@ class ModernIntuneView(ft.Column, ViewMixin):
             expand=True
         )
 
-    def _copy_metadata_from_supersedence(self, e):
-        app_id = self.supersede_options.value
-        if not app_id: return
+    def _auto_fill_from_app(self, app_data):
+        """
+        Populate uploader UI fields from provided Intune app metadata and refresh the view.
+        
+        Populates display name, description, publisher, and install/uninstall command fields when those keys are present in app_data. If the uploader's selected .intunewin file exists on disk, attempts to extract and apply additional metadata from that file. Errors are logged and do not propagate.
+        
+        Parameters:
+            app_data (dict): Intune app metadata; expected keys include 'displayName', 'description', 'publisher', 'installCommandLine', and 'uninstallCommandLine'.
+        """
+        try:
+            # Fill basic fields
+            if app_data.get("displayName"):
+                self.up_display_name.value = app_data.get("displayName", "")
+            if app_data.get("description"):
+                self.up_description.value = app_data.get("description", "")
+            if app_data.get("publisher"):
+                self.up_publisher.value = app_data.get("publisher", "")
 
-        self.supersede_status_text.value = "Fetching details..."
+            # Fill commands
+            if app_data.get("installCommandLine"):
+                self.up_install_cmd.value = app_data.get("installCommandLine", "")
+            if app_data.get("uninstallCommandLine"):
+                self.up_uninstall_cmd.value = app_data.get("uninstallCommandLine", "")
+
+            # Try to extract info from .intunewin file if available
+            intunewin_path = self.up_file_field.value
+            if intunewin_path and Path(intunewin_path).exists():
+                self._extract_info_from_intunewin(intunewin_path)
+
+            self.update()
+        except Exception as ex:
+            logger.warning(f"Error auto-filling from app data: {ex}")
+
+    def _extract_info_from_intunewin(self, intunewin_path):
+        """
+        Populate UI fields from metadata found inside a .intunewin archive.
+        
+        Reads manifest or metadata files inside the provided .intunewin (ZIP) file and, if an `applicationInfo` object is present, fills the view's display name, publisher, and description fields only when those fields are currently empty. Parsing errors and other failures are logged at debug level and do not raise exceptions.
+        
+        Parameters:
+            intunewin_path (str | pathlib.Path): Filesystem path to the .intunewin archive to inspect.
+        """
+        try:
+            import zipfile
+            import json
+
+            # .intunewin files are ZIP archives
+            with zipfile.ZipFile(intunewin_path, 'r') as zip_ref:
+                # Look for detection.xml or metadata files
+                file_list = zip_ref.namelist()
+
+                # Try to find detection.xml or IntuneWinAppUtil metadata
+                for file_name in file_list:
+                    if 'detection.xml' in file_name.lower():
+                        try:
+                            detection_content = zip_ref.read(file_name).decode('utf-8')
+                            # Parse XML to extract info if needed
+                            # For now, we'll focus on the manifest if available
+                        except Exception:
+                            pass
+
+                    # Look for manifest or metadata JSON
+                    if 'manifest' in file_name.lower() or 'metadata' in file_name.lower():
+                        try:
+                            if file_name.endswith('.json'):
+                                manifest_content = zip_ref.read(file_name).decode('utf-8')
+                                manifest_data = json.loads(manifest_content)
+
+                                # Extract available info
+                                if not self.up_display_name.value and manifest_data.get("applicationInfo", {}).get("name"):
+                                    self.up_display_name.value = manifest_data["applicationInfo"]["name"]
+                                if not self.up_publisher.value and manifest_data.get("applicationInfo", {}).get("publisher"):
+                                    self.up_publisher.value = manifest_data["applicationInfo"]["publisher"]
+                                if not self.up_description.value and manifest_data.get("applicationInfo", {}).get("description"):
+                                    self.up_description.value = manifest_data["applicationInfo"]["description"]
+                        except Exception as ex:
+                            logger.debug(f"Failed to parse manifest from intunewin: {ex}")
+        except Exception as ex:
+            logger.debug(f"Failed to extract info from intunewin file: {ex}")
+
+    def _copy_metadata_from_supersedence(self, e):
+        """
+        Copy metadata from the selected supersedence app into the uploader fields.
+        
+        Fetches full app details for the currently selected supersedence app in a background thread, populates available uploader fields (display name, description, publisher, install/uninstall commands), attempts to extract additional metadata from the chosen .intunewin file if present, updates the supersedence status text and color, and shows a confirmation snack on success. On failure, updates the supersedence status with an error message.
+        
+        Parameters:
+            e: Event or click payload that triggered the action (may be None). The function does not use this value except to match the caller signature.
+        """
+        app_id = self.supersede_options.value if self.supersede_options.value else (self.selected_supersede_id if hasattr(self, 'selected_supersede_id') else None)
+        if not app_id:
+            return
+
+        self.supersede_status_text.value = i18n.get("fetching_details") or "Fetching details..."
         self.update()
 
         def _bg():
+            """
+            Fetch full Intune app details and apply them to the uploader UI.
+            
+            Fetches detailed app metadata for the currently selected app, fills uploader fields
+            (display name, description, publisher, install/uninstall commands) when those
+            fields are empty, attempts to extract additional metadata from a selected
+            .intunewin file if present, updates the supersede status text to indicate
+            success and shows a success snack. On failure, logs the error and updates the
+            supersede status text to indicate the copy failed.
+            """
             try:
                 # Get full details if needed, or use cached search result
                 # Search result is usually summary, get_app_details is better
                 full_app = self.intune_service.get_app_details(self.token, app_id)
 
                 def update_ui():
-                    self.up_display_name.value = full_app.get("displayName", "")
-                    self.up_description.value = full_app.get("description", "")
-                    self.up_publisher.value = full_app.get("publisher", "")
+                    # Fill all available fields
+                    self.up_display_name.value = full_app.get("displayName", "") or self.up_display_name.value or ""
+                    self.up_description.value = full_app.get("description", "") or self.up_description.value or ""
+                    self.up_publisher.value = full_app.get("publisher", "") or self.up_publisher.value or ""
+                    self.up_install_cmd.value = full_app.get("installCommandLine", "") or self.up_install_cmd.value or ""
+                    self.up_uninstall_cmd.value = full_app.get("uninstallCommandLine", "") or self.up_uninstall_cmd.value or ""
 
-                    # Try to preserve commands if possible? Or maybe not, user should probably update them.
-                    # But user asked for "Select which it replaces... automatically take info"
-                    self.up_install_cmd.value = full_app.get("installCommandLine", "")
-                    self.up_uninstall_cmd.value = full_app.get("uninstallCommandLine", "")
+                    # Try to extract additional info from .intunewin if available
+                    intunewin_path = self.up_file_field.value
+                    if intunewin_path and Path(intunewin_path).exists():
+                        self._extract_info_from_intunewin(intunewin_path)
 
-                    self.supersede_status_text.value = "Metadata copied!"
+                    self.supersede_status_text.value = i18n.get("metadata_copied") or "Metadata copied!"
                     self.supersede_status_text.color = "GREEN"
                     self.update()
-                    self._show_snack("Metadata copied from " + full_app.get("displayName", ""), "GREEN")
-                self.app_page.run_task(update_ui)
+                    self._show_snack((i18n.get("metadata_copied_from") or "Metadata copied from {name}").format(name=full_app.get("displayName", "")), "GREEN")
+
+                # Use page.update() directly instead of run_task to avoid coroutine requirement
+                if hasattr(self.app_page, 'run_task'):
+                    try:
+                        self.app_page.run_task(update_ui)
+                    except TypeError:
+                        # If run_task requires async, use update directly
+                        update_ui()
+                else:
+                    update_ui()
 
             except Exception as ex:
+                logger.exception(f"Error copying metadata: {ex}")
                 def update_error():
-                    self.supersede_status_text.value = f"Copy Failed: {ex}"
+                    self.supersede_status_text.value = f"{i18n.get('copy_failed') or 'Copy Failed'}: {ex}"
                     self.supersede_status_text.color = "RED"
                     self.update()
-                self.app_page.run_task(update_error)
+                if hasattr(self.app_page, 'run_task'):
+                    try:
+                        self.app_page.run_task(update_error)
+                    except TypeError:
+                        update_error()
+                else:
+                    update_error()
         threading.Thread(target=_bg, daemon=True).start()
 
     def _log(self, msg):
+        """
+        Append a line to the view's log panel and refresh the UI.
+        
+        The provided `msg` is added to `self.log_view` as a monospace, green-styled text entry and the view is refreshed. If the page exposes `run_task`, the UI update is scheduled through it; otherwise the update is performed immediately.
+        
+        Parameters:
+            msg (str): The log message to append.
+        """
         def _update_ui():
             self.log_view.controls.append(ft.Text(msg, font_family="Consolas", size=12, color="GREEN_400"))
             self.update()
-        self.app_page.run_task(_update_ui)
+        if hasattr(self.app_page, 'run_task'):
+            try:
+                self.app_page.run_task(_update_ui)
+            except TypeError:
+                _update_ui()
+        else:
+            _update_ui()
 
     def _run_creation(self, e):
         # ... logic mainly same as before ...
+        """
+        Create a .intunewin package from the configured setup, source, and output fields, run the creation in a background thread, and present success or error feedback in the UI.
+        
+        Validates that the setup file, source folder, and output folder are provided; logs a starting message, invokes the packager via the Intune service with progress forwarded to the view's log, and runs the work on a background thread. On success, attempts to locate the created .intunewin file, opens a dialog showing its location with an "Open Folder" action (which opens Windows Explorer when available), and updates the UI. On failure, logs the exception and shows an error snack.
+        
+        Parameters:
+            e: The UI event that triggered this action (click event; value is not used by the method).
+        """
         setup = self.setup_field.value
         source = self.source_field.value
         output = self.output_field.value
@@ -344,6 +572,11 @@ class ModernIntuneView(ft.Column, ViewMixin):
         # simplified for brevity in this replacement block, but need to keep full logic
 
         def _bg():
+            """
+            Execute the Intune packaging operation, report progress, and present the resulting package location.
+            
+            This background task calls the Intune service to create a .intunewin package from the provided setup file and source/output folders, forwarding progress lines to the view's logger. On success it attempts to locate the produced .intunewin file, shows an alert dialog with the package path and an "Open Folder" action that opens the file explorer to the package. On failure it logs the exception and shows a failure snack message.
+            """
             try:
                 self.intune_service.create_intunewin(
                     source_folder=source,
@@ -388,7 +621,15 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     content=ft.Text(f"{i18n.get('location')}: {output_file}"),
                     actions=[ft.Button(i18n.get("open_folder") or "Open Folder", on_click=open_folder)]
                 )
-                self.app_page.run_task(lambda: self.app_page.open(dlg))
+                def show_dialog():
+                    self.app_page.open(dlg)
+                if hasattr(self.app_page, 'run_task'):
+                    try:
+                        self.app_page.run_task(show_dialog)
+                    except TypeError:
+                        show_dialog()
+                else:
+                    show_dialog()
 
             except Exception as ex:
                 self._log(f"ERROR: {ex}")
