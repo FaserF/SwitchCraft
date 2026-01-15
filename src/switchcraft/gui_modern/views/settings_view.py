@@ -93,10 +93,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
         )
         company_field.on_blur = lambda e: SwitchCraftConfig.set_user_preference("CompanyName", e.control.value)
 
-        # Language
+        # Language - Always use current i18n language to ensure it's up-to-date
+        current_lang = i18n.language  # Get current language from i18n singleton
         lang_dd = ft.Dropdown(
             label=i18n.get("settings_language") or "Language",
-            value=SwitchCraftConfig.get_value("Language", i18n.language),
+            value=current_lang,  # Use current language from i18n, not config (config might be stale)
             options=[
                 ft.dropdown.Option("en", "English"),
                 ft.dropdown.Option("de", "Deutsch"),
@@ -808,11 +809,42 @@ class ModernSettingsView(ft.Column, ViewMixin):
             app = self.app_page.switchcraft_app
             current_idx = getattr(app, '_current_tab_index', 0)
 
-            # Clear view cache for this view to force rebuild
+            # Clear ALL view cache to force rebuild with new language
             if hasattr(app, '_view_cache'):
-                app._view_cache.pop(current_idx, None)
+                app._view_cache.clear()
 
-            # Reload current view
+            # Rebuild the Settings View itself (since we're in it)
+            # Get current tab index within settings
+            current_settings_tab = self.initial_tab_index
+
+            # Rebuild tab definitions with new language
+            self.tab_defs = [
+                (i18n.get("settings_general") or "General", ft.Icons.SETTINGS, self._build_general_tab),
+                (i18n.get("settings_hdr_update") or "Updates", ft.Icons.UPDATE, self._build_updates_tab),
+                (i18n.get("deployment_title") or "Global Graph API", ft.Icons.CLOUD_UPLOAD, self._build_deployment_tab),
+                (i18n.get("help_title") or "Help", ft.Icons.HELP, self._build_help_tab)
+            ]
+
+            # Rebuild tab navigation buttons with new language
+            self.nav_row.controls.clear()
+            for i, (name, icon, func) in enumerate(self.tab_defs):
+                btn = ft.Button(
+                    content=ft.Row([ft.Icon(icon), ft.Text(name)]),
+                    on_click=lambda e, f=func: self._switch_tab(f),
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=5),
+                        bgcolor="PRIMARY_CONTAINER" if i == current_settings_tab else None
+                    )
+                )
+                self.nav_row.controls.append(btn)
+
+            # Rebuild current tab content
+            self._switch_tab(self.tab_defs[current_settings_tab][2])
+
+            # Update the nav_row to reflect changes
+            self.update()
+
+            # Reload the main app view to update sidebar labels
             app.goto_tab(current_idx)
 
             self._show_snack(
