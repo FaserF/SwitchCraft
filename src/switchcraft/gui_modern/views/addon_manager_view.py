@@ -131,7 +131,7 @@ class AddonManagerView(ft.Column, ViewMixin):
             return
 
         def close_dlg(e):
-            self.app_page.close_dialog()
+            self._close_dialog(dlg)
 
         def delete(e):
             aid = self.selected_addon['id']
@@ -142,7 +142,7 @@ class AddonManagerView(ft.Column, ViewMixin):
                     else:
                         self._show_snack("Addon deleted.", "GREEN")
                         self.selected_addon = None
-                        self.app_page.close_dialog()
+                        self._close_dialog(self.import_dlg)
                         self._load_data()
                 except Exception as ex:
                      self._show_snack(f"Delete failed: {ex}", "RED")

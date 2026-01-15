@@ -76,7 +76,7 @@ class ModernHomeView(ft.Container):
             pass
 
         privilege_text = i18n.get("running_as_admin" if is_admin else "running_as_user") or \
-                        ("Status: Administrator ✅" if is_admin else "Status: Standard User 👤")
+                        (f"Status: {'Administrator ✅' if is_admin else 'Standard User 👤'}")
 
         # Dynamic subtitle based on status
         subtitle = i18n.get("home_subtitle") or "Here is what's happening with your deployments."

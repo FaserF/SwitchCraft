@@ -57,7 +57,11 @@ def ModernHelperView(page: ft.Page):
     )
 
     def add_message(sender, text, is_user=False, is_error=False):
-        bg_color = "GREY_800" if is_user else "BLUE_900"
+        if is_error:
+            bg_color = "RED_900"
+        else:
+            bg_color = "GREY_800" if is_user else "BLUE_900"
+
         text_color = "WHITE"
         align = ft.MainAxisAlignment.END if is_user else ft.MainAxisAlignment.START
 
@@ -92,7 +96,7 @@ def ModernHelperView(page: ft.Page):
                         bottom_left=15 if not is_user else 0,
                         bottom_right=15 if is_user else 0
                     ),
-                    width=min(page.width * 0.7, 600) if page.width else 500,
+                    width=min(page.width * 0.7, 600) if isinstance(page.width, (int, float)) else 500,
                 )
             ], alignment=align)
         )

@@ -953,7 +953,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                 if self.autopilot_dlg.open:
                      self.autopilot_dlg.title = ft.Text("Magic Failed 💀")
                      _update_status(f"Error: {ex}")
-                     self.autopilot_dlg.actions = [ft.TextButton("Close", on_click=lambda e: self.app_page.close_dialog())]
+                     self.autopilot_dlg.actions = [ft.TextButton("Close", on_click=lambda e: self._close_autopilot())]
                      self.autopilot_dlg.update()
                 logger.error(f"Autopilot error: {ex}")
 
@@ -961,5 +961,4 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
     def _close_autopilot(self, e=None):
         """Close the autopilot dialog."""
-        self.autopilot_dlg.open = False
-        self.app_page.update()
+        self._close_dialog(self.autopilot_dlg)

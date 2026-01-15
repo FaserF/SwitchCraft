@@ -1,22 +1,6 @@
-import subprocess
-import os
-import re
 import argparse
+from git_utils import get_last_tag
 
-def get_last_tag():
-    """Returns the most recent git tag."""
-    try:
-        # Get all tags sorted by date desc
-        result = subprocess.run(
-            ["git", "tag", "--sort=-creatordate"],
-            capture_output=True, text=True, check=True
-        )
-        tags = result.stdout.strip().split('\n')
-        if not tags or tags[0] == "":
-            return None
-        return tags[0]
-    except subprocess.CalledProcessError:
-        return None
 
 def get_commits(since_tag=None):
     """Returns list of commit messages since the given tag (or all if None)."""
@@ -63,7 +47,7 @@ def parse_commits(commits):
             categories["Styling"].append(commit)
         elif lower_commit.startswith("docs"):
             categories["Documentation"].append(commit)
-        elif lower_commit.startswith(tuple(["chore", "refactor", "style", "test", "ci", "build"])):
+        elif lower_commit.startswith(tuple(["chore", "refactor", "test", "ci", "build"])):
             categories["Maintenance"].append(commit)
         else:
             # Filter out merge commits from "Other" list if we want clean output

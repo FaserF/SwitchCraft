@@ -35,6 +35,8 @@
     "analyzing": "Analyzing",
     "analysis_complete": "Analysis Complete",
     "ai_helper": "AI Helper",
+    "ai_stub_greeting": "Hello! I am your local AI assistant. I can help you with packaging questions even when you don't have an API key configured.",
+    "ai_stub_welcome": "Hello! I am the local SwitchCraft AI helper. I'm currently running in limited mode because the AI addon is not installed, but I can still give you some basic tips!",
     "error": "Error",
     "file_not_found": "File not found.",
     "unknown_installer": "Could not identify installer type.",

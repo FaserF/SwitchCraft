@@ -241,11 +241,10 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
              self._show_snack("Cannot navigate to Wizard automatically.", "ORANGE")
              return
 
-        # Navigate to Packaging Wizard (Tab 7 - Generieren)
-        # However, we want to inject data. We can find the view instance.
+        # Navigate to Packaging Wizard (NavIndex.PACKAGING_WIZARD)
         app_ref = self.app_page.switchcraft_app
         if hasattr(app_ref, 'goto_tab'):
-             app_ref.goto_tab(7)
+             app_ref.goto_tab(NavIndex.PACKAGING_WIZARD)
              # Wait a bit and try to populate? Better if we have a state manager.
              # In this architecture, we can try to find the view in the cache or wait for it to be created.
              # Alternatively, we could store it in a 'pending_packaging' state in page.session

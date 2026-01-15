@@ -1,16 +1,7 @@
 import subprocess
 import sys
-
-def get_last_tag():
-    try:
-        result = subprocess.run(
-            ["git", "tag", "--sort=-creatordate"],
-            capture_output=True, text=True, check=True
-        )
-        tags = result.stdout.strip().split('\n')
-        return tags[0] if tags and tags[0] else None
-    except:
-        return None
+import os
+from git_utils import get_last_tag
 
 def has_relevant_changes(since_tag):
     if not since_tag:
@@ -37,17 +28,22 @@ def has_relevant_changes(since_tag):
                 print(f"Relevant change detected in: {f}")
                 return True
         return False
-    except:
-        return True # Default to true if something fails
+    except subprocess.CalledProcessError:
+        return True # Default to true if git diff fails
 
 def main():
     last_tag = get_last_tag()
-    if has_relevant_changes(last_tag):
-        print("relevance=true")
-        sys.exit(0)
-    else:
-        print("relevance=false")
-        sys.exit(0)
+    relevance = "true" if has_relevant_changes(last_tag) else "false"
+
+    print(f"relevance={relevance}")
+
+    # Also write to GITHUB_OUTPUT if present
+    output_file = os.getenv("GITHUB_OUTPUT")
+    if output_file:
+        with open(output_file, "a") as f:
+            f.write(f"relevance={relevance}\n")
+
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()

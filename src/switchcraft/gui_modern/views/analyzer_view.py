@@ -935,9 +935,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 dlg.open = False
                 self.app_page.update()
 
-                # Optionally open folder
-                import os
-                os.startfile(out_dir)
+                self._open_path(out_dir)
             except Exception as ex:
                 self._show_snack(f"Generation failed: {ex}", "RED")
 
@@ -1034,7 +1032,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
                     try:
                         if sys.platform == "win32":
-                            os.startfile(str(source))
+                            self._open_path(str(source))
                         elif sys.platform == "darwin":
                             subprocess.call(["open", str(source)])
                         else:

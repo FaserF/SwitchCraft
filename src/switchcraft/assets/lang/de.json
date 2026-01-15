@@ -35,6 +35,8 @@
     "analyzing": "Analysiere",
     "analysis_complete": "Analyse abgeschlossen",
     "ai_helper": "KI Helfer",
+    "ai_stub_greeting": "Hallo! Ich bin dein lokaler KI-Assistent. Ich kann dir bei Paketierungsfragen helfen, auch wenn du keinen API-Key konfiguriert hast.",
+    "ai_stub_welcome": "Hallo! Ich bin der lokale SwitchCraft KI-Helfer. Ich laufe derzeit im eingeschränkten Modus, da das KI-Addon nicht installiert ist, aber ich kann dir trotzdem einige grundlegende Tipps geben!",
     "error": "Fehler",
     "file_not_found": "Datei nicht gefunden.",
     "unknown_installer": "Installer-Typ konnte nicht erkannt werden.",

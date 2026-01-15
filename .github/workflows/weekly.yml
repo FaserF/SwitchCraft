@@ -1,4 +1,4 @@
-name: Nightly Release
+name: Weekly Release
 
 on:
   schedule:

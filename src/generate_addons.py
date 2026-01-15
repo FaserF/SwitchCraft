@@ -38,13 +38,13 @@ class SwitchCraftAI:
         if "hi" in q or "hallo" in q:
             return "Hallo! Ich bin der interner SwitchCraft AI Helper. Wie kann ich dir heute beim Paketieren helfen?"
         if "who are you" in q or "wer bist du" in q:
-            return "I am the built-in SwitchCraft AI Assistant. I can help with silent switches, MSI properties, and Intune deployments."
+            return "Ich bin der integrierte SwitchCraft AI Assistent. Ich kann dir bei Silent-Switches, MSI-Properties und Intune-Deployments helfen."
         if "silent" in q or "switches" in q:
             sw = self.ctx.get("install_silent", "/S")
             return f"Für dieses Paket wurden folgende Silent-Switches erkannt: `{sw}`. Du kannst diese im Packaging Wizard noch anpassen."
         if "intune" in q:
             return "Um Apps nach Intune hochzuladen, stelle sicher, dass du die Graph API Credentials in den Einstellungen hinterlegt hast."
-        return f"Ich habe deine Frage zu '{query}' verstanden, kann aber ohne aktive Gemini/OpenAI Verbindung keine tiefergehende Analyse durchführen. Nutze den Packaging Wizard für automatische Erkennungen!"
+        return f"Ich habe deine Frage zu '{query}' verstanden, kann aber ohne aktive Verbindung zu Gemini oder OpenAI keine tiefergehende Analyse durchführen. Nutze den Packaging Wizard für automatische Erkennungen!"
 """
     create_addon("AI Assistant", "ai", {"service.py": ai_service_code})
 

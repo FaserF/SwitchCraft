@@ -419,6 +419,7 @@ class IntuneService:
     def list_app_assignments(self, token, app_id):
         """
         Fetch assignments for a specific app.
+        Raises an exception if the request fails.
         """
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         base_url = f"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{app_id}/assignments"
@@ -429,7 +430,7 @@ class IntuneService:
             return resp.json().get("value", [])
         except Exception as e:
             logger.error(f"Failed to fetch app assignments for {app_id}: {e}")
-            return []
+            raise e
 
     def upload_powershell_script(self, token, name, description, script_content, run_as_account="system"):
         """

@@ -219,7 +219,7 @@ class GroupManagerView(ft.Column, ViewMixin):
 
     def _show_create_dialog(self, e):
         def close_dlg(e):
-            self.app_page.close_dialog()
+            self._close_dialog(dlg)
 
         name_field = ft.TextField(label=i18n.get("group_name") or "Group Name", autofocus=True)
         desc_field = ft.TextField(label=i18n.get("group_desc") or "Description")
@@ -235,7 +235,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                 try:
                     self.intune_service.create_group(self.token, name_field.value, desc_field.value)
                     self._show_snack(f"Group '{name_field.value}' created!", "GREEN")
-                    self.app_page.close_dialog()
+                    self._close_dialog(dlg)
                     self._load_data()
                 except Exception as ex:
                     self._show_snack(f"Creation failed: {ex}", "RED")
@@ -258,7 +258,7 @@ class GroupManagerView(ft.Column, ViewMixin):
             return
 
         def close_dlg(e):
-            self.app_page.close_dialog()
+            self._close_dialog(dlg)
 
         def delete(e):
             grp_id = self.selected_group['id']
@@ -269,7 +269,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                 try:
                     self.intune_service.delete_group(self.token, grp_id)
                     self._show_snack("Group deleted.", "GREEN")
-                    self.app_page.close_dialog()
+                    self._close_dialog(dlg)
                     self.selected_group = None
                     self._load_data()
                 except Exception as ex:
@@ -413,7 +413,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                 threading.Thread(target=_bg, daemon=True).start()
 
             def add_user(user_id):
-                self.app_page.close_dialog() # Close add dialog
+                self._close_dialog(self.dlg_add_member) # Close add dialog
 
                 def _bg():
                     try:
@@ -427,7 +427,7 @@ class GroupManagerView(ft.Column, ViewMixin):
             add_dlg = ft.AlertDialog(
                 title=ft.Text(i18n.get("dlg_add_member") or "Add Member"),
                 content=ft.Column([search_box, results_list], height=300, width=400),
-                actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self.app_page.close_dialog())]
+                actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(self.app_page.dialog))]
             )
             self.app_page.open(add_dlg)
             self.app_page.update()
@@ -444,7 +444,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                 ft.Divider(),
                 members_list
             ], height=400, width=500),
-            actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self.app_page.close_dialog())],
+            actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(self.app_page.dialog))],
         )
 
         self.app_page.open(dlg)
