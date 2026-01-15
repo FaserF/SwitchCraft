@@ -581,52 +581,52 @@ class ModernApp:
                 ),
                 ft.NavigationRailDestination(
                     icon=ft.Icons.APPS_OUTLINED, selected_icon=ft.Icons.APPS, label=i18n.get("nav_apps")
-                ),  # 1 Winget
+                ),  # 5 Winget
                 ft.NavigationRailDestination(
                     icon=ft.Icons.ANALYTICS_OUTLINED, selected_icon=ft.Icons.ANALYTICS, label=i18n.get("nav_analyze")
-                ),  # 2 Analyze
+                ),  # 6 Analyze
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.BUILD_OUTLINED, selected_icon=ft.Icons.BUILD, label=i18n.get("nav_generate")
-                ),  # 3 Generate
+                    icon=ft.Icons.SMART_TOY_OUTLINED, selected_icon=ft.Icons.SMART_TOY, label=i18n.get("nav_helper")
+                ),  # 7 AI Helper
                 ft.NavigationRailDestination(
                     icon=ft.Icons.CLOUD_UPLOAD_OUTLINED,
                     selected_icon=ft.Icons.CLOUD_UPLOAD, label=i18n.get("nav_intune")
-                ),  # 4 Intune
+                ),  # 8 Intune
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.SHOP_TWO_OUTLINED, selected_icon=ft.Icons.SHOP_TWO, label="Intune Store"
-                ),  # 5 Intune Store
+                    icon=ft.Icons.SHOP_TWO_OUTLINED, selected_icon=ft.Icons.SHOP_TWO, label=i18n.get("nav_intune_store")
+                ),  # 9 Intune Store
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.DESCRIPTION_OUTLINED, selected_icon=ft.Icons.DESCRIPTION, label="Scripts"
-                ),  # 6 Scripts
+                    icon=ft.Icons.DESCRIPTION_OUTLINED, selected_icon=ft.Icons.DESCRIPTION, label=i18n.get("nav_scripts")
+                ),  # 10 Scripts
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.APPLE_OUTLINED, selected_icon=ft.Icons.APPLE, label="MacOS"
-                ),  # 7 MacOS
+                    icon=ft.Icons.APPLE_OUTLINED, selected_icon=ft.Icons.APPLE, label=i18n.get("nav_macos")
+                ),  # 11 MacOS
                 ft.NavigationRailDestination(
                     icon=ft.Icons.HISTORY_OUTLINED, selected_icon=ft.Icons.HISTORY, label=i18n.get("nav_history")
-                ),  # 8 History
+                ),  # 12 History
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS, label=i18n.get("settings_general") or "General Settings"
+                    icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS, label=i18n.get("nav_settings")
                 ),  # 13 Settings
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.AUTO_FIX_HIGH, selected_icon=ft.Icons.AUTO_FIX_HIGH, label="Wizard"
-                ),  # 10 Wizard
+                    icon=ft.Icons.AUTO_FIX_HIGH, selected_icon=ft.Icons.AUTO_FIX_HIGH, label=i18n.get("nav_wizard")
+                ),  # 14 Wizard
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.RULE, selected_icon=ft.Icons.RULE, label="Tester"
-                ),  # 11 Tester
+                    icon=ft.Icons.RULE, selected_icon=ft.Icons.RULE, label=i18n.get("nav_tester")
+                ),  # 15 Tester
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.LAYERS, selected_icon=ft.Icons.LAYERS, label="Stacks"
-                ),  # 12 Stacks
+                    icon=ft.Icons.LAYERS, selected_icon=ft.Icons.LAYERS, label=i18n.get("nav_stacks")
+                ),  # 16 Stacks
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.DASHBOARD, selected_icon=ft.Icons.DASHBOARD, label="Dashboard"
-                ),  # 13 Dashboard
+                    icon=ft.Icons.DASHBOARD, selected_icon=ft.Icons.DASHBOARD, label=i18n.get("nav_dashboard")
+                ),  # 17 Dashboard
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.LIBRARY_BOOKS_OUTLINED, selected_icon=ft.Icons.LIBRARY_BOOKS, label="Library"
-                ),  # 14 Library
+                    icon=ft.Icons.LIBRARY_BOOKS_OUTLINED, selected_icon=ft.Icons.LIBRARY_BOOKS, label=i18n.get("nav_library")
+                ),  # 18 Library
                 ft.NavigationRailDestination(
-                     icon=ft.Icons.PEOPLE_OUTLINED, selected_icon=ft.Icons.PEOPLE, label="Groups"
-                ),  # 15 Groups
+                     icon=ft.Icons.PEOPLE_OUTLINED, selected_icon=ft.Icons.PEOPLE, label=i18n.get("nav_groups")
+                ),  # 19 Groups
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.TERMINAL, selected_icon=ft.Icons.TERMINAL, label="Winget Creator"
+                    icon=ft.Icons.TERMINAL, selected_icon=ft.Icons.TERMINAL, label=i18n.get("nav_winget_create")
                 ),  # 20 Winget Create
             ]
 

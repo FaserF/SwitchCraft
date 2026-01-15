@@ -143,8 +143,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 self.results_list.controls.append(
                     ft.ListTile(
                         leading=ft.Icon(ft.Icons.APPS),
-                        title=ft.Text(app.get("displayName", "Unknown")),
-                        subtitle=ft.Text(app.get("publisher", "")),
+                        title=ft.Text(app.get("displayName", "Unknown"), selectable=True),
+                        subtitle=ft.Text(app.get("publisher", ""), selectable=True),
                         on_click=lambda e, a=app: self._show_details(a)
                     )
                 )
@@ -156,7 +156,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
 
         # Title
         self.details_area.controls.append(
-            ft.Text(app.get("displayName", "Unknown"), size=28, weight="bold")
+            ft.Text(app.get("displayName", "Unknown"), size=28, weight="bold", selectable=True)
         )
 
         # Metadata
@@ -170,24 +170,55 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
 
         for k, v in meta_rows:
             if v:
-                self.details_area.controls.append(ft.Text(f"{k}: {v}"))
+                self.details_area.controls.append(ft.Text(f"{k}: {v}", selectable=True))
 
         self.details_area.controls.append(ft.Divider())
 
         # Description
         desc = app.get("description", "No description.")
-        self.details_area.controls.append(ft.Text("Description:", weight="bold"))
-        self.details_area.controls.append(ft.Text(desc))
+        self.details_area.controls.append(ft.Text("Description:", weight="bold", selectable=True))
+        self.details_area.controls.append(ft.Text(desc, selectable=True))
 
         self.details_area.controls.append(ft.Divider())
 
+        # Assignments (Async Loading)
+        self.assignments_col = ft.Column([ft.ProgressBar(width=200)])
+        self.details_area.controls.append(ft.Text("Group Assignments:", weight="bold", selectable=True))
+        self.details_area.controls.append(self.assignments_col)
+        self.details_area.controls.append(ft.Divider())
+
+        def _load_assignments():
+            try:
+                token = self._get_token()
+                assignments = self.intune_service.list_app_assignments(token, app.get("id"))
+                self.assignments_col.controls.clear()
+                if not assignments:
+                    self.assignments_col.controls.append(ft.Text("Not assigned.", italic=True, selectable=True))
+                else:
+                    # Filter for Required, Available, Uninstall
+                    types = ["required", "available", "uninstall"]
+                    for t in types:
+                        typed_assignments = [asgn for asgn in assignments if asgn.get("intent") == t]
+                        if typed_assignments:
+                            self.assignments_col.controls.append(ft.Text(f"{t.capitalize()}:", weight="bold", size=12, selectable=True))
+                            for ta in typed_assignments:
+                                target = ta.get("target", {})
+                                group_id = target.get("groupId") or "All Users/Devices"
+                                self.assignments_col.controls.append(ft.Text(f" • {group_id}", size=12, selectable=True))
+            except Exception as ex:
+                self.assignments_col.controls.clear()
+                self.assignments_col.controls.append(ft.Text(f"Error: {ex}", color="red", selectable=True))
+            self.update()
+
+        threading.Thread(target=_load_assignments, daemon=True).start()
+
         # Install Info
         if "installCommandLine" in app or "uninstallCommandLine" in app:
-             self.details_area.controls.append(ft.Text("Commands:", weight="bold"))
+             self.details_area.controls.append(ft.Text("Commands:", weight="bold", selectable=True))
              if app.get("installCommandLine"):
-                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_install', default='Install')}: `{app.get('installCommandLine')}`", font_family="Consolas"))
+                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_install', default='Install')}: `{app.get('installCommandLine')}`", font_family="Consolas", selectable=True))
              if app.get("uninstallCommandLine"):
-                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_uninstall', default='Uninstall')}: `{app.get('uninstallCommandLine')}`", font_family="Consolas"))
+                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_uninstall', default='Uninstall')}: `{app.get('uninstallCommandLine')}`", font_family="Consolas", selectable=True))
 
         self.details_area.controls.append(ft.Container(height=20))
         self.details_area.controls.append(
@@ -197,9 +228,26 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     icon=ft.Icons.CLOUD_UPLOAD,
                     bgcolor="BLUE",
                     color="WHITE",
-                    on_click=lambda _: self._show_snack(i18n.get("store_deploy_soon") or "Deployment logic coming soon to Store view!", "BLUE")
+                    on_click=lambda _: self._start_packaging_wizard(app)
                 )
             ])
         )
 
         self.update()
+
+    def _start_packaging_wizard(self, app):
+        """Navigates to Packaging Wizard and pre-fills info."""
+        if not hasattr(self.app_page, "switchcraft_app"):
+             self._show_snack("Cannot navigate to Wizard automatically.", "ORANGE")
+             return
+
+        # Navigate to Packaging Wizard (Tab 7 - Generieren)
+        # However, we want to inject data. We can find the view instance.
+        app_ref = self.app_page.switchcraft_app
+        if hasattr(app_ref, 'goto_tab'):
+             app_ref.goto_tab(7)
+             # Wait a bit and try to populate? Better if we have a state manager.
+             # In this architecture, we can try to find the view in the cache or wait for it to be created.
+             # Alternatively, we could store it in a 'pending_packaging' state in page.session
+             self.app_page.session.set("pending_packaging_app", app)
+             self._show_snack(f"Starting wizard for {app.get('displayName')}...", "BLUE")

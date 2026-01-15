@@ -416,6 +416,21 @@ class IntuneService:
             logger.error(f"Failed to get app details: {e}")
             raise e
 
+    def list_app_assignments(self, token, app_id):
+        """
+        Fetch assignments for a specific app.
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        base_url = f"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{app_id}/assignments"
+
+        try:
+            resp = requests.get(base_url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            return resp.json().get("value", [])
+        except Exception as e:
+            logger.error(f"Failed to fetch app assignments for {app_id}: {e}")
+            return []
+
     def upload_powershell_script(self, token, name, description, script_content, run_as_account="system"):
         """
         Uploads a PowerShell script to Intune (Device Management Script).

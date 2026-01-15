@@ -16,7 +16,10 @@ class ViewMixin:
                 return
 
             page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            page.snack_bar.open = True
-            page.update()
+            if hasattr(page, "open"):
+                page.open(page.snack_bar)
+            else:
+                page.snack_bar.open = True
+                page.update()
         except Exception as e:
             logger.debug(f"Failed to show snackbar: {e}")

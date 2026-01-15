@@ -57,6 +57,20 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
         self._load_step(0, update=False)
 
+    def did_mount(self):
+        # Check for pre-filled data from Intune Store
+        pending_app = self.app_page.session.get("pending_packaging_app")
+        if pending_app:
+            self.upload_info = {
+                "displayName": pending_app.get("displayName"),
+                "publisher": pending_app.get("publisher"),
+                "description": pending_app.get("description"),
+            }
+            # If we have a download URL or similar, we could pre-fill it too.
+            # For now, just pre-filling the upload info.
+            self.app_page.session.set("pending_packaging_app", None) # Clear it
+            self._show_snack(f"Pre-filled info for {pending_app.get('displayName')}", "BLUE")
+
     def _build_stepper_header(self):
         self.steps_indicators = [
             self._create_step_indicator(0, "Select", ft.Icons.FILE_UPLOAD),
@@ -832,9 +846,12 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
             modal=True,
             on_dismiss=lambda e: print("Autopilot finished")
         )
-        self.app_page.dialog = self.autopilot_dlg
-        self.autopilot_dlg.open = True
-        self.app_page.update()
+        if hasattr(self.app_page, "open"):
+            self.app_page.open(self.autopilot_dlg)
+        else:
+            self.app_page.dialog = self.autopilot_dlg
+            self.autopilot_dlg.open = True
+            self.app_page.update()
 
         def _update_status(msg):
             # Hacky way to update dialog content if we don't have ref
@@ -929,7 +946,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
                 _update_status("Magic Complete! ✨")
                 self.autopilot_dlg.title = ft.Text("Success!")
-                self.autopilot_dlg.actions = [ft.TextButton("Close", on_click=lambda e: self.app_page.close_dialog())]
+                self.autopilot_dlg.actions = [ft.TextButton("Close", on_click=lambda e: self._close_autopilot())]
                 self.autopilot_dlg.update()
 
             except Exception as ex:
@@ -941,3 +958,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                 logger.error(f"Autopilot error: {ex}")
 
         threading.Thread(target=_bg, daemon=True).start()
+
+    def _close_autopilot(self, e=None):
+        """Close the autopilot dialog."""
+        self.autopilot_dlg.open = False
+        self.app_page.update()

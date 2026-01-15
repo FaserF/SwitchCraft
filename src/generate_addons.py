@@ -35,14 +35,16 @@ class SwitchCraftAI:
         self.ctx = data
     def ask(self, query):
         q = query.lower()
-        if "who are you" in q: return "I am SwitchCraft AI"
-        if "wer bist du" in q: return "Ich bin SwitchCraft AI"
+        if "hi" in q or "hallo" in q:
+            return "Hallo! Ich bin der interner SwitchCraft AI Helper. Wie kann ich dir heute beim Paketieren helfen?"
+        if "who are you" in q or "wer bist du" in q:
+            return "I am the built-in SwitchCraft AI Assistant. I can help with silent switches, MSI properties, and Intune deployments."
         if "silent" in q or "switches" in q:
             sw = self.ctx.get("install_silent", "/S")
-            if "what" in q:
-                return f"detected these silent switches: {sw}"
-            return f"folgende Switches gefunden: {sw}"
-        return f"Simulated Response: You asked '{query}'. (This is a local placeholder AI)"
+            return f"Für dieses Paket wurden folgende Silent-Switches erkannt: `{sw}`. Du kannst diese im Packaging Wizard noch anpassen."
+        if "intune" in q:
+            return "Um Apps nach Intune hochzuladen, stelle sicher, dass du die Graph API Credentials in den Einstellungen hinterlegt hast."
+        return f"Ich habe deine Frage zu '{query}' verstanden, kann aber ohne aktive Gemini/OpenAI Verbindung keine tiefergehende Analyse durchführen. Nutze den Packaging Wizard für automatische Erkennungen!"
 """
     create_addon("AI Assistant", "ai", {"service.py": ai_service_code})
 

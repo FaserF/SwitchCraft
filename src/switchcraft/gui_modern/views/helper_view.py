@@ -61,13 +61,30 @@ def ModernHelperView(page: ft.Page):
         text_color = "WHITE"
         align = ft.MainAxisAlignment.END if is_user else ft.MainAxisAlignment.START
 
+        # Message Content (Markdown for AI, Text for User)
+        content = ft.Markdown(
+            text,
+            selectable=True,
+            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+            on_tap_link=lambda e: page.launch_url(e.data),
+        ) if not is_user else ft.Text(text, selectable=True, color=text_color)
+
         chat_history.controls.append(
             ft.Row([
                 ft.Container(
                     content=ft.Column([
-                        ft.Text(sender, weight=ft.FontWeight.BOLD, size=12, color=text_color),
-                        ft.Text(text, selectable=True, color=text_color)
-                    ]),
+                        ft.Row([
+                            ft.Text(sender, weight=ft.FontWeight.BOLD, size=12, color=text_color),
+                            ft.IconButton(
+                                ft.Icons.COPY,
+                                icon_size=12,
+                                icon_color="GREY_400",
+                                tooltip="Copy",
+                                on_click=lambda _: page.set_clipboard(text)
+                            )
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, spacing=10),
+                        content
+                    ], tight=True),
                     bgcolor=bg_color,
                     padding=15,
                     border_radius=ft.BorderRadius.only(
@@ -75,7 +92,7 @@ def ModernHelperView(page: ft.Page):
                         bottom_left=15 if not is_user else 0,
                         bottom_right=15 if is_user else 0
                     ),
-                    # constraints=ft.BoxConstraints(max_width=500), # Removed from init
+                    width=min(page.width * 0.7, 600) if page.width else 500,
                 )
             ], alignment=align)
         )

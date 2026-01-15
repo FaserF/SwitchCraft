@@ -15,6 +15,7 @@ from switchcraft.services.notification_service import NotificationService
 from switchcraft.services.signing_service import SigningService
 from switchcraft.utils.templates import TemplateGenerator
 from switchcraft.services.intune_service import IntuneService
+from switchcraft.services.winget_manifest_service import WingetManifestService
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.gui_modern.utils.flet_compat import create_tabs
@@ -36,6 +37,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         self.app_page = page
         self.controller = AnalysisController()
         self.intune_service = IntuneService()
+        self.winget_service = WingetManifestService()
         self.addon_service = AddonService()
         self.analyzing = False
 
@@ -507,7 +509,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         self.results_column.controls.append(
             ft.Container(
                 content=ft.Column([
-                    ft.Text("Silent Install Parameters", weight=ft.FontWeight.BOLD),
+                    ft.Text(i18n.get("silent_switches") or "Silent Install Parameters", weight=ft.FontWeight.BOLD),
                     ft.TextField(value=switches_str, read_only=True, text_style=ft.TextStyle(color=color, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=switches_str: self._copy_to_clipboard(s))),
                 ]),
                 padding=10, bgcolor="SURFACE_CONTAINER_HIGHEST", border_radius=5
@@ -520,7 +522,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             self.results_column.controls.append(
                 ft.Container(
                     content=ft.Column([
-                        ft.Text("Silent Uninstall Parameters", weight=ft.FontWeight.BOLD, color="RED_400"),
+                        ft.Text(i18n.get("silent_uninstall") or "Silent Uninstall Parameters", weight=ft.FontWeight.BOLD, color="RED_400"),
                         ft.TextField(value=un_switches, read_only=True, text_style=ft.TextStyle(color="RED_200", font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=un_switches: self._copy_to_clipboard(s))),
                     ]),
                     padding=10, bgcolor="SURFACE_CONTAINER_HIGHEST", border_radius=5
@@ -604,7 +606,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         # 12. View Detailed Button
         self.results_column.controls.append(
-            ft.Button("View Detailed Analysis Data", icon=ft.Icons.ZOOM_IN, on_click=lambda _: self._show_detailed_parameters(result))
+            ft.Button(i18n.get("view_full_params") or "View Detailed Analysis Data", icon=ft.Icons.ZOOM_IN, on_click=lambda _: self._show_detailed_parameters(result))
         )
 
         self.update()
@@ -619,7 +621,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             else:
                 unknown.append(p)
 
-        controls = [ft.Text("Parameter Explanations", weight=ft.FontWeight.BOLD, size=14)]
+        controls = [ft.Text(i18n.get("known_params") or "Parameter Explanations", weight=ft.FontWeight.BOLD, size=14)]
 
         if known:
             k_list = ft.Column(spacing=2)
@@ -903,8 +905,67 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         self.app_page.open(local_dlg)
 
     def _open_manifest_dialog(self, info):
-        # Placeholder for Winget Manifest Creation (Similar to Legacy)
-        self._show_snack("Winget Manifest Creation not yet fully ported, but coming soon!", "BLUE")
+        # Quick manifest generation using WingetManifestService
+        def generate_local(e):
+            try:
+                # Prepare metadata for service
+                meta = {
+                    "PackageIdentifier": f"{info.manufacturer or 'Unknown'}.{info.product_name or 'App'}",
+                    "PackageVersion": info.product_version or "1.0.0",
+                    "Publisher": info.manufacturer or "Unknown",
+                    "PackageName": info.product_name or "App",
+                    "InstallerType": info.installer_type or "exe",
+                    "Installers": [{
+                        "Architecture": "x64",
+                        "InstallerUrl": f"file:///{info.file_path.replace('\\', '/')}",
+                        "InstallerSha256": "0000000000000000000000000000000000000000000000000000000000000000", # Placeholder
+                        "InstallerType": info.installer_type or "exe",
+                        "Scope": "machine"
+                    }]
+                }
+
+                # Sanitize PackageIdentifier (winget prefers no spaces)
+                meta["PackageIdentifier"] = meta["PackageIdentifier"].replace(" ", "")
+                meta["Publisher"] = meta["Publisher"].replace(" ", "")
+
+                out_dir = self.winget_service.generate_manifests(meta)
+                self._show_snack(f"Manifests generated in: {out_dir}", "GREEN")
+
+                # Close dialog
+                dlg.open = False
+                self.app_page.update()
+
+                # Optionally open folder
+                import os
+                os.startfile(out_dir)
+            except Exception as ex:
+                self._show_snack(f"Generation failed: {ex}", "RED")
+
+        def open_winget_manager(e):
+            dlg.open = False
+            self.app_page.update()
+            # If we had a router, we would navigate. For now, we just suggest it
+            self._show_snack("Please use the 'WingetCreate Manager' from the side menu for advanced options.", "BLUE")
+
+        dlg = ft.AlertDialog(
+            title=ft.Row([ft.Icon(ft.Icons.DESCRIPTION, color="BLUE"), ft.Text("Winget Manifest Creation")]),
+            content=ft.Column([
+                ft.Text("Quickly generate a local manifest structure based on analysis results."),
+                ft.Text(f"Target: {info.manufacturer}.{info.product_name}", size=12, italic=True),
+            ], height=80, tight=True),
+            actions=[
+                ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False) or self.app_page.update()),
+                ft.TextButton("Open Manager", on_click=open_winget_manager),
+                ft.Button("Generate Locals", icon=ft.Icons.BUILD, on_click=generate_local, bgcolor="BLUE_700", color="WHITE"),
+            ],
+        )
+
+        if hasattr(self.app_page, "open"):
+            self.app_page.open(dlg)
+        else:
+            self.app_page.dialog = dlg
+            dlg.open = True
+            self.app_page.update()
 
     def _show_detailed_parameters(self, result: AnalysisResult):
         info = result.info

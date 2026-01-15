@@ -21,6 +21,10 @@ else:
 
         def update_context(self, data: dict):
             self.context = data
+            query = self.context.get('query', '').lower()
+
+            if "hi" in query or "hello" in query:
+                return "Hello! I am your local AI assistant. I can help you with packaging questions even when you don't have a Gemini or OpenAI key configured. Ask me about silent switches or Intune!"
 
             title = i18n.get("ai_addon_required_title") or "🤖 **AI Addon Required**"
             msg = i18n.get("ai_addon_required_msg") or (
@@ -42,6 +46,10 @@ else:
 
         def ask(self, query):
             """Stub ask method - returns a message indicating the AI addon is missing."""
+            q = query.lower()
+            if "hi" in q or "hello" in q:
+                return "Hello! I am the local SwitchCraft AI helper. I'm currently running in limited mode because the AI addon is not installed, but I can still give you some basic tips!"
+
             title = i18n.get("ai_addon_required_title") or "AI Addon Required"
             msg = i18n.get("ai_addon_required_msg") or "This feature requires the AI Addon."
 

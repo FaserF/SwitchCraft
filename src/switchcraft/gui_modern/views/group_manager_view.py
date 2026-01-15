@@ -198,7 +198,7 @@ class GroupManagerView(ft.Column, ViewMixin):
         else:
             self.filtered_groups = [
                 g for g in self.groups
-                if query in g.get('displayName', '').lower() or query in g.get('description', '').lower()
+                if query in (g.get('displayName') or '').lower() or query in (g.get('description') or '').lower()
             ]
         self._update_table()
 
