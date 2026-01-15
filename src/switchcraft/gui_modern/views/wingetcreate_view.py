@@ -61,11 +61,11 @@ class WingetCreateView(ft.Column):
             on_change=on_tab_change,
             tabs=[
                 ft.Tab(
-                    text=i18n.get("wingetcreate_new") or "New Manifest",
+                    label=i18n.get("wingetcreate_new") or "New Manifest",
                     icon=ft.Icons.ADD_CIRCLE_OUTLINE
                 ),
                 ft.Tab(
-                    text=i18n.get("wingetcreate_update") or "Update Manifest",
+                    label=i18n.get("wingetcreate_update") or "Update Manifest",
                     icon=ft.Icons.UPDATE
                 )
             ]
@@ -98,8 +98,8 @@ class WingetCreateView(ft.Column):
                         content=ft.Row([
                             ft.Icon(ft.Icons.INFO_OUTLINE, size=18, color="BLUE_300"),
                             ft.Text(
-                                i18n.get("wingetcreate_info") or
-                                "Manifests are saved to: " + str(self.manifest_dir),
+                                i18n.get("wingetcreate_info", path=str(self.manifest_dir)) or
+                                f"Manifests are saved to: {self.manifest_dir}",
                                 size=12,
                                 color="GREY_400"
                             ),

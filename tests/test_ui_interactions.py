@@ -16,7 +16,7 @@ def mock_page():
     # Init empty dialogs
     page.dialog = None
     page.snack_bar = None
-    page.open = MagicMock() # Fix for Flet 0.21+ dialogs
+    # page.open = MagicMock() # Removed duplicate assignment
 
     # Mock window object
     page.window = MagicMock()
@@ -60,13 +60,13 @@ def find_buttons(control):
 def test_settings_view_buttons(mock_page):
     """Test all buttons in SettingsView (General, Updates, Deployment, Help)."""
 
-    log_file = "test_result.log"
-    with open(log_file, "w") as f:
-        f.write("Starting Button Test\n")
+    # log_file = "test_result.log"
+    # with open(log_file, "w") as f:
+    #     f.write("Starting Button Test\n")
 
     def log(msg):
-        with open(log_file, "a") as f:
-            f.write(msg + "\n")
+        # with open(log_file, "a") as f:
+        #     f.write(msg + "\n")
         print(msg)
 
     # Mock necessary services to prevent side effects
@@ -141,13 +141,13 @@ def test_settings_view_buttons(mock_page):
 
 def test_dashboard_view_buttons(mock_page):
     """Test buttons in DashboardView."""
-    log_file = "test_result.log"
+    # log_file = "test_result.log"
     def log(msg):
-        with open(log_file, "a") as f:
-            f.write(msg + "\n")
+        # with open(log_file, "a") as f:
+        #     f.write(msg + "\n")
         print(msg)
 
-    with patch("switchcraft.services.history_service.HistoryService") as MockHistoryService:
+    with patch("switchcraft.gui_modern.views.dashboard_view.HistoryService") as MockHistoryService:
         log("\nInstantiating DashboardView")
         try:
              # Mock the get_history return value to avoid iterating over MagicMock
@@ -192,10 +192,10 @@ def test_dashboard_view_buttons(mock_page):
 
 def test_analyzer_view_buttons(mock_page):
     """Test buttons in AnalyzerView."""
-    log_file = "test_result.log"
+    # log_file = "test_result.log"
     def log(msg):
-        with open(log_file, "a") as f:
-            f.write(msg + "\n")
+        # with open(log_file, "a") as f:
+        #     f.write(msg + "\n")
         print(msg)
 
     # Mock Dropzone which might be platform dependent, and HistoryService
@@ -270,10 +270,10 @@ def test_analyzer_view_buttons(mock_page):
 
 def test_library_view_buttons(mock_page):
     """Test buttons in LibraryView."""
-    log_file = "test_result.log"
+    # log_file = "test_result.log"
     def log(msg):
-        with open(log_file, "a") as f:
-             f.write(msg + "\n")
+        # with open(log_file, "a") as f:
+        #      f.write(msg + "\n")
         print(msg)
 
     # 1. Test "Intune not configured" state
@@ -370,10 +370,10 @@ def test_library_view_buttons(mock_page):
 
 def test_settings_view_entra_test_connection(mock_page):
     """Test custom buttons like Entra Test Connection in SettingsView."""
-    log_file = "test_result.log"
+    # log_file = "test_result.log"
     def log(msg):
-        with open(log_file, "a") as f:
-             f.write(msg + "\n")
+        # with open(log_file, "a") as f:
+        #      f.write(msg + "\n")
         print(msg)
 
     with patch("switchcraft.gui_modern.views.settings_view.SwitchCraftConfig") as verify_config, \
@@ -482,3 +482,4 @@ def test_settings_view_entra_test_connection(mock_page):
                  log("SUCCESS: 'Entra Tenant ID' has on_change handler.")
              else:
                  log("CRITICAL: 'Entra Tenant ID' missing on_change handler!")
+                 pytest.fail("'Entra Tenant ID' missing on_change handler!")

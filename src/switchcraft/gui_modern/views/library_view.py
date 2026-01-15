@@ -105,9 +105,14 @@ class LibraryView(ft.Column):
             user_home / "Downloads",
             user_home / "Documents",
             user_home / "Desktop",
-            Path("C:/Temp"),
-            Path("C:/IntuneWin"),
         ]
+
+        import sys
+        if sys.platform == "win32":
+            default_dirs.extend([
+                Path("C:/Temp"),
+                Path("C:/IntuneWin"),
+            ])
 
         for d in default_dirs:
             if d.exists() and d.is_dir():

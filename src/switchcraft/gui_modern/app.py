@@ -626,6 +626,9 @@ class ModernApp:
                 ft.NavigationRailDestination(
                      icon=ft.Icons.PEOPLE_OUTLINED, selected_icon=ft.Icons.PEOPLE, label="Groups"
                 ),  # 15 Groups
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.TERMINAL, selected_icon=ft.Icons.TERMINAL, label="Winget Creator"
+                ),  # 20 Winget Create
             ]
 
 

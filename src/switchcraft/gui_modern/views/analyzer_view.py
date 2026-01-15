@@ -235,6 +235,8 @@ class ModernAnalyzerView(ft.Column):
         self.update()
 
         def _bg():
+            temp_dir = None
+            analysis_started = False
             try:
                 # Get filename from URL
                 filename = url.split("/")[-1].split("?")[0]
@@ -269,7 +271,9 @@ class ModernAnalyzerView(ft.Column):
                 self.update()
 
                 # Start analysis with downloaded file
-                self.start_analysis(str(temp_path), cleanup_path=str(temp_path))
+                # Pass temp_dir as cleanup_path so the whole directory is removed
+                self.start_analysis(str(temp_path), cleanup_path=str(temp_dir))
+                analysis_started = True
 
             except requests.exceptions.RequestException as ex:
                 self.url_download_progress.visible = False
@@ -283,6 +287,13 @@ class ModernAnalyzerView(ft.Column):
                 self.url_download_status.color = "RED"
                 self.update()
                 logger.error(f"URL download error: {ex}")
+            finally:
+                # If analysis didn't start (e.g. download failed), clean up temp dir immediately
+                if temp_dir and not analysis_started:
+                     try:
+                         shutil.rmtree(temp_dir, ignore_errors=True)
+                     except Exception as e:
+                         logger.warning(f"Failed to cleanup temp dir {temp_dir}: {e}")
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -811,7 +822,12 @@ class ModernAnalyzerView(ft.Column):
         # Check if we are already admin
         is_admin = False
         try:
-            is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+            import sys
+            if sys.platform == "win32":
+                is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+            else:
+                # Assume non-windows doesn't need elevation or handled differently
+                is_admin = True
         except Exception:
             pass
 
@@ -821,8 +837,13 @@ class ModernAnalyzerView(ft.Column):
                 self.app_page.update()
 
                 # Restart as admin
+                # Restart as admin
                 try:
                     import sys
+                    if sys.platform != "win32":
+                         self._show_snack("Elevation only supported on Windows.", "RED")
+                         return
+
                     executable = sys.executable
                     params = f'"{sys.argv[0]}"'
                     if len(sys.argv) > 1:
@@ -942,7 +963,19 @@ class ModernAnalyzerView(ft.Column):
                 # Show success dialog
                 def open_folder(e):
                     import os
-                    os.startfile(str(source))
+                    import sys
+                    import subprocess
+
+                    try:
+                        if sys.platform == "win32":
+                            os.startfile(str(source))
+                        elif sys.platform == "darwin":
+                            subprocess.call(["open", str(source)])
+                        else:
+                            subprocess.call(["xdg-open", str(source)])
+                    except Exception as ex:
+                        self._show_snack(f"Failed to open folder: {ex}", "RED")
+
                     dlg.open = False
                     self.app_page.update()
 

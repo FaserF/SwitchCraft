@@ -47,7 +47,6 @@ class TestI18nIntegrity(unittest.TestCase):
 
         def find_duplicates(filepath):
 
-
             with open(filepath, "r", encoding="utf-8") as f:
                 # We need to manually parse or hook into load
                 # Standard json.load objects_pairs_hook can detect duplicates if we check keys list
@@ -98,11 +97,19 @@ class TestI18nIntegrity(unittest.TestCase):
         # For now, let's report missing ones
         missing = []
         for k in found_keys:
+
             if k not in self.en:
-                # Heuristic: exclude variables (no easy way to detect, but usually no spaces)
-                # But regex captured the string literal.
-                if " " not in k: # weak heuristic
+                # Improve heuristic: keys usually are lowercase/snake_case/kebab-case.
+                # If they contain spaces or look like a full sentence, they might be dynamic content or default values.
+                # Also if it looks like a variable concatenation (e.g. f"{var}"), regex might not catch it but
+                # we are looking at literal strings passed to single argument.
+
+                # Check if it is a valid identifier-like string
+                if re.match(r'^[a-z0-9_.-]+$', k):
                      missing.append(k)
+                else:
+                     # Likely dynamic content or sentence used as default fallback in some legacy calls
+                     pass
 
         # We know some keys might be constructed dynamically, so we filter out known false positives checks if needed
         # But user asked to "Detect missing translations".

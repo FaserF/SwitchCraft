@@ -21,6 +21,7 @@ class ScriptUploadView(ft.Column):
         self.script_path = None
         self.detect_path = None  # For Remediation
         self.remediate_path = None  # For Remediation
+        self.repo_script_items = []  # Track (path, checkbox) for GitHub View
 
         # UI Components - wrapped in container with proper padding
         self.controls = [
@@ -438,10 +439,26 @@ class ScriptUploadView(ft.Column):
                 import requests
 
                 # Parse GitHub URL
-                # Format: https://github.com/owner/repo
-                parts = repo_url.rstrip("/").split("/")
-                if len(parts) < 5:
-                    raise ValueError(i18n.get("invalid_github_url") or "Invalid GitHub URL")
+                # Handle formats:
+                # https://github.com/owner/repo
+                # https://github.com/owner/repo.git
+                # github.com/owner/repo
+
+                clean_url = repo_url.replace("git@", "https://").replace(":", "/").rstrip("/")
+                if clean_url.endswith(".git"):
+                    clean_url = clean_url[:-4]
+                if not clean_url.startswith("http"):
+                    clean_url = "https://" + clean_url
+
+                # Split and find owner/repo
+                parts = clean_url.split("/")
+                # Expect https://github.com/owner/repo -> parts: [https:, '', github.com, owner, repo]
+                # Filter out empty strings
+                parts = [p for p in parts if p]
+
+                if len(parts) < 3:
+                     # fallback logic or error
+                     raise ValueError(i18n.get("invalid_github_url") or "Invalid GitHub URL")
 
                 owner = parts[-2]
                 repo = parts[-1]
@@ -469,7 +486,7 @@ class ScriptUploadView(ft.Column):
                         try:
                             reset_dt = datetime.datetime.fromtimestamp(int(reset_time))
                             msg += f" Resets at {reset_dt.strftime('%H:%M:%S')}."
-                        except:
+                        except (ValueError, TypeError, OSError):
                             pass
                     raise PermissionError(msg)
                 elif response.status_code == 404:
@@ -497,10 +514,15 @@ class ScriptUploadView(ft.Column):
                         )
                     )
                 else:
+                else:
+                    self.repo_script_items = []
                     for script_path in ps_files[:50]:  # Limit to 50
+                        cb = ft.Checkbox(value=False)
+                        self.repo_script_items.append({"path": script_path, "checkbox": cb})
+
                         self.github_script_list.controls.append(
                             ft.ListTile(
-                                leading=ft.Checkbox(value=False),
+                                leading=cb,
                                 title=ft.Text(script_path),
                                 trailing=ft.Icon(ft.Icons.DESCRIPTION, color="BLUE_400")
                             )
@@ -519,8 +541,14 @@ class ScriptUploadView(ft.Column):
         threading.Thread(target=_bg, daemon=True).start()
 
     def _import_github_scripts(self, e):
+        selected = [item["path"] for item in self.repo_script_items if item["checkbox"].value]
+
+        if not selected:
+             self._show_snack(i18n.get("no_scripts_selected") or "No scripts selected", "ORANGE")
+             return
+
         self._show_snack(
-            i18n.get("feature_coming_soon") or "Feature coming soon!",
+            f"Future Feature: Import {len(selected)} scripts: {', '.join(selected)}",
             "BLUE"
         )
 

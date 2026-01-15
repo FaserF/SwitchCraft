@@ -309,15 +309,20 @@ class AddonService:
             try:
                 resp = requests.get(f"{api_base}/releases/latest", timeout=5)
                 if resp.status_code == 200:
-                    release_data = resp.json()
-                    used_tag = release_data.get("tag_name")
-                    warning_msg = f"Version mismatch: Installed {addon_id} from {used_tag} (Expected {target_tag}). Compatibility not guaranteed."
-                    logger.warning(warning_msg)
+                    try:
+                        release_data = resp.json()
+                        used_tag = release_data.get("tag_name")
+                        warning_msg = f"Version mismatch: Installed {addon_id} from {used_tag} (Expected {target_tag}). Compatibility not guaranteed."
+                        logger.warning(warning_msg)
+                    except ValueError: # JSONDecodeError
+                        logger.error(f"Invalid JSON from latest release: {resp.text[:100]}")
+                        return False, "Invalid response from GitHub."
                 else:
                      logger.error(f"Latest release not found (Status {resp.status_code}).")
                      return False, "Could not find any releases."
             except Exception as e:
-
+                logger.error(f"Error fetching latest release: {e}")
+                return False, f"Failed to fetch latest release: {e}"
 
         if not release_data:
              return False, "No release data found."

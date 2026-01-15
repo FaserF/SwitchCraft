@@ -107,10 +107,12 @@ class ModernIntuneView(ft.Column):
             btn = ft.IconButton(ft.Icons.FOLDER_OPEN, on_click=lambda e: pick_folder(e, field))
             return ft.Row([field, btn])
 
-        btn_create = ft.Button(
-            i18n.get("btn_create_intunewin") or "Create .intunewin",
-            bgcolor="GREEN_700",
-            color="WHITE",
+        btn_create = ft.ElevatedButton(
+            text=i18n.get("btn_create_intunewin") or "Create .intunewin",
+            style=ft.ButtonStyle(
+                bgcolor="GREEN_700",
+                color="WHITE",
+            ),
             height=50,
             on_click=self._run_creation
         )
@@ -173,20 +175,30 @@ class ModernIntuneView(ft.Column):
             def _bg():
                 try:
                     if not self.tenant_id or not self.client_id or not self.client_secret:
-                        self.up_status.value = "Missing Credentials (check Settings)"
-                        self.up_status.color = "RED"
-                        self.update()
+                        def update_fail_creds():
+                            self.up_status.value = "Missing Credentials (check Settings)"
+                            self.up_status.color = "RED"
+                            self.update()
+                        self.app_page.run_task(update_fail_creds)
                         return
 
-                    self.token = self.intune_service.authenticate(self.tenant_id, self.client_id, self.client_secret)
-                    self.up_status.value = "Connected"
-                    self.up_status.color = "GREEN"
-                    self.btn_upload.disabled = False
-                    self.update()
+                    auth_token = self.intune_service.authenticate(self.tenant_id, self.client_id, self.client_secret)
+
+                    def update_success():
+                        self.token = auth_token
+                        self.up_status.value = "Connected"
+                        self.up_status.color = "GREEN"
+                        self.btn_upload.disabled = False
+                        self.update()
+                    self.app_page.run_task(update_success)
+
                 except Exception as ex:
-                    self.up_status.value = f"Connection Failed: {ex}"
-                    self.up_status.color = "RED"
-                    self.update()
+                    def update_error():
+                        self.up_status.value = f"Connection Failed: {ex}"
+                        self.up_status.color = "RED"
+                        self.update()
+                    self.app_page.run_task(update_error)
+
             threading.Thread(target=_bg, daemon=True).start()
 
         btn_connect = ft.Button(i18n.get("btn_connect") or "Connect", on_click=connect)
@@ -343,7 +355,17 @@ class ModernIntuneView(ft.Column):
                 def open_folder(e):
                     import subprocess
                     if os.name == 'nt':
-                        subprocess.run(['explorer', f'/select,{output_file}'])
+                        # Use normpath to ensure backslashes
+                        safe_path = os.path.normpath(output_file)
+                        # Quote the path in the argument if it has spaces?
+                        # subprocess.run handles list args by quoting if needed usually,
+                        # but /select,path is tricky as it is one arg for explorer.
+                        # However, explorer /select,"path" works.
+                        # subprocess will quote individual args.
+                        # We need to pass the whole string "/select,path" as one arg if we want explorer to receive it?
+                        # Actually explorer expects: explorer /select,path
+                        # If we pass ["explorer", "/select," + safe_path] it might be quoted as "/select,path" which is fine.
+                        subprocess.run(['explorer', f'/select,{safe_path}'])
                     dlg.open = False
                     self.app_page.update()
 
@@ -429,9 +451,5 @@ class ModernIntuneView(ft.Column):
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True
             self.app_page.update()
-        except Exception:
-            pass
-
-    def _open_explorer_select(self, path):
-         # kept for methods that might call it
-         pass
+        except Exception as e:
+            logger.warning(f"Failed to show snackbar: {e}")

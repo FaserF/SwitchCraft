@@ -21,7 +21,7 @@ class ModernIntuneStoreView(ft.Column):
 
         # UI Components
         self.search_field = ft.TextField(
-            hint_text=i18n.get("search_intune_apps") or "Search Intune Apps...",
+            hint_text=i18n.get("search_intune_apps", default="Search Intune Apps..."),
             expand=True,
             on_submit=self._run_search
         )

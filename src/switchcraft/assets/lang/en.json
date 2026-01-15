@@ -799,5 +799,12 @@
     "lbl_uninstall_cmd": "Uninstall Command",
     "status_not_connected": "Not connected",
     "fill_all_fields": "Please fill all fields",
-    "starting_creation": "Starting creation..."
+    "starting_creation": "Starting creation...",
+    "ai_tips_header": "AI Tips",
+    "ai_addon_required_msg": "The AI Addon is required for this feature.",
+    "notif_test_title": "Test Notification",
+    "notif_test_msg": "This is a test notification from SwitchCraft.",
+    "no_scripts_selected": "No scripts selected",
+    "notif_test_sent": "Test notification sent!",
+    "ai_addon_required_title": "AI Addon Required"
 }

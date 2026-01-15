@@ -3,6 +3,7 @@ from switchcraft.utils.i18n import i18n
 from switchcraft.gui_modern.nav_constants import NavIndex
 import logging
 import threading
+import requests
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
 
@@ -128,13 +129,13 @@ class GroupManagerView(ft.Column):
                 self.groups = self.intune_service.list_groups(self.token)
                 self.filtered_groups = self.groups
                 self._update_table()
-            except PermissionError as e:
+            except requests.exceptions.HTTPError as e:
                 # Handle specific permission error (403)
                 logger.error(f"Permission denied loading groups: {e}")
                 missing_perms = str(e) if str(e) else "Group.Read.All, Group.ReadWrite.All"
                 error_msg = i18n.get("graph_permission_error", permissions=missing_perms) or f"Missing Graph API permissions: {missing_perms}"
                 self._show_snack(error_msg, "RED")
-            except ConnectionError as e:
+            except requests.exceptions.ConnectionError as e:
                 # Handle authentication failure
                 logger.error(f"Authentication failed: {e}")
                 error_msg = i18n.get("graph_auth_error") or "Authentication failed. Please check your credentials."

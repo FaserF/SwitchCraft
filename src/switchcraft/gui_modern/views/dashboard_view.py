@@ -154,7 +154,7 @@ class DashboardView(ft.Column):
 
         self.recent_container.content = ft.Column([
              ft.Text(i18n.get("recent_actions") or "Recent Actions", weight=ft.FontWeight.BOLD, size=18),
-             ft.ListView(recent_list, height=300, spacing=0)
+             ft.ListView(recent_list, expand=True, spacing=0)
         ])
 
 

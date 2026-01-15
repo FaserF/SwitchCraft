@@ -14,8 +14,9 @@ def create_tabs(tabs, **kwargs):
     try:
         # Standard Flet
         return ft.Tabs(tabs=tabs, **kwargs)
-    except TypeError:
+    except TypeError as te:
         # Fallback for environments where Tabs requires content/length (e.g. tests)
+        logger.debug(f"Standard Tabs failed (likely compat mode needed): {te}")
         try:
             # Check if TabBar exists
             if hasattr(ft, "TabBar"):
@@ -26,12 +27,14 @@ def create_tabs(tabs, **kwargs):
                 # Careful: kwargs might contain Tabs properties that TabBar also takes (selected_index, etc.)
                 # But Tabs wrapper might expect them.
 
-                return ft.Tabs(content=ft.TabBar(tabs=tabs), length=len(tabs), **kwargs)
+                length = len(tabs) if tabs else 0
+                return ft.Tabs(content=ft.TabBar(tabs=tabs), length=length, **kwargs)
             else:
-                 # No TabBar, maybe properties assignment?
-                 t = ft.Tabs(**kwargs)
-                 t.tabs = tabs
-                 return t
+                # No TabBar, maybe properties assignment?
+                t = ft.Tabs(**kwargs)
+                if tabs is not None:
+                    t.tabs = tabs
+                return t
         except Exception as e:
             logger.error(f"Failed to create compat Tabs: {e}")
             raise
