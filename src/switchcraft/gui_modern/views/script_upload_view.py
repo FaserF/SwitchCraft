@@ -514,7 +514,6 @@ class ScriptUploadView(ft.Column):
                         )
                     )
                 else:
-                else:
                     self.repo_script_items = []
                     for script_path in ps_files[:50]:  # Limit to 50
                         cb = ft.Checkbox(value=False)

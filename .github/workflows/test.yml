@@ -12,7 +12,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     if: inputs.component == 'backend'
     strategy:
-      fail-fast: false
+      fail-fast: true
+      max-parallel: 1
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.13", "3.14"]
