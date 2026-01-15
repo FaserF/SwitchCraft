@@ -19,6 +19,7 @@ class TestUIIntegrity(unittest.TestCase):
         self.page.add = MagicMock()
         self.page.update = MagicMock()
         self.page.clean = MagicMock()
+        self.page.open = MagicMock()
 
     def test_helper_view_init(self):
         """Test if HelperView initializes without TypeError."""

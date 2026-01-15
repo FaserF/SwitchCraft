@@ -137,7 +137,7 @@ def ModernHelperView(page: ft.Page):
             content=chat_history,
             expand=True,
             bgcolor="BLACK12",
-            border=ft.border.all(1, "GREY_700"),
+            border=ft.Border.all(1, "GREY_700"),
             border_radius=10,
             padding=15
         ),
@@ -157,6 +157,6 @@ def ModernHelperView(page: ft.Page):
             bgcolor="SURFACE_VARIANT",
             padding=10,
             border_radius=10,
-            border=ft.border.all(1, "GREY_700"),
+            border=ft.Border.all(1, "GREY_700"),
         )
     ], expand=True)

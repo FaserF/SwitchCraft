@@ -44,6 +44,10 @@ class GroupManagerView(ft.Column):
 
         # UI Components
         self._init_ui()
+
+        # self._load_data() moved to did_mount
+
+    def did_mount(self):
         self._load_data()
 
     def _init_ui(self):
@@ -68,12 +72,19 @@ class GroupManagerView(ft.Column):
             on_click=self._confirm_delete
         )
 
-        header = ft.Row([
+        self.members_btn = ft.Button(
+            i18n.get("btn_manage_members") or "Manage Members",
+            icon=ft.Icons.PEOPLE,
+            disabled=True,
+            on_click=self._show_members_dialog
+        )
+
             self.search_field,
             self.refresh_btn,
             ft.VerticalDivider(),
             self.create_btn,
             ft.Container(expand=True),
+            self.members_btn,
             self.delete_toggle,
             self.delete_btn
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
@@ -81,10 +92,10 @@ class GroupManagerView(ft.Column):
         # Datatable
         self.dt = ft.DataTable(
             columns=[
-                ft.DataColumn(ft.Text("Name")),
-                ft.DataColumn(ft.Text("Description")),
-                ft.DataColumn(ft.Text("ID")),
-                ft.DataColumn(ft.Text("Type")),
+                ft.DataColumn(ft.Text(i18n.get("col_name") or "Name")),
+                ft.DataColumn(ft.Text(i18n.get("col_description") or "Description")),
+                ft.DataColumn(ft.Text(i18n.get("col_id") or "ID")),
+                ft.DataColumn(ft.Text(i18n.get("col_type") or "Type")),
             ],
             rows=[],
             border=ft.border.all(1, "GREY_400"),
@@ -99,8 +110,8 @@ class GroupManagerView(ft.Column):
         self.controls = [
             ft.Container(
                 content=ft.Column([
-                    ft.Text("Entra Group Manager", size=28, weight=ft.FontWeight.BOLD),
-                    ft.Text("Manage your Microsoft Entra ID (Azure AD) groups.", color="GREY"),
+                    ft.Text(i18n.get("entra_group_manager_title") or "Entra Group Manager", size=28, weight=ft.FontWeight.BOLD),
+                    ft.Text(i18n.get("entra_group_manager_desc") or "Manage your Microsoft Entra ID (Azure AD) groups.", color="GREY"),
                     ft.Divider(),
                     header,
                     ft.Divider(),
@@ -132,8 +143,11 @@ class GroupManagerView(ft.Column):
             except requests.exceptions.HTTPError as e:
                 # Handle specific permission error (403)
                 logger.error(f"Permission denied loading groups: {e}")
-                missing_perms = str(e) if str(e) else "Group.Read.All, Group.ReadWrite.All"
-                error_msg = i18n.get("graph_permission_error", permissions=missing_perms) or f"Missing Graph API permissions: {missing_perms}"
+                if e.response is not None and e.response.status_code == 403:
+                    missing_perms = "Group.Read.All, Group.ReadWrite.All"
+                    error_msg = i18n.get("graph_permission_error", permissions=missing_perms) or f"Missing Graph API permissions: {missing_perms}"
+                else:
+                    error_msg = f"HTTP Error: {e}"
                 self._show_snack(error_msg, "RED")
             except requests.exceptions.ConnectionError as e:
                 # Handle authentication failure
@@ -194,6 +208,7 @@ class GroupManagerView(ft.Column):
 
         # Enable delete only if toggle on and item selected
         self.delete_btn.disabled = not (self.delete_toggle.value and self.selected_group)
+        self.members_btn.disabled = not self.selected_group
         self.update()
 
     def _toggle_delete_mode(self, e):
@@ -204,14 +219,14 @@ class GroupManagerView(ft.Column):
         def close_dlg(e):
             self.app_page.close_dialog()
 
-        name_field = ft.TextField(label="Group Name", autofocus=True)
-        desc_field = ft.TextField(label="Description")
+        name_field = ft.TextField(label=i18n.get("group_name") or "Group Name", autofocus=True)
+        desc_field = ft.TextField(label=i18n.get("group_desc") or "Description")
 
         def create(e):
             if not name_field.value:
                 return
             if not self.token:
-                self._show_snack("Not connected to Intune", "RED")
+                self._show_snack(i18n.get("not_connected_intune") or "Not connected to Intune", "RED")
                 return
 
             def _bg():
@@ -226,11 +241,11 @@ class GroupManagerView(ft.Column):
             threading.Thread(target=_bg, daemon=True).start()
 
         dlg = ft.AlertDialog(
-            title=ft.Text("Create New Group"),
+            title=ft.Text(i18n.get("create_new_group") or "Create New Group"),
             content=ft.Column([name_field, desc_field], height=150),
             actions=[
-                ft.TextButton("Cancel", on_click=close_dlg),
-                ft.Button("Create", on_click=create, bgcolor="BLUE", color="WHITE")
+                ft.TextButton(i18n.get("cancel") or "Cancel", on_click=close_dlg),
+                ft.Button(i18n.get("create") or "Create", on_click=create, bgcolor="BLUE", color="WHITE")
             ],
         )
         self.app_page.open(dlg)
@@ -302,3 +317,140 @@ class GroupManagerView(ft.Column):
         except Exception:
             pass
         self._show_snack("Please navigate to Settings tab manually", "ORANGE")
+
+    def _show_members_dialog(self, e):
+        if not self.selected_group or not self.token:
+            return
+
+        group_name = self.selected_group.get('displayName')
+        group_id = self.selected_group.get('id')
+
+        # Dialog controls
+        members_list = ft.ListView(expand=True, spacing=10, height=300)
+        loading = ft.ProgressBar(width=None)
+
+        def load_members():
+            members_list.controls.clear()
+            members_list.controls.append(loading)
+            dlg.update()
+
+            def _bg():
+                try:
+                    members = self.intune_service.list_group_members(self.token, group_id)
+                    members_list.controls.clear()
+
+                    if not members:
+                        members_list.controls.append(ft.Text(i18n.get("no_members") or "No members found.", italic=True))
+                    else:
+                        for m in members:
+                            members_list.controls.append(
+                                ft.ListTile(
+                                    leading=ft.Icon(ft.Icons.PERSON),
+                                    title=ft.Text(m.get('displayName') or "Unknown"),
+                                    subtitle=ft.Text(m.get('userPrincipalName') or m.get('mail') or "No Email"),
+                                    trailing=ft.IconButton(
+                                        ft.Icons.REMOVE_CIRCLE_OUTLINE,
+                                        icon_color="RED",
+                                        tooltip=i18n.get("remove_member") or "Remove Member",
+                                        on_click=lambda e, uid=m.get('id'): remove_member(uid)
+                                    )
+                                )
+                            )
+                except Exception as ex:
+                    members_list.controls.clear()
+                    error_tmpl = i18n.get("error_loading_members") or "Error loading members: {error}"
+                    members_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
+
+                dlg.update()
+
+            threading.Thread(target=_bg, daemon=True).start()
+
+        def remove_member(user_id):
+            def _bg():
+                try:
+                    self.intune_service.remove_group_member(self.token, group_id, user_id)
+                    self._show_snack(i18n.get("member_removed") or "Member removed", "GREEN")
+                    load_members() # Refresh
+                except Exception as ex:
+                    self._show_snack(f"Failed to remove member: {ex}", "RED")
+            threading.Thread(target=_bg, daemon=True).start()
+
+        def show_add_dialog(e):
+            # Nested dialog for searching users
+            search_box = ft.TextField(
+                label=i18n.get("search_user_hint") or "Search User (Name or Email)",
+                autofocus=True,
+                on_submit=lambda e: search_users(e)
+            )
+            results_list = ft.ListView(expand=True, height=200)
+
+            def search_users(e):
+                query = search_box.value
+                if not query: return
+
+                results_list.controls.clear()
+                results_list.controls.append(ft.ProgressBar())
+                add_dlg.update()
+
+                def _bg():
+                    try:
+                        bg_users = self.intune_service.search_users(self.token, query)
+                        results_list.controls.clear()
+                        if not bg_users:
+                            results_list.controls.append(ft.Text(i18n.get("no_users_found") or "No users found.", italic=True))
+                        else:
+                            for u in bg_users:
+                                results_list.controls.append(
+                                    ft.ListTile(
+                                        leading=ft.Icon(ft.Icons.PERSON_ADD),
+                                        title=ft.Text(u.get('displayName')),
+                                        subtitle=ft.Text(u.get('userPrincipalName') or u.get('mail')),
+                                        on_click=lambda e, uid=u.get('id'): add_user(uid)
+                                    )
+                                )
+                    except Exception as ex:
+                        results_list.controls.clear()
+                        error_tmpl = i18n.get("error_search_failed") or "Search failed: {error}"
+                        results_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
+                    add_dlg.update()
+
+                threading.Thread(target=_bg, daemon=True).start()
+
+            def add_user(user_id):
+                self.app_page.close_dialog() # Close add dialog
+
+                def _bg():
+                    try:
+                        self.intune_service.add_group_member(self.token, group_id, user_id)
+                        self._show_snack(i18n.get("member_added") or "Member added successfully", "GREEN")
+                        load_members() # Refresh main list
+                    except Exception as ex:
+                        self._show_snack(f"Failed to add member: {ex}", "RED")
+                threading.Thread(target=_bg, daemon=True).start()
+
+            add_dlg = ft.AlertDialog(
+                title=ft.Text(i18n.get("dlg_add_member") or "Add Member"),
+                content=ft.Column([search_box, results_list], height=300, width=400),
+                actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self.app_page.close_dialog())]
+            )
+            self.app_page.open(add_dlg)
+            self.app_page.update()
+
+        title_tmpl = i18n.get("members_title") or "Members: {group}"
+        dlg = ft.AlertDialog(
+            title=ft.Text(title_tmpl.format(group=group_name)),
+            content=ft.Column([
+                ft.Row([
+                    ft.Text(i18n.get("current_members") or "Current Members", weight=ft.FontWeight.BOLD, size=16),
+                    ft.Container(expand=True),
+                    ft.Button(i18n.get("btn_add_member") or "Add Member", icon=ft.Icons.ADD, on_click=show_add_dialog)
+                ]),
+                ft.Divider(),
+                members_list
+            ], height=400, width=500),
+            actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self.app_page.close_dialog())],
+        )
+
+        self.app_page.open(dlg)
+        self.app_page.update()
+        load_members()

@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 import os
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ class LibraryView(ft.Column):
             user_home / "Desktop",
         ]
 
-        import sys
+
         if sys.platform == "win32":
             default_dirs.extend([
                 Path("C:/Temp"),
@@ -294,7 +295,7 @@ class LibraryView(ft.Column):
 
     def _open_folder(self, path):
         """Open the folder containing the file."""
-        import sys
+
         import subprocess
         try:
             folder = os.path.dirname(path)

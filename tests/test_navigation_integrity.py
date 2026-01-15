@@ -17,6 +17,7 @@ class TestNavigationIntegrity(unittest.TestCase):
         self.mock_page.clean = MagicMock()
         self.mock_page.add = MagicMock()
         self.mock_page.update = MagicMock()
+        self.mock_page.open = MagicMock()
 
         # Patch internal method that fails with mock page
         self.patcher = patch('switchcraft.gui_modern.app.ModernApp._on_notification_update')
@@ -75,8 +76,8 @@ class TestNavigationIntegrity(unittest.TestCase):
         app.addon_service = MagicMock()
         app.addon_service.load_addon_view.return_value = MagicMock()
 
-        # Dynamic index = 20 (0 + 20)
-        app._switch_to_tab(20)
+        # Dynamic index = 21 (20 + 1)
+        app._switch_to_tab(21)
 
         # Check calls
         app.addon_service.load_addon_view.assert_called_with('test_addon')

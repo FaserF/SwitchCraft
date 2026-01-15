@@ -108,7 +108,7 @@ class ModernIntuneView(ft.Column):
             return ft.Row([field, btn])
 
         btn_create = ft.ElevatedButton(
-            text=i18n.get("btn_create_intunewin") or "Create .intunewin",
+            i18n.get("btn_create_intunewin") or "Create .intunewin",
             style=ft.ButtonStyle(
                 bgcolor="GREEN_700",
                 color="WHITE",
@@ -217,21 +217,27 @@ class ModernIntuneView(ft.Column):
             def _bg():
                 try:
                     apps = self.intune_service.search_apps(self.token, query)
-                    self.found_apps = {app['id']: app for app in apps}
-                    options = [ft.dropdown.Option(app['id'], f"{app['displayName']} ({app.get('appVersion', 'Unknown')})") for app in apps]
 
-                    if not options:
-                        self.supersede_status_text.value = "No apps found"
-                        self.supersede_options.visible = False
-                        self.supersede_copy_btn.visible = False
-                    else:
-                        self.supersede_options.options = options
-                        self.supersede_options.visible = True
-                        self.supersede_status_text.value = f"Found {len(apps)} apps"
-                    self.update()
+                    def update_results():
+                        self.found_apps = {app['id']: app for app in apps}
+                        options = [ft.dropdown.Option(app['id'], f"{app['displayName']} ({app.get('appVersion', 'Unknown')})") for app in apps]
+
+                        if not options:
+                            self.supersede_status_text.value = "No apps found"
+                            self.supersede_options.visible = False
+                            self.supersede_copy_btn.visible = False
+                        else:
+                            self.supersede_options.options = options
+                            self.supersede_options.visible = True
+                            self.supersede_status_text.value = f"Found {len(apps)} apps"
+                        self.update()
+                    self.app_page.run_task(update_results)
+
                 except Exception as ex:
-                    self.supersede_status_text.value = f"Search Error: {ex}"
-                    self.update()
+                    def update_error():
+                        self.supersede_status_text.value = f"Search Error: {ex}"
+                        self.update()
+                    self.app_page.run_task(update_error)
             threading.Thread(target=_bg, daemon=True).start()
 
         def on_app_select(e):
@@ -291,23 +297,28 @@ class ModernIntuneView(ft.Column):
                 # Search result is usually summary, get_app_details is better
                 full_app = self.intune_service.get_app_details(self.token, app_id)
 
-                self.up_display_name.value = full_app.get("displayName", "")
-                self.up_description.value = full_app.get("description", "")
-                self.up_publisher.value = full_app.get("publisher", "")
+                def update_ui():
+                    self.up_display_name.value = full_app.get("displayName", "")
+                    self.up_description.value = full_app.get("description", "")
+                    self.up_publisher.value = full_app.get("publisher", "")
 
-                # Try to preserve commands if possible? Or maybe not, user should probably update them.
-                # But user asked for "Select which it replaces... automatically take info"
-                self.up_install_cmd.value = full_app.get("installCommandLine", "")
-                self.up_uninstall_cmd.value = full_app.get("uninstallCommandLine", "")
+                    # Try to preserve commands if possible? Or maybe not, user should probably update them.
+                    # But user asked for "Select which it replaces... automatically take info"
+                    self.up_install_cmd.value = full_app.get("installCommandLine", "")
+                    self.up_uninstall_cmd.value = full_app.get("uninstallCommandLine", "")
 
-                self.supersede_status_text.value = "Metadata copied!"
-                self.supersede_status_text.color = "GREEN"
-                self.update()
-                self._show_snack("Metadata copied from " + full_app.get("displayName", ""), "GREEN")
+                    self.supersede_status_text.value = "Metadata copied!"
+                    self.supersede_status_text.color = "GREEN"
+                    self.update()
+                    self._show_snack("Metadata copied from " + full_app.get("displayName", ""), "GREEN")
+                self.app_page.run_task(update_ui)
+
             except Exception as ex:
-                self.supersede_status_text.value = f"Copy Failed: {ex}"
-                self.supersede_status_text.color = "RED"
-                self.update()
+                def update_error():
+                    self.supersede_status_text.value = f"Copy Failed: {ex}"
+                    self.supersede_status_text.color = "RED"
+                    self.update()
+                self.app_page.run_task(update_error)
         threading.Thread(target=_bg, daemon=True).start()
 
     def _log(self, msg):
@@ -407,33 +418,45 @@ class ModernIntuneView(ft.Column):
 
         def _bg():
             try:
+                def update_progress(pct, msg):
+                    def _u():
+                        self.up_status.value = f"{int(pct*100)}% - {msg}"
+                        self.update()
+                    self.app_page.run_task(_u)
+
                 # 1. Upload
                 new_app_id = self.intune_service.upload_win32_app(
                     self.token,
                     path,
                     app_info,
-                    progress_callback=lambda pct, msg: setattr(self.up_status, "value", f"{int(pct*100)}% - {msg}") or self.update()
+                    progress_callback=update_progress
                 )
 
                 # 2. Add Supersedence if selected
                 if child_supersede:
-                    self.up_status.value = "Adding Supersedence..."
-                    self.update()
+                    def update_sup():
+                        self.up_status.value = "Adding Supersedence..."
+                        self.update()
+                    self.app_page.run_task(update_sup)
+
                     self.intune_service.add_supersedence(self.token, new_app_id, child_supersede, uninstall_prev=uninstall_prev)
 
-                self.up_status.value = "Upload Complete!"
-                self.up_status.color = "GREEN"
-                self.btn_upload.disabled = False
-                self.update()
-
-                self._show_success_dialog(new_app_id)
+                def update_done():
+                    self.up_status.value = "Upload Complete!"
+                    self.up_status.color = "GREEN"
+                    self.btn_upload.disabled = False
+                    self.update()
+                    self._show_success_dialog(new_app_id)
+                self.app_page.run_task(update_done)
 
             except Exception as ex:
                 logger.error(f"Upload failed: {ex}")
-                self.up_status.value = f"Error: {ex}"
-                self.up_status.color = "RED"
-                self.btn_upload.disabled = False
-                self.update()
+                def update_fail():
+                    self.up_status.value = f"Error: {ex}"
+                    self.up_status.color = "RED"
+                    self.btn_upload.disabled = False
+                    self.update()
+                self.app_page.run_task(update_fail)
 
         threading.Thread(target=_bg, daemon=True).start()
 

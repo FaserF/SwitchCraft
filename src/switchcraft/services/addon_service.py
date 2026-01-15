@@ -268,7 +268,11 @@ class AddonService:
         - If not found, falls back to 'latest' release with a warning.
         - Looks for 'switchcraft_{addon_id}.zip' asset.
         """
-        import requests
+        try:
+            import requests
+        except ImportError:
+            logger.error("requests module not found. Please install it to use this feature.")
+            return False, "Python 'requests' module is missing."
 
         from switchcraft import __version__ as current_app_version
 
@@ -314,7 +318,7 @@ class AddonService:
                         used_tag = release_data.get("tag_name")
                         warning_msg = f"Version mismatch: Installed {addon_id} from {used_tag} (Expected {target_tag}). Compatibility not guaranteed."
                         logger.warning(warning_msg)
-                    except ValueError: # JSONDecodeError
+                    except (ValueError, json.JSONDecodeError):
                         logger.error(f"Invalid JSON from latest release: {resp.text[:100]}")
                         return False, "Invalid response from GitHub."
                 else:

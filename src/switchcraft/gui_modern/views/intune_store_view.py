@@ -88,8 +88,7 @@ class ModernIntuneStoreView(ft.Column):
              # Fallback: check if we have a way to signal tab change
              # ModernApp stores 'app' on page in some instances or we can find the rail
              # Since this is a view, we usually just show snackbar or let user navigate.
-             # But for best UX, we attempt to find the navigation method.
-             pass
+             self._show_snack(i18n.get("nav_error") or "Cannot navigate to Settings automatically.", "ORANGE")
 
     def _has_credentials(self):
         tenant_id = SwitchCraftConfig.get_value("GraphTenantId")
@@ -209,5 +208,5 @@ class ModernIntuneStoreView(ft.Column):
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True
             self.app_page.update()
-        except Exception:
-             pass
+        except Exception as e:
+             logger.debug(f"Failed to show snackbar: {e}")

@@ -248,7 +248,6 @@ class ModernApp:
                 logger.debug(f"JumpList not supported: {e}")
 
             # Set window icon paths
-            import os
             import sys
 
             # Asset Path Resolution for Flet
@@ -458,7 +457,7 @@ class ModernApp:
 
                 # UI Update needs to happen on loop? Flet is thread-safe for simple updates usually
                 def update_ui():
-                    if not dlg.open or dlg not in self.page.dialogs and dlg != self.page.dialog:
+                    if not dlg.open or (hasattr(self.page, "dialog") and dlg != self.page.dialog):
                         # Dialog might be closed or not active
                         return
 
@@ -631,6 +630,9 @@ class ModernApp:
                 ),  # 20 Winget Create
             ]
 
+
+        # Capture the end of static destinations to calculate offset later
+        self.first_dynamic_index = len(self.destinations)
 
         # Load Dynamic Addons
         try:
@@ -1021,7 +1023,14 @@ class ModernApp:
 
         else:
             # Dynamic Addons
-            dynamic_idx = idx - (NavIndex.WINGET_CREATE + 1)
+            # Robust calculation relying on captured start index
+            if hasattr(self, 'first_dynamic_index'):
+                dynamic_idx = idx - self.first_dynamic_index
+            else:
+                # Fallback if somehow not set (should not happen if build_ui called)
+                # This fallback assumes WINGET_CREATE is last static
+                dynamic_idx = idx - (NavIndex.WINGET_CREATE + 1)
+
             if 0 <= dynamic_idx < len(self.dynamic_addons):
                 addon = self.dynamic_addons[dynamic_idx]
                 def _f():

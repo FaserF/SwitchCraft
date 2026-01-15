@@ -17,7 +17,8 @@ import os
 import sys
 from pathlib import Path
 from switchcraft.utils.i18n import i18n
-from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.gui_modern.utils.flet_compat import create_tabs
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class WingetCreateView(ft.Column):
                 self.tab_body.content = self._build_update_tab()
             self.tab_body.update()
 
-        tabs = ft.Tabs(
+        tabs = create_tabs(
             selected_index=0,
             animation_duration=300,
             expand=True,
@@ -486,8 +487,11 @@ class WingetCreateView(ft.Column):
                 cmd.extend(["--output", str(self.manifest_dir)])
 
                 # Submit PR?
+                # Submit PR?
+                env = os.environ.copy()
                 if self.new_submit_pr.value and self.new_github_token.value:
-                    cmd.extend(["--token", self.new_github_token.value])
+                    # Pass token via environment variable instead of CLI argument for security
+                    env["WINGET_CREATE_GITHUB_TOKEN"] = self.new_github_token.value
                     cmd.append("--submit")
 
                 # Run command
@@ -497,9 +501,9 @@ class WingetCreateView(ft.Column):
                 if sys.platform == "win32":
                     startupinfo = subprocess.STARTUPINFO()
                     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                    kwargs = {"startupinfo": startupinfo}
+                    kwargs = {"startupinfo": startupinfo, "env": env}
                 else:
-                    kwargs = {}
+                    kwargs = {"env": env}
 
                 result = subprocess.run(
                     cmd,
@@ -642,19 +646,18 @@ class WingetCreateView(ft.Column):
                 cmd = ["winget", "validate", str(self.manifest_dir)]
 
                 if sys.platform == "win32":
-                    if sys.platform == "win32":
-                        startupinfo = subprocess.STARTUPINFO()
-                        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                        kwargs = {"startupinfo": startupinfo}
-                    else:
-                        kwargs = {}
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    kwargs = {"startupinfo": startupinfo}
+                else:
+                    kwargs = {}
 
-                    result = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
                     timeout=30,
-                        **kwargs
+                    **kwargs
                 )
 
                 output = result.stdout + "\n" + result.stderr

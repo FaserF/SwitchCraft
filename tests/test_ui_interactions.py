@@ -57,6 +57,36 @@ def find_buttons(control):
 
     return buttons
 
+
+def find_all_buttons_and_inputs(control):
+    items = []
+    button_types = (ft.FilledButton, ft.TextButton, ft.IconButton, ft.OutlinedButton, ft.TextField)
+    if hasattr(ft, "ElevatedButton"):
+        button_types += (ft.ElevatedButton,)
+    if hasattr(ft, "Button"):
+        button_types += (ft.Button,)
+
+    if isinstance(control, button_types):
+        items.append(control)
+
+    # Recursive traversal
+    children = []
+    if hasattr(control, "controls") and control.controls:
+        children.extend(control.controls)
+    if hasattr(control, "content") and control.content:
+        children.append(control.content)
+
+    # Handle TabBar
+    if isinstance(control, ft.TabBar) and control.tabs:
+        children.extend(control.tabs)
+
+    # Handle Tabs (Old alias compatibility check?)
+    # No, assume Flet 0.80.1, we traverse content.
+
+    for child in children:
+        items.extend(find_all_buttons_and_inputs(child))
+    return items
+
 def test_settings_view_buttons(mock_page):
     """Test all buttons in SettingsView (General, Updates, Deployment, Help)."""
 
@@ -202,7 +232,8 @@ def test_analyzer_view_buttons(mock_page):
     # Patch the SOURCE of HistoryService so local imports mock it too
     with patch("switchcraft.gui_modern.views.analyzer_view.HAS_DROPZONE", True), \
          patch("switchcraft.services.history_service.HistoryService") as MockHistoryService, \
-         patch("switchcraft.gui_modern.views.analyzer_view.webbrowser") as MockWebReader:
+         patch("switchcraft.gui_modern.views.analyzer_view.webbrowser") as MockWebReader, \
+         patch("switchcraft.gui_modern.utils.file_picker_helper.FilePickerHelper.save_file", return_value="mock_script.ps1"):
 
         log("\nInstantiating AnalyzerView")
 
@@ -278,6 +309,7 @@ def test_library_view_buttons(mock_page):
 
     # 1. Test "Intune not configured" state
     with patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_value") as mock_get, \
+         patch("switchcraft.gui_modern.utils.file_picker_helper.FilePickerHelper.save_file", return_value="mock_script.ps1") as mock_save, \
          patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_secure_value") as mock_secure:
 
         # Simulate missing credentials
@@ -396,35 +428,7 @@ def test_settings_view_entra_test_connection(mock_page):
              log(f"CRITICAL: SettingsView init failed: {e}")
              pytest.fail(f"SettingsView init failed: {e}")
 
-        # Helper to find items
-        def find_all_buttons_and_inputs(control):
-            items = []
-            button_types = (ft.FilledButton, ft.TextButton, ft.IconButton, ft.OutlinedButton, ft.TextField)
-            if hasattr(ft, "ElevatedButton"):
-                button_types += (ft.ElevatedButton,)
-            if hasattr(ft, "Button"):
-                button_types += (ft.Button,)
 
-            if isinstance(control, button_types):
-                items.append(control)
-
-            # Recursive traversal
-            children = []
-            if hasattr(control, "controls") and control.controls:
-                children.extend(control.controls)
-            if hasattr(control, "content") and control.content:
-                children.append(control.content)
-
-            # Handle TabBar
-            if isinstance(control, ft.TabBar) and control.tabs:
-                children.extend(control.tabs)
-
-            # Handle Tabs (Old alias compatibility check?)
-            # No, assume Flet 0.80.1, we traverse content.
-
-            for child in children:
-                items.extend(find_all_buttons_and_inputs(child))
-            return items
 
         items = find_all_buttons_and_inputs(view)
         log(f"Found {len(items)} interactive items in SettingsView")

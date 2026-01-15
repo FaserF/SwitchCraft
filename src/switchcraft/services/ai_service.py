@@ -37,5 +37,9 @@ else:
                 "• For NSIS: Use `/S` (case sensitive)\n"
                 "• For Inno Setup: Use `/VERYSILENT /SUPPRESSMSGBOXES`\n"
                 "• For InstallShield: Use `/s /v\"/qn\"`\n\n"
-                f"Your question: *{query}*"
+                f"Your question: *{self.context.get('query', 'Unknown')}*"
             )
+
+        def ask(self, query):
+            """Stub ask method"""
+            return self.update_context({'query': query})

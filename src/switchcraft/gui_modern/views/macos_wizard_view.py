@@ -26,7 +26,7 @@ class MacOSWizardView(ft.Column):
         self.intune_service = IntuneService()
 
         # State
-        self.dmg_url = ""
+
         self.local_file_path = None
         self.generated_script = ""
 

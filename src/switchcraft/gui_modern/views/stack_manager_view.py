@@ -50,7 +50,7 @@ class StackManagerView(ft.Column):
                     )
                 ], spacing=10)
             ]),
-            padding=ft.padding.only(bottom=15),
+            padding=ft.Padding.only(bottom=15),
         )
 
         # Left panel - Stack list
@@ -77,7 +77,7 @@ class StackManagerView(ft.Column):
                     expand=True,
                     bgcolor="BLACK12",
                     border_radius=10,
-                    border=ft.border.all(1, "WHITE10")
+                    border=ft.Border.all(1, "WHITE10")
                 )
             ], spacing=5),
             width=280,
@@ -108,7 +108,7 @@ class StackManagerView(ft.Column):
                     expand=True,
                     bgcolor="BLACK12",
                     border_radius=10,
-                    border=ft.border.all(1, "WHITE10")
+                    border=ft.Border.all(1, "WHITE10")
                 ),
                 ft.Container(height=15),
                 ft.Row([

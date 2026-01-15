@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch, mock_open
 import json
 import os
+import sys
 from pathlib import Path
 from switchcraft.services.winget_manifest_service import WingetManifestService
 from switchcraft.services.intune_service import IntuneService
@@ -93,6 +94,7 @@ def test_config_defaults():
 # --- Addon Service Tests ---
 
 @patch("winreg.OpenKey")
+@pytest.mark.skipif(sys.platform != "win32", reason="winreg only on Windows")
 def test_addon_detection(mock_open_key):
     pytest.importorskip("winreg")
     """Test registry detection for advanced addon."""

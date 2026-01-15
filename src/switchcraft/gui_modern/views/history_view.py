@@ -16,7 +16,7 @@ def ModernHistoryView(page: ft.Page):
             ft.DataColumn(ft.Text(i18n.get("col_action") or "Action")),
         ],
         rows=[],
-        border=ft.border.all(1, "grey"),
+        border=ft.Border.all(1, "grey"),
         vertical_lines=ft.border.BorderSide(1, "grey"),
         horizontal_lines=ft.border.BorderSide(1, "grey"),
         heading_row_color="SURFACE_VARIANT",
@@ -109,7 +109,7 @@ def ModernHistoryView(page: ft.Page):
     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
     return ft.Column([
-        ft.Container(content=toolbar, padding=ft.padding.only(left=20, right=20, top=10)),
+        ft.Container(content=toolbar, padding=ft.Padding.only(left=20, right=20, top=10)),
         loading,
         ft.Divider(),
         ft.Column([history_table], scroll=ft.ScrollMode.AUTO, expand=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER)

@@ -734,3 +734,79 @@ class IntuneService:
         except Exception as e:
             logger.error(f"Failed to delete group: {e}")
             raise e
+
+    def list_group_members(self, token, group_id):
+        """List members of a group."""
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        url = f"https://graph.microsoft.com/v1.0/groups/{group_id}/members"
+
+        try:
+            members = []
+            while url:
+                resp = requests.get(url, headers=headers, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
+                members.extend(data.get('value', []))
+                url = data.get('@odata.nextLink')
+            return members
+        except Exception as e:
+            logger.error(f"Failed to list group members: {e}")
+            raise
+
+    def add_group_member(self, token, group_id, user_id):
+        """Add a member to a group."""
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        url = f"https://graph.microsoft.com/v1.0/groups/{group_id}/members/$ref"
+
+        payload = {
+            "@odata.id": f"https://graph.microsoft.com/v1.0/directoryObjects/{user_id}"
+        }
+
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=30)
+            resp.raise_for_status()
+            logger.info(f"Added member {user_id} to group {group_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to add group member: {e}")
+            raise
+
+    def remove_group_member(self, token, group_id, user_id):
+        """Remove a member from a group."""
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        url = f"https://graph.microsoft.com/v1.0/groups/{group_id}/members/{user_id}/$ref"
+
+        try:
+            resp = requests.delete(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            logger.info(f"Removed member {user_id} from group {group_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to remove group member: {e}")
+            raise
+
+    def search_users(self, token, query):
+        """Search for users by displayName or userPrincipalName."""
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        # Select specific fields to optimize
+        url = "https://graph.microsoft.com/v1.0/users"
+
+        # OData filter for 'startswith' is common, or 'search' if consistency enabled.
+        # Simple startswith on displayName or userPrincipalName.
+        # Graph supports $search="displayName:foo" with ConsistencyLevel header.
+
+        headers["ConsistencyLevel"] = "eventual"
+        escaped = query.replace("'", "''")
+        params = {
+            "$search": f"\"displayName:{escaped}\" OR \"userPrincipalName:{escaped}\" OR \"mail:{escaped}\"",
+            "$select": "id,displayName,userPrincipalName,mail,jobTitle"
+        }
+
+        try:
+            resp = requests.get(url, headers=headers, params=params, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get('value', [])
+        except Exception as e:
+            logger.error(f"Failed to search users: {e}")
+            raise

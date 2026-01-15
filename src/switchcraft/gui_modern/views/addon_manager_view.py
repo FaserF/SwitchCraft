@@ -46,7 +46,7 @@ class AddonManagerView(ft.Column):
                 ft.DataColumn(ft.Text("Author")),
             ],
             rows=[],
-            border=ft.border.all(1, "GREY_400"),
+            border=ft.Border.all(1, "GREY_400"),
             vertical_lines=ft.border.BorderSide(1, "GREY_400"),
             horizontal_lines=ft.border.BorderSide(1, "GREY_400"),
             heading_row_color="BLACK12",

@@ -169,9 +169,6 @@ class ModernAnalyzerView(ft.Column):
             self.source_tab_body.update()
 
         source_tabs = create_tabs(
-            selected_index=0,
-            animation_duration=300,
-            on_change=on_source_tab_change,
             tabs=[
                 ft.Tab(
                     label=i18n.get("local_file") or "Local File",
@@ -181,7 +178,10 @@ class ModernAnalyzerView(ft.Column):
                     label=i18n.get("download_url") or "URL Download",
                     icon=ft.Icons.LINK
                 )
-            ]
+            ],
+            selected_index=0,
+            animation_duration=300,
+            on_change=on_source_tab_change,
         )
 
         self.results_column = ft.Column(expand=False, spacing=15)
@@ -224,8 +224,9 @@ class ModernAnalyzerView(ft.Column):
             return
 
         # Validate URL
+        # Validate URL
         if not url.startswith(("http://", "https://")):
-            self._show_snack("Invalid URL format", "RED")
+            self._show_snack(i18n.get("invalid_url_format") or "Invalid URL format", "RED")
             return
 
         self.url_download_progress.visible = True
@@ -248,22 +249,22 @@ class ModernAnalyzerView(ft.Column):
                 temp_path = Path(temp_dir) / filename
 
                 # Download with progress
-                response = requests.get(url, stream=True, timeout=60)
-                response.raise_for_status()
+                with requests.get(url, stream=True, timeout=60) as response:
+                    response.raise_for_status()
 
-                total_size = int(response.headers.get('content-length', 0))
-                downloaded = 0
+                    total_size = int(response.headers.get('content-length', 0))
+                    downloaded = 0
 
-                with open(temp_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-                            downloaded += len(chunk)
-                            if total_size > 0:
-                                pct = downloaded / total_size
-                                self.url_download_progress.value = pct
-                                self.url_download_status.value = f"{i18n.get('downloading') or 'Downloading'}: {int(pct*100)}%"
-                                self.update()
+                    with open(temp_path, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                if total_size > 0:
+                                    pct = downloaded / total_size
+                                    self.url_download_progress.value = pct
+                                    self.url_download_status.value = f"{i18n.get('downloading') or 'Downloading'}: {int(pct*100)}%"
+                                    self.update()
 
                 self.url_download_progress.visible = False
                 self.url_download_status.value = f"{i18n.get('downloaded') or 'Downloaded'}: {filename}"
@@ -317,7 +318,7 @@ class ModernAnalyzerView(ft.Column):
                 bgcolor="RED_900",
                 padding=15,
                 border_radius=10,
-                margin=ft.margin.only(bottom=15)
+                margin=ft.Margin.only(bottom=15)
             )
             self.addon_warning.visible = True
             # Note: Don't call self.update() here - view isn't added to page yet
@@ -837,7 +838,6 @@ class ModernAnalyzerView(ft.Column):
                 self.app_page.update()
 
                 # Restart as admin
-                # Restart as admin
                 try:
                     import sys
                     if sys.platform != "win32":
@@ -949,7 +949,7 @@ class ModernAnalyzerView(ft.Column):
 
         def _bg():
             try:
-                result_path = self.intune_service.create_intunewin(str(source), setup_file, str(output), quiet=True)
+                self.intune_service.create_intunewin(str(source), setup_file, str(output), quiet=True)
 
                 # Find the created file
                 expected_intunewin = source / (installer.stem + ".intunewin")
@@ -1026,9 +1026,12 @@ class ModernAnalyzerView(ft.Column):
                 ft.TextField(value=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, cmd=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait': self._copy_to_clipboard(cmd))),
             ], height=240, spacing=10),
         )
-        self.app_page.dialog = dlg
-        dlg.open = True
-        self.app_page.update()
+        if hasattr(self.app_page, 'open'):
+            self.app_page.open(dlg)
+        else:
+             self.app_page.dialog = dlg
+             dlg.open = True
+             self.app_page.update()
 
     def _copy_to_clipboard(self, text: str):
         """Copy text to clipboard."""
@@ -1049,8 +1052,8 @@ class ModernAnalyzerView(ft.Column):
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True
             self.app_page.update()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to show snackbar: {e}")
 
     def _add_history_entry(self, info, status):
         try:

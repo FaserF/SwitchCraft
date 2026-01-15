@@ -9,13 +9,13 @@ on:
 
 jobs:
   test-backend:
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     if: inputs.component == 'backend'
     strategy:
       fail-fast: true
       max-parallel: 1
       matrix:
-        os: [ubuntu-latest]
+        os: [windows-latest]
         python-version: ["3.13", "3.14"]
 
     steps:
@@ -30,7 +30,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install .[test,gui]
-          pip install pytest pytest-cov
 
       - name: Run All Python Tests
         run: |
@@ -39,7 +38,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/src
 
   test-cli-core:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     if: inputs.component == 'cli'
     steps:
       - uses: actions/checkout@v6
@@ -53,6 +52,8 @@ jobs:
         run: |
            python -m pip install --upgrade pip
            pip install .
+           # pip install pytest  <-- Included in .[test] or separate step if needed, but here we installed core only.
+           # Assuming we need pytest for testing:
            pip install pytest
 
       - name: Run CLI Dynamic Tests
