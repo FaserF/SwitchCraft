@@ -4,6 +4,14 @@ from switchcraft.utils.i18n import i18n
 
 class HoverSidebar(ft.Stack):
     def __init__(self, app, destinations, on_navigate):
+        """
+        Initialize the HoverSidebar component, configure navigation categories, and build the sidebar and content area controls.
+        
+        Parameters:
+            app: Application instance used by the widget (UI context).
+            destinations (list): List of destination definitions available for navigation.
+            on_navigate (callable): Callback invoked with a destination index when navigation occurs.
+        """
         super().__init__()
         self.app = app
         self.all_destinations = destinations

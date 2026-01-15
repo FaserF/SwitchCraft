@@ -110,7 +110,14 @@ class SessionLogHandler(logging.Handler):
             self.file_handler.setLevel(level)
 
     def get_github_issue_link(self):
-        """Generates a GitHub issue link (template)."""
+        """
+        Builds a prefilled GitHub issue URL for reporting a bug.
+        
+        The generated URL opens the repository's "new issue" page with a prefilled title, body (including OS, Python, and SwitchCraft version), and a "bug" label. If an error occurs while assembling the URL, the repository's new-issue page URL is returned unchanged.
+        
+        Returns:
+            str: The URL to create a new GitHub issue with a prepopulated title, body, and labels, or the base new-issue URL on failure.
+        """
         import platform
         from switchcraft import __version__
 

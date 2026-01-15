@@ -6,7 +6,17 @@ logger = logging.getLogger(__name__)
 
 
 def ModernHelperView(page: ft.Page):
-    """AI Helper View."""
+    """
+    Builds the AI Helper UI view for the provided Flet page.
+    
+    Constructs and returns a Column containing the AI Helper interface: a header (title and subtitle), a chat history area, and an input row with send functionality. If the AI addon fails to initialize, returns a fallback view that prompts the user to install or navigate to the Addon Manager.
+    
+    Parameters:
+        page (ft.Page): The Flet Page instance used for rendering, navigation, clipboard operations, and calling page.update().
+    
+    Returns:
+        ft.Column: A Flet Column control representing the complete AI Helper UI (either the active chat interface or a fallback addon-install prompt).
+    """
     ai_service = None
 
     # Try to load AI Service (uses stub if addon missing)
@@ -21,6 +31,12 @@ def ModernHelperView(page: ft.Page):
 
         def go_to_addons(e):
             # Navigate to Addon Manager (tab index 9 - Settings)
+            """
+            Navigate the application to the Addon Manager tab (tab index 9) or display a snackbar instructing the user to navigate there manually.
+            
+            Parameters:
+                e: The UI event object from the trigger (click/submit). This parameter is accepted for handler compatibility and is not used.
+            """
             if hasattr(page, 'switchcraft_app') and hasattr(page.switchcraft_app, 'goto_tab'):
                 page.switchcraft_app.goto_tab(9)
             else:
@@ -57,6 +73,17 @@ def ModernHelperView(page: ft.Page):
     )
 
     def add_message(sender, text, is_user=False, is_error=False):
+        """
+        Add a chat message row to the UI and update the page.
+        
+        Renders the provided text as a message from `sender`, appends it to `chat_history`, and refreshes `page`. AI messages are rendered as Markdown (links open in the page), while user messages are rendered as plain selectable text. A copy button is included for each message; activating it attempts to copy the message text to the clipboard using multiple fallback methods and displays a transient success or failure snackbar.
+        
+        Parameters:
+            sender (str): Label to display as the message sender (e.g., "AI" or a username).
+            text (str): The message content to render.
+            is_user (bool): If True, treat the message as sent by the user (affects alignment, styling, and rendering).
+            is_error (bool): If True, render the message with error styling to indicate an error state.
+        """
         if is_error:
             bg_color = "RED_900"
         else:
@@ -78,7 +105,11 @@ def ModernHelperView(page: ft.Page):
         message_text = text  # Explicit variable for closure
 
         def copy_handler(e):
-            """Copy message text to clipboard using pyperclip (more reliable)."""
+            """
+            Attempts to copy the captured `message_text` to the system clipboard and shows a localized success or failure snackbar.
+            
+            Tries `pyperclip` first; if unavailable or failing it falls back to the Windows `clip` command, then to `page.set_clipboard` if available. On success displays a green snackbar using the i18n key "copied_to_clipboard"; on failure displays a red snackbar using the i18n key "copy_failed".
+            """
             success = False
             try:
                 # Try pyperclip first (most reliable for desktop)
@@ -148,6 +179,14 @@ def ModernHelperView(page: ft.Page):
         page.update()
 
     def send_message(e):
+        """
+        Handle sending the current input as a user message, display a typing indicator, and asynchronously fetch and display the AI response.
+        
+        Clears the input field, appends the user's message to the chat, shows an "AI is typing..." indicator, and starts a background thread that calls the AI service to obtain a response. When the response arrives the typing indicator is removed and the AI's reply is appended; if an exception occurs, an error message from the AI is appended instead. The page is updated and the input field is refocused.
+        
+        Parameters:
+            e: The click/submit event from the UI control that triggered sending (unused by the function).
+        """
         user_msg = input_field.value
         if not user_msg:
             return

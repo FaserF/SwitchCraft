@@ -10,6 +10,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 
 class TestSessionStorage(unittest.TestCase):
     def setUp(self):
+        """
+        Prepare a mocked ft.Page with a session storage for tests.
+        
+        Creates a MagicMock object with the ft.Page spec and ensures it has a `switchcraft_session`
+        attribute initialized to an empty dictionary if not already present.
+        """
         self.page = MagicMock(spec=ft.Page)
         # Initialize session storage like ModernApp does
         if not hasattr(self.page, 'switchcraft_session'):

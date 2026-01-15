@@ -77,7 +77,11 @@ class TestAppStartupCritical(unittest.TestCase):
             self.fail(f"Failed to import main function: {e}")
 
     def test_main_function_can_be_called(self):
-        """Test that main function can be called with a mock page without errors."""
+        """
+        Ensure switchcraft.modern_main.main can be invoked with a mocked flet Page without variable-scope startup errors.
+        
+        Creates a fully mocked flet Page and patches protocol-related functions and ModernApp. The test fails if calling main raises UnboundLocalError or NameError (indicative of improper splash_proc or other variable scope issues). Other exceptions during startup are tolerated by this test.
+        """
         from unittest.mock import MagicMock, patch
         import flet as ft
 
@@ -116,14 +120,12 @@ class TestAppStartupCritical(unittest.TestCase):
                 mock_app_class.return_value = mock_app
 
                 # Call main() - should not raise UnboundLocalError or other startup errors
-                # Mock sys.exit to prevent test from exiting
-                with patch('sys.exit'):
-                    try:
-                        main(page)
-                    except (UnboundLocalError, NameError) as e:
-                        self.fail(f"Startup error detected: {e}. This indicates a variable scope issue (e.g., splash_proc not declared as global).")
-                    except Exception as e:
-                        # Other exceptions might be expected (e.g., if ModernApp fails to initialize)
+                try:
+                    main(page)
+                except (UnboundLocalError, NameError) as e:
+                    self.fail(f"Startup error detected: {e}. This indicates a variable scope issue (e.g., splash_proc not declared as global).")
+                except Exception as e:
+                    # Other exceptions might be expected (e.g., if ModernApp fails to initialize)
                     # But UnboundLocalError/NameError should never happen
                     if "UnboundLocalError" in str(type(e)) or "NameError" in str(type(e)):
                         self.fail(f"Variable scope error detected: {e}")
@@ -133,7 +135,11 @@ class TestAppStartupCritical(unittest.TestCase):
             self.fail(f"Failed to test main function: {e}")
 
     def test_splash_proc_global_declaration(self):
-        """Test that splash_proc is correctly declared as global in main()."""
+        """
+        Verify that main() declares `splash_proc` as global before it is used or assigned.
+        
+        Reads src/switchcraft/modern_main.py, locates the `main(page: ft.Page)` function, and checks for any use of `splash_proc` inside that function. If `splash_proc` is not used, the test passes. If `splash_proc` is used, the test ensures a `global splash_proc` declaration appears before the first usage; if `splash_proc` is assigned in `main()` without a preceding `global` declaration, the test fails because that would cause an UnboundLocalError at runtime.
+        """
         modern_main_path = Path(__file__).parent.parent / "src" / "switchcraft" / "modern_main.py"
         with open(modern_main_path, "r", encoding="utf-8") as f:
             content = f.read()
