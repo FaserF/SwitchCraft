@@ -122,10 +122,12 @@ class LibraryView(ft.Column):
         # Remove duplicates
         seen = set()
         unique_dirs = []
+        is_windows = sys.platform == "win32"
         for d in dirs:
-            d_normalized = os.path.normpath(d).lower()
-            if d_normalized not in seen:
-                seen.add(d_normalized)
+            d_normalized = os.path.normpath(d)
+            key = d_normalized.lower() if is_windows else d_normalized
+            if key not in seen:
+                seen.add(key)
                 unique_dirs.append(d)
 
         return unique_dirs[:5]  # Limit to 5 directories to avoid slow scanning
@@ -152,8 +154,10 @@ class LibraryView(ft.Column):
                         })
 
                 # Also check one level down (common structure)
-                for subdir in path.iterdir():
-                    if subdir.is_dir():
+                # Also check one level down (common structure), limit to first 20 subdirs
+                try:
+                    subdirs = [x for x in path.iterdir() if x.is_dir()]
+                    for subdir in subdirs[:20]: # Limit subdirectory scan
                         for file in subdir.glob("*.intunewin"):
                             if file.is_file():
                                 stat = file.stat()
@@ -164,6 +168,8 @@ class LibraryView(ft.Column):
                                     'modified': datetime.fromtimestamp(stat.st_mtime),
                                     'directory': str(subdir)
                                 })
+                except Exception:
+                    pass # Ignore permission errors during scan
             except Exception as ex:
                 if isinstance(ex, PermissionError):
                     logger.debug(f"Permission denied scanning {scan_dir}")
@@ -261,7 +267,7 @@ class LibraryView(ft.Column):
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
             ], spacing=5),
             bgcolor="WHITE10",
-            border=ft.border.all(1, "WHITE10"),
+            border=ft.Border.all(1, "WHITE10"),
             border_radius=10,
             padding=15,
             on_hover=lambda e: self._on_tile_hover(e),

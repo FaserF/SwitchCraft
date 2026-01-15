@@ -301,7 +301,7 @@ class AddonService:
                     used_tag = target_tag
                     logger.info(f"Found specific release: {target_tag}")
                 except json.JSONDecodeError as je:
-                    logger.warning(f"Invalid JSON in release {target_tag}: {je}. Resp: {resp.text[:100]}")
+                    logger.warning(f"Invalid JSON in release {target_tag}: {je}")
             else:
                  logger.warning(f"Release {target_tag} not found (Status {resp.status_code}).")
         except Exception as e:
@@ -319,7 +319,7 @@ class AddonService:
                         warning_msg = f"Version mismatch: Installed {addon_id} from {used_tag} (Expected {target_tag}). Compatibility not guaranteed."
                         logger.warning(warning_msg)
                     except (ValueError, json.JSONDecodeError):
-                        logger.error(f"Invalid JSON from latest release: {resp.text[:100]}")
+                        logger.error("Invalid JSON from latest release.")
                         return False, "Invalid response from GitHub."
                 else:
                      logger.error(f"Latest release not found (Status {resp.status_code}).")

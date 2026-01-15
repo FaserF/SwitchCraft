@@ -15,7 +15,6 @@ jobs:
       fail-fast: true
       max-parallel: 1
       matrix:
-        os: [windows-latest]
         python-version: ["3.13", "3.14"]
 
     steps:
@@ -51,10 +50,7 @@ jobs:
       - name: Install Core (No GUI)
         run: |
            python -m pip install --upgrade pip
-           pip install .
-           # pip install pytest  <-- Included in .[test] or separate step if needed, but here we installed core only.
-           # Assuming we need pytest for testing:
-           pip install pytest
+           pip install .[test]
 
       - name: Run CLI Dynamic Tests
         run: |

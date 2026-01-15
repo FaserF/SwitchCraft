@@ -5,10 +5,11 @@ from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 from switchcraft.gui_modern.nav_constants import NavIndex
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
-class ModernIntuneStoreView(ft.Column):
+class ModernIntuneStoreView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -196,17 +197,9 @@ class ModernIntuneStoreView(ft.Column):
                     icon=ft.Icons.CLOUD_UPLOAD,
                     bgcolor="BLUE",
                     color="WHITE",
-                    on_click=lambda _: self._show_snack("Deployment logic coming soon to Store view!", "BLUE")
+                    on_click=lambda _: self._show_snack(i18n.get("store_deploy_soon") or "Deployment logic coming soon to Store view!", "BLUE")
                 )
             ])
         )
 
         self.update()
-
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception as e:
-             logger.debug(f"Failed to show snackbar: {e}")

@@ -8,10 +8,11 @@ from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 from switchcraft.gui_modern.utils.flet_compat import create_tabs
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
-class ModernIntuneView(ft.Column):
+class ModernIntuneView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -107,7 +108,7 @@ class ModernIntuneView(ft.Column):
             btn = ft.IconButton(ft.Icons.FOLDER_OPEN, on_click=lambda e: pick_folder(e, field))
             return ft.Row([field, btn])
 
-        btn_create = ft.ElevatedButton(
+        btn_create = ft.Button(
             i18n.get("btn_create_intunewin") or "Create .intunewin",
             style=ft.ButtonStyle(
                 bgcolor="GREEN_700",
@@ -322,8 +323,10 @@ class ModernIntuneView(ft.Column):
         threading.Thread(target=_bg, daemon=True).start()
 
     def _log(self, msg):
-        self.log_view.controls.append(ft.Text(msg, font_family="Consolas", size=12, color="GREEN_400"))
-        self.update()
+        def _update_ui():
+            self.log_view.controls.append(ft.Text(msg, font_family="Consolas", size=12, color="GREEN_400"))
+            self.update()
+        self.app_page.run_task(_update_ui)
 
     def _run_creation(self, e):
         # ... logic mainly same as before ...
@@ -385,7 +388,7 @@ class ModernIntuneView(ft.Column):
                     content=ft.Text(f"{i18n.get('location')}: {output_file}"),
                     actions=[ft.Button(i18n.get("open_folder") or "Open Folder", on_click=open_folder)]
                 )
-                self.app_page.open(dlg)
+                self.app_page.run_task(lambda: self.app_page.open(dlg))
 
             except Exception as ex:
                 self._log(f"ERROR: {ex}")
@@ -467,12 +470,3 @@ class ModernIntuneView(ft.Column):
             actions=[ft.TextButton("Close", on_click=lambda e: setattr(dlg, "open", False) or self.app_page.update())]
         )
         self.app_page.open(dlg)
-
-
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception as e:
-            logger.warning(f"Failed to show snackbar: {e}")

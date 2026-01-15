@@ -24,8 +24,8 @@ else:
 
             title = i18n.get("ai_addon_required_title") or "🤖 **AI Addon Required**"
             msg = i18n.get("ai_addon_required_msg") or (
-                "The AI Assistant addon is not installed. To get intelligent responses, "
-                "please install the AI addon via the Addon Manager."
+                "The AI Assistant addon is not installed. This feature requires the AI Addon "
+                "to be installed via the Addon Manager to get intelligent responses."
             )
             tips_header = i18n.get("ai_tips_header") or "**In the meantime, here are some tips:**"
 
@@ -41,5 +41,9 @@ else:
             )
 
         def ask(self, query):
-            """Stub ask method"""
-            return self.update_context({'query': query})
+            """Stub ask method - returns a message indicating the AI addon is missing."""
+            title = i18n.get("ai_addon_required_title") or "AI Addon Required"
+            msg = i18n.get("ai_addon_required_msg") or "This feature requires the AI Addon."
+
+            # Include a machine-readable token for tests to easily detect the stub
+            return f"[AI_STUB] {title}: {msg}\n\nYour query: {query}"

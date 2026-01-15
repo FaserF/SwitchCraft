@@ -833,5 +833,6 @@
     "no_members": "No members found.",
     "no_users_found": "No users found.",
     "error_loading_members": "Error loading members: {error}",
-    "error_search_failed": "Search failed: {error}"
+    "error_search_failed": "Search failed: {error}",
+    "store_deploy_soon": "Deployment logic coming soon to Store view!"
 }

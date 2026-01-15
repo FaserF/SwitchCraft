@@ -76,8 +76,15 @@ class TestNavigationIntegrity(unittest.TestCase):
         app.addon_service = MagicMock()
         app.addon_service.load_addon_view.return_value = MagicMock()
 
-        # Dynamic index = 21 (20 + 1)
-        app._switch_to_tab(21)
+        # Dynamic index calculation based on static constants
+        from switchcraft.gui_modern.nav_constants import NavIndex
+
+        # In app.py: dynamic_idx = idx - (NavIndex.WINGET_CREATE + 1)
+        # So idx = dynamic_idx + (NavIndex.WINGET_CREATE + 1)
+        # We want dynamic_idx=0 (first addon)
+        target_idx = 0 + (NavIndex.WINGET_CREATE + 1)
+
+        app._switch_to_tab(target_idx)
 
         # Check calls
         app.addon_service.load_addon_view.assert_called_with('test_addon')

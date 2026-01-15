@@ -4,10 +4,11 @@ import threading
 
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
-class AddonManagerView(ft.Column):
+class AddonManagerView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -158,11 +159,3 @@ class AddonManagerView(ft.Column):
         self.app_page.dialog = dlg
         dlg.open = True
         self.app_page.update()
-
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception:
-            pass

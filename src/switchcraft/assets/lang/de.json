@@ -558,7 +558,7 @@
     "deploying_apps": "Bereitstellen",
     "deploy_stack_note": "Hinweis: Diese Funktion erfordert konfigurierte Intune-Integration.",
     "btn_deploy": "Bereitstellen",
-    "deploy_stack_started": "Bereitstellung gestartet! Prüfen Sie Intune für den Fortschritt.",
+    "deploy_stack_started": "Bereitstellung gestartet! Prüfe Intune auf den Fortschritt.",
     "stacks_saved": "Stacks gespeichert!",
     "save_failed": "Speichern fehlgeschlagen",
     "script_management_title": "Script Management Center",
@@ -621,7 +621,7 @@
     "wingetcreate_info": "Manifeste werden im SwitchCraft-Datenverzeichnis gespeichert",
     "create_new_manifest": "Neues Winget-Manifest erstellen",
     "update_existing_manifest": "Bestehendes Winget-Paket aktualisieren",
-    "update_manifest_desc": "Aktualisieren Sie ein bestehendes Paket im winget-pkgs Repository mit einer neuen Version.",
+    "update_manifest_desc": "Aktualisiere ein bestehendes Paket im winget-pkgs Repository mit einer neuen Version.",
     "installer_urls": "Installer-URLs",
     "new_installer_urls": "Neue Installer-URL(s)",
     "package_id": "Paket-ID",
@@ -808,7 +808,7 @@
     "notif_test_sent": "Test-Benachrichtigung gesendet!",
     "ai_addon_required_title": "AI-Addon Erforderlich",
     "entra_group_manager_title": "Entra Gruppenmanager",
-    "entra_group_manager_desc": "Verwalten Sie Ihre Microsoft Entra ID (Azure AD) Gruppen.",
+    "entra_group_manager_desc": "Verwalte deine Microsoft Entra ID (Azure AD) Gruppen.",
     "col_name": "Name",
     "col_description": "Beschreibung",
     "col_id": "ID",
@@ -833,5 +833,6 @@
     "no_members": "Keine Mitglieder gefunden.",
     "no_users_found": "Keine Benutzer gefunden.",
     "error_loading_members": "Fehler beim Laden der Mitglieder: {error}",
-    "error_search_failed": "Suche fehlgeschlagen: {error}"
+    "error_search_failed": "Suche fehlgeschlagen: {error}",
+    "store_deploy_soon": "Deployment-Logik kommt bald in die Store-Ansicht!"
 }

@@ -11,11 +11,12 @@ from switchcraft.services.intune_service import IntuneService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
 
-class PackagingWizardView(ft.Column):
+class PackagingWizardView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -940,11 +941,3 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                 logger.error(f"Autopilot error: {ex}")
 
         threading.Thread(target=_bg, daemon=True).start()
-
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception:
-            pass

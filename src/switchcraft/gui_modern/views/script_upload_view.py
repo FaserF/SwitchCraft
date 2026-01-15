@@ -7,11 +7,12 @@ from switchcraft.gui_modern.utils.flet_compat import create_tabs
 import logging
 from pathlib import Path
 import threading
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
 
-class ScriptUploadView(ft.Column):
+class ScriptUploadView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -398,7 +399,7 @@ class ScriptUploadView(ft.Column):
                     expand=True,
                     bgcolor="BLACK12",
                     border_radius=10,
-                    border=ft.border.all(1, "WHITE10")
+                    border=ft.Border.all(1, "WHITE10")
                 ),
                 ft.Container(height=10),
                 ft.Row([
@@ -439,29 +440,26 @@ class ScriptUploadView(ft.Column):
                 import requests
 
                 # Parse GitHub URL
-                # Handle formats:
-                # https://github.com/owner/repo
-                # https://github.com/owner/repo.git
-                # github.com/owner/repo
-
-                clean_url = repo_url.replace("git@", "https://").replace(":", "/").rstrip("/")
+                from urllib.parse import urlparse
+                clean_url = repo_url.strip()
                 if clean_url.endswith(".git"):
                     clean_url = clean_url[:-4]
+
+                # Handle git@github.com:owner/repo
+                if clean_url.startswith("git@"):
+                    clean_url = clean_url.replace(":", "/").replace("git@", "https://")
+
                 if not clean_url.startswith("http"):
                     clean_url = "https://" + clean_url
 
-                # Split and find owner/repo
-                parts = clean_url.split("/")
-                # Expect https://github.com/owner/repo -> parts: [https:, '', github.com, owner, repo]
-                # Filter out empty strings
-                parts = [p for p in parts if p]
+                parsed = urlparse(clean_url)
+                path_parts = [p for p in parsed.path.split('/') if p]
 
-                if len(parts) < 3:
-                     # fallback logic or error
+                if len(path_parts) < 2:
                      raise ValueError(i18n.get("invalid_github_url") or "Invalid GitHub URL")
 
-                owner = parts[-2]
-                repo = parts[-1]
+                owner = path_parts[0]
+                repo = path_parts[1]
                 branch = self.github_branch.value or "main"
 
                 # Use GitHub API to list files
@@ -515,7 +513,8 @@ class ScriptUploadView(ft.Column):
                     )
                 else:
                     self.repo_script_items = []
-                    for script_path in ps_files[:50]:  # Limit to 50
+                    limit = 50
+                    for script_path in ps_files[:limit]:
                         cb = ft.Checkbox(value=False)
                         self.repo_script_items.append({"path": script_path, "checkbox": cb})
 
@@ -524,6 +523,19 @@ class ScriptUploadView(ft.Column):
                                 leading=cb,
                                 title=ft.Text(script_path),
                                 trailing=ft.Icon(ft.Icons.DESCRIPTION, color="BLUE_400")
+                            )
+                        )
+
+                    if len(ps_files) > limit:
+                        self.github_script_list.controls.append(
+                            ft.Container(
+                                content=ft.Text(
+                                    f"... and {len(ps_files) - limit} more scripts. (Showing first {limit})",
+                                    italic=True,
+                                    size=12,
+                                    color="GREY_400"
+                                ),
+                                padding=ft.padding.only(left=20, top=5)
                             )
                         )
 
@@ -543,8 +555,8 @@ class ScriptUploadView(ft.Column):
         selected = [item["path"] for item in self.repo_script_items if item["checkbox"].value]
 
         if not selected:
-             self._show_snack(i18n.get("no_scripts_selected") or "No scripts selected", "ORANGE")
-             return
+            self._show_snack(i18n.get("no_scripts_selected") or "No scripts selected", "ORANGE")
+            return
 
         self._show_snack(
             f"Future Feature: Import {len(selected)} scripts: {', '.join(selected)}",
@@ -556,11 +568,3 @@ class ScriptUploadView(ft.Column):
             i18n.get("feature_coming_soon") or "Feature coming soon!",
             "BLUE"
         )
-
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception as e:
-            logger.debug(f"Failed to show snackbar: {e}")

@@ -1,4 +1,4 @@
-"""
+r"""
 Custom URL Protocol Handler Registration for SwitchCraft.
 
 Registers the `switchcraft://` protocol to allow deep linking into the app.

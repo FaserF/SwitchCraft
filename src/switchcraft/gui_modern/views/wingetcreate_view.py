@@ -18,13 +18,14 @@ import sys
 from pathlib import Path
 from switchcraft.utils.i18n import i18n
 from switchcraft.gui_modern.utils.flet_compat import create_tabs
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 
 logger = logging.getLogger(__name__)
 
 
-def get_manifest_dir():
-    """Get the SwitchCraft manifest directory."""
+def ensure_manifest_dir():
+    """Get the SwitchCraft manifest directory, creating it if needed."""
 
     app_data = os.getenv('APPDATA', os.path.expanduser('~'))
     base = Path(app_data) / "FaserF" / "SwitchCraft" / "winget-manifests"
@@ -32,13 +33,13 @@ def get_manifest_dir():
     return base
 
 
-class WingetCreateView(ft.Column):
+class WingetCreateView(ft.Column, ViewMixin):
     """GUI for wingetcreate CLI to create and update Winget manifests."""
 
     def __init__(self, page: ft.Page):
         super().__init__(expand=True, scroll=ft.ScrollMode.AUTO)
         self.app_page = page
-        self.manifest_dir = get_manifest_dir()
+        self.manifest_dir = ensure_manifest_dir()
 
         self._build_ui()
 
@@ -584,12 +585,16 @@ class WingetCreateView(ft.Column):
 
                 # Submit PR?
                 if self.upd_submit_pr.value and self.upd_github_token.value:
-                    cmd.extend(["--token", self.upd_github_token.value])
+                    # Token passed via env var for security
                     cmd.append("--submit")
 
                 # Run command
                 self.upd_output.value = f"Running: wingetcreate update {pkg_id}...\n\n"
                 self.update()
+
+                env = os.environ.copy()
+                if self.upd_github_token.value:
+                    env["WINGET_CREATE_GITHUB_TOKEN"] = self.upd_github_token.value
 
                 if sys.platform == "win32":
                     startupinfo = subprocess.STARTUPINFO()
@@ -603,6 +608,7 @@ class WingetCreateView(ft.Column):
                     capture_output=True,
                     text=True,
                     timeout=120,
+                    env=env,
                     **kwargs
                 )
 
@@ -690,11 +696,3 @@ class WingetCreateView(ft.Column):
                 subprocess.Popen(["xdg-open", path])
         except Exception as ex:
             logger.error(f"Failed to open manifest dir: {ex}")
-
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception:
-            pass

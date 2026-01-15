@@ -12,8 +12,11 @@ def create_tabs(tabs, **kwargs):
     Falls back to ft.Tabs(content=ft.TabBar(tabs=...), length=...) if needed.
     """
     try:
-        # Standard Flet
-        return ft.Tabs(tabs=tabs, **kwargs)
+        # Try with length (required by some versions/environments)
+        try:
+            return ft.Tabs(tabs=tabs, length=len(tabs) if tabs else 0, **kwargs)
+        except TypeError:
+            return ft.Tabs(tabs=tabs, **kwargs)
     except TypeError as te:
         # Fallback for environments where Tabs requires content/length (e.g. tests)
         logger.debug(f"Standard Tabs failed (likely compat mode needed): {te}")
@@ -46,12 +49,29 @@ def create_tabs(tabs, **kwargs):
                 # If that failed above (TypeError), it implies signature mismatch.
 
                 # Re-try assuming it's the `content` argument issue or similar.
-                # If we really need a fallback:
-
+                # Fallback: manually construct TabBar and use positional Tabs
+                # Flet versions around 0.7.x/0.8.x might require this structure.
+                tab_bar = ft.TabBar(tabs=tabs)
                 length = len(tabs) if tabs else 0
-                return ft.Tabs(content=ft.TabBar(tabs=tabs), length=length, **kwargs)
+
+                try:
+                    # Attempt positional Tabs wrapper - this supports on_change and selected_index
+                    return ft.Tabs(tab_bar, length, **kwargs)
+                except (TypeError, ValueError):
+                    # Second Fallback: Column with TabBar and TabBarView
+                    # Note: Column does NOT support on_change, so this is a last resort.
+                    return ft.Column(
+                        controls=[
+                            tab_bar,
+                            ft.Container(
+                                content=ft.TabBarView(controls=tab_contents),
+                                expand=True
+                            )
+                        ],
+                        **kwargs
+                    )
             else:
-                # No TabBar, maybe properties assignment?
+                # No TabBar available, try property assignment as last resort
                 t = ft.Tabs(**kwargs)
                 if tabs is not None:
                     t.tabs = tabs

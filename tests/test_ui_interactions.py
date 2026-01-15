@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import flet as ft
 from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 from switchcraft.gui_modern.views.dashboard_view import DashboardView
-from switchcraft.gui_modern.views.home_view import ModernHomeView
+
 from switchcraft.gui_modern.views.analyzer_view import ModernAnalyzerView
 
 @pytest.fixture
@@ -47,13 +47,7 @@ def find_buttons(control):
     elif hasattr(control, "content") and control.content:
         buttons.extend(find_buttons(control.content))
 
-    # Handle TabBar tabs
-    if isinstance(control, ft.TabBar) and control.tabs:
-        for tab in control.tabs:
-             # Tabs usually have content if they are TabBarView, but Tab control has content/label
-             # We just traverse Tab children? Tab doesn't have children usually unless it stores content
-             # Wait, Tab has 'content' or 'icon' etc.
-             pass
+
 
     return buttons
 

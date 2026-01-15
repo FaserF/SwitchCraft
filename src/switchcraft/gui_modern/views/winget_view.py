@@ -6,10 +6,11 @@ from switchcraft.services.addon_service import AddonService
 from switchcraft.utils.i18n import i18n
 from pathlib import Path
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
-class ModernWingetView(ft.Row):
+class ModernWingetView(ft.Row, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -109,7 +110,7 @@ class ModernWingetView(ft.Row):
             padding=15,
             bgcolor="SURFACE_CONTAINER_HIGHEST" if hasattr(getattr(ft, "colors", None), "SURFACE_CONTAINER_HIGHEST") else "GREY_900",
             border_radius=15,
-            margin=ft.margin.only(left=20, top=20, bottom=20, right=10)
+            margin=ft.Margin.only(left=20, top=20, bottom=20, right=10)
         )
 
         # Right Pane
@@ -117,7 +118,7 @@ class ModernWingetView(ft.Row):
             content=self.details_area,
             expand=True,
             padding=20,
-            margin=ft.margin.only(right=20, top=20, bottom=20, left=10)
+            margin=ft.Margin.only(right=20, top=20, bottom=20, left=10)
         )
 
         # Initial instruction
@@ -662,11 +663,3 @@ exit $err
                 self._show_snack(f"Script saved to {path}", "GREEN")
             except Exception as ex:
                 self._show_snack(f"Save failed: {ex}", "RED")
-
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception:
-             pass

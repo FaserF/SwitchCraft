@@ -9,10 +9,11 @@ from switchcraft.utils.app_updater import UpdateChecker
 from switchcraft.services.auth_service import AuthService
 from switchcraft.services.sync_service import SyncService
 from switchcraft.services.intune_service import IntuneService
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
-class ModernSettingsView(ft.Column):
+class ModernSettingsView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page, initial_tab_index=0):
         super().__init__(expand=True)
         self.app_page = page
@@ -687,13 +688,7 @@ class ModernSettingsView(ft.Column):
             else:
                 self._show_snack(i18n.get("logs_export_failed") or "Log export failed.", "RED")
 
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception:
-             pass
+
 
     def _on_lang_change(self, val):
         from switchcraft.utils.config import SwitchCraftConfig

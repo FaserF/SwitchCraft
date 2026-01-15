@@ -18,6 +18,7 @@ from switchcraft.services.intune_service import IntuneService
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.gui_modern.utils.flet_compat import create_tabs
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 # Try to import flet_dropzone for native file DnD
 try:
@@ -29,7 +30,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-class ModernAnalyzerView(ft.Column):
+class ModernAnalyzerView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -224,7 +225,7 @@ class ModernAnalyzerView(ft.Column):
             return
 
         # Validate URL
-        # Validate URL
+
         if not url.startswith(("http://", "https://")):
             self._show_snack(i18n.get("invalid_url_format") or "Invalid URL format", "RED")
             return
@@ -240,8 +241,12 @@ class ModernAnalyzerView(ft.Column):
             analysis_started = False
             try:
                 # Get filename from URL
-                filename = url.split("/")[-1].split("?")[0]
-                if not filename.lower().endswith((".exe", ".msi")):
+                raw_filename = url.split("/")[-1].split("?")[0]
+                # Sanitize filename (basic)
+                keep_chars = ("-", "_", ".")
+                filename = "".join(c for c in raw_filename if c.isalnum() or c in keep_chars).strip()
+
+                if not filename or not filename.lower().endswith((".exe", ".msi")):
                     filename = "installer.exe"
 
                 # Create temp directory
@@ -1047,13 +1052,7 @@ class ModernAnalyzerView(ft.Column):
             except Exception:
                 self._show_snack("Failed to copy", "RED")
 
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception as e:
-            logger.debug(f"Failed to show snackbar: {e}")
+
 
     def _add_history_entry(self, info, status):
         try:

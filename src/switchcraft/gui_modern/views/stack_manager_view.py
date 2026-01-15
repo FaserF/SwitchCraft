@@ -3,11 +3,12 @@ import json
 import logging
 from pathlib import Path
 from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
 
-class StackManagerView(ft.Column):
+class StackManagerView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -276,12 +277,14 @@ class StackManagerView(ft.Column):
             return
 
         val = self.new_item_field.value
-        if val:
-            self.stacks[self.current_stack].append(val)
+        if val and val.strip():
+            self.stacks[self.current_stack].append(val.strip())
             self._save_stacks()
             self._select_stack(self.current_stack)  # Refresh list
             self.new_item_field.value = ""
             self.update()
+        else:
+            self._show_snack(i18n.get("fill_all_fields") or "Please fill all fields", "ORANGE")
 
     def _remove_item(self, item):
         if self.current_stack and item in self.stacks[self.current_stack]:
@@ -334,11 +337,3 @@ class StackManagerView(ft.Column):
             i18n.get("deploy_stack_started") or "Deployment started! Check Intune for progress.",
             "BLUE"
         )
-
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception:
-            pass

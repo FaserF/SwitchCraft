@@ -290,9 +290,9 @@ class ModernApp:
         import sys
         if "--wizard" in sys.argv:
             # We need to defer this until UI is built
-            self._pending_nav_index = 2 # Wizard index
+            self._pending_nav_index = NavIndex.PACKAGING_WIZARD
         elif "--analyzer" in sys.argv or "--all-in-one" in sys.argv:
-             self._pending_nav_index = 3 # Analyzer index
+             self._pending_nav_index = NavIndex.ANALYZER
         else:
             self._pending_nav_index = None
 
@@ -1059,8 +1059,8 @@ class ModernApp:
         fade_container.opacity = 1
         try:
             fade_container.update()
-        except RuntimeError:
-            pass
+        except RuntimeError as re:
+             logger.debug(f"Fade container update failed: {re}")
 
     def _on_notification_update(self):
         """Update notification icon based on unread count and trigger Windows toast."""
@@ -1082,8 +1082,8 @@ class ModernApp:
                  self.notif_btn.tooltip = "Notifications"
              try:
                  self.notif_btn.update()
-             except RuntimeError:
-                 pass
+             except RuntimeError as re:
+                 logger.debug(f"Notification update failed (control likely detached): {re}")
 
              # 2. Windows Toast Logic
              if notifs and WINOTIFY_AVAILABLE:

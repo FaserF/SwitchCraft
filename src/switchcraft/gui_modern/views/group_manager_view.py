@@ -6,10 +6,11 @@ import threading
 import requests
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
-class GroupManagerView(ft.Column):
+class GroupManagerView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -99,7 +100,7 @@ class GroupManagerView(ft.Column):
                 ft.DataColumn(ft.Text(i18n.get("col_type") or "Type")),
             ],
             rows=[],
-            border=ft.border.all(1, "GREY_400"),
+            border=ft.Border.all(1, "GREY_400"),
             vertical_lines=ft.border.BorderSide(1, "GREY_400"),
             horizontal_lines=ft.border.BorderSide(1, "GREY_400"),
             heading_row_color="BLACK12",
@@ -287,13 +288,7 @@ class GroupManagerView(ft.Column):
         self.app_page.open(dlg)
         self.app_page.update()
 
-    def _show_snack(self, msg, color="GREEN"):
-        try:
-            self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            self.app_page.snack_bar.open = True
-            self.app_page.update()
-        except Exception:
-            pass
+
 
     def _has_credentials(self):
         """Check if Graph API credentials are configured."""
@@ -387,7 +382,7 @@ class GroupManagerView(ft.Column):
 
             def search_users(e):
                 query = search_box.value
-                if not query: return
+                if not query or not query.strip(): return
 
                 results_list.controls.clear()
                 results_list.controls.append(ft.ProgressBar())
