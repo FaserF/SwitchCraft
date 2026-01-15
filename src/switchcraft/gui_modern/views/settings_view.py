@@ -111,7 +111,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
             label=i18n.get("settings_enable_winget") or "Enable Winget Integration",
             value=bool(SwitchCraftConfig.get_value("EnableWinget", True)),
         )
-        winget_sw.on_change = lambda e: SwitchCraftConfig.set_user_preference("EnableWinget", e.control.value)
+        winget_sw.on_change = lambda e: self._on_winget_toggle(e.control.value)
 
         # Cloud Sync Section
         cloud_sync = self._build_cloud_sync_section()
@@ -192,7 +192,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.dropdown.Option("gemini"),
             ],
         )
-        provider.on_change = lambda e: SwitchCraftConfig.set_user_preference("AIProvider", e.control.value)
+        provider.on_change = lambda e: self._on_ai_provider_change(e.control.value)
 
         api_key = ft.TextField(
             label=i18n.get("settings_ai_key_label") or "API Key (if required)",
@@ -562,15 +562,33 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self.app_page.update()
 
     def _on_channel_change(self, val):
+        from switchcraft.utils.config import SwitchCraftConfig
         SwitchCraftConfig.set_user_preference("UpdateChannel", val)
-        # Clear current latest if switching
-        self.latest_version_text.value = i18n.get("unknown") or "Unknown"
-        self.changelog_text.value = i18n.get("update_loading_changelog") or "Loading changelog..."
-        self.update()
-        # Trigger re-check
-        self._check_updates(None, only_changelog=True)
+        # Restart required to apply update channel change
+        self._restart_with_countdown(
+            title=i18n.get("restart_required_title") or "Restart Required",
+            message=i18n.get("restart_to_apply_setting") or "The application needs to restart to apply this setting."
+        )
 
+    def _on_winget_toggle(self, val):
+        """Handle Winget integration toggle - requires restart."""
+        from switchcraft.utils.config import SwitchCraftConfig
+        SwitchCraftConfig.set_user_preference("EnableWinget", val)
+        # Restart required to apply Winget setting
+        self._restart_with_countdown(
+            title=i18n.get("setting_changed") or "Setting Changed",
+            message=i18n.get("restart_to_apply_setting") or "The application needs to restart to apply this setting."
+        )
 
+    def _on_ai_provider_change(self, val):
+        """Handle AI provider change - requires restart."""
+        from switchcraft.utils.config import SwitchCraftConfig
+        SwitchCraftConfig.set_user_preference("AIProvider", val)
+        # Restart required to apply AI provider change
+        self._restart_with_countdown(
+            title=i18n.get("setting_changed") or "Setting Changed",
+            message=i18n.get("restart_to_apply_setting") or "The application needs to restart to apply this setting."
+        )
 
     def _on_theme_change(self, val):
         SwitchCraftConfig.set_user_preference("Theme", val)
@@ -793,76 +811,68 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
 
 
-    def _on_lang_change(self, val):
-        from switchcraft.utils.config import SwitchCraftConfig
-        from switchcraft.utils.i18n import i18n
+    def _restart_with_countdown(self, title: str, message: str):
+        """Generic method to restart the app with a countdown dialog."""
+        import sys
+        import os
+        import subprocess
+        import time
+        import gc
+        import logging
+        import threading
 
-        # Save preference
-        SwitchCraftConfig.set_user_preference("Language", val)
-
-        # Actually update the i18n singleton
-        i18n.set_language(val)
-
-        # Immediately refresh the current view to apply language change
-        # Get current tab index and reload the view
-        if hasattr(self.app_page, 'switchcraft_app'):
-            app = self.app_page.switchcraft_app
-            current_idx = getattr(app, '_current_tab_index', 0)
-
-            # Clear ALL view cache to force rebuild with new language
-            if hasattr(app, '_view_cache'):
-                app._view_cache.clear()
-
-            # Rebuild the Settings View itself (since we're in it)
-            # Get current tab index within settings
-            current_settings_tab = self.initial_tab_index
-
-            # Rebuild tab definitions with new language
-            self.tab_defs = [
-                (i18n.get("settings_general") or "General", ft.Icons.SETTINGS, self._build_general_tab),
-                (i18n.get("settings_hdr_update") or "Updates", ft.Icons.UPDATE, self._build_updates_tab),
-                (i18n.get("deployment_title") or "Global Graph API", ft.Icons.CLOUD_UPLOAD, self._build_deployment_tab),
-                (i18n.get("help_title") or "Help", ft.Icons.HELP, self._build_help_tab)
+        # Show countdown dialog with automatic restart
+        countdown_text = ft.Text("", size=18, weight=ft.FontWeight.BOLD)
+        countdown_dlg = ft.AlertDialog(
+            title=ft.Text(title),
+            content=ft.Column([
+                ft.Text(message, size=14),
+                ft.Container(height=10),
+                countdown_text,
+            ], tight=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            modal=True,
+            actions=[
+                ft.TextButton(
+                    i18n.get("btn_cancel") or "Cancel",
+                    on_click=lambda e: setattr(countdown_dlg, "open", False) or self.app_page.update()
+                ),
             ]
+        )
+        self.app_page.dialog = countdown_dlg
+        countdown_dlg.open = True
+        self.app_page.update()
 
-            # Rebuild tab navigation buttons with new language
-            self.nav_row.controls.clear()
-            for i, (name, icon, func) in enumerate(self.tab_defs):
-                btn = ft.Button(
-                    content=ft.Row([ft.Icon(icon), ft.Text(name)]),
-                    on_click=lambda e, f=func: self._switch_tab(f),
-                    style=ft.ButtonStyle(
-                        shape=ft.RoundedRectangleBorder(radius=5),
-                        bgcolor="PRIMARY_CONTAINER" if i == current_settings_tab else None
-                    )
-                )
-                self.nav_row.controls.append(btn)
+        # Countdown and restart function
+        def do_countdown_and_restart():
+            countdown = 5
+            cancelled = [False]  # Use list to allow modification in nested function
 
-            # Rebuild current tab content
-            self._switch_tab(self.tab_defs[current_settings_tab][2])
-
-            # Update the nav_row to reflect changes
-            self.update()
-
-            # Reload the main app view to update sidebar labels
-            app.goto_tab(current_idx)
-
-            self._show_snack(
-                i18n.get("language_changed") or "Language changed. UI updated.",
-                "GREEN"
-            )
-        else:
-            # Fallback: Show restart dialog if app reference not available
-            def do_restart(e):
-                dlg.open = False
+            def cancel_handler(e):
+                cancelled[0] = True
+                countdown_dlg.open = False
                 self.app_page.update()
-                import sys
-                import os
-                import subprocess
-                import time
-                import gc
-                import logging
 
+            # Update cancel button handler
+            countdown_dlg.actions[0].on_click = cancel_handler
+
+            while countdown > 0 and not cancelled[0]:
+                countdown_text.value = i18n.get("restarting_in") or "Restarting in {seconds} seconds...".format(seconds=countdown)
+                countdown_text.value = countdown_text.value.replace("{seconds}", str(countdown))
+                self.app_page.update()
+                time.sleep(1)
+                countdown -= 1
+
+            if not cancelled[0]:
+                # Update text to "Restarting now..."
+                countdown_text.value = i18n.get("restarting_now") or "Restarting now..."
+                self.app_page.update()
+                time.sleep(0.5)
+
+                # Close dialog
+                countdown_dlg.open = False
+                self.app_page.update()
+
+                # Perform restart
                 try:
                     if getattr(sys, 'frozen', False):
                         executable = sys.executable
@@ -895,7 +905,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     # 5. Launch new process
                     creationflags = 0
                     if sys.platform == 'win32':
-                        creationflags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+                        creationflags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
 
                     subprocess.Popen(
                         [executable] + args,
@@ -914,25 +924,27 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     # 7. Exit
                     os._exit(0)
                 except Exception as ex:
+                    logger.exception(f"Restart failed: {ex}")
                     self._show_snack(f"Restart failed: {ex}", "RED")
 
-            dlg = ft.AlertDialog(
-                title=ft.Text(i18n.get("language_changed") or "Language Changed"),
-                content=ft.Text(
-                    i18n.get("restart_to_apply") or
-                    "The application needs to restart to apply the new language. Restart now?"
-                ),
-                actions=[
-                    ft.TextButton(i18n.get("btn_later") or "Later", on_click=lambda e: setattr(dlg, "open", False) or self.app_page.update()),
-                    ft.Button(
-                        i18n.get("btn_restart_now") or "Restart Now",
-                        on_click=do_restart,
-                        bgcolor="BLUE_700",
-                        color="WHITE"
-                    ),
-                ]
-            )
-            self.app_page.open(dlg)
+        # Start countdown in background thread
+        threading.Thread(target=do_countdown_and_restart, daemon=True).start()
+
+    def _on_lang_change(self, val):
+        from switchcraft.utils.config import SwitchCraftConfig
+        from switchcraft.utils.i18n import i18n
+
+        # Save preference
+        SwitchCraftConfig.set_user_preference("Language", val)
+
+        # Update i18n singleton for the restart dialog text
+        i18n.set_language(val)
+
+        # Restart with countdown
+        self._restart_with_countdown(
+            title=i18n.get("language_changed") or "Language Changed",
+            message=i18n.get("restart_to_apply") or "The application needs to restart to apply the new language."
+        )
 
     def _test_graph_connection(self, e):
         t_id = self.raw_tenant_field.value.strip()

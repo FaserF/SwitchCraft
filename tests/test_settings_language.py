@@ -23,6 +23,8 @@ class TestSettingsLanguage(unittest.TestCase):
         from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
         view = ModernSettingsView(self.page)
+        # Mock page property to avoid RuntimeError
+        view.page = self.page
 
         # Simulate language change
         view._on_lang_change("en")
@@ -43,6 +45,9 @@ class TestSettingsLanguage(unittest.TestCase):
         from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
         view = ModernSettingsView(self.page)
+        # Mock page property to avoid RuntimeError
+        view.page = self.page
+
         view._on_lang_change("de")
 
         mock_set_pref.assert_called_once_with("Language", "de")

@@ -116,12 +116,14 @@ class TestAppStartupCritical(unittest.TestCase):
                 mock_app_class.return_value = mock_app
 
                 # Call main() - should not raise UnboundLocalError or other startup errors
-                try:
-                    main(page)
-                except (UnboundLocalError, NameError) as e:
-                    self.fail(f"Startup error detected: {e}. This indicates a variable scope issue (e.g., splash_proc not declared as global).")
-                except Exception as e:
-                    # Other exceptions might be expected (e.g., if ModernApp fails to initialize)
+                # Mock sys.exit to prevent test from exiting
+                with patch('sys.exit'):
+                    try:
+                        main(page)
+                    except (UnboundLocalError, NameError) as e:
+                        self.fail(f"Startup error detected: {e}. This indicates a variable scope issue (e.g., splash_proc not declared as global).")
+                    except Exception as e:
+                        # Other exceptions might be expected (e.g., if ModernApp fails to initialize)
                     # But UnboundLocalError/NameError should never happen
                     if "UnboundLocalError" in str(type(e)) or "NameError" in str(type(e)):
                         self.fail(f"Variable scope error detected: {e}")

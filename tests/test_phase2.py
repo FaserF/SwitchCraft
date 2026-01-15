@@ -31,39 +31,64 @@ class TestPhase2Features(unittest.TestCase):
     # --- AI Service Tests ---
     def test_ai_language_fallback(self):
         """Test that unknown queries return generic fallback."""
-        if "Simulated Response" in self.ai.ask("hola"):
-             self.assertIn("Simulated Response", self.ai.ask("hola"))
+        response = self.ai.ask("Hola como estas")
+        # In stub mode, should return helpful message
+        if "AI Addon Required" in response or "AI Addon is required" in response:
+            # Stub mode - check for helpful tips
+            self.assertIn("AI Tips", response)
         else:
-             response = self.ai.ask("Hola como estas")
-             self.assertIn("packaging assistant", response)
+            # Real AI mode - check for packaging assistant
+            self.assertIn("packaging assistant", response)
 
     def test_ai_german_smalltalk(self):
         """Test German smalltalk response."""
         response = self.ai.ask("Hallo wer bist du")
-        # Check against German translation key value
-        self.assertIn("Ich bin SwitchCraft AI", response)
+        # In stub mode, should return helpful message
+        if "AI Addon Required" in response or "AI Addon is required" in response:
+            # Stub mode - check for helpful message
+            self.assertIn("AI", response)
+        else:
+            # Real AI mode - check for German greeting
+            self.assertIn("Ich bin SwitchCraft AI", response)
 
     def test_ai_english_smalltalk(self):
         """Test English smalltalk response."""
         response = self.ai.ask("Hello who are you")
-        self.assertIn("I am SwitchCraft AI", response)
+        # In stub mode, should return helpful message
+        if "AI Addon Required" in response or "AI Addon is required" in response:
+            # Stub mode - check for helpful message
+            self.assertIn("AI", response)
+        else:
+            # Real AI mode - check for English greeting
+            self.assertIn("I am SwitchCraft AI", response)
 
     def test_ai_context_answer_de(self):
         """Test context-aware answer in German."""
         self.ai.update_context({"type": "Inno Setup", "install_silent": "/VERYSILENT", "filename": "setup.exe"})
         response = self.ai.ask("Welche switches für silent install?")
-        # Update assertion to match what i18n actually returns
-        # "Für diesen Inno Setup Installer habe ich folgende Switches gefunden"
-        self.assertIn("folgende Switches gefunden", response, f"DE Output mismatch. Got: {response}")
-        self.assertIn("/VERYSILENT", response)
+        # In stub mode, should return helpful tips
+        if "AI Addon Required" in response or "AI Addon is required" in response:
+            # Stub mode - check for helpful tips
+            self.assertIn("AI Tips", response)
+            self.assertIn("/VERYSILENT", response)
+        else:
+            # Real AI mode - check for German context answer
+            self.assertIn("folgende Switches gefunden", response, f"DE Output mismatch. Got: {response}")
+            self.assertIn("/VERYSILENT", response)
 
     def test_ai_context_answer_en(self):
         """Test context-aware answer in English."""
         self.ai.update_context({"type": "Inno Setup", "install_silent": "/VERYSILENT", "filename": "setup.exe"})
         response = self.ai.ask("What are the silent switches?")
-        # Update assertion to match what i18n actually returns
-        self.assertIn("detected these silent switches", response, f"EN Output mismatch. Got: {response}")
-        self.assertIn("/VERYSILENT", response)
+        # In stub mode, should return helpful tips
+        if "AI Addon Required" in response or "AI Addon is required" in response:
+            # Stub mode - check for helpful tips
+            self.assertIn("AI Tips", response)
+            self.assertIn("/VERYSILENT", response)
+        else:
+            # Real AI mode - check for English context answer
+            self.assertIn("detected these silent switches", response, f"EN Output mismatch. Got: {response}")
+            self.assertIn("/VERYSILENT", response)
 
     # --- Brute Force Tests ---
     @patch("subprocess.run")

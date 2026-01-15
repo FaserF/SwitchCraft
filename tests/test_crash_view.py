@@ -40,6 +40,12 @@ class TestCrashView(unittest.TestCase):
         error = ValueError("Test error")
         view = CrashDumpView(self.page, error, "Test traceback")
 
+        # Try to import pyperclip, skip test if not available
+        try:
+            import pyperclip
+        except ImportError:
+            self.skipTest("pyperclip not available")
+
         with patch('pyperclip.copy') as mock_copy:
             event = MagicMock()
             view._copy_error(event)
@@ -49,6 +55,16 @@ class TestCrashView(unittest.TestCase):
         """Test copying error falls back to Flet clipboard if pyperclip fails."""
         error = ValueError("Test error")
         view = CrashDumpView(self.page, error, "Test traceback")
+
+        # Try to import pyperclip, skip test if not available
+        try:
+            import pyperclip
+        except ImportError:
+            # If pyperclip is not available, test that Flet clipboard is used
+            event = MagicMock()
+            view._copy_error(event)
+            self.page.set_clipboard.assert_called_once_with("Test traceback")
+            return
 
         with patch('pyperclip.copy', side_effect=Exception("pyperclip failed")):
             event = MagicMock()
