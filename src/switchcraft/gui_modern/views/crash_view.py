@@ -40,7 +40,6 @@ class CrashDumpView(ft.Container):
         )
 
     def _copy_error(self, e):
-        print("DEBUG: Copy Error Clicked")
         error_text = self._traceback_str if hasattr(self, '_traceback_str') else "No traceback available."
 
         success = False
@@ -49,36 +48,33 @@ class CrashDumpView(ft.Container):
             import pyperclip
             pyperclip.copy(error_text)
             success = True
-            print("DEBUG: Copied via pyperclip")
         except Exception as ex1:
-            print(f"DEBUG: Pyperclip failed: {ex1}")
             # Try Flet Native
             try:
                 self.app_page.set_clipboard(error_text)
                 success = True
-                print("DEBUG: Copied via Flet set_clipboard")
             except Exception as ex2:
-                 print(f"DEBUG: Flet clipboard failed: {ex2}")
+                # Log via logger if possible, but minimal deps here
+                pass
 
         if success:
              try:
                  self.app_page.snack_bar = ft.SnackBar(ft.Text("Error details copied to clipboard"))
                  self.app_page.snack_bar.open = True
                  self.app_page.update()
-             except:
+             except Exception:
                  pass
         else:
              try:
                  self.app_page.snack_bar = ft.SnackBar(ft.Text("Failed to copy to clipboard"), bgcolor="RED")
                  self.app_page.snack_bar.open = True
                  self.app_page.update()
-             except:
+             except Exception:
                  pass
 
     def _close_app(self, e):
         """Forcefully close the application immediately."""
         import os
-        import sys
 
         # Kill process immediately to avoid hangs
         os._exit(0)

@@ -2,11 +2,12 @@ import flet as ft
 import threading
 import logging
 import os
-import time
+
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.utils.flet_compat import create_tabs
 
 logger = logging.getLogger(__name__)
 
@@ -34,29 +35,41 @@ class ModernIntuneView(ft.Column):
             return
 
         # Main Layout: Tabs
-        self.tabs = ft.Tabs(
+        self.packager_content = self._build_packager_tab()
+        self.uploader_content = self._build_uploader_tab()
+        self.tab_body = ft.Container(content=self.packager_content, expand=True)
+
+        def on_tab_change(e):
+             idx = int(e.control.selected_index)
+             if idx == 0:
+                 self.tab_body.content = self.packager_content
+             else:
+                 self.tab_body.content = self.uploader_content
+             self.tab_body.update()
+
+        self.tabs = create_tabs(
             selected_index=0,
             animation_duration=300,
+            on_change=on_tab_change,
             tabs=[
                 ft.Tab(
-                    text=i18n.get("tab_packager") or "Packager",
-                    icon=ft.Icons.INVENTORY_2,
-                    content=self._build_packager_tab()
+                    label=i18n.get("tab_packager") or "Packager",
+                    icon=ft.Icons.INVENTORY_2
                 ),
                 ft.Tab(
-                    text=i18n.get("tab_uploader") or "Uploader & Update",
-                    icon=ft.Icons.CLOUD_UPLOAD,
-                    content=self._build_uploader_tab()
+                    label=i18n.get("tab_uploader") or "Uploader & Update",
+                    icon=ft.Icons.CLOUD_UPLOAD
                 ),
             ],
-            expand=True
+            expand=False
         )
 
         self.controls = [
             ft.Text(i18n.get("intune_manager_title") or "Intune Manager", size=28, weight=ft.FontWeight.BOLD),
             ft.Text(i18n.get("intune_manager_desc") or "Package and Upload Win32 Apps", color="GREY"),
             ft.Divider(),
-            self.tabs
+            self.tabs,
+            self.tab_body
         ]
 
     # --- Packager Tab ---
@@ -329,7 +342,8 @@ class ModernIntuneView(ft.Column):
 
                 def open_folder(e):
                     import subprocess
-                    if os.name == 'nt': subprocess.run(f'explorer /select,"{output_file}"', shell=True)
+                    if os.name == 'nt':
+                        subprocess.run(['explorer', f'/select,{output_file}'])
                     dlg.open = False
                     self.app_page.update()
 
@@ -415,7 +429,8 @@ class ModernIntuneView(ft.Column):
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True
             self.app_page.update()
-        except: pass
+        except Exception:
+            pass
 
     def _open_explorer_select(self, path):
          # kept for methods that might call it

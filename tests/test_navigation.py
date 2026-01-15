@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 import flet as ft
 from switchcraft.gui_modern.app import ModernApp
-from switchcraft.gui_modern.views.category_view import CategoryView
+
 
 @pytest.fixture
 def mock_app():
@@ -21,20 +21,31 @@ def mock_app():
 
 def test_switch_to_tab_analyzer(mock_app):
     """Test correctly switching to Analyzer Tab (Index 6)."""
+    # Initialize controls list
+    mock_app.content.controls = []
+
+    # Mock _load_view to avoid complex side effects if needed,
+    # but here we want to verify the integration logic calling it.
+    # Let's mock the internal helper that creates views if possible,
+    # or just verifiy _switch_to_tab calls.
+    mock_app._load_view = MagicMock()
+
     # 0=Home, 1=AM, 2=Update, 3=Graph, 4=Help, 5=Winget, 6=Analyzer
     mock_app._switch_to_tab(6)
 
     # Verify content loaded is Analyzer
-    # Since _switch_to_tab is async-like with sleep, we check what was appended
-    # It first appends loading_view, then actual content.
-    # In a real run, it replaces controls.
-    # We can inspect the factory function if we mock load_view,
-    # but let's check the implementation logic or mock the view classes.
-    pass # Implementation is checked via code review, runtime test is harder without full integrations.
+    # We check if controls were populated
+    assert len(mock_app.content.controls) > 0
+
+    # We can also check if it was cached
+    assert 'analyzer' in mock_app._view_cache
 
 def test_switch_to_tab_category_instantiation(mock_app):
     """Test that Category View (Index 100+) is instantiated correctly."""
     mock_app.destinations = [MagicMock(), MagicMock()] # 2 destinations
+
+    # Initialize controls list for the mock
+    mock_app.content.controls = []
 
     # Mock Sidebar Selection
     mock_app.sidebar.selected_category_index = 0

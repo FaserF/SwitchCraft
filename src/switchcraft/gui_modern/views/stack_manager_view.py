@@ -328,6 +328,7 @@ class StackManagerView(ft.Column):
         self.app_page.open(dlg)
 
     def _execute_deploy(self, dlg):
+        # TODO: Implement actual Intune deployment logic here
         self.app_page.close(dlg)
         self._show_snack(
             i18n.get("deploy_stack_started") or "Deployment started! Check Intune for progress.",

@@ -1,4 +1,3 @@
-
 import pytest
 from unittest.mock import MagicMock, patch
 import flet as ft
@@ -279,8 +278,7 @@ def test_library_view_buttons(mock_page):
 
     # 1. Test "Intune not configured" state
     with patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_value") as mock_get, \
-         patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_secure_value") as mock_secure, \
-         patch("switchcraft.gui_modern.views.library_view.HistoryService") as MockHistory:
+         patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_secure_value") as mock_secure:
 
         # Simulate missing credentials
         mock_get.return_value = None
@@ -327,17 +325,11 @@ def test_library_view_buttons(mock_page):
 
     # 2. Test "Intune Configured" state with history items
     with patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_value") as mock_get, \
-         patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_secure_value") as mock_secure, \
-         patch("switchcraft.gui_modern.views.library_view.HistoryService") as MockHistory:
+         patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_secure_value") as mock_secure:
 
         # Simulate valid credentials
         mock_get.return_value = "dummy_val"
         mock_secure.return_value = "dummy_secret"
-
-        # Mock history data
-        MockHistory.return_value.get_history.return_value = [
-            {"filename": "test.exe", "product": "TestProd", "version": "1.0", "timestamp": "2023-01-01T12:00:00"}
-        ]
 
         log("\nInstantiating LibraryView (With Credentials)")
         try:

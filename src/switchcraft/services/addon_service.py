@@ -3,6 +3,8 @@ import logging
 import importlib.util
 import shutil
 import zipfile
+import tempfile
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -267,8 +269,7 @@ class AddonService:
         - Looks for 'switchcraft_{addon_id}.zip' asset.
         """
         import requests
-        import tempfile
-        import os
+
         from switchcraft import __version__ as current_app_version
 
         repo_owner = "FaserF"
@@ -291,9 +292,12 @@ class AddonService:
         try:
             resp = requests.get(f"{api_base}/releases/tags/{target_tag}", timeout=5)
             if resp.status_code == 200:
-                release_data = resp.json()
-                used_tag = target_tag
-                logger.info(f"Found specific release: {target_tag}")
+                try:
+                    release_data = resp.json()
+                    used_tag = target_tag
+                    logger.info(f"Found specific release: {target_tag}")
+                except json.JSONDecodeError as je:
+                    logger.warning(f"Invalid JSON in release {target_tag}: {je}. Resp: {resp.text[:100]}")
             else:
                  logger.warning(f"Release {target_tag} not found (Status {resp.status_code}).")
         except Exception as e:
@@ -313,8 +317,7 @@ class AddonService:
                      logger.error(f"Latest release not found (Status {resp.status_code}).")
                      return False, "Could not find any releases."
             except Exception as e:
-                logger.error(f"Error checking latest release: {e}")
-                return False, str(e)
+
 
         if not release_data:
              return False, "No release data found."
@@ -328,9 +331,9 @@ class AddonService:
         candidates = [f"switchcraft_{addon_id}.zip", f"{addon_id}.zip"]
 
         for asset in release_data.get("assets", []):
-            if asset["name"] in candidates:
-                asset_url = asset["browser_download_url"]
-                asset_name = asset["name"]
+            if asset.get("name") in candidates:
+                asset_url = asset.get("browser_download_url")
+                asset_name = asset.get("name")
                 break
 
         if not asset_url:

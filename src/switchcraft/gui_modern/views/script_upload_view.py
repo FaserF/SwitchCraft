@@ -3,6 +3,7 @@ from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.utils.flet_compat import create_tabs
 import logging
 from pathlib import Path
 import threading
@@ -58,22 +59,22 @@ class ScriptUploadView(ft.Column):
                 self.tab_body.content = self._build_github_tab()
             self.tab_body.update()
 
-        t = ft.Tabs(
+        t = create_tabs(
             selected_index=0,
             animation_duration=300,
             expand=True,
             on_change=on_change,
             tabs=[
                 ft.Tab(
-                    text=i18n.get("tab_platform_scripts") or "Platform Scripts",
+                    label=i18n.get("tab_platform_scripts") or "Platform Scripts",
                     icon=ft.Icons.TERMINAL
                 ),
                 ft.Tab(
-                    text=i18n.get("tab_remediations") or "Remediations",
+                    label=i18n.get("tab_remediations") or "Remediations",
                     icon=ft.Icons.HEALING
                 ),
                 ft.Tab(
-                    text=i18n.get("tab_github_import") or "GitHub Import",
+                    label=i18n.get("tab_github_import") or "GitHub Import",
                     icon=ft.Icons.CODE
                 )
             ]
@@ -459,6 +460,18 @@ class ScriptUploadView(ft.Column):
                         i18n.get("github_auth_failed") or
                         "Authentication failed. Check your PAT for private repos."
                     )
+                elif response.status_code == 403:
+                    # Check for rate limit
+                    reset_time = response.headers.get("X-RateLimit-Reset")
+                    msg = "GitHub API Rate Limit Exceeded."
+                    if reset_time:
+                        import datetime
+                        try:
+                            reset_dt = datetime.datetime.fromtimestamp(int(reset_time))
+                            msg += f" Resets at {reset_dt.strftime('%H:%M:%S')}."
+                        except:
+                            pass
+                    raise PermissionError(msg)
                 elif response.status_code == 404:
                     raise ValueError(
                         i18n.get("github_repo_not_found") or

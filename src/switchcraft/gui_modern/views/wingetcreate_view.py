@@ -14,6 +14,7 @@ import logging
 import subprocess
 import threading
 import os
+import sys
 from pathlib import Path
 from switchcraft.utils.i18n import i18n
 from switchcraft.utils.config import SwitchCraftConfig
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def get_manifest_dir():
     """Get the SwitchCraft manifest directory."""
-    import os
+
     app_data = os.getenv('APPDATA', os.path.expanduser('~'))
     base = Path(app_data) / "FaserF" / "SwitchCraft" / "winget-manifests"
     base.mkdir(parents=True, exist_ok=True)
@@ -493,15 +494,19 @@ class WingetCreateView(ft.Column):
                 self.new_output.value = f"Running: {' '.join(cmd[:3])}...\n\n"
                 self.update()
 
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                if sys.platform == "win32":
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    kwargs = {"startupinfo": startupinfo}
+                else:
+                    kwargs = {}
 
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
                     text=True,
-                    startupinfo=startupinfo,
-                    timeout=120
+                    timeout=120,
+                    **kwargs
                 )
 
                 output = result.stdout + "\n" + result.stderr
@@ -582,15 +587,19 @@ class WingetCreateView(ft.Column):
                 self.upd_output.value = f"Running: wingetcreate update {pkg_id}...\n\n"
                 self.update()
 
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                if sys.platform == "win32":
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    kwargs = {"startupinfo": startupinfo}
+                else:
+                    kwargs = {}
 
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
                     text=True,
-                    startupinfo=startupinfo,
-                    timeout=120
+                    timeout=120,
+                    **kwargs
                 )
 
                 output = result.stdout + "\n" + result.stderr
@@ -632,15 +641,20 @@ class WingetCreateView(ft.Column):
             try:
                 cmd = ["winget", "validate", str(self.manifest_dir)]
 
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                if sys.platform == "win32":
+                    if sys.platform == "win32":
+                        startupinfo = subprocess.STARTUPINFO()
+                        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                        kwargs = {"startupinfo": startupinfo}
+                    else:
+                        kwargs = {}
 
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    startupinfo=startupinfo,
-                    timeout=30
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                    timeout=30,
+                        **kwargs
                 )
 
                 output = result.stdout + "\n" + result.stderr
@@ -664,7 +678,13 @@ class WingetCreateView(ft.Column):
     def _open_manifest_dir(self, e):
         """Open the manifest directory in file explorer."""
         try:
-            os.startfile(str(self.manifest_dir))
+            path = str(self.manifest_dir)
+            if sys.platform == "win32":
+                os.startfile(path)
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", path])
+            else:
+                subprocess.Popen(["xdg-open", path])
         except Exception as ex:
             logger.error(f"Failed to open manifest dir: {ex}")
 

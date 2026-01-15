@@ -17,6 +17,7 @@ from switchcraft.utils.templates import TemplateGenerator
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+from switchcraft.gui_modern.utils.flet_compat import create_tabs
 
 # Try to import flet_dropzone for native file DnD
 try:
@@ -167,24 +168,20 @@ class ModernAnalyzerView(ft.Column):
                 self.source_tab_body.content = url_content
             self.source_tab_body.update()
 
-        source_tabs = ft.Tabs(
+        source_tabs = create_tabs(
             selected_index=0,
             animation_duration=300,
             on_change=on_source_tab_change,
-            length=2,
-            content=ft.TabBar(
-                tabs=[
-                    ft.Tab(
-                        label=i18n.get("local_file") or "Local File",
-                        icon=ft.Icons.COMPUTER
-                    ),
-                    ft.Tab(
-                        label=i18n.get("download_url") or "URL Download",
-                        icon=ft.Icons.LINK
-                    )
-                ],
-                on_change=on_source_tab_change,
-             )
+            tabs=[
+                ft.Tab(
+                    label=i18n.get("local_file") or "Local File",
+                    icon=ft.Icons.COMPUTER
+                ),
+                ft.Tab(
+                    label=i18n.get("download_url") or "URL Download",
+                    icon=ft.Icons.LINK
+                )
+            ]
         )
 
         self.results_column = ft.Column(expand=False, spacing=15)
@@ -206,7 +203,7 @@ class ModernAnalyzerView(ft.Column):
                             self.status_text,
                             self.progress_bar,
                         ], spacing=5),
-                        margin=ft.margin.only(top=10)
+                        margin=ft.Margin.only(top=10)
                     ),
                     ft.Divider(height=2, thickness=1),
                     self.results_column,
@@ -272,7 +269,7 @@ class ModernAnalyzerView(ft.Column):
                 self.update()
 
                 # Start analysis with downloaded file
-                self.start_analysis(str(temp_path))
+                self.start_analysis(str(temp_path), cleanup_path=str(temp_path))
 
             except requests.exceptions.RequestException as ex:
                 self.url_download_progress.visible = False
@@ -346,7 +343,7 @@ class ModernAnalyzerView(ft.Column):
 
         threading.Thread(target=_run, daemon=True).start()
 
-    def start_analysis(self, filepath):
+    def start_analysis(self, filepath, cleanup_path=None):
         if self.analyzing:
             return
 
@@ -393,6 +390,17 @@ class ModernAnalyzerView(ft.Column):
                     self.page.switchcraft_app.set_progress(visible=False)
                 else:
                     self.update()
+
+            finally:
+                if cleanup_path:
+                    try:
+                        import os
+                        if os.path.isdir(cleanup_path):
+                            shutil.rmtree(cleanup_path, ignore_errors=True)
+                        elif os.path.exists(cleanup_path):
+                            os.remove(cleanup_path)
+                    except Exception as ex:
+                        logger.warning(f"Failed to cleanup temp analysis file {cleanup_path}: {ex}")
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -1004,13 +1012,12 @@ class ModernAnalyzerView(ft.Column):
                 self._show_snack("Failed to copy", "RED")
 
     def _show_snack(self, msg, color="GREEN"):
-        print(f"DEBUG: Showing Snack: {msg}")
         try:
             self.app_page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
             self.app_page.snack_bar.open = True
             self.app_page.update()
-        except Exception as e:
-             print(f"DEBUG: Failed to show snack: {e}")
+        except Exception:
+            pass
 
     def _add_history_entry(self, info, status):
         try:

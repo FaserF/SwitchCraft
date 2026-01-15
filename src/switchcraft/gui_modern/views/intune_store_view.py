@@ -161,11 +161,11 @@ class ModernIntuneStoreView(ft.Column):
 
         # Metadata
         meta_rows = [
-            (i18n.get("field_id") or "ID", app.get("id")),
-            (i18n.get("field_publisher") or "Publisher", app.get("publisher")),
-            (i18n.get("field_created") or "Created", app.get("createdDateTime")),
-            (i18n.get("field_owner") or "Owner", app.get("owner")),
-            (i18n.get("field_app_type") or "App Type", app.get("@odata.type", "").replace("#microsoft.graph.", ""))
+            (i18n.get("field_id", default="ID"), app.get("id")),
+            (i18n.get("field_publisher", default="Publisher"), app.get("publisher")),
+            (i18n.get("field_created", default="Created"), app.get("createdDateTime")),
+            (i18n.get("field_owner", default="Owner"), app.get("owner")),
+            (i18n.get("field_app_type", default="App Type"), app.get("@odata.type", "").replace("#microsoft.graph.", ""))
         ]
 
         for k, v in meta_rows:
@@ -185,9 +185,9 @@ class ModernIntuneStoreView(ft.Column):
         if "installCommandLine" in app or "uninstallCommandLine" in app:
              self.details_area.controls.append(ft.Text("Commands:", weight="bold"))
              if app.get("installCommandLine"):
-                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_install') or 'Install'}: `{app.get('installCommandLine')}`", font_family="Consolas"))
+                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_install', default='Install')}: `{app.get('installCommandLine')}`", font_family="Consolas"))
              if app.get("uninstallCommandLine"):
-                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_uninstall') or 'Uninstall'}: `{app.get('uninstallCommandLine')}`", font_family="Consolas"))
+                 self.details_area.controls.append(ft.Text(f"{i18n.get('field_uninstall', default='Uninstall')}: `{app.get('uninstallCommandLine')}`", font_family="Consolas"))
 
         self.details_area.controls.append(ft.Container(height=20))
         self.details_area.controls.append(

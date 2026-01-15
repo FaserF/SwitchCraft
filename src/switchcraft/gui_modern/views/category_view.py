@@ -50,7 +50,7 @@ class CategoryView(ft.Container):
             padding=20,
             ink=True,
             on_click=lambda e: self.on_navigate(idx),
-            border=ft.border.all(1, "OUTLINE_VARIANT"),
+            border=ft.Border.all(1, "OUTLINE_VARIANT"),
             animate_scale=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
             on_hover=lambda e: setattr(e.control, "scale", 1.05 if e.data == "true" else 1.0) or e.control.update()
         )

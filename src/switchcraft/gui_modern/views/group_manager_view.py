@@ -132,8 +132,7 @@ class GroupManagerView(ft.Column):
                 # Handle specific permission error (403)
                 logger.error(f"Permission denied loading groups: {e}")
                 missing_perms = str(e) if str(e) else "Group.Read.All, Group.ReadWrite.All"
-                error_msg = i18n.get("graph_permission_error") or "Missing Graph API permissions: {permissions}"
-                error_msg = error_msg.replace("{permissions}", missing_perms)
+                error_msg = i18n.get("graph_permission_error", permissions=missing_perms) or f"Missing Graph API permissions: {missing_perms}"
                 self._show_snack(error_msg, "RED")
             except ConnectionError as e:
                 # Handle authentication failure
@@ -144,8 +143,7 @@ class GroupManagerView(ft.Column):
                 error_str = str(e).lower()
                 # Detect permission issues from error message
                 if "403" in error_str or "forbidden" in error_str or "insufficient" in error_str:
-                    error_msg = i18n.get("graph_permission_error") or "Missing Graph API permissions: {permissions}"
-                    error_msg = error_msg.replace("{permissions}", "Group.Read.All")
+                    error_msg = i18n.get("graph_permission_error", permissions="Group.Read.All") or "Missing Graph API permissions: Group.Read.All"
                     self._show_snack(error_msg, "RED")
                 elif "401" in error_str or "unauthorized" in error_str:
                     error_msg = i18n.get("graph_auth_error") or "Authentication failed. Please check your credentials."
@@ -234,8 +232,7 @@ class GroupManagerView(ft.Column):
                 ft.Button("Create", on_click=create, bgcolor="BLUE", color="WHITE")
             ],
         )
-        self.app_page.dialog = dlg
-        dlg.open = True
+        self.app_page.open(dlg)
         self.app_page.update()
 
     def _confirm_delete(self, e):
@@ -270,8 +267,7 @@ class GroupManagerView(ft.Column):
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
-        self.app_page.dialog = dlg
-        dlg.open = True
+        self.app_page.open(dlg)
         self.app_page.update()
 
     def _show_snack(self, msg, color="GREEN"):

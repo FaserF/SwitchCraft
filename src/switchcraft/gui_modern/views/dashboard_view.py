@@ -28,7 +28,7 @@ class DashboardView(ft.Column):
         self.controls = [
             ft.Container(
                 content=ft.Column([
-                    ft.Text(i18n.get("dashboard_overview_title") or "Übersicht", size=28, weight=ft.FontWeight.BOLD),
+                    ft.Text(i18n.get("dashboard_overview_title") or "Overview", size=28, weight=ft.FontWeight.BOLD),
                     ft.Divider(),
                     self.stats_row,
                     ft.Container(height=20),

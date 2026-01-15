@@ -9,6 +9,7 @@ from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+from switchcraft.gui_modern.utils.flet_compat import create_tabs
 import logging
 import threading
 import tempfile
@@ -111,17 +112,17 @@ class MacOSWizardView(ft.Column):
                 self.source_tab_body.content = local_content
             self.source_tab_body.update()
 
-        source_tabs = ft.Tabs(
+        source_tabs = create_tabs(
             selected_index=0,
             animation_duration=300,
             on_change=on_source_change,
             tabs=[
                 ft.Tab(
-                    text=i18n.get("download_url") or "Download URL",
+                    label=i18n.get("download_url") or "Download URL",
                     icon=ft.Icons.LINK
                 ),
                 ft.Tab(
-                    text=i18n.get("local_file") or "Local File",
+                    label=i18n.get("local_file") or "Local File",
                     icon=ft.Icons.COMPUTER
                 )
             ]

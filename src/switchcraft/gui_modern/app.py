@@ -457,22 +457,34 @@ class ModernApp:
                 success, msg = self.addon_service.install_from_github("advanced")
 
                 # UI Update needs to happen on loop? Flet is thread-safe for simple updates usually
-                if success:
-                     # Update Dialog to ask for Optional
-                     content.controls.clear()
-                     content.controls.append(ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN", size=48))
-                     content.controls.append(ft.Text("Base components installed!"))
-                     content.controls.append(ft.Text("Do you want to install optional features (AI, Winget)?"))
+                def update_ui():
+                    if not dlg.open or dlg not in self.page.dialogs and dlg != self.page.dialog:
+                        # Dialog might be closed or not active
+                        return
 
-                     dlg.actions.clear()
-                     dlg.actions.append(ft.TextButton("No, thanks", on_click=close_wizard))
-                     dlg.actions.append(ft.Button("Install Optional", on_click=install_optional))
-                     dlg.update()
-                else:
-                     content.controls.append(ft.Text(f"Failed to install base: {msg}", color="RED"))
-                     dlg.actions.clear()
-                     dlg.actions.append(ft.TextButton("Close", on_click=close_wizard))
-                     dlg.update()
+                    try:
+                        if success:
+                            # Update Dialog to ask for Optional
+                            content.controls.clear()
+                            content.controls.append(ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN", size=48))
+                            content.controls.append(ft.Text("Base components installed!"))
+                            content.controls.append(ft.Text("Do you want to install optional features (AI, Winget)?"))
+
+                            dlg.actions.clear()
+                            dlg.actions.append(ft.TextButton("No, thanks", on_click=close_wizard))
+                            dlg.actions.append(ft.Button("Install Optional", on_click=install_optional))
+                        else:
+                            content.controls.append(ft.Text(f"Failed to install base: {msg}", color="RED"))
+                            dlg.actions.clear()
+                            dlg.actions.append(ft.TextButton("Close", on_click=close_wizard))
+
+                        dlg.update()
+                    except Exception as ex:
+                        import logging
+                        logging.getLogger(__name__).warning(f"Failed to update wizard UI: {ex}")
+
+                if self.page:
+                    self.page.run_task(update_ui)
 
             threading.Thread(target=_base_install, daemon=True).start()
 
@@ -850,8 +862,8 @@ class ModernApp:
                 new_controls.append(factory_func())
             except Exception as ex:
                 import traceback
-                print(f"DEBUG: Exception loading view: {ex}")
-                print(traceback.format_exc())
+                print(f"DEBUG: Exception loading view: {ex}") # Keep print for immediate debug console visibility
+                logger.error(f"Exception loading view: {ex}", exc_info=True)
                 from switchcraft.gui_modern.views.crash_view import CrashDumpView
                 new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
 
@@ -1005,8 +1017,8 @@ class ModernApp:
             load_view(_f)
 
         else:
-            # Dynamic Addons (start at idx 21)
-            dynamic_idx = idx - 21
+            # Dynamic Addons
+            dynamic_idx = idx - (NavIndex.WINGET_CREATE + 1)
             if 0 <= dynamic_idx < len(self.dynamic_addons):
                 addon = self.dynamic_addons[dynamic_idx]
                 def _f():

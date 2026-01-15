@@ -467,7 +467,7 @@ class ModernSettingsView(ft.Column):
             padding=10,
             border=ft.Border.all(1, "RED"),
             border_radius=5,
-            margin=ft.margin.only(top=20)
+            margin=ft.Margin.only(top=20)
         )
 
         return ft.ListView(
@@ -712,7 +712,32 @@ class ModernSettingsView(ft.Column):
             # Request restart
             import sys
             import os
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            import subprocess
+
+            try:
+                if getattr(sys, 'frozen', False):
+                    # Running as PyInstaller Bundle
+                    executable = sys.executable
+                    args = sys.argv[1:]
+                    cwd = os.path.dirname(executable)
+                else:
+                    # Running from source
+                    executable = sys.executable
+                    args = sys.argv
+                    cwd = os.getcwd()
+
+                # Environment setup
+                env = os.environ.copy()
+                if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                     # PyInstaller sets _MEIPASS, which wraps runtime files.
+                     # New process needs its own temp folder, so we generally DON'T need to do anything special here,
+                     # but clearing specific env vars might be safer if needed.
+                     pass
+
+                subprocess.Popen([executable] + args, cwd=cwd, env=env)
+                os._exit(0)
+            except Exception as ex:
+                self._show_snack(f"Restart failed: {ex}", "RED")
 
         def skip_restart(e):
             dlg.open = False
@@ -746,12 +771,12 @@ class ModernSettingsView(ft.Column):
         sec = self.raw_secret_field.value.strip()
 
         if not t_id or not c_id or not sec:
-            self.test_conn_res.value = "Missing fields!"
+            self.test_conn_res.value = i18n.get("settings_verify_incomplete") or "Missing fields!"
             self.test_conn_res.color = "RED"
             self.update()
             return
 
-        self.test_conn_res.value = "Connecting..."
+        self.test_conn_res.value = i18n.get("settings_verify_progress") or "Connecting..."
         self.test_conn_res.color = "ORANGE"
         self.update()
 
@@ -759,14 +784,14 @@ class ModernSettingsView(ft.Column):
             try:
                 svc = IntuneService()
                 svc.authenticate(t_id, c_id, sec)
-                self.test_conn_res.value = "Connection Successful!"
+                self.test_conn_res.value = i18n.get("settings_verify_success") or "Connection Successful!"
                 self.test_conn_res.color = "GREEN"
-                self._show_snack("Graph Connection Verified!", "GREEN")
+                self._show_snack(i18n.get("settings_verify_success_title") or "Graph Connection Verified!", "GREEN")
             except Exception as ex:
                 logger.error(f"Graph Test Failed: {ex}")
-                self.test_conn_res.value = f"Failed: {ex}"
+                self.test_conn_res.value = f"{i18n.get('settings_verify_fail') or 'Failed'}: {ex}"
                 self.test_conn_res.color = "RED"
-                self._show_snack("Graph Connection Failed", "RED")
+                self._show_snack(i18n.get("settings_verify_fail_msg", error=str(ex)) or "Graph Connection Failed", "RED")
 
             self.update()
 
@@ -776,12 +801,12 @@ class ModernSettingsView(ft.Column):
         from switchcraft.services.notification_service import NotificationService
         ns = NotificationService()
         ns.add_notification(
-            title="Test Notification",
-            message="This is a test notification from Settings! It should trigger a Windows Toast.",
+            title=i18n.get("notif_test_title") or "Test Notification",
+            message=i18n.get("notif_test_msg") or "This is a test notification from Settings! It should trigger a Windows Toast.",
             type="info", # Default info, but forced system notify
             notify_system=True
         )
-        self._show_snack("Test notification sent!", "GREEN")
+        self._show_snack(i18n.get("notif_test_sent") or "Test notification sent!", "GREEN")
 
     def _check_managed_settings(self):
         """

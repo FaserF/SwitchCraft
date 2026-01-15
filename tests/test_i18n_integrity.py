@@ -46,9 +46,7 @@ class TestI18nIntegrity(unittest.TestCase):
         import collections
 
         def find_duplicates(filepath):
-            def check_pairs(pairs):
-                keys = [k for k, v in pairs]
-                return dict(pairs), keys
+
 
             with open(filepath, "r", encoding="utf-8") as f:
                 # We need to manually parse or hook into load

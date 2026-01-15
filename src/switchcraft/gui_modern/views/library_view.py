@@ -1,7 +1,7 @@
 import flet as ft
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
-from switchcraft.gui_modern.nav_constants import NavIndex
+
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -159,13 +159,17 @@ class LibraryView(ft.Column):
                                     'directory': str(subdir)
                                 })
             except Exception as ex:
-                logger.warning(f"Failed to scan {scan_dir}: {ex}")
+                if isinstance(ex, PermissionError):
+                    logger.debug(f"Permission denied scanning {scan_dir}")
+                else:
+                    logger.warning(f"Failed to scan {scan_dir}: {ex}")
 
         # Sort by modification time (newest first)
         self.all_files.sort(key=lambda x: x['modified'], reverse=True)
 
         # Limit to 50 most recent files
         self.all_files = self.all_files[:50]
+        logger.debug(f"Found {len(self.all_files)} .intunewin files")
 
         self._refresh_grid()
 
@@ -285,9 +289,16 @@ class LibraryView(ft.Column):
 
     def _open_folder(self, path):
         """Open the folder containing the file."""
+        import sys
+        import subprocess
         try:
             folder = os.path.dirname(path)
-            os.startfile(folder)
+            if sys.platform == "win32":
+                os.startfile(folder)
+            elif sys.platform == "darwin":
+                subprocess.call(["open", folder])
+            else:
+                subprocess.call(["xdg-open", folder])
         except Exception as ex:
             logger.error(f"Failed to open folder: {ex}")
 

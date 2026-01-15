@@ -30,12 +30,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install .[test,gui]
           pip install pytest pytest-cov
-        shell: bash
 
       - name: Run All Python Tests
         run: |
           pytest tests/ -v --tb=short
-        shell: bash
         env:
           PYTHONPATH: ${{ github.workspace }}/src
 
