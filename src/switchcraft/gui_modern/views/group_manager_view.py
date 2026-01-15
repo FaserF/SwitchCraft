@@ -79,6 +79,7 @@ class GroupManagerView(ft.Column):
             on_click=self._show_members_dialog
         )
 
+        header = ft.Row([
             self.search_field,
             self.refresh_btn,
             ft.VerticalDivider(),
