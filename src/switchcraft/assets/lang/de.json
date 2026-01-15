@@ -852,7 +852,6 @@
     "restarting_now": "Neustart jetzt...",
     "btn_restart_now": "Jetzt neu starten",
     "btn_later": "Später",
-    "btn_cancel": "Abbrechen",
     "setting_changed": "Einstellung geändert",
     "restart_to_apply_setting": "Die Anwendung muss neu gestartet werden, um diese Einstellung anzuwenden.",
     "btn_close": "Schließen",
