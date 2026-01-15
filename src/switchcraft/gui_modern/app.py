@@ -25,8 +25,13 @@ logger = logging.getLogger(__name__)
 class ModernApp:
     def __init__(self, page: ft.Page, splash_proc=None):
         self.page = page
+        self.splash_proc = splash_proc  # Store splash_proc as instance variable
         self.page.switchcraft_app = self  # Store reference for views to access goto_tab
-        self.page.clean()
+        # Create a simple session storage dict for inter-view communication
+        if not hasattr(page, 'switchcraft_session'):
+            page.switchcraft_session = {}
+        # Don't clean page here - we want to keep the loading screen from modern_main.py
+        # The loading screen will be replaced in build_ui()
 
         # Initialize Services EARLY
         self.notification_service = NotificationService()
@@ -88,118 +93,216 @@ class ModernApp:
         # Global Progress Bar (visible during long operations)
         self.global_progress = ft.ProgressBar(height=4, visible=False, color="BLUE_400", bgcolor="SURFACE_VARIANT")
 
-        # Show Loading indicator - centered on full screen
-        self.loading_text = ft.Text("Loading SwitchCraft...", size=24, weight=ft.FontWeight.BOLD)
-        self.loading_bar = ft.ProgressBar(width=400, color="BLUE_400", bgcolor="SURFACE_VARIANT")
+        # Loading screen is already shown in modern_main.py before ModernApp is created
+        # No need to add another one here - it will be replaced in build_ui()
 
-        # The initial page content is a loading screen.
-        # The actual app layout will be built in build_ui() and replace this.
-        self.page.add(
-            ft.Container(
-                content=ft.Column(
-                    controls=[
-                        ft.Container(height=40),
-                        self.loading_bar,
-                        self.loading_text,
-                    ],
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    spacing=20,
-                ),
-                expand=True,
-                alignment=ft.Alignment(0, 0),  # Use the alignment constant
-            )
-        )
-        self.page.update()
-
-        # Shutdown Splash Screen now that Flet window is visible
-        if splash_proc:
-            try:
-                splash_proc.terminate()
-            except Exception:
-                pass
-
-        time.sleep(0.1) # Minimized startup delay
-
+        # Keep splash visible during build_ui - don't terminate yet
         # View cache - keeps views in memory to preserve state between tab switches
         self._view_cache = {}
 
-
-
         self.build_ui()
+
+        # Now that UI is built, shutdown splash screen
+        if self.splash_proc:
+            try:
+                self.splash_proc.terminate()
+            except Exception:
+                pass
 
 
 
 
     def _toggle_notification_drawer(self, e):
         """Toggles the notification drawer."""
-        # Force fresh drawer build if not open
-        if self.page.end_drawer and self.page.end_drawer.open:
-             self.page.end_drawer.open = False
-             self.page.update()
-        else:
-             self._open_notifications_drawer(e)
+        try:
+            logger.debug("_toggle_notification_drawer called")
+            # Check if drawer is currently open
+            is_open = False
+            if hasattr(self.page, 'end_drawer') and self.page.end_drawer is not None:
+                try:
+                    is_open = getattr(self.page.end_drawer, 'open', False)
+                    logger.debug(f"Drawer open state: {is_open}")
+                except Exception as ex:
+                    logger.debug(f"Could not get drawer open state: {ex}")
+                    is_open = False
+
+            if is_open:
+                # Close drawer
+                logger.debug("Closing notification drawer")
+                try:
+                    # Method 1: Set open to False first
+                    if hasattr(self.page.end_drawer, 'open'):
+                        self.page.end_drawer.open = False
+                    # Method 2: Use page.close if available
+                    if hasattr(self.page, 'close'):
+                        try:
+                            self.page.close(self.page.end_drawer)
+                        except Exception:
+                            pass
+                    # Method 3: Remove drawer entirely
+                    if hasattr(self.page, 'end_drawer'):
+                        self.page.end_drawer = None
+                    self.page.update()
+                    logger.debug("Notification drawer closed successfully")
+                except Exception as ex:
+                    logger.error(f"Failed to close drawer: {ex}")
+                    # Force close by removing drawer
+                    self.page.end_drawer = None
+                    self.page.update()
+            else:
+                # Open drawer
+                logger.debug("Opening notification drawer")
+                self._open_notifications_drawer(e)
+        except Exception as ex:
+            logger.exception(f"Error toggling notification drawer: {ex}")
+            # Try to open anyway
+            try:
+                self._open_notifications_drawer(e)
+            except Exception as ex2:
+                logger.error(f"Failed to open drawer after error: {ex2}")
+                # Show error to user
+                try:
+                    self.page.snack_bar = ft.SnackBar(
+                        content=ft.Text(f"Failed to open notifications: {ex2}"),
+                        bgcolor="RED"
+                    )
+                    self.page.snack_bar.open = True
+                    self.page.update()
+                except Exception:
+                    pass
 
     def _open_notifications_drawer(self, e):
         """Builds and opens the notification drawer."""
-        notifs = self.notification_service.get_notifications()
-        items = []
-        if not notifs:
-            items.append(ft.Text("No notifications", italic=True))
-        else:
-            for n in notifs:
-                icon = ft.Icons.INFO
-                color = "BLUE"
+        try:
+            notifs = self.notification_service.get_notifications()
+            items = []
+            if not notifs:
+                items.append(ft.Text(i18n.get("no_notifications") or "No notifications", italic=True, size=14))
+            else:
+                for n in notifs:
+                    icon = ft.Icons.INFO
+                    color = "BLUE"
 
-                # Check type safely
-                ntype = n.get("type", "info")
-                if ntype == "success":
-                    icon = ft.Icons.CHECK_CIRCLE
-                    color = "GREEN"
-                elif ntype == "warning":
-                    icon = ft.Icons.WARNING
-                    color = "ORANGE"
-                elif ntype == "error":
-                    icon = ft.Icons.ERROR
-                    color = "RED"
+                    # Check type safely
+                    ntype = n.get("type", "info")
+                    if ntype == "success":
+                        icon = ft.Icons.CHECK_CIRCLE
+                        color = "GREEN"
+                    elif ntype == "warning":
+                        icon = ft.Icons.WARNING
+                        color = "ORANGE"
+                    elif ntype == "error":
+                        icon = ft.Icons.ERROR
+                        color = "RED"
 
-                items.append(
-                    ft.ListTile(
-                        leading=ft.Icon(icon, color=color),
-                        title=ft.Text(n["title"], weight=ft.FontWeight.BOLD if not n.get("read") else ft.FontWeight.NORMAL),
-                        subtitle=ft.Text(n["message"]),
-                        trailing=ft.Text(n["timestamp"].strftime("%H:%M") if "timestamp" in n else "", size=10),
-                        # on_click=lambda _, nid=n["id"]: self._mark_read(nid)
+                    items.append(
+                        ft.ListTile(
+                            leading=ft.Icon(icon, color=color),
+                            title=ft.Text(n["title"], weight=ft.FontWeight.BOLD if not n.get("read") else ft.FontWeight.NORMAL),
+                            subtitle=ft.Text(n.get("message", ""), size=12),
+                            trailing=ft.Text(n["timestamp"].strftime("%H:%M") if "timestamp" in n and n.get("timestamp") else "", size=10, color="GREY_400"),
+                            on_click=lambda _, nid=n["id"]: self._mark_notification_read(nid)
+                        )
+                    )
+
+            # Add Clear All button if there are notifications
+            header_controls = [
+                ft.Text(i18n.get("notifications") or "Notifications", size=20, weight=ft.FontWeight.BOLD, expand=True)
+            ]
+            if notifs:
+                header_controls.append(
+                    ft.TextButton(
+                        i18n.get("clear_all") or "Clear All",
+                        on_click=lambda _: self._clear_all_notifications()
                     )
                 )
 
-        drawer = ft.NavigationDrawer(
-            controls=[
-                ft.Container(height=12),
-                ft.Row([
-                    ft.Text(i18n.get("notifications") or "Notifications", size=20, weight=ft.FontWeight.BOLD),
-                    # ft.TextButton("Clear All", on_click=lambda _: self._clear_all_notifications(drawer))
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, run_spacing=10),
-                ft.Divider(),
-                ft.Column(items, scroll=ft.ScrollMode.AUTO, expand=True)
-            ],
-            on_dismiss=self._on_drawer_dismiss
-        )
+            drawer = ft.NavigationDrawer(
+                controls=[
+                    ft.Container(height=12),
+                    ft.Row(header_controls, alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(),
+                    ft.Column(items, scroll=ft.ScrollMode.AUTO, expand=True)
+                ],
+                on_dismiss=self._on_drawer_dismiss
+            )
 
-        self.page.end_drawer = drawer
-        self.page.end_drawer.open = True
-        self.page.update() # Ensure UI reflects new drawer
-        self.notification_service.mark_all_read()
+            # Set drawer and open it
+            self.page.end_drawer = drawer
+
+            # Force update BEFORE setting open to ensure drawer is attached
+            self.page.update()
+
+            # Now set open and update again
+            drawer.open = True
+            self.page.update()
+
+            # Try additional methods if drawer didn't open
+            try:
+                if hasattr(self.page, 'open'):
+                    self.page.open(drawer)
+                    self.page.update()
+            except Exception as ex:
+                logger.debug(f"page.open() not available or failed: {ex}, using direct assignment")
+
+            # Final update to ensure drawer is visible
+            self.page.update()
+
+            # Mark all as read after opening
+            self.notification_service.mark_all_read()
+            logger.debug("Notification drawer opened successfully")
+        except Exception as ex:
+            logger.exception(f"Failed to open notification drawer: {ex}")
+            # Show error via snackbar
+            try:
+                self.page.snack_bar = ft.SnackBar(ft.Text(f"Failed to open notifications: {ex}"), bgcolor="RED")
+                self.page.snack_bar.open = True
+                self.page.update()
+            except Exception:
+                pass
 
     def _on_drawer_dismiss(self, e):
         """Cleanup when drawer is dismissed."""
-        # self._active_drawer = None # legacy
-        pass
+        try:
+            # Update notification button state when drawer is dismissed
+            self._on_notification_update()
+        except Exception as ex:
+            logger.debug(f"Error in drawer dismiss handler: {ex}")
+
+    def _mark_notification_read(self, notification_id):
+        """Mark a specific notification as read."""
+        try:
+            self.notification_service.mark_read(notification_id)
+            # Refresh drawer content
+            self._open_notifications_drawer(None)
+        except Exception as ex:
+            logger.error(f"Failed to mark notification as read: {ex}")
+
+    def _clear_all_notifications(self):
+        """Clear all notifications and close drawer."""
+        try:
+            self.notification_service.clear_all()
+            # Close drawer
+            if hasattr(self.page, 'end_drawer') and self.page.end_drawer:
+                if hasattr(self.page, 'close'):
+                    self.page.close(self.page.end_drawer)
+                else:
+                    self.page.end_drawer.open = False
+            self.page.update()
+            # Show success message
+            try:
+                self.page.snack_bar = ft.SnackBar(ft.Text(i18n.get("notifications_cleared") or "Notifications cleared"), bgcolor="GREEN")
+                self.page.snack_bar.open = True
+                self.page.update()
+            except Exception:
+                pass
+        except Exception as ex:
+            logger.exception(f"Failed to clear notifications: {ex}")
 
     def _clear_notifications(self, e, dlg):
         self.notification_service.clear()
         self.page.close(dlg)
-        self.page.snack_bar = ft.SnackBar(ft.Text("Notifications cleared"))
+        self.page.snack_bar = ft.SnackBar(ft.Text(i18n.get("notifications_cleared") or "Notifications cleared"))
         self.page.snack_bar.open = True
         self.page.update()
 
@@ -421,7 +524,7 @@ class ModernApp:
              # Trigger background download of optionals
              self.page.close(dlg)
              self.set_progress(None, True) # Indeterminate
-             self.page.snack_bar = ft.SnackBar(ft.Text("Installing optional components..."))
+             self.page.snack_bar = ft.SnackBar(ft.Text(i18n.get("installing_optional") or "Installing optional components..."))
              self.page.snack_bar.open = True
              self.page.update()
 
@@ -466,14 +569,14 @@ class ModernApp:
                             # Update Dialog to ask for Optional
                             content.controls.clear()
                             content.controls.append(ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN", size=48))
-                            content.controls.append(ft.Text("Base components installed!"))
-                            content.controls.append(ft.Text("Do you want to install optional features (AI, Winget)?"))
+                            content.controls.append(ft.Text(i18n.get("base_components_installed") or "Base components installed!"))
+                            content.controls.append(ft.Text(i18n.get("install_optional_features") or "Do you want to install optional features (AI, Winget)?"))
 
                             dlg.actions.clear()
                             dlg.actions.append(ft.TextButton("No, thanks", on_click=close_wizard))
                             dlg.actions.append(ft.Button("Install Optional", on_click=install_optional))
                         else:
-                            content.controls.append(ft.Text(f"Failed to install base: {msg}", color="RED"))
+                            content.controls.append(ft.Text(i18n.get("failed_install_base", msg=msg) or f"Failed to install base: {msg}", color="RED"))
                             dlg.actions.clear()
                             dlg.actions.append(ft.TextButton("Close", on_click=close_wizard))
 
@@ -488,13 +591,13 @@ class ModernApp:
             threading.Thread(target=_base_install, daemon=True).start()
 
         content = ft.Column([
-            ft.Text("Welcome to SwitchCraft!", size=20, weight="bold"),
-            ft.Text("It looks like this is your first run."),
-            ft.Text("We classify 'Advanced Features' as an Essential add-on. Install it now?"),
+            ft.Text(i18n.get("welcome_switchcraft") or "Welcome to SwitchCraft!", size=20, weight="bold"),
+            ft.Text(i18n.get("first_run_detected") or "It looks like this is your first run."),
+            ft.Text(i18n.get("advanced_features_essential") or "We classify 'Advanced Features' as an Essential add-on. Install it now?"),
         ], tight=True)
 
         dlg = ft.AlertDialog(
-            title=ft.Text("Setup Wizard"),
+            title=ft.Text(i18n.get("setup_wizard") or "Setup Wizard"),
             content=content,
             actions=[
                 ft.TextButton("Skip", on_click=close_wizard),
@@ -506,22 +609,45 @@ class ModernApp:
 
     def toggle_theme(self, e):
         """Toggle between light and dark theme."""
-        if self.page.theme_mode == ft.ThemeMode.DARK:
-            self.page.theme_mode = ft.ThemeMode.LIGHT
-            self.theme_icon.icon = ft.Icons.DARK_MODE
-            SwitchCraftConfig.set_user_preference("Theme", "Light")
-        else:
-            self.page.theme_mode = ft.ThemeMode.DARK
-            self.theme_icon.icon = ft.Icons.LIGHT_MODE
-            SwitchCraftConfig.set_user_preference("Theme", "Dark")
-        self.page.update()
+        try:
+            logger.debug(f"Toggle theme called. Current mode: {self.page.theme_mode}")
+            if self.page.theme_mode == ft.ThemeMode.DARK:
+                self.page.theme_mode = ft.ThemeMode.LIGHT
+                self.theme_icon.icon = ft.Icons.DARK_MODE
+                SwitchCraftConfig.set_user_preference("Theme", "Light")
+                logger.debug("Switched to LIGHT theme")
+            else:
+                self.page.theme_mode = ft.ThemeMode.DARK
+                self.theme_icon.icon = ft.Icons.LIGHT_MODE
+                SwitchCraftConfig.set_user_preference("Theme", "Dark")
+                logger.debug("Switched to DARK theme")
+            self.page.update()
+        except Exception as ex:
+            logger.exception(f"Error toggling theme: {ex}")
+            try:
+                self.page.snack_bar = ft.SnackBar(
+                    content=ft.Text(f"Failed to toggle theme: {ex}"),
+                    bgcolor="RED"
+                )
+                self.page.snack_bar.open = True
+                self.page.update()
+            except Exception:
+                pass
 
 
 
 
 
     def window_event(self, e):
-        """Handle window events, specifically closing."""
+        """Handle window events, specifically closing and mouse back button."""
+        # Handle mouse back button (XButton1 on Windows)
+        # Flet may send this as different event types depending on version
+        event_data = str(e.data) if hasattr(e, 'data') else str(e)
+        if "xbutton1" in event_data.lower() or event_data == "5":  # XButton1 is typically event code 5
+            logger.debug("Mouse back button pressed")
+            self._go_back_handler(e)
+            return
+
         if e.data == "close":
             try:
                 # Handle Flet API evolution (old vs new properties)
@@ -559,8 +685,8 @@ class ModernApp:
             )
 
     def build_ui(self):
-        # Clear loading screen immediately before building new UI
-        self.page.clean()
+        # Keep loading screen visible during build - clear only at the end
+        # Don't clear page.clean() here - we'll replace the loading screen with the actual UI
 
         self.destinations = [
                 ft.NavigationRailDestination(
@@ -687,7 +813,39 @@ class ModernApp:
         # Add Banner if needed
         self.setup_banner()
 
+        # First run / Demo mode check
+        import threading
+        threading.Thread(target=self._check_first_run, daemon=True).start()
 
+        # Handle command line arguments for initial navigation
+        import sys
+        # Check for silent mode (minimize UI, auto-accept prompts)
+        self.silent_mode = "--silent" in sys.argv
+
+        if "--wizard" in sys.argv:
+            # Delay navigation slightly to ensure UI is ready
+            def nav_to_wizard():
+                import time
+                time.sleep(0.5)  # Wait for UI to be fully rendered
+                from switchcraft.gui_modern.nav_constants import NavIndex
+                self.goto_tab(NavIndex.PACKAGING_WIZARD)
+            threading.Thread(target=nav_to_wizard, daemon=True).start()
+        elif "--analyzer" in sys.argv or "--all-in-one" in sys.argv:
+            # Delay navigation slightly to ensure UI is ready
+            def nav_to_analyzer():
+                import time
+                time.sleep(0.5)  # Wait for UI to be fully rendered
+                from switchcraft.gui_modern.nav_constants import NavIndex
+                self.goto_tab(NavIndex.ANALYZER)
+            threading.Thread(target=nav_to_analyzer, daemon=True).start()
+
+        # In silent mode, minimize window and suppress first-run dialogs
+        if self.silent_mode:
+            try:
+                if hasattr(self.page, 'window'):
+                    self.page.window.minimized = True
+            except Exception:
+                pass
 
         # self.back_btn is now defined in __init__
 
@@ -698,9 +856,27 @@ class ModernApp:
 
         layout_controls.append(self.sidebar)
 
+        # Replace loading screen with actual UI (like RDM - banner stays visible until app is ready)
+        # Ensure UI is fully built before replacing loading screen
+        # IMPORTANT: Only replace loading screen if it exists (from modern_main.py)
+        # Check if page has controls and if first control is the loading container
+        has_loading_screen = len(self.page.controls) > 0
+
+        self.page.clean()
         self.page.add(
              ft.Column(layout_controls, expand=True, spacing=0)
         )
+        # Force multiple updates to ensure UI is visible and rendered
+        self.page.update()
+        self.page.update()  # Second update to ensure rendering
+        self.page.update()  # Third update for good measure
+
+        # Now shutdown splash screen after UI is fully visible
+        if self.splash_proc:
+            try:
+                self.splash_proc.terminate()
+            except Exception:
+                pass
 
 
     def _open_notifications(self, e):
@@ -721,7 +897,7 @@ class ModernApp:
         notifs = self.notification_service.get_notifications()
         items = []
         if not notifs:
-            items.append(ft.Text("No notifications", italic=True))
+            items.append(ft.Text(i18n.get("no_notifications") or "No notifications", italic=True))
         else:
             for n in notifs:
                 icon = ft.Icons.INFO
@@ -782,14 +958,30 @@ class ModernApp:
 
     def _go_back_handler(self, e):
         """Handle back button click to navigate to previous view."""
-        if hasattr(self, '_navigation_history') and len(self._navigation_history) > 1:
-            # Pop current view
-            self._navigation_history.pop()
-            # Go to previous view
-            prev_idx = self._navigation_history[-1]
-            self.sidebar.set_selected_index(prev_idx)
-            self._switch_to_tab(prev_idx)
-            self._update_back_btn_visibility()
+        try:
+            logger.debug(f"Back button clicked. History: {getattr(self, '_navigation_history', [])}")
+            if hasattr(self, '_navigation_history') and len(self._navigation_history) > 1:
+                # Pop current view
+                self._navigation_history.pop()
+                # Go to previous view
+                prev_idx = self._navigation_history[-1]
+                logger.debug(f"Navigating back to index: {prev_idx}")
+                self.sidebar.set_selected_index(prev_idx)
+                self._switch_to_tab(prev_idx)
+                self._update_back_btn_visibility()
+            else:
+                logger.debug("No history to go back to")
+        except Exception as ex:
+            logger.exception(f"Error in back button handler: {ex}")
+            try:
+                self.page.snack_bar = ft.SnackBar(
+                    content=ft.Text(f"Failed to go back: {ex}"),
+                    bgcolor="RED"
+                )
+                self.page.snack_bar.open = True
+                self.page.update()
+            except Exception:
+                pass
 
     def _update_back_btn_visibility(self):
         """Show/hide back button based on navigation history."""
@@ -829,6 +1021,8 @@ class ModernApp:
 
     def _switch_to_tab(self, idx):
         """Internal method to switch to a specific tab index."""
+        # Store current tab index for language change refresh
+        self._current_tab_index = idx
 
         # 1. SHOW LOADING STATE IMMEDIATELY
         self.content.controls.clear()
@@ -838,7 +1032,7 @@ class ModernApp:
                  content=ft.Column(
                      controls=[
                          ft.ProgressRing(),
-                         ft.Text("Loading...", size=16)
+                         ft.Text(i18n.get("loading_view") or "Loading...", size=16)
                      ],
                      horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                      alignment=ft.MainAxisAlignment.CENTER
@@ -888,7 +1082,7 @@ class ModernApp:
                     cat_view = CategoryView(self.page, category_name=cat_name, items=cat_data[2], app_destinations=self.destinations, on_navigate=self.goto_tab)
                     new_controls.append(cat_view)
                 except Exception:
-                    new_controls.append(ft.Text("Unknown Category", color="red"))
+                    new_controls.append(ft.Text(i18n.get("unknown_category") or "Unknown Category", color="red"))
             else:
                 new_controls.append(ft.Text("Unknown Category", color="red"))
 
@@ -1038,7 +1232,7 @@ class ModernApp:
                     return view_class(self.page)
                 load_view(_f)
             else:
-                new_controls.append(ft.Text("Unknown Tab", color="red"))
+                new_controls.append(ft.Text(i18n.get("unknown_tab") or "Unknown Tab", color="red"))
 
 
         # 3. SWAP CONTENT with Fade In
@@ -1046,7 +1240,7 @@ class ModernApp:
 
         # Wrap new controls in a container with opacity 0 initially
         fade_container = ft.Container(
-            content=new_controls[0] if new_controls else ft.Text("Error loading view"),
+            content=new_controls[0] if new_controls else ft.Text(i18n.get("error_loading") or "Error loading view"),
             expand=True,
             opacity=0,
             animate_opacity=ft.Animation(400, ft.AnimationCurve.EASE_OUT)
@@ -1148,8 +1342,8 @@ class ModernApp:
     def _show_restart_countdown(self):
         """Overlay for restart required."""
         dlg = ft.AlertDialog(
-            title=ft.Text("Restart Required"),
-            content=ft.Text("Settings changed. Restarting app..."),
+            title=ft.Text(i18n.get("restart_required_title") or "Restart Required"),
+            content=ft.Text(i18n.get("restart_required_msg") or "Settings changed. Restarting app..."),
             modal=True,
         )
         self.page.dialog = dlg
@@ -1167,6 +1361,116 @@ class ModernApp:
             drawer.open = False
             self.page.update()
         # Re-open empty? No, just close.
+
+    def _check_first_run(self):
+        """Check if this is the first run and offer demo mode."""
+        from switchcraft.utils.config import SwitchCraftConfig
+        from switchcraft.utils.i18n import i18n
+        import sys
+        import webbrowser
+
+        if SwitchCraftConfig.get_value("FirstRun", True):
+            SwitchCraftConfig.set_user_preference("FirstRun", False)
+            # If running from source or portable, offer demo
+            if not getattr(sys, 'frozen', False):
+                def show_demo_dialog():
+                    def start_demo(e):
+                        dlg.open = False
+                        self.page.update()
+                        # Navigate to analyzer and start demo
+                        self.goto_tab(NavIndex.ANALYZER)
+                        # Wait a bit for view to load, then trigger demo
+                        import time
+                        time.sleep(0.5)
+                        self._start_demo_analysis()
+
+                    def skip_demo(e):
+                        dlg.open = False
+                        self.page.update()
+
+                    dlg = ft.AlertDialog(
+                        title=ft.Text(i18n.get("welcome_switchcraft") or "Welcome to SwitchCraft!"),
+                        content=ft.Column([
+                            ft.Text(i18n.get("demo_mode_msg") or "Welcome to SwitchCraft! Would you like to run a demo analysis?", size=14),
+                        ], tight=True),
+                        actions=[
+                            ft.TextButton(i18n.get("btn_later") or "Later", on_click=skip_demo),
+                            ft.Button(
+                                "Start Demo",
+                                on_click=start_demo,
+                                bgcolor="BLUE_700",
+                                color="WHITE"
+                            ),
+                        ]
+                    )
+                    self.page.open(dlg)
+
+                # Show dialog on UI thread
+                self.page.run_task(show_demo_dialog)
+
+    def _start_demo_analysis(self):
+        """Start demo analysis by downloading a sample installer."""
+        import sys
+        import tempfile
+        import threading
+        import requests
+        from switchcraft.utils.i18n import i18n
+        from switchcraft.gui_modern.nav_constants import NavIndex
+
+        def download_and_analyze():
+            try:
+                # Show downloading message
+                self._show_snack(i18n.get("demo_downloading") or "Downloading demo installer...", "BLUE")
+
+                # Use 7-Zip MSI as a safe demo
+                url = "https://www.7-zip.org/a/7z2409-x64.msi"
+
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".msi")
+                tmp.close()
+
+                # Download
+                response = requests.get(url, stream=True, timeout=30)
+                response.raise_for_status()
+
+                with open(tmp.name, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+
+                # Navigate to analyzer if not already there
+                if hasattr(self, '_current_tab_index') and self._current_tab_index != NavIndex.ANALYZER:
+                    self.goto_tab(NavIndex.ANALYZER)
+
+                # Wait a bit for view to load
+                import time
+                time.sleep(0.5)
+
+                # Trigger analysis
+                if NavIndex.ANALYZER in self._view_cache:
+                    analyzer_view = self._view_cache[NavIndex.ANALYZER]
+                    if hasattr(analyzer_view, 'start_analysis'):
+                        self.page.run_task(lambda: analyzer_view.start_analysis(tmp.name))
+
+            except Exception as e:
+                logger.error(f"Demo failed: {e}")
+                def show_error():
+                    def open_download(e):
+                        dlg.open = False
+                        self.page.update()
+                        webbrowser.open("https://github.com/FaserF/SwitchCraft/releases")
+
+                    dlg = ft.AlertDialog(
+                        title=ft.Text(i18n.get("demo_error_title") or "Download Error"),
+                        content=ft.Text(i18n.get("demo_ask_download", error=str(e)) or f"Could not download demo installer.\nError: {e}\n\nOpen download page instead?"),
+                        actions=[
+                            ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda e: setattr(dlg, "open", False) or self.page.update()),
+                            ft.Button("Open Download Page", on_click=open_download, bgcolor="BLUE_700", color="WHITE"),
+                        ]
+                    )
+                    self.page.open(dlg)
+
+                self.page.run_task(show_error)
+
+        threading.Thread(target=download_and_analyze, daemon=True).start()
 
 def main(page: ft.Page):
     """Entry point for Flet app."""

@@ -858,7 +858,7 @@ class SettingsView(ctk.CTkFrame):
         auth_grid.grid_columnconfigure(1, weight=1)
 
         from switchcraft.services.addon_service import AddonService
-        if not AddonService.is_addon_installed("advanced"):
+        if not AddonService.is_addon_installed_static("advanced"):
             ctk.CTkLabel(frame, text=i18n.get("addon_advanced_required"), text_color="orange").pack(pady=5)
             ctk.CTkButton(frame, text=i18n.get("btn_goto_addon_manager"), command=lambda: self.tabview.set(i18n.get("help_title") or "Help")).pack(pady=5)
             # Disable the rest
@@ -1036,7 +1036,7 @@ class SettingsView(ctk.CTkFrame):
             row = ctk.CTkFrame(frame)
             row.pack(fill="x", padx=5, pady=2)
 
-            is_installed = AddonService.is_addon_installed(addon["id"])
+            is_installed = AddonService.is_addon_installed_static(addon["id"])
             status_color = "green" if is_installed else "orange"
             status_text = i18n.get("status_installed") if is_installed else i18n.get("status_not_installed")
 

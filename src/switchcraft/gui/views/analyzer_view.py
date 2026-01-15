@@ -40,7 +40,7 @@ class AnalyzerView(ctk.CTkFrame):
 
         # Check for Advanced Addon
         from switchcraft.services.addon_service import AddonService
-        if not AddonService.is_addon_installed("advanced"):
+        if not AddonService.is_addon_installed_static("advanced"):
             self._create_addon_warning(row_offset)
             row_offset += 1
 

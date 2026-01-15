@@ -34,6 +34,27 @@ Classic packaging workflow.
 2.  Sends it to the **Analyzer** tab for inspection.
 3.  You can then wrap it into an `.intunewin` file using your custom templates or SwitchCraft's defaults.
 
+## 📝 WingetCreate Manager
+
+The **WingetCreate Manager** (Modern UI only) allows you to create and manage Winget manifests for publishing packages to Microsoft's repository.
+
+### Features
+- **Manifest Creation**: Generate Winget manifests from existing packages
+- **GitHub Integration**: Create pull requests directly to the winget-pkgs repository
+- **Version Management**: Update existing manifests with new versions
+- **Validation**: Validate manifests before submission
+
+### Using WingetCreate Manager
+
+1. Navigate to **Tools → WingetCreate Manager**
+2. Select a package or enter package details
+3. Configure manifest settings (Publisher, Package Identifier, etc.)
+4. Generate the manifest
+5. Submit to GitHub (requires GitHub token in settings)
+
+> [!NOTE]
+> Requires `wingetcreate` CLI tool and GitHub token for repository access.
+
 ## ⚙️ Configuration
 
 You can enable/disable Winget integration in **Settings > General > Enable Winget Integration**.

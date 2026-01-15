@@ -4,18 +4,15 @@ import os
 import customtkinter
 import tkinterdnd2
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, collect_all
 
-# Helper to find package data
-def get_package_data(package):
-    path = os.path.dirname(package.__file__)
-    return (path, os.path.basename(path))
-
-ctk_path, ctk_name = get_package_data(customtkinter)
-tkdnd_path, tkdnd_name = get_package_data(tkinterdnd2)
+# Use collect_all to properly gather all CustomTkinter assets including themes
+ctk_datas, ctk_binaries, ctk_hidden_imports = collect_all('customtkinter')
+tkdnd_datas, tkdnd_binaries, tkdnd_hidden_imports = collect_all('tkinterdnd2')
 
 # MANUAL COLLECTION to ensure robustness
-hidden_imports = ['PIL._tkinter_finder', 'tkinterdnd2', 'plyer.platforms.win.notification', 'defusedxml', 'winotify', 'switchcraft.services.addon_service']
+hidden_imports = ['PIL._tkinter_finder', 'plyer.platforms.win.notification', 'defusedxml', 'winotify', 'switchcraft.services.addon_service']
+hidden_imports += list(set(ctk_hidden_imports + tkdnd_hidden_imports))
 hidden_imports += collect_submodules('switchcraft')
 
 # Manually walk src/switchcraft to find all modules
@@ -39,16 +36,18 @@ for root, dirs, files in os.walk(pkg_path):
              module_name = rel_path.replace(os.sep, '.')
              hidden_imports.append(module_name)
 
-datas = [
-    (ctk_path, ctk_name),
-    (tkdnd_path, tkdnd_name),
+# Combine all datas - CustomTkinter themes are now included via collect_all
+datas = ctk_datas + tkdnd_datas + [
     ('src/switchcraft/assets', 'assets'),
 ]
+
+# Include binaries if any
+binaries = ctk_binaries + tkdnd_binaries
 
 a = Analysis(
     ['src/entry.py'], # Legacy uses src/entry.py or src/switchcraft/main.py (via entry.py)
     pathex=[os.path.abspath('src')],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hidden_imports + ['switchcraft.utils', 'switchcraft.utils.config'],
     hookspath=[os.path.abspath('hooks')],

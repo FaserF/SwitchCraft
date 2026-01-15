@@ -395,11 +395,43 @@ class IntuneService:
 
     def search_apps(self, token, query):
         """
-        Search apps by name.
+        Search apps by name (case-insensitive).
         """
+        if not query or not query.strip():
+            return []
+
+        # Escape single quotes for OData
         escaped_query = query.replace("'", "''")
-        filter_str = f"contains(displayName, '{escaped_query}')"
-        return self.list_apps(token, filter_query=filter_str)
+
+        # Try case-insensitive search using tolower() - if that fails, fall back to regular contains
+        # Some Graph API versions might not support tolower(), so we try both
+        try:
+            filter_str = f"contains(tolower(displayName), tolower('{escaped_query}'))"
+            apps = self.list_apps(token, filter_query=filter_str)
+            # If we got results, return them
+            if apps:
+                return apps
+        except Exception as e:
+            logger.debug(f"tolower() search failed, trying simple contains: {e}")
+
+        # Fallback: simple contains (case-sensitive but more compatible)
+        try:
+            filter_str = f"contains(displayName, '{escaped_query}')"
+            apps = self.list_apps(token, filter_query=filter_str)
+            # Filter results client-side for case-insensitive match
+            query_lower = query.lower()
+            filtered_apps = [app for app in apps if query_lower in app.get('displayName', '').lower()]
+            return filtered_apps
+        except Exception as e:
+            logger.error(f"Search failed with both methods: {e}")
+            # Last resort: get all apps and filter client-side
+            try:
+                all_apps = self.list_apps(token)
+                query_lower = query.lower()
+                return [app for app in all_apps if query_lower in app.get('displayName', '').lower()]
+            except Exception as e2:
+                logger.error(f"Fallback search also failed: {e2}")
+                raise e  # Re-raise original error
 
     def get_app_details(self, token, app_id):
         """

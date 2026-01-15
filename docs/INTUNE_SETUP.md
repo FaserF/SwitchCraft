@@ -16,10 +16,20 @@ To enable SwitchCraft to upload packages directly to Microsoft Intune, you need 
 2. Click **Add a permission** > **Microsoft Graph**.
 3. Select **Application permissions** (NOT Delegated).
 4. Search for and check the following permissions:
-   - `DeviceManagementApps.ReadWrite.All` (To create and upload apps)
-   - `Group.Read.All` (Optional, if we implement assignment later)
+
+### Minimum Required (Intune Packaging)
+   - `DeviceManagementApps.ReadWrite.All` - To create and upload apps to Intune
+
+### Optional (Group Manager)
+   - `Group.Read.All` or `Group.ReadWrite.All` - To browse and manage Entra ID groups
+   - `User.Read.All` - To search for users when adding group members
+   - `GroupMember.ReadWrite.All` - To add and remove group members
+
 5. Click **Add permissions**.
 6. **IMPORTANT**: Click **Grant admin consent for [Your Org]** to activate the permissions.
+
+> [!NOTE]
+> The Group Manager features require the additional permissions listed above. If you only need Intune packaging, `DeviceManagementApps.ReadWrite.All` is sufficient.
 
 ## 3. Create Client Secret
 

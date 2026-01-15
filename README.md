@@ -1,14 +1,37 @@
 # SwitchCraft 🧙‍♂️
 
-<img src="src/switchcraft/assets/switchcraft_logo_with_Text.png" width="200" alt="SwitchCraft Logo">
+<img src="https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_logo_with_Text.png" width="200" alt="SwitchCraft Logo">
 
 [![GitHub all releases](https://img.shields.io/github/downloads/FaserF/SwitchCraft/total?color=blue&style=flat-square&logo=github&label=Downloads)](https://github.com/FaserF/SwitchCraft/releases)
 
 **SwitchCraft is your comprehensive packaging assistant for IT Professionals. It goes beyond simple switch identification to streamline your entire application packaging workflow.**
 
+<details>
+<summary><b>📸 Click to view main UI screenshot</b></summary>
+
 <div align="center">
-  <img src="src/switchcraft/assets/switchcraft_ui.png" alt="SwitchCraft UI" width="1000" />
+  <img src="https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_ui.png" alt="SwitchCraft UI" width="1000" />
 </div>
+
+</details>
+
+<details>
+<summary><b>📸 Click to view additional screenshots</b></summary>
+
+<div align="center">
+  <table>
+    <tr>
+      <td><img src="https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_ui_2.png" alt="SwitchCraft Screenshot 2" width="500" /></td>
+      <td><img src="https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_ui_3.png" alt="SwitchCraft Screenshot 3" width="500" /></td>
+    </tr>
+    <tr>
+      <td><img src="https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_ui_4.png" alt="SwitchCraft Screenshot 4" width="500" /></td>
+      <td><img src="https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_ui_5.png" alt="SwitchCraft Screenshot 5" width="500" /></td>
+    </tr>
+  </table>
+</div>
+
+</details>
 
 ## ⚠️ Platform Support & Limitations
 
@@ -31,30 +54,40 @@ SwitchCraft is primarily designed for **Windows** environments. While the applic
 ### 🔍 Analysis & Packaging
 - **Smart Installer Analysis**: Deep inspection of MSI, EXE (Inno Setup, NSIS, InstallShield), and custom wrappers.
 - **Intune Integration**: Automated creation of `.intunewin` packages and direct publication to Microsoft Intune.
+- **Intune Store Browser**: Browse and manage your Intune applications with logo display and detailed metadata.
 - **Advanced Wrapper Support**: Identification of nested installers and extraction of silent switches.
 - **Batch Processing**: Drag & Drop multiple files to analyze them sequentially.
 - **Analysis History**: Keep track of your last 100 analyzed installers.
+- **My Library**: Personal collection of analyzed and packaged applications with search and filter capabilities.
 - **Community Database**: Integrated lookup for known silent switches when local analysis fails.
-- **Project Stacks**: Group applications into named stacks for one-click batch deployment.
+- **Project Stacks**: Group applications into named stacks for one-click batch deployment via Stack Manager.
 - **Interactive Dashboard**: Visual overview of your packaging activity, statistics, and recent actions.
 - **Script Signing**: Automatically sign generated PowerShell scripts with your Code Signing Certificate.
 - **Packaging Wizard**: End-to-End workflow from installer to Intune upload in 5 steps.
 - **Live Detection Tester**: Verify intended Registry, File, or MSI detection rules locally before uploading.
+- **Group Manager**: Comprehensive Entra ID (Azure AD) group management - create, delete, and manage group members with user search.
+- **Script Upload**: Upload and manage PowerShell scripts for Intune deployment.
 
 ### 📦 Store & Deployment
 - **Winget Store Integration**: Search, analyze, and deploy applications from the official Microsoft repository.
+- **WingetCreate Manager**: Create and manage Winget manifests for publishing packages to the Microsoft repository.
 - **Auto-Update Support**: Built-in logic to handle application updates in enterprise environments.
 - **Portable & Setup Variants**: Choose between full installation or zero-residue portable executables.
 - **Winget Toggle**: Easily enable/disable store integration to suit your workflow.
+- **macOS Packaging Wizard**: Create install.sh scripts and DMG/PKG packages for macOS deployment.
 
 ### 🛠️ Enterprise & Automation
 - **Enterprise Configuration**: Full support for Registry-based configuration via GPO or Intune OMA-URI.
 - **CLI Mode**: Headless operation for CI/CD pipelines and automation scripts with JSON output.
 - **Cloud Sync**: Sync your configuration and settings across devices using GitHub Gists.
-- **Modular Addon System**: Extend functionality with optional components like AI analysis or Intune integration.
+- **Modular Addon System**: Extend functionality with optional components like AI analysis, Advanced analyzers, or Winget integration.
+- **Notification System**: Desktop notifications and in-app notification center for important events.
+- **Multi-Language Support**: Full English and German (Du-Form) interface with easy language switching.
 
 ### 🤖 AI Assistance
 - **Enhanced AI Helper**: Dynamic chat assistant for packaging guidance supporting Local AI, Gemini, and OpenAI.
+- **Context-Aware Responses**: AI understands your current installer context and provides relevant suggestions.
+- **Copy-to-Clipboard**: Easily copy AI responses and code snippets from the chat interface.
 
 ---
 
@@ -151,6 +184,17 @@ To completely remove all SwitchCraft data, use **Settings → Factory Reset** wh
 When reporting issues, please attach the crash dump file to help with debugging.
 
 ## 📚 Documentation
+
+Full documentation is available at [SwitchCraft Docs](https://faserf.github.io/SwitchCraft/).
+
+Key topics:
+- [Installation Guide](/docs/installation.md)
+- [Feature Overview](/docs/FEATURES.md)
+- [Intune Integration](/docs/INTUNE.md)
+- [Winget Integration](/docs/WINGET.md)
+- [Addon System](/docs/ADDONS.md)
+- [CLI Reference](/docs/CLI_Reference.md)
+- [FAQ](/docs/faq.md)
 
 ## 🛠️ Building from Source
 SwitchCraft includes helper scripts to easily build release executables for your platform.

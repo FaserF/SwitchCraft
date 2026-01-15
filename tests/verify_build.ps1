@@ -47,7 +47,7 @@ try {
     $p.StartInfo.FileName = $exePath
     # We can't easily capture stdout of a GUI app unless correct subsystem is set,
     # but we are building a console-enabled app (console=True in spec? check logging)
-    # The user said terminal output closes fast, implying console IS attached.
+    # Terminal output closes fast, implying console IS attached.
     $p.StartInfo.RedirectStandardOutput = $true
     $p.StartInfo.RedirectStandardError = $true
     $p.StartInfo.UseShellExecute = $false

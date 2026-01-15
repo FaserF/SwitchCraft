@@ -40,43 +40,64 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.mainloop()
     def __init__(self):
-        super().__init__()
-        self.TkdndVersion = TkinterDnD._require(self)
-        self.title(f"SwitchCraft Legacy v{__version__}")
-        self.geometry(f"{1100}x{580}")
+        try:
+            super().__init__()
+            self.TkdndVersion = TkinterDnD._require(self)
+            self.title(f"SwitchCraft Legacy v{__version__}")
+            self.geometry(f"{1100}x{580}")
 
-        # Assets & State
-        self.logo_image = None
-        self.load_assets()
+            # Assets & State
+            self.logo_image = None
+            self.load_assets()
 
 
-        # Pending update info (for "Update Later" feature)
-        self.pending_update = None
+            # Pending update info (for "Update Later" feature)
+            self.pending_update = None
 
-        # 1. Show Loading Screen immediately
-        self.loading_frame = ctk.CTkFrame(self)
-        self.loading_frame.grid(row=0, column=0, sticky="nsew")
-        self.loading_frame.grid_columnconfigure(0, weight=1)
-        self.loading_frame.grid_rowconfigure((0, 1, 2), weight=1)
+            # 1. Show Loading Screen immediately
+            # Configure main window grid first
+            self.grid_columnconfigure(0, weight=1)
+            self.grid_rowconfigure(0, weight=1)
 
-        if self.logo_image:
-             ctk.CTkLabel(self.loading_frame, image=self.logo_image, text="").grid(row=0, column=0, pady=(40, 0))
+            self.loading_frame = ctk.CTkFrame(self)
+            self.loading_frame.grid(row=0, column=0, sticky="nsew")
+            self.loading_frame.grid_columnconfigure(0, weight=1)
+            # Configure all rows that will be used (0-3)
+            self.loading_frame.grid_rowconfigure(0, weight=1)
+            self.loading_frame.grid_rowconfigure(1, weight=0)
+            self.loading_frame.grid_rowconfigure(2, weight=0)
+            self.loading_frame.grid_rowconfigure(3, weight=0)
+            self.loading_frame.grid_rowconfigure(4, weight=1)
 
-        ctk.CTkLabel(
-            self.loading_frame,
-            text=i18n.get("app_title") or "SwitchCraft",
-            font=ctk.CTkFont(size=24, weight="bold")
-        ).grid(row=1, column=0, pady=10)
+            # Create a centered container for better layout
+            center_frame = ctk.CTkFrame(self.loading_frame, fg_color="transparent")
+            center_frame.grid(row=1, column=0, rowspan=3, sticky="", pady=20)
 
-        self.loading_label = ctk.CTkLabel(self.loading_frame, text="Loading components...")
-        self.loading_label.grid(row=2, column=0, pady=(0, 20))
+            if self.logo_image:
+                 ctk.CTkLabel(center_frame, image=self.logo_image, text="").pack(pady=(0, 20))
 
-        self.loading_bar = ctk.CTkProgressBar(self.loading_frame, mode="indeterminate", width=400)
-        self.loading_bar.grid(row=3, column=0, pady=(0, 40))
-        self.loading_bar.start()
+            ctk.CTkLabel(
+                center_frame,
+                text=i18n.get("app_title") or "SwitchCraft",
+                font=ctk.CTkFont(size=24, weight="bold")
+            ).pack(pady=(0, 20))
 
-        # Defer initialization
-        self.after(100, self._perform_initialization)
+            self.loading_label = ctk.CTkLabel(center_frame, text="Loading components...")
+            self.loading_label.pack(pady=(0, 20))
+
+            self.loading_bar = ctk.CTkProgressBar(center_frame, mode="indeterminate", width=400)
+            self.loading_bar.pack(pady=(0, 20))
+            self.loading_bar.start()
+
+            # Force update to show loading screen immediately
+            self.update()
+
+            # Defer initialization
+            self.after(100, self._perform_initialization)
+        except Exception as e:
+            # If initialization fails, log and re-raise so main() can handle it
+            logger.exception(f"Failed to initialize App window: {e}")
+            raise
 
     def _update_loading(self, text):
         """Update loading text and refresh UI."""
@@ -105,7 +126,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.ai_service = None
             try:
                 from switchcraft.services.addon_service import AddonService
-                ai_mod = AddonService.import_addon_module("ai", "service")
+                addon_service = AddonService()
+                ai_mod = addon_service.import_addon_module("ai", "service")
                 if ai_mod:
                     self.ai_service = ai_mod.SwitchCraftAI()
             except Exception as e:
@@ -121,27 +143,69 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.winget_helper = None
             self.winget_load_error = None
             try:
-                winget_mod = AddonService.import_addon_module("winget", "utils.winget", raise_error=True)
+                from switchcraft.services.addon_service import AddonService
+                addon_service = AddonService()
+                winget_mod = addon_service.import_addon_module("winget", "utils.winget")
                 if winget_mod:
                     self.winget_helper = winget_mod.WingetHelper()
+                elif AddonService.is_addon_installed_static("winget"):
+                    # Addon is installed but failed to load
+                    self.winget_load_error = "Addon is installed but failed to load. Check logs."
             except Exception as e:
                 logger.exception(f"Winget Addon import crashed: {e}")
-                if AddonService.is_addon_installed("winget"):
+                if AddonService.is_addon_installed_static("winget"):
                     self.winget_load_error = str(e)
 
             # 4. Debug Addon
             from switchcraft.services.addon_service import AddonService
-            self.has_debug_addon = AddonService.is_addon_installed("debug")
+            self.has_debug_addon = AddonService.is_addon_installed_static("debug")
 
             # Initialization done, switch to main thread for UI
             self.after(0, self._finalize_startup)
 
         except Exception as e:
             logger.exception(f"Critical error during background init: {e}")
-            # Ensure we don't hang forever
-            err_msg = str(e)
-            self.after(0, lambda: messagebox.showerror("Startup Error", f"Critical error: {err_msg}"))
-            self.after(0, self.destroy)
+            # Write crash dump
+            try:
+                import traceback
+                from datetime import datetime
+                from pathlib import Path
+                import os
+
+                app_data = os.getenv('APPDATA')
+                if app_data:
+                    dump_dir = Path(app_data) / "FaserF" / "SwitchCraft" / "Logs"
+                else:
+                    dump_dir = Path.home() / ".switchcraft" / "Logs"
+                dump_dir.mkdir(parents=True, exist_ok=True)
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                dump_file = dump_dir / f"crash_dump_{timestamp}.txt"
+
+                with open(dump_file, "w", encoding="utf-8") as f:
+                    f.write("SwitchCraft Legacy Crash Dump\n")
+                    f.write(f"Time: {datetime.now().isoformat()}\n")
+                    f.write(f"Error: {str(e)}\n\n")
+                    f.write("Traceback:\n")
+                    f.write("="*60 + "\n")
+                    traceback.print_exception(type(e), e, e.__traceback__, file=f)
+
+                err_msg = f"Critical error during startup:\n{str(e)}\n\nCrash dump saved to:\n{dump_file}"
+            except Exception:
+                err_msg = f"Critical error during startup:\n{str(e)}"
+
+            # Show error dialog with crash dump info
+            def show_error():
+                try:
+                    messagebox.showerror("SwitchCraft Startup Error", err_msg)
+                except Exception:
+                    pass
+                finally:
+                    # Don't destroy immediately - let user see the error
+                    # They can close manually
+                    pass
+
+            self.after(0, show_error)
 
     def _finalize_startup(self):
         """Build UI components on main thread after services are loaded."""
@@ -231,7 +295,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         is_dev = "dev" in __version__.lower() or "beta" in __version__.lower()
 
         from switchcraft.services.addon_service import AddonService
-        missing_any = not (AddonService.is_addon_installed("advanced") and AddonService.is_addon_installed("ai"))
+        missing_any = not (AddonService.is_addon_installed_static("advanced") and AddonService.is_addon_installed_static("ai"))
 
         if is_dev and missing_any:
             logger.info("Dev build detected with missing addons. Auto-installing silently...")
@@ -249,7 +313,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             return
 
         from switchcraft.services.addon_service import AddonService
-        if not AddonService.is_addon_installed("advanced"):
+        if not AddonService.is_addon_installed_static("advanced"):
             # Only ask once per session or use config to remember "Don't ask again"
             if SwitchCraftConfig.get_value("AddonPromptShown", False):
                 return
@@ -280,6 +344,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             import subprocess
             import os
             import logging
+            import time
+            import gc
 
             logger.info("Restarting application...")
 
@@ -297,10 +363,23 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             cwd = os.path.dirname(executable) if getattr(sys, 'frozen', False) else os.getcwd()
 
             try:
+                # 1. Close all file handles and release resources
                 # Flush and close logging handlers to release file locks
                 logging.shutdown()
 
-                # Prepare environment: remove PyInstaller's _MEIPASS
+                # 2. Force garbage collection to close any remaining file handles
+                gc.collect()
+
+                # 3. Close all open windows/widgets to release resources
+                try:
+                    self.destroy()
+                except Exception:
+                    pass
+
+                # 4. Small delay to allow file handles to be released
+                time.sleep(0.2)
+
+                # 5. Prepare environment: remove PyInstaller's _MEIPASS
                 env = os.environ.copy()
                 for key in list(env.keys()):
                     if key.startswith('_MEI'):
@@ -317,24 +396,44 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                     cmd = [executable] + launch_args
                     logger.info(f"Restarting with command: {cmd}")
 
+                    # Launch new process BEFORE quitting current one
                     subprocess.Popen(
                         cmd,
                         creationflags=flags,
                         close_fds=True,
                         env=env,
-                        cwd=cwd
+                        cwd=cwd,
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
                     )
+
+                    # Give the new process a moment to start
+                    time.sleep(0.3)
                 else:
                     # Linux/Mac
-                    subprocess.Popen([executable] + launch_args, close_fds=True, env=env, cwd=cwd)
+                    subprocess.Popen(
+                        [executable] + launch_args,
+                        close_fds=True,
+                        env=env,
+                        cwd=cwd,
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                    time.sleep(0.3)
 
+                # 6. Now quit and exit - the new process is already running
                 self.quit()
                 sys.exit(0)
             except Exception as e:
                 # Re-setup logger to show error if possible (since we shut it down)
                 logging.basicConfig(level=logging.INFO)
                 logger.error(f"Restart failed: {e}")
-                messagebox.showerror("Error", "Could not restart automatically. Please restart manually.")
+                try:
+                    messagebox.showerror("Error", "Could not restart automatically. Please restart manually.")
+                except Exception:
+                    pass
 
         CountdownDialog(
             self,
@@ -894,7 +993,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             # Check if AI addon is loaded
             if self.ai_service:
                 from switchcraft.services.addon_service import AddonService
-                ai_view_mod = AddonService.import_addon_module("ai", "gui.view")
+                addon_service = AddonService()
+                ai_view_mod = addon_service.import_addon_module("ai", "gui.view")
                 if ai_view_mod:
                     AIView = ai_view_mod.AIView
                     self.ai_view = AIView(self.tab_helper, self.ai_service)
@@ -961,6 +1061,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
 
 def main(splash_proc=None):
+    app = None
     try:
         # --- Auto-Enable Debug Console for Dev/Nightly Builds ---
         from switchcraft import __version__
@@ -986,22 +1087,57 @@ def main(splash_proc=None):
         app.mainloop()
     except Exception as e:
         import traceback
+        from datetime import datetime
+        from pathlib import Path
+        import os
+
         traceback.print_exc()
+
+        # Write crash dump
         try:
-             with open("crash.log", "w") as f:
-                 f.write(traceback.format_exc())
+            app_data = os.getenv('APPDATA')
+            if app_data:
+                dump_dir = Path(app_data) / "FaserF" / "SwitchCraft" / "Logs"
+            else:
+                dump_dir = Path.home() / ".switchcraft" / "Logs"
+            dump_dir.mkdir(parents=True, exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dump_file = dump_dir / f"crash_dump_{timestamp}.txt"
+
+            with open(dump_file, "w", encoding="utf-8") as f:
+                f.write("SwitchCraft Legacy Crash Dump\n")
+                f.write(f"Time: {datetime.now().isoformat()}\n")
+                f.write(f"Python: {sys.version}\n")
+                f.write(f"Platform: {sys.platform}\n")
+                f.write("\n" + "="*60 + "\n")
+                f.write("TRACEBACK:\n")
+                f.write("="*60 + "\n\n")
+                traceback.print_exception(type(e), e, e.__traceback__, file=f)
+
+            error_msg = f"SwitchCraft crashed on startup:\n{str(e)}\n\nCrash dump saved to:\n{dump_file}\n\nSee console for details."
         except Exception:
-            pass
+            error_msg = f"SwitchCraft crashed on startup:\n{str(e)}\n\nSee console for details."
 
         try:
             from tkinter import messagebox, Tk
             # Attempt to create a root for messagebox if app failed
             root = Tk()
             root.withdraw()
-            messagebox.showerror("Fatal Error", f"SwitchCraft crashed on startup:\n{e}\n\nSee console log for details.")
+            messagebox.showerror("Fatal Error", error_msg)
+            root.destroy()
         except Exception:
             pass
-        raise
+
+        # Also write to crash.log in current directory as fallback
+        try:
+            with open("crash.log", "w", encoding="utf-8") as f:
+                f.write(traceback.format_exc())
+        except Exception:
+            pass
+
+        # Don't raise - we've shown the error to the user
+        sys.exit(1)
 
 
 

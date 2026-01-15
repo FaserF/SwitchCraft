@@ -114,7 +114,7 @@ class SessionLogHandler(logging.Handler):
         import platform
         from switchcraft import __version__
 
-        base_url = "https://github.com/Starttoaster/SwitchCraft/issues/new"
+        base_url = "https://github.com/FaserF/SwitchCraft/issues/new"
         try:
             os_info = f"{platform.system()} {platform.release()} ({platform.version()})"
             py_ver = platform.python_version()

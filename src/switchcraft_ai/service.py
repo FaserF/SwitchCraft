@@ -181,6 +181,12 @@ class SwitchCraftAI:
 
         return {"error": "Unknown tool"}
 
+    @staticmethod
+    def _is_greeting(query: str) -> bool:
+        """Check if the query is a greeting using regex word boundaries."""
+        q = query.lower()
+        return bool(re.search(r'\b(hi|hello|hallo|hey|moin|servus)\b', q))
+
     def _ask_smart_regex(self, query: str) -> str:
         """Enhanced Rule-based Logic."""
         q = query.lower()
@@ -188,6 +194,13 @@ class SwitchCraftAI:
         # 0. Language Check
         is_de = any(w in q for w in ["hallo", "wer", "was", "wie", "ist", "kannst", "machen", "unterstützt", "du", "neueste", "version", "welche", "für", "geht"])
         lang = "de" if is_de else "en"
+
+        # Check for greetings first
+        if self._is_greeting(query):
+            if lang == "de":
+                return "Hallo! 👋 Ich bin SwitchCraft AI, dein Paketierungs-Assistent. Wie kann ich dir helfen?"
+            else:
+                return "Hello! 👋 I'm SwitchCraft AI, your packaging assistant. How can I help you?"
 
         # 1. Exit Codes / Reboot
         if any(x in q for x in ["code", "exit", "return", "3010", "1641", "1618", "1603", "fehler", "error"]):
@@ -244,5 +257,5 @@ class SwitchCraftAI:
         if re.search(r"(was kannst du|what can you do)", q):
              return i18n.get("ai_smalltalk_what", lang=lang)
 
-        # Fallback
+        # Fallback - provide helpful response (no simulated responses)
         return i18n.get("ai_fallback", lang=lang)

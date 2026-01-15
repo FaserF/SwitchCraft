@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # API Configuration
 WINGET_API_BASE = "https://winget-pkg-api.onrender.com/api/v1"
-WINGET_API_TIMEOUT = 10  # seconds
+WINGET_API_TIMEOUT = 20  # seconds - increased for slow connections
 
 class WingetHelper:
     # Class-level cache for search results
@@ -58,16 +58,17 @@ class WingetHelper:
                 logger.debug(f"Winget cache hit for '{query}'")
                 return cached_results
 
-        # Try API first (faster)
-        results = self._search_via_api(query)
+        # Try PowerShell first (most reliable, uses Microsoft.WinGet.Client module)
+        results = self._search_via_powershell(query)
 
-        # If API returns empty or fails, try local CLI
+        # If PowerShell fails, try API (fast online API)
         if not results:
-            logger.info(f"API returned no results for '{query}', trying local CLI...")
-            results = self._search_via_powershell(query)
+            logger.info(f"PowerShell search returned no results for '{query}', trying API...")
+            results = self._search_via_api(query)
 
-        # If PowerShell fails, try CLI directly
+        # If API also fails, try CLI directly as last resort
         if not results:
+            logger.info(f"API returned no results for '{query}', trying CLI as fallback...")
             results = self._search_via_cli(query)
 
         # Cache results
@@ -115,7 +116,7 @@ class WingetHelper:
             cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script]
             startupinfo = self._get_startup_info()
 
-            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo, timeout=30)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo, timeout=45)
 
             if proc.returncode != 0:
                 logger.debug(f"PowerShell search failed: {proc.stderr[:200] if proc.stderr else 'No error'}")

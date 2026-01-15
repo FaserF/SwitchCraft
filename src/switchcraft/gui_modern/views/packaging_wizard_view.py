@@ -59,7 +59,9 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
     def did_mount(self):
         # Check for pre-filled data from Intune Store
-        pending_app = self.app_page.session.get("pending_packaging_app")
+        # Use switchcraft_session dict instead of page.session
+        session_storage = getattr(self.app_page, 'switchcraft_session', {})
+        pending_app = session_storage.get("pending_packaging_app")
         if pending_app:
             self.upload_info = {
                 "displayName": pending_app.get("displayName"),
@@ -68,7 +70,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
             }
             # If we have a download URL or similar, we could pre-fill it too.
             # For now, just pre-filling the upload info.
-            self.app_page.session.set("pending_packaging_app", None) # Clear it
+            session_storage["pending_packaging_app"] = None  # Clear it
             self._show_snack(f"Pre-filled info for {pending_app.get('displayName')}", "BLUE")
 
     def _build_stepper_header(self):

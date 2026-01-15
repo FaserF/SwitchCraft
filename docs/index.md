@@ -6,7 +6,7 @@ hero:
   text: "The Ultimate Packaging Assistant"
   tagline: "Analyze installers, create Intune packages, and streamline your IT workflow — all in one powerful tool."
   image:
-    src: https://github.com/FaserF/SwitchCraft/raw/main/src/switchcraft/assets/switchcraft_logo_with_Text.png
+    src: https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_logo_with_Text.png
     alt: SwitchCraft Logo
   actions:
     - theme: brand
@@ -57,7 +57,24 @@ features:
 ## Preview
 
 <div style="text-align: center; margin: 2rem 0;">
-  <img src="https://github.com/FaserF/SwitchCraft/raw/main/src/switchcraft/assets/switchcraft_ui.png" alt="SwitchCraft Modern UI" style="max-width: 100%; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);" />
+  <img src="/screenshots/switchcraft_ui.png" alt="SwitchCraft Modern UI" style="max-width: 100%; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);" />
+</div>
+
+### Screenshots
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
+  <div style="text-align: center;">
+    <img src="/screenshots/switchcraft_ui_2.png" alt="SwitchCraft Screenshot 2" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
+  </div>
+  <div style="text-align: center;">
+    <img src="/screenshots/switchcraft_ui_3.png" alt="SwitchCraft Screenshot 3" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
+  </div>
+  <div style="text-align: center;">
+    <img src="/screenshots/switchcraft_ui_4.png" alt="SwitchCraft Screenshot 4" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
+  </div>
+  <div style="text-align: center;">
+    <img src="/screenshots/switchcraft_ui_5.png" alt="SwitchCraft Screenshot 5" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
+  </div>
 </div>
 
 ## Quick Start
@@ -95,9 +112,14 @@ winget install FaserF.SwitchCraft
 |-----------|---------------------|
 | Finding silent install switches | Automatic detection for 20+ frameworks |
 | Creating Intune packages | One-click .intunewin creation + upload |
+| Browsing Intune apps | Intune Store browser with logo display and metadata |
+| Managing Intune groups | Entra Group Manager - create, delete, and manage group members |
+| Testing detection rules | Live Detection Tester before upload |
+| Creating Winget manifests | WingetCreate Manager with GitHub integration |
 | Keeping apps updated | Winget integration with auto-update scripts |
 | Managing settings across devices | Cloud Sync via GitHub Gists |
 | Enterprise configuration | GPO/ADMX and Intune OMA-URI support |
+| macOS packaging | macOS Wizard for DMG/PKG creation |
 
 ## Platform Support
 

@@ -24,7 +24,7 @@ def ModernHelperView(page: ft.Page):
             if hasattr(page, 'switchcraft_app') and hasattr(page.switchcraft_app, 'goto_tab'):
                 page.switchcraft_app.goto_tab(9)
             else:
-                page.snack_bar = ft.SnackBar(ft.Text("Please navigate to Addons tab manually"), bgcolor="ORANGE")
+                page.snack_bar = ft.SnackBar(ft.Text(i18n.get("please_navigate_manually") or "Please navigate to Addons tab manually"), bgcolor="ORANGE")
                 page.snack_bar.open = True
                 page.update()
 
@@ -73,6 +73,54 @@ def ModernHelperView(page: ft.Page):
             on_tap_link=lambda e: page.launch_url(e.data),
         ) if not is_user else ft.Text(text, selectable=True, color=text_color)
 
+        # Copy button handler - capture text explicitly in closure
+        # Store text in a variable that will be captured by the lambda
+        message_text = text  # Explicit variable for closure
+
+        def copy_handler(e):
+            """Copy message text to clipboard using pyperclip (more reliable)."""
+            success = False
+            try:
+                # Try pyperclip first (most reliable for desktop)
+                import pyperclip
+                pyperclip.copy(message_text)
+                success = True
+            except ImportError:
+                # Fallback to Windows clip command
+                try:
+                    import subprocess
+                    subprocess.run(['clip'], input=message_text.encode('utf-8'), check=True)
+                    success = True
+                except Exception:
+                    pass
+            except Exception as ex:
+                logger.warning(f"pyperclip failed, trying Flet: {ex}")
+                # Last resort: try Flet's clipboard
+                try:
+                    if hasattr(page, 'set_clipboard'):
+                        page.set_clipboard(message_text)
+                        success = True
+                except Exception:
+                    pass
+
+            # Show feedback
+            if success:
+                from switchcraft.utils.i18n import i18n
+                page.snack_bar = ft.SnackBar(
+                    content=ft.Text(i18n.get("copied_to_clipboard") or "Copied to clipboard!"),
+                    duration=2000,
+                    bgcolor="GREEN_700"
+                )
+            else:
+                from switchcraft.utils.i18n import i18n
+                page.snack_bar = ft.SnackBar(
+                    content=ft.Text(i18n.get("copy_failed") or "Failed to copy to clipboard!"),
+                    duration=2000,
+                    bgcolor="RED_700"
+                )
+            page.snack_bar.open = True
+            page.update()
+
         chat_history.controls.append(
             ft.Row([
                 ft.Container(
@@ -81,26 +129,22 @@ def ModernHelperView(page: ft.Page):
                             ft.Text(sender, weight=ft.FontWeight.BOLD, size=12, color=text_color),
                             ft.IconButton(
                                 ft.Icons.COPY,
-                                icon_size=12,
+                                icon_size=16,
                                 icon_color="GREY_400",
-                                tooltip="Copy",
-                                on_click=lambda _: page.set_clipboard(text)
+                                tooltip="Copy message",
+                                on_click=copy_handler
                             )
                         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, spacing=10),
                         content
-                    ], tight=True),
+                    ], tight=True, spacing=8),
                     bgcolor=bg_color,
                     padding=15,
-                    border_radius=ft.BorderRadius.only(
-                        top_left=15, top_right=15,
-                        bottom_left=15 if not is_user else 0,
-                        bottom_right=15 if is_user else 0
-                    ),
-                    width=min(page.width * 0.7, 600) if isinstance(page.width, (int, float)) else 500,
+                    border_radius=15,
+                    width=min(page.width * 0.75, 700) if isinstance(page.width, (int, float)) else 600,
+                    margin=ft.Margin(0, 5, 0, 5),
                 )
             ], alignment=align)
         )
-        # Apply constraints manually if needed or wrap in a constrained container
         page.update()
 
     def send_message(e):
@@ -146,38 +190,46 @@ def ModernHelperView(page: ft.Page):
     return ft.Column([
         ft.Container(
             content=ft.Row([
-                ft.Icon(ft.Icons.SMART_TOY, size=30, color="BLUE_400"),
-                ft.Text(i18n.get("ai_helper") or "AI Helper", size=24, weight=ft.FontWeight.BOLD),
-            ]),
-            padding=10,
+                ft.Icon(ft.Icons.SMART_TOY, size=32, color="BLUE_400"),
+                ft.Column([
+                    ft.Text(i18n.get("ai_helper") or "AI Helper", size=24, weight=ft.FontWeight.BOLD),
+                    ft.Text(i18n.get("ai_helper_subtitle") or "Ask me about silent switches, Intune errors, PowerShell, and Winget packages",
+                           size=12, color="GREY_400")
+                ], spacing=2, expand=True)
+            ], spacing=12),
+            padding=ft.Padding(20, 15, 20, 15),
             bgcolor="SURFACE_VARIANT",
-            border_radius=10,
+            border_radius=12,
+            margin=ft.Margin(0, 0, 0, 0),
         ),
-        ft.Container(height=10),
+        ft.Container(height=15),
         ft.Container(
             content=chat_history,
             expand=True,
-            bgcolor="BLACK12",
-            border=ft.Border.all(1, "GREY_700"),
-            border_radius=10,
-            padding=15
+            bgcolor="SURFACE_CONTAINER_HIGHEST" if hasattr(getattr(ft, "colors", None), "SURFACE_CONTAINER_HIGHEST") else "BLACK12",
+            border=ft.Border.all(1, "OUTLINE_VARIANT"),
+            border_radius=12,
+            padding=20
         ),
-        ft.Container(height=10),
+        ft.Container(height=15),
         ft.Container(
             content=ft.Row([
                 input_field,
                 ft.IconButton(
-                    ft.Icons.SEND,
+                    ft.Icons.SEND_ROUNDED,
                     on_click=send_message,
-                    tooltip="Send",
-                    icon_color="BLUE_400",
-                    bgcolor="BLUE_900",
-                    style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))
+                    tooltip="Send message",
+                    icon_color="WHITE",
+                    bgcolor="BLUE_600",
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=10),
+                    ),
+                    icon_size=24
                 )
-            ], spacing=10),
+            ], spacing=12, vertical_alignment=ft.CrossAxisAlignment.CENTER),
             bgcolor="SURFACE_VARIANT",
-            padding=10,
-            border_radius=10,
-            border=ft.Border.all(1, "GREY_700"),
+            padding=ft.Padding(15, 12, 15, 12),
+            border_radius=12,
+            border=ft.Border.all(1, "OUTLINE_VARIANT"),
         )
-    ], expand=True)
+    ], expand=True, spacing=0)

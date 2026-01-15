@@ -60,6 +60,36 @@ SwitchCraft detects 20+ installer frameworks including:
 - WiX Burn Bundles
 - Vendor-specific (HP, Dell, Lenovo, Intel, NVIDIA)
 
+### What's the difference between Modern and Legacy editions?
+
+| Feature | Modern | Legacy |
+|---------|--------|--------|
+| **UI Framework** | Flet (Flutter) | Tkinter |
+| **Intune Store Browser** | ✅ | ❌ |
+| **Group Manager** | ✅ | ❌ |
+| **Stack Manager** | ✅ | ❌ |
+| **Detection Tester** | ✅ | ❌ |
+| **WingetCreate Manager** | ✅ | ❌ |
+| **macOS Wizard** | ✅ | ❌ |
+| **Notification Center** | ✅ | ⚠️ Basic |
+| **Loading Screen** | ✅ Enhanced | ✅ Basic |
+| **Resource Usage** | Higher | Lower |
+| **Recommended For** | Most users | Old hardware |
+
+### How do I switch between languages?
+
+In **Settings → General**, select your preferred language (English or German). The change takes effect immediately without restarting the application.
+
+### What permissions do I need for Group Manager?
+
+The Group Manager requires additional Microsoft Graph API permissions beyond the standard Intune permissions:
+
+- `Group.Read.All` or `Group.ReadWrite.All` - To view and manage groups
+- `User.Read.All` - To search for users
+- `GroupMember.ReadWrite.All` - To add/remove group members
+
+These must be granted by an Azure AD administrator. See [Intune Setup Guide](/INTUNE_SETUP) for details.
+
 See [Features](/FEATURES) for the complete list.
 
 ### Why can't SwitchCraft find silent switches?
@@ -80,12 +110,17 @@ When no installer type is detected, SwitchCraft runs the executable with common 
 
 ### What permissions does the Azure app need?
 
-Minimum required: `DeviceManagementApps.ReadWrite.All`
+**Minimum required**: `DeviceManagementApps.ReadWrite.All`
 
 This allows SwitchCraft to:
 - Upload Win32 apps
 - Create detection rules
-- Assign to groups
+- Assign apps to groups
+
+**For Group Manager** (optional), you also need:
+- `Group.Read.All` or `Group.ReadWrite.All`
+- `User.Read.All`
+- `GroupMember.ReadWrite.All`
 
 ### Is the Client Secret stored securely?
 

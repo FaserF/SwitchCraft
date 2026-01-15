@@ -94,6 +94,13 @@ class DashboardView(ft.Column):
             self._stat_card(i18n.get("stat_errors") or "Errors", str(self.stats["errors"]), ft.Icons.ERROR_OUTLINE, "RED"),
         ]
 
+        # Force update of stats row
+        if hasattr(self, 'stats_row'):
+            try:
+                self.stats_row.update()
+            except Exception:
+                pass
+
         # Chart
         bars = []
         max_val = max([v for _, v in self.chart_data], default=0)
@@ -156,6 +163,14 @@ class DashboardView(ft.Column):
              ft.Text(i18n.get("recent_actions") or "Recent Actions", weight=ft.FontWeight.BOLD, size=18),
              ft.ListView(recent_list, expand=True, spacing=0)
         ])
+
+        # Force update of all containers
+        try:
+            self.chart_container.update()
+            self.recent_container.update()
+            self.update()
+        except Exception:
+            pass
 
 
     def _stat_card(self, label, value, icon, color):

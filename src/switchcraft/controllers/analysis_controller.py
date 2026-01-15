@@ -155,7 +155,8 @@ class AnalysisController:
             if SwitchCraftConfig.get_value("EnableWinget", True):
                 try:
                     from switchcraft.services.addon_service import AddonService
-                    winget_mod = AddonService.import_addon_module("winget", "utils.winget")
+                    addon_service = AddonService()
+                    winget_mod = addon_service.import_addon_module("winget", "utils.winget")
                     if winget_mod and info.product_name:
                         winget = winget_mod.WingetHelper()
                         winget_url = winget.search_by_name(info.product_name)

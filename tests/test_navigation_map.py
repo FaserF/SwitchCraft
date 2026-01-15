@@ -137,7 +137,10 @@ def test_sidebar_navigation_consistency(app_instance):
 
                 expected_type = expected_views.get(idx)
 
-                if isinstance(expected_type, tuple):
+                if expected_type is None:
+                    # No expectation defined, skip validation
+                    continue
+                elif isinstance(expected_type, tuple):
                      # Handle placeholders (Type, Value)
                      t, val = expected_type
                      assert isinstance(view_instance, t), f"Index {idx} expected {t}, got {type(view_instance)}"

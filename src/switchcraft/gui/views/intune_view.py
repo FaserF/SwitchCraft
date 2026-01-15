@@ -186,8 +186,7 @@ class IntuneView(ctk.CTkFrame):
 
         # Prepare Log
         if not self.txt_intune_log.winfo_ismapped():
-            # Optional: Auto-show on run? User said "Standardmäßig versteckt".
-            # Let's keep it hidden unless user opens it, but status updates help.
+            # Keep log hidden by default, but show status updates
             self.btn_toggle_log.configure(text=f"{i18n.get('toggle_log_show')} (Running...)")
 
         self.txt_intune_log.delete("0.0", "end")

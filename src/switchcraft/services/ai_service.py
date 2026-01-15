@@ -52,12 +52,26 @@ else:
             )
 
         def ask(self, query):
-            """Stub ask method - returns a message indicating the AI addon is missing."""
+            """Stub ask method - returns a helpful message when AI addon is missing."""
             if self._is_greeting(query):
-                return i18n.get("ai_stub_welcome") or "Hello! I am the local SwitchCraft AI helper."
+                return i18n.get("ai_stub_welcome") or "Hello! I am the local SwitchCraft AI helper. Install the AI Addon for full functionality."
 
-            title = i18n.get("ai_addon_required_title") or "AI Addon Required"
-            msg = i18n.get("ai_addon_required_msg") or "This feature requires the AI Addon."
+            # Provide helpful response even without addon
+            title = i18n.get("ai_addon_required_title") or "🤖 **AI Addon Required**"
+            msg = i18n.get("ai_addon_required_msg") or (
+                "The AI Assistant addon is not installed. This feature requires the AI Addon "
+                "to be installed via the Addon Manager to get intelligent responses."
+            )
+            tips_header = i18n.get("ai_tips_header") or "**In the meantime, here are some tips:**"
 
-            # Include a machine-readable token for tests to easily detect the stub
-            return f"[AI_STUB] {title}: {msg}\n\nYour query: {query}"
+            # Use the same helpful format as update_context
+            return (
+                f"{title}\n\n"
+                f"{msg}\n\n"
+                f"{tips_header}\n"
+                "• For MSI files: Use `/qn /norestart` for silent install\n"
+                "• For NSIS: Use `/S` (case sensitive)\n"
+                "• For Inno Setup: Use `/VERYSILENT /SUPPRESSMSGBOXES`\n"
+                "• For InstallShield: Use `/s /v\"/qn\"`\n\n"
+                f"Your question: *{query}*"
+            )

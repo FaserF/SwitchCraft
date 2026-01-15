@@ -228,6 +228,14 @@ class AddonService:
                 return True
         return False
 
+    @staticmethod
+    def is_addon_installed_static(addon_id):
+        """
+        Static method to check if an addon is installed by ID.
+        Uses singleton instance for backward compatibility.
+        """
+        return _get_addon_service_instance().is_addon_installed(addon_id)
+
     def uninstall_addon(self, addon_id):
         """Legacy alias for delete_addon."""
         return self.delete_addon(addon_id)
