@@ -2,11 +2,14 @@ import flet as ft
 from switchcraft.utils.i18n import i18n
 
 DESCRIPTION_MAP = {
+    "Home": "desc_home",
+    "Startseite": "desc_home",
     "Dashboard": "desc_dashboard",
     "Apps & Devices": "desc_winget", # Maps to 'Apps (Winget)' or similar
     "Apps (Winget)": "desc_winget",
     "Winget Store": "desc_winget",
     "Analyzer": "desc_analyzer",
+    "Analyse": "desc_analyzer",
     "AI Helper": "desc_ai",
     "KI Helfer": "desc_ai",
     "Intune Utility": "desc_intune",
@@ -25,14 +28,12 @@ DESCRIPTION_MAP = {
     "Verteilungs-Automatisierung": "desc_automation",
     "Generate (Wizard)": "desc_wizard",
     "Generieren (Wizard)": "desc_wizard",
-
     "Detection Tester": "desc_tester",
     "Stack Manager": "desc_stacks",
     "Library": "desc_library",
     "Group Manager": "desc_groups",
     "Gruppen-Manager": "desc_groups",
     "Winget Creator": "desc_wingetcreate",
-    "Startseite": "desc_dashboard",
     "Help & Resources": "desc_help",
     "Hilfe & Ressourcen": "desc_help"
 }
@@ -74,10 +75,14 @@ class CategoryView(ft.Container):
         label = dest.label
 
         # Determine description
-        key = DESCRIPTION_MAP.get(label, "click_to_open")
-        desc_text = i18n.get(key)
-
-        if not desc_text:
+        key = DESCRIPTION_MAP.get(label, None)
+        if key:
+            desc_text = i18n.get(key)
+            # If the key exists but returns None or empty, fall back to click_to_open
+            if not desc_text:
+                desc_text = i18n.get("click_to_open") or "Click to open"
+        else:
+            # No mapping found for this label, use fallback
             desc_text = i18n.get("click_to_open") or "Click to open"
 
         return ft.Container(
@@ -102,7 +107,7 @@ class CategoryView(ft.Container):
             height=200, # Fixed height
             bgcolor="SURFACE_VARIANT",
             border_radius=15,
-            padding=ft.padding.all(20),
+            padding=ft.Padding(20, 20, 20, 20),
             ink=True,
             on_click=lambda e: self.on_navigate(idx),
             border=ft.Border.all(1, "OUTLINE_VARIANT"),

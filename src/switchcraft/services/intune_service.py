@@ -389,6 +389,12 @@ class IntuneService:
             resp.raise_for_status()
             data = resp.json()
             return data.get("value", [])
+        except requests.exceptions.Timeout:
+            logger.error("Request to Graph API timed out after 30 seconds")
+            raise Exception("Request timed out. The server took too long to respond.")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error while listing apps: {e}")
+            raise Exception(f"Network error: {str(e)}")
         except Exception as e:
             logger.error(f"Failed to list apps: {e}")
             raise e

@@ -22,8 +22,28 @@ class DashboardView(ft.Column):
 
         # Containers for dynamic updates
         self.stats_row = ft.Row(alignment=ft.MainAxisAlignment.SPACE_EVENLY, wrap=True)
-        self.chart_container = ft.Container(bgcolor="BLACK12", border_radius=10, padding=20)
-        self.recent_container = ft.Container(bgcolor="BLACK12", border_radius=10, padding=20, width=350)
+        # Initialize containers with placeholder content
+        self.chart_container = ft.Container(
+            content=ft.Column([
+                ft.Text(i18n.get("chart_activity_title") or "Activity (Last 5 Days)", weight=ft.FontWeight.BOLD, size=18),
+                ft.Container(height=20),
+                ft.Row([], alignment=ft.MainAxisAlignment.SPACE_EVENLY, vertical_alignment=ft.CrossAxisAlignment.END),
+            ]),
+            bgcolor="SURFACE_VARIANT",
+            border_radius=10,
+            padding=20
+        )
+        self.recent_container = ft.Container(
+            content=ft.Column([
+                ft.Text(i18n.get("recent_actions") or "Recent Actions", weight=ft.FontWeight.BOLD, size=18),
+                ft.Container(height=10),
+                ft.Column([], spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
+            ], expand=True),
+            bgcolor="SURFACE_VARIANT",
+            border_radius=10,
+            padding=20,
+            width=350
+        )
 
         self.controls = [
             ft.Container(
@@ -49,8 +69,13 @@ class DashboardView(ft.Column):
             )
         ]
 
-    def did_mount(self):
+        # Load data immediately instead of waiting for did_mount
         self._load_data()
+
+    def did_mount(self):
+        # Also load data on mount in case it wasn't loaded yet
+        if not self.stats_row.controls:
+            self._load_data()
 
     def _load_data(self):
         history = self.history_service.get_history()
@@ -89,12 +114,12 @@ class DashboardView(ft.Column):
         # Stats
         """
         Refreshes the dashboard view's visual components to reflect the current stats, chart data, and recent activity.
-        
+
         Rebuilds:
         - The stats row from self.stats using localized labels with sensible fallbacks.
         - The activity chart in self.chart_container from self.chart_data (produces a vertical bar per day).
         - The recent activity list in self.recent_container from self.recent_items; timestamps are formatted as "YYYY-MM-DD HH:MM" when ISO parsing succeeds, otherwise the raw timestamp is shown. Status values map to icons with fallbacks.
-        
+
         After rebuilding, the method attempts to call update() on the stats row, chart container, recent container, and the view itself; any exceptions raised during these update attempts are caught and ignored.
         """
         self.stats_row.controls = [
@@ -113,7 +138,7 @@ class DashboardView(ft.Column):
 
         # Chart
         bars = []
-        max_val = max([v for _, v in self.chart_data], default=0)
+        max_val = max([v for _, v in self.chart_data], default=1)  # Default to 1 to avoid division by zero
 
         for day, val in self.chart_data:
             height_pct = (val / max_val) * 150 if max_val > 0 else 2 # min height 2
@@ -131,11 +156,18 @@ class DashboardView(ft.Column):
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=4)
             )
 
-        self.chart_container.content = ft.Column([
+        chart_content = ft.Column([
             ft.Text(i18n.get("chart_activity_title") or "Activity (Last 5 Days)", weight=ft.FontWeight.BOLD, size=18),
             ft.Container(height=20),
             ft.Row(bars, alignment=ft.MainAxisAlignment.SPACE_EVENLY, vertical_alignment=ft.CrossAxisAlignment.END),
         ])
+
+        # Ensure chart container has content
+        if not self.chart_container.content:
+            self.chart_container.content = chart_content
+        else:
+            # Update existing content
+            self.chart_container.content = chart_content
 
         # Recent
         recent_list = []
@@ -169,10 +201,18 @@ class DashboardView(ft.Column):
                     )
                 )
 
-        self.recent_container.content = ft.Column([
+        recent_content = ft.Column([
              ft.Text(i18n.get("recent_actions") or "Recent Actions", weight=ft.FontWeight.BOLD, size=18),
-             ft.ListView(recent_list, expand=True, spacing=0)
-        ])
+             ft.Container(height=10),
+             ft.Column(recent_list, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
+        ], expand=True)
+
+        # Ensure recent container has content
+        if not self.recent_container.content:
+            self.recent_container.content = recent_content
+        else:
+            # Update existing content
+            self.recent_container.content = recent_content
 
         # Force update of all containers
         try:
@@ -186,13 +226,13 @@ class DashboardView(ft.Column):
     def _stat_card(self, label, value, icon, color):
         """
         Create a styled statistic card container used in the dashboard.
-        
+
         Parameters:
         	label (str): Text label shown under the main value (e.g., "Analyzed").
         	value (str | int): Primary statistic displayed prominently.
         	icon: Icon identifier used for the leading icon.
         	color (str): Color applied to the leading icon.
-        
+
         Returns:
         	ft.Container: A container holding an icon at the left and a column with the value and label, styled for dashboard stat display.
         """

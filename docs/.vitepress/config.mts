@@ -27,7 +27,7 @@ export default defineConfig({
     lastUpdated: true,
 
     themeConfig: {
-        logo: '/SwitchCraft/screenshots/switchcraft_logo_with_Text.png',
+        logo: '/screenshots/switchcraft_logo_with_Text.png',
         siteTitle: 'SwitchCraft',
 
         nav: [
@@ -145,5 +145,21 @@ export default defineConfig({
 
         // Carbon ads or similar can be added here
         // carbonAds: { ... }
+    },
+
+    vite: {
+        publicDir: 'public',
+        build: {
+            rollupOptions: {
+                external: (id) => {
+                    // Treat images in public directory as external static assets
+                    // This prevents Vite from trying to import them as modules
+                    if (typeof id === 'string' && (id.startsWith('/screenshots/') || id.includes('/screenshots/'))) {
+                        return true
+                    }
+                    return false
+                }
+            }
+        }
     }
 })

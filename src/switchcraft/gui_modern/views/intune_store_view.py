@@ -1,6 +1,8 @@
 import flet as ft
 import threading
 import logging
+import time
+import requests
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
@@ -126,29 +128,87 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         query = self.search_field.value
         self.results_list.controls.clear()
         self.results_list.controls.append(ft.ProgressBar())
+        self.results_list.controls.append(ft.Text("Searching...", color="GREY_500", italic=True))
         self.update()
 
         def _bg():
-            try:
-                token = self._get_token()
-                if not token:
-                    self._show_error("Intune not configured. Please check Settings.")
-                    return
+            result_holder = {"apps": None, "error": None, "completed": False}
 
-                if query:
-                    apps = self.intune_service.search_apps(token, query)
+            def _search_task():
+                try:
+                    token = self._get_token()
+                    if not token:
+                        result_holder["error"] = "Intune not configured. Please check Settings."
+                        result_holder["completed"] = True
+                        return
+
+                    if query:
+                        apps = self.intune_service.search_apps(token, query)
+                    else:
+                        apps = self.intune_service.list_apps(token) # Top 50?
+
+                    result_holder["apps"] = apps
+                    result_holder["completed"] = True
+                except requests.exceptions.Timeout:
+                    result_holder["error"] = "Request timed out. The server took too long to respond. Please try again."
+                    result_holder["completed"] = True
+                except requests.exceptions.RequestException as ex:
+                    result_holder["error"] = f"Network error: {str(ex)}"
+                    result_holder["completed"] = True
+                except Exception as ex:
+                    result_holder["error"] = f"Error: {str(ex)}"
+                    result_holder["completed"] = True
+
+            # Start search in background thread
+            search_thread = threading.Thread(target=_search_task, daemon=True)
+            search_thread.start()
+
+            # Wait for completion with timeout (60 seconds total)
+            search_thread.join(timeout=60)
+
+            # Check if thread is still running (timeout occurred)
+            if search_thread.is_alive():
+                result_holder["error"] = "Search timed out after 60 seconds. Please check your connection and try again."
+                result_holder["completed"] = True
+
+            # Wait a bit more to ensure result_holder is set
+            import time
+            timeout_count = 0
+            while not result_holder["completed"] and timeout_count < 10:
+                time.sleep(0.1)
+                timeout_count += 1
+
+            # Update UI on main thread
+            if hasattr(self.app_page, 'run_task'):
+                if result_holder["error"]:
+                    self.app_page.run_task(lambda: self._show_error(result_holder["error"]))
+                elif result_holder["apps"] is not None:
+                    self.app_page.run_task(lambda: self._update_list(result_holder["apps"]))
                 else:
-                    apps = self.intune_service.list_apps(token) # Top 50?
-
-                self._update_list(apps)
-            except Exception as ex:
-                self._show_error(str(ex))
+                    self.app_page.run_task(lambda: self._show_error("Search failed: No results and no error message."))
+            else:
+                if result_holder["error"]:
+                    self._show_error(result_holder["error"])
+                elif result_holder["apps"] is not None:
+                    self._update_list(result_holder["apps"])
+                else:
+                    self._show_error("Search failed: No results and no error message.")
 
         threading.Thread(target=_bg, daemon=True).start()
 
     def _show_error(self, msg):
         self.results_list.controls.clear()
-        self.results_list.controls.append(ft.Text(f"Error: {msg}", color="red"))
+        self.results_list.controls.append(
+            ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.ERROR, color="RED", size=40),
+                    ft.Text(f"Error: {msg}", color="red", size=14, selectable=True),
+                    ft.Text("Please check your connection and credentials.", color="GREY_500", size=12, italic=True)
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                padding=20,
+                alignment=ft.Alignment(0, 0)
+            )
+        )
         self.update()
 
     def _update_list(self, apps):
@@ -234,9 +294,26 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             self.selected_app = app
 
             # Show loading indicator immediately
-            self.details_area.controls.clear()
-            self.details_area.controls.append(ft.ProgressBar())
+            # Create a new Column for loading state to force refresh
+            loading_area = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO)
+            loading_area.controls.append(ft.ProgressBar())
+            self.details_area = loading_area
+
+            # CRITICAL: Re-assign content to force container refresh
+            self.right_pane.content = self.details_area
+            self.right_pane.visible = True
+
             # Force update on the page, not just self
+            try:
+                self.details_area.update()
+            except Exception:
+                pass
+
+            try:
+                self.right_pane.update()
+            except Exception:
+                pass
+
             if hasattr(self, 'app_page'):
                 self.app_page.update()
             else:
@@ -256,17 +333,31 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             # Remove progress bar and add content
             self.details_area.controls.clear()
 
-            title_row = [ft.Text(app.get("displayName", i18n.get("unknown") or "Unknown"), size=28, weight="bold", selectable=True)]
-            if logo_url:
-                try:
-                    title_row.insert(0, ft.Image(src=logo_url, width=64, height=64, fit=ft.ImageFit.CONTAIN, error_content=ft.Icon(ft.Icons.APPS, size=64)))
-                except Exception as ex:
-                    logger.debug(f"Failed to load logo: {ex}")
-                    pass
+            # Build all content first
+            detail_controls = []
 
-            self.details_area.controls.append(
-                ft.Row(title_row, spacing=15, vertical_alignment=ft.CrossAxisAlignment.START)
+            # Create title row with icon placeholder first (images loaded later to avoid blocking UI)
+            title_row_container = ft.Row(
+                [ft.Icon(ft.Icons.APPS, size=64), ft.Text(app.get("displayName", i18n.get("unknown") or "Unknown"), size=28, weight="bold", selectable=True)],
+                spacing=15,
+                vertical_alignment=ft.CrossAxisAlignment.START
             )
+            detail_controls.append(title_row_container)
+
+            # Load image asynchronously after UI is rendered
+            if logo_url:
+                def _load_image_async():
+                    try:
+                        img = ft.Image(src=logo_url, width=64, height=64, fit=ft.ImageFit.CONTAIN, error_content=ft.Icon(ft.Icons.APPS, size=64))
+                        # Replace icon with image in title row
+                        if hasattr(self, 'app_page') and hasattr(self.app_page, 'run_task'):
+                            self.app_page.run_task(lambda: self._replace_title_icon(title_row_container, img))
+                        else:
+                            self._replace_title_icon(title_row_container, img)
+                    except Exception as ex:
+                        logger.debug(f"Failed to load logo: {ex}")
+
+                threading.Thread(target=_load_image_async, daemon=True).start()
 
             # Metadata
             meta_rows = [
@@ -279,22 +370,22 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
 
             for k, v in meta_rows:
                 if v:
-                    self.details_area.controls.append(ft.Text(f"{k}: {v}", selectable=True))
+                    detail_controls.append(ft.Text(f"{k}: {v}", selectable=True))
 
-            self.details_area.controls.append(ft.Divider())
+            detail_controls.append(ft.Divider())
 
             # Description
             desc = app.get("description") or i18n.get("no_description") or "No description."
-            self.details_area.controls.append(ft.Text(i18n.get("field_description") or "Description:", weight="bold", selectable=True))
-            self.details_area.controls.append(ft.Text(desc, selectable=True))
+            detail_controls.append(ft.Text(i18n.get("field_description") or "Description:", weight="bold", selectable=True))
+            detail_controls.append(ft.Text(desc, selectable=True))
 
-            self.details_area.controls.append(ft.Divider())
+            detail_controls.append(ft.Divider())
 
             # Assignments (Async Loading)
             self.assignments_col = ft.Column([ft.ProgressBar(width=200)])
-            self.details_area.controls.append(ft.Text(i18n.get("group_assignments") or "Group Assignments:", weight="bold", selectable=True))
-            self.details_area.controls.append(self.assignments_col)
-            self.details_area.controls.append(ft.Divider())
+            detail_controls.append(ft.Text(i18n.get("group_assignments") or "Group Assignments:", weight="bold", selectable=True))
+            detail_controls.append(self.assignments_col)
+            detail_controls.append(ft.Divider())
 
             def _load_assignments():
                 """
@@ -341,14 +432,14 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
 
             # Install Info
             if "installCommandLine" in app or "uninstallCommandLine" in app:
-                 self.details_area.controls.append(ft.Text(i18n.get("commands") or "Commands:", weight="bold", selectable=True))
+                 detail_controls.append(ft.Text(i18n.get("commands") or "Commands:", weight="bold", selectable=True))
                  if app.get("installCommandLine"):
-                     self.details_area.controls.append(ft.Text(f"{i18n.get('field_install', default='Install')}: `{app.get('installCommandLine')}`", font_family="Consolas", selectable=True))
+                     detail_controls.append(ft.Text(f"{i18n.get('field_install', default='Install')}: `{app.get('installCommandLine')}`", font_family="Consolas", selectable=True))
                  if app.get("uninstallCommandLine"):
-                     self.details_area.controls.append(ft.Text(f"{i18n.get('field_uninstall', default='Uninstall')}: `{app.get('uninstallCommandLine')}`", font_family="Consolas", selectable=True))
+                     detail_controls.append(ft.Text(f"{i18n.get('field_uninstall', default='Uninstall')}: `{app.get('uninstallCommandLine')}`", font_family="Consolas", selectable=True))
 
-            self.details_area.controls.append(ft.Container(height=20))
-            self.details_area.controls.append(
+            detail_controls.append(ft.Container(height=20))
+            detail_controls.append(
                 ft.Row([
                     ft.Button(
                         i18n.get("btn_deploy_assignment") or "Deploy / Assign...",
@@ -360,7 +451,30 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 ])
             )
 
+            # CRITICAL: Create a NEW Column instance with the controls
+            # This forces Flet to recognize the change
+            new_details_area = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO)
+            new_details_area.controls = detail_controls
+
+            # Replace the old details_area with the new one
+            self.details_area = new_details_area
+
+            # CRITICAL: Re-assign content to force container refresh
+            self.right_pane.content = self.details_area
+            self.right_pane.visible = True
+
             # Force update on the page to ensure details are visible
+            # Update details_area first, then the right_pane, then the page
+            try:
+                self.details_area.update()
+            except Exception:
+                pass
+
+            try:
+                self.right_pane.update()
+            except Exception:
+                pass
+
             if hasattr(self, 'app_page'):
                 self.app_page.update()
             else:
@@ -375,6 +489,17 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 self.app_page.update()
             else:
                 self.update()
+
+    def _replace_title_icon(self, title_row, image):
+        """Replace the icon in title_row with the loaded image."""
+        try:
+            if len(title_row.controls) >= 2 and isinstance(title_row.controls[0], ft.Icon):
+                title_row.controls[0] = image
+                title_row.update()
+                if hasattr(self, 'app_page'):
+                    self.app_page.update()
+        except Exception as ex:
+            logger.debug(f"Failed to replace title icon: {ex}")
 
     def _show_deployment_dialog(self, app):
         """

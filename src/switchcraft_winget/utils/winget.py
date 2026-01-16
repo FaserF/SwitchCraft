@@ -175,26 +175,52 @@ class WingetHelper:
             cmd = ["winget", "show", "--id", package_id, "--source", "winget", "--accept-source-agreements"]
             startupinfo = self._get_startup_info()
 
+            # Additional flags to hide window on Windows
+            kwargs = {}
+            if startupinfo:
+                kwargs['startupinfo'] = startupinfo
+            import sys
+            if sys.platform == "win32":
+                # Use CREATE_NO_WINDOW flag to prevent console window
+                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                else:
+                    # Fallback for older Python versions
+                    kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW constant
+
             proc = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
                 errors="ignore",
-                startupinfo=startupinfo
+                timeout=30,  # Add timeout
+                **kwargs
             )
+
+            if proc.returncode != 0:
+                error_msg = proc.stderr.strip() if proc.stderr else "Unknown error"
+                logger.error(f"Winget show failed for package {package_id}: {error_msg}")
+                raise Exception(f"Failed to get package details: {error_msg}")
 
             output = proc.stdout.strip()
             if not output:
+                logger.warning(f"Winget show returned empty output for package: {package_id}")
                 return {}
 
             # Parse the key: value format from winget show output
             details = self._parse_winget_show_output(output)
             return details
 
+        except subprocess.TimeoutExpired:
+            logger.error(f"Winget show timed out for package: {package_id}")
+            raise Exception("Request timed out. The winget command took too long to respond.")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Winget show failed for package {package_id}: {e.stderr if hasattr(e, 'stderr') else str(e)}")
+            raise Exception(f"Failed to get package details: {e.stderr if hasattr(e, 'stderr') and e.stderr else str(e)}")
         except Exception as e:
             logger.error(f"Winget show error: {e}")
-            return {}
+            raise Exception(f"Error getting package details: {str(e)}")
 
     def _parse_winget_show_output(self, output: str) -> Dict[str, str]:
         """
@@ -435,8 +461,13 @@ class WingetHelper:
             return []
 
     def _get_startup_info(self):
+        """Create STARTUPINFO to hide console window on Windows."""
         if hasattr(subprocess, 'STARTUPINFO'):
-            si = subprocess.STARTUPINFO()
-            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            return si
+            import sys
+            if sys.platform == "win32":
+                si = subprocess.STARTUPINFO()
+                si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                si.wShowWindow = subprocess.SW_HIDE  # Explicitly hide the window
+                # Also try CREATE_NO_WINDOW flag for subprocess.run
+                return si
         return None

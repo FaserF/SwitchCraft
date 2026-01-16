@@ -57,6 +57,10 @@ param (
 
 $ErrorActionPreference = "Stop"
 
+# --- Capture Build Start Time ---
+$BuildStartTime = Get-Date
+$BuildStartTimeString = $BuildStartTime.ToString("yyyy-MM-dd HH:mm:ss")
+
 # --- OS Detection (Use custom variable names to avoid read-only conflicts) ---
 $IsWinBuild = $env:OS -match 'Windows_NT' -or $PSVersionTable.Platform -eq 'Win32NT'
 $IsLinBuild = $PSVersionTable.Platform -eq 'Unix' -and -not ($IsMacBuild = (uname) -eq 'Darwin')
@@ -65,6 +69,7 @@ $IsMacBuild = $IsMacBuild -or ($PSVersionTable.Platform -eq 'Unix' -and (uname) 
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "   SwitchCraft Release Builder            " -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "Build started at: $BuildStartTimeString" -ForegroundColor Gray
 if ($IsWinBuild) { Write-Host "Platform: Windows" -ForegroundColor Green }
 elseif ($IsLinBuild) { Write-Host "Platform: Linux" -ForegroundColor Green }
 elseif ($IsMacBuild) { Write-Host "Platform: MacOS" -ForegroundColor Green }
@@ -366,7 +371,19 @@ if ($Legacy -and $IsWinBuild) {
     }
 }
 
-Write-Host "`nBuild Process Complete!" -ForegroundColor Cyan
+# --- Capture Build End Time and Calculate Duration ---
+$BuildEndTime = Get-Date
+$BuildEndTimeString = $BuildEndTime.ToString("yyyy-MM-dd HH:mm:ss")
+$BuildDuration = $BuildEndTime - $BuildStartTime
+$DurationString = "{0:D2}:{1:D2}:{2:D2}" -f $BuildDuration.Hours, $BuildDuration.Minutes, $BuildDuration.Seconds
+
+Write-Host "`n==========================================" -ForegroundColor Cyan
+Write-Host "Build Process Complete!" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "Build started at:  $BuildStartTimeString" -ForegroundColor Gray
+Write-Host "Build ended at:    $BuildEndTimeString" -ForegroundColor Gray
+Write-Host "Total duration:    $DurationString" -ForegroundColor Green
+Write-Host "==========================================" -ForegroundColor Cyan
 
 # --- Notification ---
 if ($IsWinBuild) {

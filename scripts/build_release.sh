@@ -3,9 +3,14 @@
 
 set -e # Exit on error
 
+# --- Capture Build Start Time ---
+BUILD_START_TIME=$(date +"%Y-%m-%d %H:%M:%S")
+BUILD_START_SECONDS=$(date +%s)
+
 echo "=========================================="
 echo "   SwitchCraft Release Builder (Unix)     "
 echo "=========================================="
+echo "Build started at: $BUILD_START_TIME"
 
 # Check Python
 if ! command -v python3 &> /dev/null; then
@@ -62,6 +67,22 @@ TARGET_BIN="$DOWNLOADS_DIR/$(basename "$BUILT_BIN")"
 cp -f "$BUILT_BIN" "$TARGET_BIN"
 chmod +x "$TARGET_BIN"
 
+# --- Capture Build End Time and Calculate Duration ---
+BUILD_END_TIME=$(date +"%Y-%m-%d %H:%M:%S")
+BUILD_END_SECONDS=$(date +%s)
+BUILD_DURATION=$((BUILD_END_SECONDS - BUILD_START_SECONDS))
+BUILD_HOURS=$((BUILD_DURATION / 3600))
+BUILD_MINUTES=$(((BUILD_DURATION % 3600) / 60))
+BUILD_SECONDS=$((BUILD_DURATION % 60))
+DURATION_STRING=$(printf "%02d:%02d:%02d" $BUILD_HOURS $BUILD_MINUTES $BUILD_SECONDS)
+
 echo -e "\n[4/4] Done!"
+echo "=========================================="
+echo "Build Process Complete!"
+echo "=========================================="
+echo "Build started at:  $BUILD_START_TIME"
+echo "Build ended at:    $BUILD_END_TIME"
+echo "Total duration:    $DURATION_STRING"
+echo "=========================================="
 echo "Success! Copied to: $TARGET_BIN"
 echo "You can now run it from your Downloads folder."

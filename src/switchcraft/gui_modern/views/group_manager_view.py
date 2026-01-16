@@ -185,7 +185,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                          ft.DataCell(ft.Text(g.get('id', ''))),
                          ft.DataCell(ft.Text(", ".join(g.get('groupTypes', [])) or "Security")),
                      ],
-                     on_select_changed=lambda e, grp=g: self._on_select(e.control.selected, grp),
+                     on_select_change=lambda e, grp=g: self._on_select(e.control.selected, grp),
                      selected=self.selected_group == g
                  )
              )

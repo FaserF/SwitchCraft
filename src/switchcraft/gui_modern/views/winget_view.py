@@ -130,8 +130,8 @@ class ModernWingetView(ft.Row, ViewMixin):
             margin=ft.Margin.only(left=20, top=20, bottom=20, right=10)
         )
 
-        # Right Pane
-        right_pane = ft.Container(
+        # Right Pane - store as instance variable so we can update it
+        self.right_pane = ft.Container(
             content=self.details_area,
             expand=True,
             padding=20,
@@ -151,7 +151,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             )
         )
 
-        self.controls = [left_pane, right_pane]
+        self.controls = [left_pane, self.right_pane]
 
     def _run_search(self, e):
         """
@@ -327,20 +327,135 @@ class ModernWingetView(ft.Row, ViewMixin):
         self.update()
 
     def _load_details(self, short_info):
-        self.details_area.controls.clear()
-        self.details_area.controls.append(ft.ProgressBar())
-        self.update()
+        logger.info(f"Loading details for package: {short_info.get('Id', 'Unknown')}")
+
+        # Create loading area immediately
+        loading_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+        loading_area.controls.append(ft.ProgressBar())
+        self.details_area = loading_area
+
+        # CRITICAL: Re-assign content to force container refresh
+        self.right_pane.content = self.details_area
+        self.right_pane.visible = True
+
+        # Force update of details area and page IMMEDIATELY
+        try:
+            self.details_area.update()
+        except Exception as ex:
+            logger.debug(f"Error updating details_area: {ex}")
+
+        try:
+            self.right_pane.update()
+        except Exception as ex:
+            logger.debug(f"Error updating right_pane: {ex}")
+
+        try:
+            self.update()
+        except Exception as ex:
+            logger.debug(f"Error updating row: {ex}")
+
+        if hasattr(self, 'app_page'):
+            try:
+                self.app_page.update()
+            except Exception as ex:
+                logger.debug(f"Error updating app_page: {ex}")
 
         def _fetch():
             try:
+                logger.info(f"Fetching package details for: {short_info['Id']}")
                 full = self.winget.get_package_details(short_info['Id'])
                 merged = {**short_info, **full}
                 self.current_pkg = merged
-                self._show_details_ui(merged)
+                logger.info(f"Package details fetched, showing UI for: {merged.get('Name', 'Unknown')}")
+                logger.info(f"Merged package data keys: {list(merged.keys())}")
+
+                # Use run_task if available to ensure UI updates happen on the correct thread
+                def _show_ui():
+                    try:
+                        self._show_details_ui(merged)
+                    except Exception as ex:
+                        logger.exception(f"Error in _show_details_ui: {ex}")
+                        # Show error in UI
+                        error_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+                        error_area.controls.append(
+                            ft.Container(
+                                content=ft.Column([
+                                    ft.Icon(ft.Icons.ERROR, color="RED", size=40),
+                                    ft.Text(f"Error displaying details: {ex}", color="red", size=14, selectable=True)
+                                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                                padding=20,
+                                alignment=ft.Alignment(0, 0)
+                            )
+                        )
+                        self.details_area = error_area
+                        self.right_pane.content = self.details_area
+                        self.right_pane.visible = True
+                        try:
+                            self.details_area.update()
+                            self.right_pane.update()
+                            self.update()
+                            if hasattr(self, 'app_page'):
+                                self.app_page.update()
+                        except Exception:
+                            pass
+
+                if hasattr(self.app_page, 'run_task'):
+                    try:
+                        self.app_page.run_task(_show_ui)
+                    except Exception as ex:
+                        logger.exception(f"Error in run_task for _show_details_ui: {ex}")
+                        # Fallback: try direct call
+                        _show_ui()
+                else:
+                    _show_ui()
             except Exception as ex:
-                self.details_area.controls.clear()
-                self.details_area.controls.append(ft.Text(f"Error: {ex}", color="red"))
-                self.update()
+                logger.exception(f"Error fetching package details: {ex}")
+                error_msg = str(ex)
+                if "timeout" in error_msg.lower():
+                    error_msg = "Request timed out. Please check your connection and try again."
+                elif "not found" in error_msg.lower() or "no package" in error_msg.lower():
+                    error_msg = f"Package not found: {short_info.get('Id', 'Unknown')}"
+
+                # Update UI on main thread
+                def _show_error_ui():
+                    error_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+                    error_area.controls.append(
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Icon(ft.Icons.ERROR, color="RED", size=40),
+                                ft.Text(f"Error: {error_msg}", color="red", size=14, selectable=True),
+                                ft.Text("Please check your connection and try again.", color="GREY_500", size=12, italic=True)
+                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                            padding=20,
+                            alignment=ft.Alignment(0, 0)
+                        )
+                    )
+                    self.details_area = error_area
+                    self.right_pane.content = self.details_area
+                    self.right_pane.visible = True
+
+                    try:
+                        self.details_area.update()
+                    except Exception:
+                        pass
+                    try:
+                        self.right_pane.update()
+                    except Exception:
+                        pass
+                    try:
+                        self.update()
+                    except Exception:
+                        pass
+                    if hasattr(self, 'app_page'):
+                        try:
+                            self.app_page.update()
+                        except Exception:
+                            pass
+
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(_show_error_ui)
+                else:
+                    _show_error_ui()
 
         threading.Thread(target=_fetch, daemon=True).start()
 
@@ -367,7 +482,10 @@ class ModernWingetView(ft.Row, ViewMixin):
             - Calls self.update() to refresh the UI.
             - May call self._open_url, self._copy_install_command, self._install_local, or self._open_deploy_menu via button callbacks.
         """
-        self.details_area.controls.clear()
+        logger.info(f"_show_details_ui called for package: {info.get('Name', 'Unknown')}")
+
+        # Create a new Column to build the details
+        detail_controls = []
 
         # Try to get logo
         pkg_id = info.get('Id', '')
@@ -378,24 +496,23 @@ class ModernWingetView(ft.Row, ViewMixin):
             except Exception:
                 pass
 
-        # Header Section with Logo
-        header_row = []
-        if logo_url:
-            try:
-                header_row.append(ft.Image(src=logo_url, width=64, height=64, fit=ft.ImageFit.CONTAIN, error_content=ft.Icon(ft.Icons.APPS, size=64)))
-            except Exception:
-                pass
-
-        header_row.append(ft.Column([
-            ft.Text(info.get('Name', i18n.get("unknown") or "Unknown"), size=28, weight=ft.FontWeight.BOLD),
-            ft.Text(info.get('Id', ''), color="grey", size=14)
-        ], spacing=4, expand=True))
-
-        self.details_area.controls.append(ft.Row(header_row, spacing=15, vertical_alignment=ft.CrossAxisAlignment.START))
+        # Header Section with Logo - use icon placeholder first, load image async
+        header_row = ft.Row(
+            [
+                ft.Icon(ft.Icons.APPS, size=64),
+                ft.Column([
+                    ft.Text(info.get('Name', i18n.get("unknown") or "Unknown"), size=28, weight=ft.FontWeight.BOLD),
+                    ft.Text(info.get('Id', ''), color="grey", size=14)
+                ], spacing=4, expand=True)
+            ],
+            spacing=15,
+            vertical_alignment=ft.CrossAxisAlignment.START
+        )
+        detail_controls.append(header_row)
 
         # Version Badge
         version = info.get('Version', i18n.get("unknown") or "Unknown")
-        self.details_area.controls.append(
+        detail_controls.append(
             ft.Container(
                 content=ft.Text(f"v{version}", color="WHITE", size=12),
                 bgcolor="BLUE_700",
@@ -405,13 +522,13 @@ class ModernWingetView(ft.Row, ViewMixin):
             )
         )
 
-        self.details_area.controls.append(ft.Divider())
+        detail_controls.append(ft.Divider())
 
         # Description Section (prominent like winstall.app)
         description = info.get('Description') or info.get('description')
         if description:
-            self.details_area.controls.append(ft.Text(i18n.get("field_about") or "About", size=18, weight=ft.FontWeight.BOLD))
-            self.details_area.controls.append(
+            detail_controls.append(ft.Text(i18n.get("field_about") or "About", size=18, weight=ft.FontWeight.BOLD))
+            detail_controls.append(
                 ft.Container(
                     content=ft.Text(description, size=14, selectable=True),
                     padding=ft.Padding(0, 8, 0, 16)
@@ -423,7 +540,7 @@ class ModernWingetView(ft.Row, ViewMixin):
         author = info.get('Author') or info.get('author')
         if publisher or author:
             pub_text = publisher or author
-            self.details_area.controls.append(
+            detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.BUSINESS, size=16, color="GREY_500"),
                     ft.Text(f"{i18n.get('field_publisher') or 'Publisher'}: ", weight=ft.FontWeight.BOLD, size=14),
@@ -446,7 +563,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 ))
             else:
                 license_row.append(ft.Text(license_val, size=14))
-            self.details_area.controls.append(ft.Row(license_row, spacing=4))
+            detail_controls.append(ft.Row(license_row, spacing=4))
 
         # Tags Section
         tags = info.get('Tags') or info.get('tags')
@@ -465,24 +582,24 @@ class ModernWingetView(ft.Row, ViewMixin):
                         )
                     )
             if tag_chips:
-                self.details_area.controls.append(ft.Container(height=8))
-                self.details_area.controls.append(
+                detail_controls.append(ft.Container(height=8))
+                detail_controls.append(
                     ft.Row([
                         ft.Icon(ft.Icons.LABEL, size=16, color="GREY_500"),
                         ft.Text(f"{i18n.get('field_tags') or 'Tags'}: ", weight=ft.FontWeight.BOLD, size=14),
                     ], spacing=4)
                 )
-                self.details_area.controls.append(ft.Row(tag_chips, wrap=True, spacing=6))
+                detail_controls.append(ft.Row(tag_chips, wrap=True, spacing=6))
 
-        self.details_area.controls.append(ft.Container(height=12))
+        detail_controls.append(ft.Container(height=12))
 
         # Links Section
-        self.details_area.controls.append(ft.Text(i18n.get("field_links") or "Links", size=16, weight=ft.FontWeight.BOLD))
+        detail_controls.append(ft.Text(i18n.get("field_links") or "Links", size=16, weight=ft.FontWeight.BOLD))
 
         # Homepage
         homepage = info.get('Homepage') or info.get('homepage')
         if homepage:
-            self.details_area.controls.append(
+            detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.HOME, size=16, color="BLUE_400"),
                     ft.TextButton(content=ft.Text(i18n.get("field_homepage") or "Homepage"), on_click=lambda e, url=homepage: self._open_url(url))
@@ -492,7 +609,7 @@ class ModernWingetView(ft.Row, ViewMixin):
         # Publisher URL
         pub_url = info.get('PublisherUrl') or info.get('publisher url')
         if pub_url:
-            self.details_area.controls.append(
+            detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.BUSINESS, size=16, color="BLUE_400"),
                     ft.TextButton(content=ft.Text(i18n.get("field_publisher_website") or "Publisher Website"), on_click=lambda e, url=pub_url: self._open_url(url))
@@ -502,7 +619,7 @@ class ModernWingetView(ft.Row, ViewMixin):
         # Privacy URL
         privacy_url = info.get('PrivacyUrl') or info.get('privacy url')
         if privacy_url:
-            self.details_area.controls.append(
+            detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.PRIVACY_TIP, size=16, color="BLUE_400"),
                     ft.TextButton(content=ft.Text(i18n.get("field_privacy_policy") or "Privacy Policy"), on_click=lambda e, url=privacy_url: self._open_url(url))
@@ -512,7 +629,7 @@ class ModernWingetView(ft.Row, ViewMixin):
         # Release Notes URL
         release_notes_url = info.get('ReleaseNotesUrl') or info.get('release notes url')
         if release_notes_url:
-            self.details_area.controls.append(
+            detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.NEW_RELEASES, size=16, color="BLUE_400"),
                     ft.TextButton(content=ft.Text(i18n.get("field_release_notes") or "Release Notes"), on_click=lambda e, url=release_notes_url: self._open_url(url))
@@ -535,7 +652,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 pass
 
         if manifest:
-            self.details_area.controls.append(
+            detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.CODE, size=16, color="BLUE_400"),
                     ft.TextButton(content=ft.Text(i18n.get("field_view_manifest_github") or "View Manifest on GitHub"), on_click=lambda e, url=manifest: self._open_url(url))
@@ -546,14 +663,14 @@ class ModernWingetView(ft.Row, ViewMixin):
         pkg_id = info.get('Id')
         if pkg_id:
             winstall_url = f"https://winstall.app/apps/{pkg_id}"
-            self.details_area.controls.append(
+            detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.WEB, size=16, color="PURPLE_400"),
                     ft.TextButton(content=ft.Text(i18n.get("field_view_winstall") or "View on winstall.app"), on_click=lambda e, url=winstall_url: self._open_url(url))
                 ], spacing=4)
             )
 
-        self.details_area.controls.append(ft.Divider())
+        detail_controls.append(ft.Divider())
 
         # Actions
         btn_copy = ft.Button(i18n.get("btn_copy_command") or "Copy Command", icon=ft.Icons.COPY, bgcolor="GREY_700", color="WHITE")
@@ -565,13 +682,90 @@ class ModernWingetView(ft.Row, ViewMixin):
         btn_deploy = ft.Button(i18n.get("btn_deploy_package") or "Deploy / Package...", icon=ft.Icons.CLOUD_UPLOAD, bgcolor="BLUE", color="WHITE")
         btn_deploy.on_click = lambda e: self._open_deploy_menu(info)
 
-        self.details_area.controls.append(ft.Row([btn_copy, btn_local, btn_deploy], wrap=True, spacing=8))
+        detail_controls.append(ft.Row([btn_copy, btn_local, btn_deploy], wrap=True, spacing=8))
 
         # Tip
-        self.details_area.controls.append(ft.Container(height=20))
-        self.details_area.controls.append(ft.Text(i18n.get("winget_tip_autoupdate") or "Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color="GREY", italic=True))
+        detail_controls.append(ft.Container(height=20))
+        detail_controls.append(ft.Text(i18n.get("winget_tip_autoupdate") or "Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color="GREY", italic=True))
 
-        self.update()
+        # CRITICAL: Create a NEW Column instance with all controls
+        # This forces Flet to recognize the change
+        new_details_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+        new_details_area.controls = detail_controls
+        self.details_area = new_details_area
+
+        # CRITICAL: Re-assign content to force container refresh
+        self.right_pane.content = self.details_area
+        self.right_pane.visible = True
+
+        # Force update of details area, row, and page
+        # Update in correct order: details_area -> right_pane -> row -> page
+        try:
+            self.details_area.update()
+        except Exception as ex:
+            logger.debug(f"Error updating details_area: {ex}")
+
+        try:
+            self.right_pane.update()
+        except Exception as ex:
+            logger.debug(f"Error updating right_pane: {ex}")
+
+        try:
+            self.update()
+        except Exception as ex:
+            logger.debug(f"Error updating row: {ex}")
+
+        if hasattr(self, 'app_page'):
+            try:
+                self.app_page.update()
+            except Exception as ex:
+                logger.debug(f"Error updating app_page: {ex}")
+
+        logger.info(f"Details UI displayed for package: {info.get('Name', 'Unknown')}")
+
+        # Load image asynchronously AFTER UI is rendered and new Column is created
+        # Find the header_row in the new details_area
+        if logo_url:
+            def _load_image_async():
+                try:
+                    img = ft.Image(src=logo_url, width=64, height=64, fit=ft.ImageFit.CONTAIN, error_content=ft.Icon(ft.Icons.APPS, size=64))
+                    # Find header_row in the new details_area (first Row control)
+                    def _replace():
+                        try:
+                            # Find the first Row in details_area (should be header_row)
+                            for control in self.details_area.controls:
+                                if isinstance(control, ft.Row) and len(control.controls) > 0:
+                                    # Check if first control is an Icon
+                                    if isinstance(control.controls[0], ft.Icon):
+                                        control.controls[0] = img
+                                        control.update()
+                                        self.details_area.update()
+                                        self.right_pane.update()
+                                        if hasattr(self, 'app_page'):
+                                            self.app_page.update()
+                                        break
+                        except Exception as ex:
+                            logger.debug(f"Failed to replace header icon: {ex}")
+
+                    if hasattr(self, 'app_page') and hasattr(self.app_page, 'run_task'):
+                        self.app_page.run_task(_replace)
+                    else:
+                        _replace()
+                except Exception as ex:
+                    logger.debug(f"Failed to load logo: {ex}")
+
+            threading.Thread(target=_load_image_async, daemon=True).start()
+
+    def _replace_header_icon(self, header_row, image):
+        """Replace the icon in header_row with the loaded image."""
+        try:
+            if len(header_row.controls) >= 2 and isinstance(header_row.controls[0], ft.Icon):
+                header_row.controls[0] = image
+                header_row.update()
+                if hasattr(self, 'app_page'):
+                    self.app_page.update()
+        except Exception as ex:
+            logger.debug(f"Failed to replace header icon: {ex}")
 
     def _copy_install_command(self, info):
         """Copy the winget install command to clipboard."""
@@ -666,8 +860,18 @@ class ModernWingetView(ft.Row, ViewMixin):
                 tmp_dir = tempfile.mkdtemp()
                 # Run winget download
                 # Note: 'winget download' requires a newer winget version, but user has it if using SwitchCraft
-                cmd = f'winget download --id {pkg_id} --dir "{tmp_dir}" --accept-source-agreements --accept-package-agreements --silent'
-                subprocess.run(cmd, shell=True, check=True)
+                cmd = ['winget', 'download', '--id', pkg_id, '--dir', tmp_dir, '--accept-source-agreements', '--accept-package-agreements', '--silent']
+
+                # Hide CMD window on Windows
+                import sys
+                kwargs = {}
+                if sys.platform == "win32":
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    startupinfo.wShowWindow = subprocess.SW_HIDE
+                    kwargs['startupinfo'] = startupinfo
+
+                subprocess.run(cmd, check=True, **kwargs)
 
                 # Find file
                 files = list(Path(tmp_dir).glob("*.*"))
@@ -778,9 +982,22 @@ class ModernWingetView(ft.Row, ViewMixin):
 
         def _run():
             import subprocess
+            import sys
             self._show_snack(f"Starting install for {pkg_id}...", "BLUE")
             try:
-                subprocess.Popen(f'start cmd /k "{cmd}"', shell=True)
+                # Use list format instead of shell=True to avoid CMD window
+                cmd_list = ['winget', 'install', '--id', pkg_id, '--silent', '--accept-package-agreements', '--accept-source-agreements']
+
+                # Hide CMD window on Windows
+                kwargs = {}
+                if sys.platform == "win32":
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    startupinfo.wShowWindow = subprocess.SW_HIDE
+                    kwargs['startupinfo'] = startupinfo
+
+                # Run in background without showing window
+                subprocess.Popen(cmd_list, **kwargs)
             except Exception as ex:
                 self._show_snack(f"Failed to start install: {ex}", "RED")
 
