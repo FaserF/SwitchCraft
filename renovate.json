@@ -41,5 +41,11 @@
       "automerge": false,
       "description": "Require manual review for Python dependency updates"
     }
-  ]
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 4am on monday"
+    ]
+  }
 }

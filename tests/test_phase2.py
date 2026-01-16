@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import sys
 import os
 from pathlib import Path
@@ -109,7 +109,7 @@ class TestPhase2Features(unittest.TestCase):
         # But we can check if it returns a result if the first call succeeds
 
         # We need to mock _analyze_help_text to confirm it "found" something
-        with patch.object(uni, "_analyze_help_text", return_value=("Generic", ["/S"])) as mock_analyze:
+        with patch.object(uni, "_analyze_help_text", return_value=("Generic", ["/S"])) as _:
              result = uni.brute_force_help(Path("dummy.exe"))
 
              self.assertEqual(result["detected_type"], "Generic")

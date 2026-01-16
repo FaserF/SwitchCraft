@@ -1,5 +1,4 @@
 
-import pytest
 import flet as ft
 from unittest.mock import MagicMock
 from switchcraft.gui_modern.app import ModernApp

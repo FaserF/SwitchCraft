@@ -5,6 +5,8 @@ export default defineConfig({
     title: "SwitchCraft",
     description: "The Ultimate Packaging Assistant for IT Professionals - Streamline your application packaging workflow with smart analysis, Intune integration, and AI assistance.",
 
+    base: process.env.BASE_URL || '/SwitchCraft/',
+
     // English only
     lang: 'en-US',
 
@@ -25,7 +27,7 @@ export default defineConfig({
     lastUpdated: true,
 
     themeConfig: {
-        logo: '/public/screenshots/switchcraft_logo_with_Text.png',
+        logo: '/screenshots/switchcraft_logo_with_Text.png',
         siteTitle: 'SwitchCraft',
 
         nav: [

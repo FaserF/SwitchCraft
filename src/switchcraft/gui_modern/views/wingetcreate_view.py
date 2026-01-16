@@ -191,6 +191,7 @@ class WingetCreateView(ft.Column, ViewMixin):
         self.new_installer_type = ft.Dropdown(
             label=i18n.get("installer_type") or "Installer Type",
             options=[
+                ft.dropdown.Option("", i18n.get("auto_detect") or "Auto-Detect"),
                 ft.dropdown.Option("exe", "EXE"),
                 ft.dropdown.Option("msi", "MSI"),
                 ft.dropdown.Option("msix", "MSIX"),
@@ -201,7 +202,7 @@ class WingetCreateView(ft.Column, ViewMixin):
                 ft.dropdown.Option("portable", "Portable"),
                 ft.dropdown.Option("zip", "ZIP"),
             ],
-            value="exe",
+            value="",
             width=200
         )
 
@@ -216,10 +217,11 @@ class WingetCreateView(ft.Column, ViewMixin):
         self.new_scope = ft.Dropdown(
             label=i18n.get("install_scope") or "Install Scope",
             options=[
+                ft.dropdown.Option("", i18n.get("auto_detect") or "Auto-Detect"),
                 ft.dropdown.Option("user", "User"),
                 ft.dropdown.Option("machine", "Machine"),
             ],
-            value="machine",
+            value="",
             width=150
         )
 
@@ -227,12 +229,13 @@ class WingetCreateView(ft.Column, ViewMixin):
         self.new_arch = ft.Dropdown(
             label=i18n.get("architecture") or "Architecture",
             options=[
+                ft.dropdown.Option("", i18n.get("auto_detect") or "Auto-Detect"),
                 ft.dropdown.Option("x64", "x64"),
                 ft.dropdown.Option("x86", "x86"),
                 ft.dropdown.Option("arm64", "ARM64"),
                 ft.dropdown.Option("neutral", "Neutral"),
             ],
-            value="x64",
+            value="",
             width=150
         )
 
@@ -483,6 +486,11 @@ class WingetCreateView(ft.Column, ViewMixin):
                     cmd.extend(["--installer-type", self.new_installer_type.value])
                 if self.new_silent_args.value:
                     cmd.extend(["--silent", self.new_silent_args.value])
+
+                if self.new_scope.value:
+                    cmd.extend(["--scope", self.new_scope.value])
+                if self.new_arch.value:
+                    cmd.extend(["--arch", self.new_arch.value])
 
                 # Output directory
                 cmd.extend(["--output", str(self.manifest_dir)])

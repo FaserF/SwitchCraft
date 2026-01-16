@@ -4,12 +4,30 @@ import os
 import re
 import sys
 
+# Constants
+CATEGORY_EMOJIS = {
+    "Features": "✨",
+    "Bug Fixes": "🐛",
+    "Styling": "🎨",
+    "Documentation": "📝",
+    "Maintenance": "🔨",
+    "Other": "🔧"
+}
+
+EXCLUDE_PATTERNS = [
+    r"auto-fix ruff linting issues",
+    r"auto-fix linting issues",
+    r"CI fixes",
+    r"more CI fixes",
+    r"bump version to .*? \[skip ci\]",
+]
+
 # Ensure the script's directory is in sys.path for git_utils import
 script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
 
-from git_utils import get_last_tag
+from git_utils import get_last_tag, get_last_stable_tag
 
 
 def get_commits(since_tag=None):
@@ -44,6 +62,15 @@ def parse_commits(commits):
     pr_count = 0
 
     for commit in commits:
+        # Check exclusions
+        should_exclude = False
+        for pattern in EXCLUDE_PATTERNS:
+            if re.search(pattern, commit, re.IGNORECASE):
+                should_exclude = True
+                break
+        if should_exclude:
+            continue
+
         if pr_pattern.search(commit):
             pr_count += 1
 
@@ -71,26 +98,57 @@ def generate_markdown(categories):
     md = []
 
     # Order: Feat, Fix, Style, Docs, Maint, Other
-    order = ["Features", "Bug Fixes", "Styling", "Documentation", "Maintenance", "Other"]
+    main_categories = ["Features", "Bug Fixes"]
+    collapsible_categories = ["Styling", "Documentation", "Maintenance", "Other"]
 
-    for cat in order:
+    # 1. Main Categories (Always visible)
+    for cat in main_categories:
         items = categories.get(cat, [])
         if items:
-            md.append(f"### {cat}")
+            emoji = CATEGORY_EMOJIS.get(cat, "")
+            md.append(f"### {emoji} {cat}")
             for item in items:
                 # Clean up prefixes for display
                 clean_item = re.sub(r'^(feat|fix|docs|chore|refactor|style|test|ci|build)(\(.*\))?:', '', item, flags=re.IGNORECASE).strip()
                 md.append(f"- {clean_item}")
             md.append("")
 
+    # 2. Collapsible Details (Less critical)
+    has_details = any(categories.get(cat) for cat in collapsible_categories)
+    if has_details:
+        md.append("<details>")
+        md.append("<summary><b>🛠️ Maintenance & Details</b> (Click to expand)</summary>")
+        md.append("")
+
+        for cat in collapsible_categories:
+            items = categories.get(cat, [])
+            if items:
+                emoji = CATEGORY_EMOJIS.get(cat, "")
+                md.append(f"#### {emoji} {cat}")
+                for item in items:
+                     # Clean up prefixes for display
+                    clean_item = re.sub(r'^(feat|fix|docs|chore|refactor|style|test|ci|build)(\(.*\))?:', '', item, flags=re.IGNORECASE).strip()
+                    md.append(f"- {clean_item}")
+                md.append("")
+
+        md.append("</details>")
+        md.append("")
+
     return "\n".join(md)
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", help="Output file for changelog")
+    parser.add_argument("--type", choices=['stable', 'prerelease', 'development'], default='stable', help="Release type")
     args = parser.parse_args()
 
-    last_tag = get_last_tag()
+    if args.type == 'stable':
+        print("Detailed Mode: Stable Release (comparing against last stable tag)")
+        last_tag = get_last_stable_tag()
+    else:
+        print(f"Detailed Mode: {args.type} (comparing against last tag)")
+        last_tag = get_last_tag()
+
     print(f"Last tag detected: {last_tag}")
 
     commits = get_commits(last_tag)

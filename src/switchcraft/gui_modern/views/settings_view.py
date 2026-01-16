@@ -470,7 +470,6 @@ class ModernSettingsView(ft.Column, ViewMixin):
             try:
                 from switchcraft.utils.logging_handler import get_session_handler
                 import webbrowser
-                import logging
 
                 logger.info("Opening GitHub issue reporter...")
                 url = get_session_handler().get_github_issue_link()
@@ -1167,45 +1166,22 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _build_addon_manager_section(self):
         """
         Create the Addon Manager UI section listing available addons and actions.
-
-        Each addon row shows the addon's name, description, installation status, and an Install/Reinstall button.
-        The section also includes an "Upload Custom Addon (.zip)" button and an "Import from URL" button.
-
-        Returns:
-            ft.Column: A Flet Column containing addon rows and a row with upload/import action buttons.
         """
         from switchcraft.services.addon_service import AddonService
 
+        # Define addons
         addons = [
             {"id": "advanced", "name": i18n.get("addon_advanced_name") or "Advanced Features", "desc": i18n.get("addon_advanced_desc") or "Adds Intune integration and brute force analysis."},
             {"id": "winget", "name": i18n.get("addon_winget_name") or "Winget Integration", "desc": i18n.get("addon_winget_desc") or "Adds Winget package search."},
             {"id": "ai", "name": i18n.get("addon_ai_name") or "AI Assistant", "desc": i18n.get("addon_ai_desc") or "Adds AI-powered help."}
         ]
 
+        self.addon_controls = {} # Map addon_id -> {btn, progress, status}
+
         rows = []
         for addon in addons:
-            is_installed = AddonService().is_addon_installed(addon["id"])
-            status_color = "GREEN" if is_installed else "ORANGE"
-            status_text = i18n.get("status_installed") or "Installed" if is_installed else i18n.get("status_not_installed") or "Not Installed"
-
-            install_btn = ft.Button(
-                i18n.get("btn_install") or "Install" if not is_installed else i18n.get("btn_reinstall") or "Reinstall",
-                icon=ft.Icons.DOWNLOAD,
-                on_click=lambda e, aid=addon["id"]: self._install_addon(aid),
-                disabled=False  # Always allow install/reinstall
-            )
-            # Store button reference for potential updates
-            install_btn.addon_id = addon["id"]
-
-            row = ft.Row([
-                ft.Column([
-                    ft.Text(addon["name"], weight=ft.FontWeight.BOLD),
-                    ft.Text(addon["desc"], size=11, color="GREY")
-                ], expand=True),
-                ft.Text(status_text, color=status_color),
-                install_btn
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-            rows.append(row)
+            element = self._create_addon_row(addon, AddonService)
+            rows.append(element)
 
         # Custom upload button
         upload_btn = ft.Button(
@@ -1221,95 +1197,168 @@ class ModernSettingsView(ft.Column, ViewMixin):
             on_click=self._import_addon_from_url
         )
 
-        return ft.Column(rows + [ft.Row([upload_btn, url_import_btn])], spacing=10)
+        self.addon_list_container = ft.Column(rows, spacing=10)
 
-    def _install_addon(self, addon_id):
-        """
-        Install the specified addon and update the UI with success or failure feedback.
+        return ft.Column([
+            self.addon_list_container,
+            ft.Row([upload_btn, url_import_btn])
+        ], spacing=10)
 
-        Attempts to install the addon identified by `addon_id` by first locating a bundled ZIP and, if absent, falling back to downloading the addon from the official GitHub releases. The installation runs on a background thread, displays success or failure notifications to the user, and triggers a refresh of the addon manager UI when installation succeeds.
+    def _create_addon_row(self, addon, AddonService):
+        """Helper to create a single addon row and register controls."""
+        is_installed = AddonService().is_addon_installed(addon["id"])
 
-        Parameters:
-            addon_id (str): Identifier of the addon (filename prefix for the addon ZIP, e.g. "advanced", "winget").
-        """
-        from switchcraft.services.addon_service import AddonService
+        status_text = ft.Text(
+            i18n.get("status_installed") or "Installed" if is_installed else i18n.get("status_not_installed") or "Not Installed",
+            color="GREEN" if is_installed else "ORANGE"
+        )
+
+        install_btn = ft.Button(
+            i18n.get("btn_install") or "Install" if not is_installed else i18n.get("btn_reinstall") or "Reinstall",
+            icon=ft.Icons.DOWNLOAD,
+            on_click=lambda e, aid=addon["id"]: self._install_addon_click(aid),
+            disabled=False
+        )
+
+        progress = ft.ProgressRing(width=20, height=20, visible=False)
+
+        # Container for Action (Button or Progress)
+        action_container = ft.Column([
+            install_btn,
+            progress
+        ], alignment=ft.MainAxisAlignment.CENTER)
+
+        row = ft.Container(
+            content=ft.Row([
+                ft.Column([
+                    ft.Text(addon["name"], weight=ft.FontWeight.BOLD),
+                    ft.Text(addon["desc"], size=11, color="GREY")
+                ], expand=True),
+                status_text,
+                action_container
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            padding=10,
+            bgcolor="SURFACE_CONTAINER_HIGHEST",
+            border_radius=5
+        )
+
+        # Store references
+        self.addon_controls[addon["id"]] = {
+            "btn": install_btn,
+            "progress": progress,
+            "status": status_text,
+            "row": row
+        }
+
+        return row
+
+    def _install_addon_click(self, addon_id):
+        """Handle install button click with UI updates."""
+        controls = self.addon_controls.get(addon_id)
+        if not controls:
+            return
+
+        # Update UI to loading state
+        controls["btn"].visible = False
+        controls["progress"].visible = True
+        controls["status"].value = i18n.get("addon_installing") or "Installing..."
+        controls["status"].color = "BLUE"
+        try:
+            self.update()
+        except: pass
+
+        # Determine path (logic from original _install_addon)
         import sys
         from pathlib import Path
 
-        logger.info(f"Installing addon: {addon_id}")
-        self._show_snack(f"{i18n.get('addon_installing') or 'Installing addon'} {addon_id}...", "BLUE")
-
-        # Resolve bundled path
         if getattr(sys, 'frozen', False):
              base_path = Path(sys._MEIPASS) / "assets" / "addons"
         else:
-             # src/switchcraft/gui_modern/views/settings_view.py -> src/switchcraft/gui_modern/views -> src/switchcraft/gui_modern -> src/switchcraft -> src -> switchcraft/assets/addons?
-             # No: src/switchcraft/gui_modern/views/settings_view.py (level 0)
-             # level 1: views
-             # level 2: gui_modern
-             # level 3: switchcraft
-             # level 4: src
-             # assets is in src/switchcraft/assets
-             # so: parent(views) -> parent(gui_modern) -> parent(switchcraft) / assets / addons ??
-             # Wait. app.py is in gui_modern.
-             # settings_view.py is in gui_modern/views.
-             # So it is one level deeper than app.py.
-             # app.py used Path(__file__).parent.parent / "assets" / "addons" (parent of gui_modern is switchcraft).
-             # settings_view: parent(views).parent(gui_modern).parent(switchcraft)
              base_path = Path(__file__).parent.parent.parent / "assets" / "addons"
 
         zip_path = base_path / f"{addon_id}.zip"
-        logger.info(f"Looking for addon ZIP at: {zip_path}")
 
         def _run():
-            """
-            Install an addon ZIP if present; otherwise attempt to download it from GitHub and update the UI with the outcome.
+            from switchcraft.services.addon_service import AddonService
+            success = False
+            error_msg = None
 
-            Attempts to install the addon located at `zip_path`. If the ZIP is missing, triggers a download from GitHub for `addon_id`. On successful installation, logs the event, shows a success snack, and refreshes the addon manager section in the UI if available. On failure or exception, logs the error and shows a failure snack containing the error message.
-            """
             try:
-                if not zip_path.exists():
-                    logger.error(f"Addon ZIP not found at: {zip_path}")
-                    # Try to download from GitHub releases
-                    self._download_addon_from_github(addon_id)
-                    return
-
-                logger.info(f"Found addon ZIP, installing from: {zip_path}")
-                result = AddonService().install_addon(str(zip_path))
-                if result:
-                    logger.info(f"Addon {addon_id} installed successfully")
-                    self._show_snack(f"{i18n.get('addon_install_success') or 'Addon installed successfully!'} ({addon_id})", "GREEN")
-                    # Refresh the addon manager section to update status
-                    if hasattr(self, '_build_addon_manager_section'):
-                        # Rebuild the section in the UI thread
-                        if hasattr(self.app_page, 'run_task'):
-                            try:
-                                self.app_page.run_task(lambda: self._refresh_addon_section())
-                            except Exception:
-                                pass
+                # 1. Try Bundled
+                if zip_path.exists():
+                     logger.info(f"Installing {addon_id} from {zip_path}")
+                     success = AddonService().install_addon(str(zip_path))
                 else:
-                    logger.error(f"Addon {addon_id} installation returned False")
-                    self._show_snack(f"{i18n.get('addon_install_failed') or 'Addon installation failed.'} ({addon_id})", "RED")
-            except Exception as ex:
-                logger.exception(f"Error installing addon {addon_id}: {ex}")
-                self._show_snack(f"{i18n.get('addon_install_failed') or 'Addon installation failed.'}: {str(ex)}", "RED")
+                     # 2. Try Download
+                     logger.info(f"Downloading {addon_id} from GitHub...")
+                     success = self._download_and_install_github(addon_id)
+            except Exception as e:
+                logger.exception(f"Addon install error: {e}")
+                error_msg = str(e)
+
+            # UI Update needs to be safe
+            def _ui_update():
+                controls["btn"].visible = True
+                controls["progress"].visible = False
+
+                if success:
+                    controls["status"].value = i18n.get("status_installed") or "Installed"
+                    controls["status"].color = "GREEN"
+                    controls["btn"].text = i18n.get("btn_reinstall") or "Reinstall"
+                    self._show_snack(f"{i18n.get('addon_install_success') or 'Success'}: {addon_id}", "GREEN")
+                else:
+                    controls["status"].value = i18n.get("status_failed") or "Failed"
+                    controls["status"].color = "RED"
+                    self._show_snack(f"{i18n.get('addon_install_failed') or 'Failed'}: {error_msg or 'Unknown Error'}", "RED")
+
+                self.update()
+
+            # Since we are in a thread, we should use page.run_task or similar if available, or just self.update() if thread-safe enough
+            # Flet's update() is generally thread-safe if page is valid?
+            # Safer to queue it on the page loop if possible, but self.update() works in most simple cases.
+            try:
+                # self.update() inside thread might work, but let's try calling it directly.
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(_ui_update)
+                else:
+                    _ui_update()
+            except Exception as e:
+                logger.error(f"UI update failed: {e}")
 
         threading.Thread(target=_run, daemon=True).start()
 
-    def _refresh_addon_section(self):
-        """
-        Attempt to refresh the Addon Manager section in the current settings view.
+    def _download_and_install_github(self, addon_id):
+        """Helper to download/install without UI code mixed in."""
+        import requests
+        import tempfile
+        from switchcraft.services.addon_service import AddonService
 
-        This is a best-effort UI refresh: when an addon is installed or its state changes, the method tries to locate and rebuild the Addon Manager area inside the currently rendered tab. Failures are handled silently and logged for debugging; the method performs no guaranteed action and may be a no-op in some layouts.
-        """
+        repo = "FaserF/SwitchCraft"
+        api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+
+        resp = requests.get(api_url, timeout=10)
+        resp.raise_for_status()
+
+        assets = resp.json().get("assets", [])
+        asset = next((a for a in assets if a["name"] == f"{addon_id}.zip"), None)
+
+        if not asset:
+            raise Exception(f"Addon {addon_id}.zip not found in latest release")
+
+        download_url = asset["browser_download_url"]
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+            d_resp = requests.get(download_url, timeout=30)
+            d_resp.raise_for_status()
+            tmp.write(d_resp.content)
+            tmp_path = tmp.name
+
         try:
-            # Find the General tab and rebuild addon section
-            # This is a bit hacky, but we need to refresh the UI
-            if hasattr(self, 'current_content') and self.current_content.content:
-                # Try to find and update the addon section
-                pass  # For now, user can manually refresh by switching tabs
-        except Exception as ex:
-            logger.debug(f"Failed to refresh addon section: {ex}")
+            return AddonService().install_addon(tmp_path)
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except: pass
 
     def _download_addon_from_github(self, addon_id):
         """
@@ -1322,7 +1371,6 @@ class ModernSettingsView(ft.Column, ViewMixin):
         """
         try:
             import requests
-            from switchcraft import __version__
 
             logger.info(f"Attempting to download {addon_id} from GitHub releases")
             self._show_snack(f"Downloading {addon_id} from GitHub...", "BLUE")

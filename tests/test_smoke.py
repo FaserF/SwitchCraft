@@ -1,7 +1,6 @@
 import unittest
 import sys
 import subprocess
-from pathlib import Path
 
 class TestSmoke(unittest.TestCase):
     """Smoke tests to ensure no immediate crash on startup."""
@@ -9,9 +8,9 @@ class TestSmoke(unittest.TestCase):
     def test_import_analyzers(self):
         """Verify analyzers can be imported."""
         try:
-            from switchcraft.analyzers.exe import ExeAnalyzer
-            from switchcraft.analyzers.msi import MsiAnalyzer
-            from switchcraft.analyzers.universal import UniversalAnalyzer
+            from switchcraft.analyzers.exe import ExeAnalyzer  # noqa: F401
+            from switchcraft.analyzers.msi import MsiAnalyzer  # noqa: F401
+            from switchcraft.analyzers.universal import UniversalAnalyzer  # noqa: F401
             self.assertTrue(True)
         except ImportError as e:
             self.fail(f"Failed to import analyzers: {e}")
@@ -20,7 +19,7 @@ class TestSmoke(unittest.TestCase):
         """Verify GUI module can be imported (without initializing App)."""
         try:
             # Only test import, do not instantiate App() as it needs display
-            import switchcraft.gui.app
+            import switchcraft.gui.app  # noqa: F401
             self.assertTrue(True)
         except ImportError as e:
             self.fail(f"Failed to import GUI module: {e}")

@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import flet as ft
 import sys
 import os

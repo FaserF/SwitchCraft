@@ -57,7 +57,7 @@ jobs:
       - name: Generate Changelog
         id: changelog
         run: |
-          python .github/scripts/generate_changelog.py --output changelog.md
+          python .github/scripts/generate_changelog.py --output changelog.md --type ${{ github.event.inputs.release_type }}
           # Read changelog content into a variable safely (multiline)
           {
             echo 'CHANGELOG_BODY<<EOF'
@@ -265,3 +265,24 @@ jobs:
       run: |
         if (Test-Path "cert.pfx") { Remove-Item "cert.pfx" -Force }
       shell: pwsh
+
+  winget_manifests:
+    name: Generate Winget Manifests
+    needs: [prepare_release, build]
+    if: github.event.inputs.release_type == 'stable'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: pip install requests pyyaml
+
+      - name: Generate Manifests
+        run: |
+          VERSION="${{ needs.prepare_release.outputs.version }}"
+          python .github/scripts/generate_winget_manifests.py --version "$VERSION" >> "$GITHUB_STEP_SUMMARY"

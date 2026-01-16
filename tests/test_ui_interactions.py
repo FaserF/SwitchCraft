@@ -94,11 +94,11 @@ def test_settings_view_buttons(mock_page):
         print(msg)
 
     # Mock necessary services to prevent side effects
-    with patch("switchcraft.utils.config.SwitchCraftConfig.get_value") as mock_get, \
-         patch("switchcraft.utils.config.SwitchCraftConfig.set_user_preference") as mock_set, \
+    with patch("switchcraft.utils.config.SwitchCraftConfig.get_value"), \
+         patch("switchcraft.utils.config.SwitchCraftConfig.set_user_preference"), \
          patch("threading.Thread") as mock_thread, \
-         patch("switchcraft.gui_modern.views.settings_view.AuthService") as mock_auth, \
-         patch("switchcraft.gui_modern.views.settings_view.SyncService") as mock_sync:
+         patch("switchcraft.gui_modern.views.settings_view.AuthService"), \
+         patch("switchcraft.gui_modern.views.settings_view.SyncService"):
 
         # Mock thread start to just log it
         mock_thread.return_value.start.side_effect = lambda: log("Thread started!")
@@ -225,8 +225,8 @@ def test_analyzer_view_buttons(mock_page):
     # Mock Dropzone which might be platform dependent, and HistoryService
     # Patch the SOURCE of HistoryService so local imports mock it too
     with patch("switchcraft.gui_modern.views.analyzer_view.HAS_DROPZONE", True), \
-         patch("switchcraft.services.history_service.HistoryService") as MockHistoryService, \
-         patch("switchcraft.gui_modern.views.analyzer_view.webbrowser") as MockWebReader, \
+         patch("switchcraft.services.history_service.HistoryService"), \
+         patch("switchcraft.gui_modern.views.analyzer_view.webbrowser"), \
          patch("switchcraft.gui_modern.utils.file_picker_helper.FilePickerHelper.save_file", return_value="mock_script.ps1"):
 
         log("\nInstantiating AnalyzerView")
@@ -303,7 +303,7 @@ def test_library_view_buttons(mock_page):
 
     # 1. Test "Intune not configured" state
     with patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_value") as mock_get, \
-         patch("switchcraft.gui_modern.utils.file_picker_helper.FilePickerHelper.save_file", return_value="mock_script.ps1") as mock_save, \
+         patch("switchcraft.gui_modern.utils.file_picker_helper.FilePickerHelper.save_file", return_value="mock_script.ps1"), \
          patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_secure_value") as mock_secure:
 
         # Simulate missing credentials
@@ -403,9 +403,9 @@ def test_settings_view_entra_test_connection(mock_page):
         print(msg)
 
     with patch("switchcraft.gui_modern.views.settings_view.SwitchCraftConfig") as verify_config, \
-         patch("switchcraft.gui_modern.views.settings_view.IntuneService") as MockIntune, \
-         patch("switchcraft.gui_modern.views.settings_view.AuthService") as MockAuth, \
-         patch("threading.Thread") as mock_thread:
+         patch("switchcraft.gui_modern.views.settings_view.IntuneService"), \
+         patch("switchcraft.gui_modern.views.settings_view.AuthService"), \
+         patch("threading.Thread"):
 
         # Mock Config interactions
         verify_config.get_value.return_value = "dummy_val"

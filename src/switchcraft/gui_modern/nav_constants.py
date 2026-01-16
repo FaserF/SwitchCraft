@@ -14,37 +14,38 @@ class NavIndex:
     """Central registry of all navigation view indices."""
 
     # === MAIN VIEWS ===
+    # === MAIN VIEWS ===
     HOME = 0
-    ADDON_MANAGER = 1
+    # ADDON_MANAGER Removed
 
     # === SETTINGS SUB-VIEWS (via SettingsView tabs) ===
-    SETTINGS_UPDATES = 2      # Settings tab index 1
-    SETTINGS_GRAPH = 3        # Settings tab index 2
-    SETTINGS_HELP = 4         # Settings tab index 3
+    SETTINGS_UPDATES = 1      # Settings tab index 1
+    SETTINGS_GRAPH = 2        # Settings tab index 2
+    SETTINGS_HELP = 3         # Settings tab index 3
 
     # === TOOLS & APPS ===
-    WINGET = 5                # Apps (Winget Search)
-    ANALYZER = 6              # Installer Analyzer
-    HELPER = 7                # AI Helper / Generator
-    INTUNE = 8                # Intune Packager
-    INTUNE_STORE = 9          # Intune Store View
-    SCRIPTS = 10              # Script Upload
-    MACOS = 11                # macOS Wizard
-    HISTORY = 12              # History View
+    WINGET = 4                # Apps (Winget Search)
+    ANALYZER = 5              # Installer Analyzer
+    HELPER = 6                # AI Helper / Generator
+    INTUNE = 7                # Intune Packager
+    INTUNE_STORE = 8          # Intune Store View
+    SCRIPTS = 9               # Script Upload
+    MACOS = 10                # macOS Wizard
+    HISTORY = 11              # History View
 
     # === PRIMARY SETTINGS ===
-    SETTINGS = 13             # General Settings (tab index 0)
+    SETTINGS = 12             # General Settings (tab index 0)
 
     # === WIZARDS & ADVANCED ===
-    PACKAGING_WIZARD = 14     # Packaging Wizard
-    DETECTION_TESTER = 15     # Detection Tester
-    STACK_MANAGER = 16        # Stack Manager
+    PACKAGING_WIZARD = 13     # Packaging Wizard
+    DETECTION_TESTER = 14     # Detection Tester
+    STACK_MANAGER = 15        # Stack Manager
 
     # === DASHBOARD & LIBRARY ===
-    DASHBOARD = 17            # Dashboard View
-    LIBRARY = 18              # Library View
-    GROUP_MANAGER = 19        # Group Manager
-    WINGET_CREATE = 20        # WingetCreate Manager
+    DASHBOARD = 16            # Dashboard View
+    LIBRARY = 17              # Library View
+    GROUP_MANAGER = 18        # Group Manager
+    WINGET_CREATE = 19        # WingetCreate Manager
 
 
 # Mapping from NavIndex to sidebar category for reference
@@ -57,7 +58,7 @@ NAV_CATEGORIES = {
     "Tools": [
         NavIndex.ANALYZER, NavIndex.HELPER, NavIndex.SCRIPTS,
         NavIndex.MACOS, NavIndex.PACKAGING_WIZARD, NavIndex.DETECTION_TESTER,
-        NavIndex.ADDON_MANAGER, NavIndex.WINGET_CREATE
+        NavIndex.WINGET_CREATE
     ],
     "System": [
         NavIndex.SETTINGS, NavIndex.SETTINGS_UPDATES,

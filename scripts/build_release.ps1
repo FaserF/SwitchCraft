@@ -145,6 +145,25 @@ $RepoRoot = Resolve-Path "$PSScriptRoot/.."
 Set-Location $RepoRoot
 Write-Host "Project Root: $RepoRoot" -ForegroundColor Gray
 
+# --- Version Extraction ---
+$PyProjectFile = Join-Path $RepoRoot "pyproject.toml"
+$AppVersion = "0.0.0"
+$AppVersionNumeric = "0.0.0"
+
+if (Test-Path $PyProjectFile) {
+    try {
+        $VersionLine = Get-Content -Path $PyProjectFile | Select-String "version = " | Select-Object -First 1
+        if ($VersionLine -match 'version = "(.*)"') {
+            $AppVersion = $Matches[1]
+            $AppVersionNumeric = $AppVersion -replace '-.*', '' # Remove suffixes like -dev for numeric parsing
+            Write-Host "Detected Version: $AppVersion (Numeric base: $AppVersionNumeric)" -ForegroundColor Cyan
+        }
+    } catch {
+        Write-Warning "Failed to extract version from pyproject.toml: $_"
+    }
+}
+
+
 # Setup Dist dir
 $DistDir = Join-Path $RepoRoot "dist"
 if (-not (Test-Path $DistDir)) {
@@ -315,7 +334,7 @@ if ($Installer -and $IsWinBuild) {
 
         if (Test-Path "switchcraft_modern.iss") {
             Write-Host "Compiling Modern Installer..."
-            & $IsccPath "switchcraft_modern.iss" | Out-Null
+            & $IsccPath "/DMyAppVersion=$AppVersion" "/DMyAppVersionNumeric=$AppVersionNumeric" "switchcraft_modern.iss" | Out-Null
 
             # Cleanup temporary SwitchCraft.exe used for bundling
             if (Test-Path $ModernExe) { Remove-Item $ModernExe -Force }
@@ -341,7 +360,7 @@ if ($Legacy -and $IsWinBuild) {
             foreach ($p in $PossiblePaths) { if (Test-Path $p) { $IsccPath = $p; break } }
         }
         if ($IsccPath -and (Test-Path "switchcraft_legacy.iss")) {
-            & $IsccPath "switchcraft_legacy.iss" | Out-Null
+            & $IsccPath "/DMyAppVersion=$AppVersion" "/DMyAppVersionNumeric=$AppVersionNumeric" "switchcraft_legacy.iss" | Out-Null
             Write-Host "Installer Created: SwitchCraft-Legacy-Setup.exe" -ForegroundColor Green
         }
     }

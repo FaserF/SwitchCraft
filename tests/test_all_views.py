@@ -2,7 +2,6 @@
 import pytest
 import flet as ft
 from unittest.mock import MagicMock
-import sys
 
 # Mock imports that might be troublesome if environment is partial
 # (Though we prefer testing real imports to catch the bugs!)
@@ -95,10 +94,7 @@ class TestAllViews:
         view = GroupManagerView(page)
         assert view is not None
 
-    def test_view_instantiation_addons(self, page):
-        from switchcraft.gui_modern.views.addon_manager_view import AddonManagerView
-        view = AddonManagerView(page)
-        assert view is not None
+
 
     def test_view_instantiation_category(self, page):
         from switchcraft.gui_modern.views.category_view import CategoryView

@@ -53,7 +53,11 @@ def calculate_next_version(base_version, tags, release_type="stable"):
     if release_type == "prerelease":
         return f"{base_ver}-beta"
     elif release_type == "development":
-        return f"{base_ver}-dev"
+        try:
+            sha = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
+            return f"{base_ver}-dev-{sha}"
+        except Exception:
+            return f"{base_ver}-dev"
     else:  # stable
         return base_ver
 

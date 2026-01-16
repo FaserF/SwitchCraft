@@ -121,11 +121,7 @@ try:
 except Exception as e:
     logger.error(f"Failed to import MacOSWizardView: {e}")
     MacOSWizardView = _create_broken_view("MacOSWizardView", e)
-try:
-    from .addon_manager_view import AddonManagerView
-except Exception as e:
-    logger.error(f"Failed to import AddonManagerView: {e}")
-    AddonManagerView = _create_broken_view("AddonManagerView", e)
+
 try:
     from .group_manager_view import GroupManagerView
 except Exception as e:

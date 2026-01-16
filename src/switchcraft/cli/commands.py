@@ -308,11 +308,21 @@ def addons_install(addon_id):
 # --- Config Secret Support ---
 @config.command('set-secret')
 @click.argument('key')
-@click.argument('value')
+@click.option('--value', '-v', prompt=True, hide_input=True, help="Secret value")
 def config_set_secret(key, value):
     """Set a secure configuration value (keyring)."""
     SwitchCraftConfig.set_secret(key, value)
     print(f"Secret {key} saved securely.")
+
+@config.command('encrypt')
+@click.option('--plaintext', prompt=True, hide_input=True, help="Value to encrypt")
+def config_encrypt(plaintext):
+    """Encrypt a value for Registry usage (Obfuscation)."""
+    from switchcraft.utils.crypto import SimpleCrypto
+    encrypted = SimpleCrypto.encrypt(plaintext)
+    print(f"Encrypted Value: {encrypted}")
+    print("[yellow]Store this in the registry with suffix _ENC[/yellow]")
+    print("Example: GraphClientSecret_ENC")
 
 # --- Logs Group ---
 @cli.group()

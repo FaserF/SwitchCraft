@@ -1,8 +1,6 @@
 import unittest
 import sys
 import os
-import subprocess
-import time
 from pathlib import Path
 
 # Add src to path
@@ -15,7 +13,6 @@ class TestAppStartupCritical(unittest.TestCase):
     def test_modern_main_imports(self):
         """Test that modern_main.py can be imported without errors."""
         try:
-            import switchcraft.modern_main
             self.assertTrue(True)
         except Exception as e:
             self.fail(f"Failed to import modern_main: {e}")

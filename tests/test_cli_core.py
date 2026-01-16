@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock, ANY
+from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 import sys
 import os
@@ -39,9 +39,11 @@ class TestCliCore(unittest.TestCase):
 
     @patch('switchcraft.utils.config.SwitchCraftConfig.set_secret')
     def test_config_set_secret(self, mock_set_secret):
-        """Test 'config set-secret' command."""
-        result = self.runner.invoke(cli, ['config', 'set-secret', 'MySecret', 'HiddenVal'])
+        """Test 'config set-secret' command with interactive input."""
+        # Now prompts for value if not provided via --value
+        result = self.runner.invoke(cli, ['config', 'set-secret', 'MySecret'], input='HiddenVal')
         self.assertEqual(result.exit_code, 0)
+        # Output likely contains "Secret value: " prompt which is hidden in output usually but check exit code
         self.assertIn("Secret MySecret saved securely.", result.output)
         mock_set_secret.assert_called_with("MySecret", "HiddenVal")
 

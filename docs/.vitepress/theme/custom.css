@@ -82,6 +82,7 @@
 /* Sidebar styling */
 .VPSidebar {
   backdrop-filter: blur(12px);
+  background-color: var(--vp-c-bg);
 }
 
 .dark .VPSidebar {
@@ -91,6 +92,7 @@
 /* Nav styling */
 .VPNav {
   backdrop-filter: blur(12px);
+  background-color: var(--vp-c-bg);
 }
 
 /* Content styling */
@@ -153,3 +155,17 @@ html {
     transform: none;
   }
 }
+
+/* Mobile Nav Fixes - Removed to allow default theme behavior
+.VPNavScreen {
+  position: fixed !important;
+  top: var(--vp-nav-height, 64px) !important;
+  left: 0 !important;
+  width: 100% !important;
+  bottom: 0 !important;
+  background-color: var(--vp-c-bg) !important;
+  display: flex !important;
+  flex-direction: column;
+  overflow-y: auto !important;
+  z-index: 1000 !important;
+} */

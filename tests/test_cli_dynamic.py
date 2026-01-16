@@ -1,4 +1,3 @@
-import pytest
 from click.testing import CliRunner
 import click
 from switchcraft.cli.commands import cli

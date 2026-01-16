@@ -13,7 +13,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         """
         Initialize the view: configure state and services, build the search/list left pane and the details right pane, and replace the UI with a credentials prompt when Graph credentials are missing.
-        
+
         Parameters:
             page (ft.Page): The host Flet page used for rendering, navigation, and storing cross-view session data.
         """
@@ -154,9 +154,9 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
     def _update_list(self, apps):
         """
         Populate the results list with the given apps and refresh the UI.
-        
+
         Renders each app as a ListTile showing the app's display name and publisher, using an app logo when available. If `apps` is empty or falsy, inserts a single "No apps found." message. After building the list, triggers a UI update.
-        
+
         Parameters:
             apps (iterable[dict] | None): Iterable of app objects (as returned by IntuneService). Expected keys that are used: `displayName`, `publisher`, and one of `largeIcon` (dict with `value`), `iconUrl`, or `logoUrl` for the logo image.
         """
@@ -199,9 +199,9 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
     def _handle_app_click(self, app):
         """
         Handle selection of an app list item and display its details.
-        
+
         Attempts to show the app's details using the page's `run_task` mechanism to ensure UI-thread execution; if `run_task` is unavailable or fails, falls back to a direct call. On error, logs the exception and surfaces an error message in the UI.
-        
+
         Parameters:
             app (dict): Intune app object (as returned by the service) whose details should be displayed.
         """
@@ -223,9 +223,9 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
     def _show_details(self, app):
         """
         Render the detailed view for a given Intune app in the details pane.
-        
+
         Builds and displays the app's title, metadata, description, assignments (loaded asynchronously), available install/uninstall commands, and a Deploy / Package action. The view shows a loading indicator while content and assignments are fetched and forces a UI update on the enclosing page.
-        
+
         Parameters:
             app (dict): Intune app object (expected keys include `id`, `displayName`, `publisher`, `createdDateTime`, `owner`, `@odata.type`, `description`, `largeIcon`/`iconUrl`/`logoUrl`, `installCommandLine`, `uninstallCommandLine`) used to populate the details UI.
         """
@@ -299,12 +299,12 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             def _load_assignments():
                 """
                 Load and display assignment information for the currently selected app into the view's assignments column.
-                
+
                 This function fetches app assignments from Intune using the configured token and the current app's id, then clears and populates self.assignments_col.controls with:
                 - A centered configuration prompt if Graph credentials are missing.
                 - "Not assigned." text when no assignments are returned.
                 - Grouped sections for each assignment intent ("Required", "Available", "Uninstall") listing target group identifiers.
-                
+
                 On failure, the function logs the exception and displays an error message in the assignments column. The view is updated at the end of the operation.
                 """
                 try:
@@ -351,11 +351,11 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             self.details_area.controls.append(
                 ft.Row([
                     ft.Button(
-                        i18n.get("btn_deploy_package") or "Deploy / Package...",
+                        i18n.get("btn_deploy_assignment") or "Deploy / Assign...",
                         icon=ft.Icons.CLOUD_UPLOAD,
                         bgcolor="BLUE",
                         color="WHITE",
-                        on_click=lambda e, a=app: self._start_packaging_wizard(a)
+                        on_click=lambda e, a=app: self._show_deployment_dialog(a)
                     )
                 ])
             )
@@ -371,32 +371,142 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             logger.exception(f"Failed to show app details: {ex}")
             self.details_area.controls.clear()
             self.details_area.controls.append(ft.Text(f"{i18n.get('error') or 'Error'}: {str(ex)}", color="red", selectable=True))
-            # Force update on the page
             if hasattr(self, 'app_page'):
                 self.app_page.update()
             else:
                 self.update()
 
-    def _start_packaging_wizard(self, app):
+    def _show_deployment_dialog(self, app):
         """
-        Open the Packaging Wizard for the given Intune app and make the app available to the wizard.
-        
-        If the view's page exposes a `switchcraft_app` with a `goto_tab` method, navigates to the packaging wizard tab and stores the provided `app` in the page's `switchcraft_session` under the key `"pending_packaging_app"` so the wizard can prefill its context. If automatic navigation is not available, shows a notification and does nothing else.
-        
-        Parameters:
-            app (dict): Intune app object (as returned by the Intune service) to be provided to the Packaging Wizard for pre-population.
+        Show dialog to assign (deploy) the app to a group.
         """
-        if not hasattr(self.app_page, "switchcraft_app"):
-             self._show_snack("Cannot navigate to Wizard automatically.", "ORANGE")
-             return
+        if not self._get_token():
+            self._show_snack("Intune not configured.", "RED")
+            return
 
-        # Navigate to Packaging Wizard (NavIndex.PACKAGING_WIZARD)
-        app_ref = self.app_page.switchcraft_app
-        if hasattr(app_ref, 'goto_tab'):
-             app_ref.goto_tab(NavIndex.PACKAGING_WIZARD)
-             # Wait a bit and try to populate? Better if we have a state manager.
-             # In this architecture, we can try to find the view in the cache or wait for it to be created.
-             # Store it in switchcraft_session dict for inter-view communication
-             session_storage = getattr(self.app_page, 'switchcraft_session', {})
-             session_storage["pending_packaging_app"] = app
-             self._show_snack(f"Starting wizard for {app.get('displayName')}...", "BLUE")
+        # Components
+        search_box = ft.TextField(
+            label=i18n.get("search_groups") or "Search Groups",
+            hint_text="Start typing group name...",
+            autofocus=True,
+            on_submit=lambda e: _search_groups(e.control.value)
+        )
+        groups_list = ft.ListView(height=200, spacing=5)
+
+        intent_dropdown = ft.Dropdown(
+            label=i18n.get("intent") or "Assignment Intent",
+            options=[
+                ft.dropdown.Option("required", "Required"),
+                ft.dropdown.Option("available", "Available"),
+                ft.dropdown.Option("uninstall", "Uninstall")
+            ],
+            value="required",
+            width=150
+        )
+
+        selected_group_id = [None] # List to hold ref
+
+        def _search_groups(query):
+            groups_list.controls.clear()
+            groups_list.controls.append(ft.ProgressBar())
+            groups_list.update()
+
+            def _bg():
+                try:
+                    token = self._get_token()
+                    # Filter query for Graph
+                    # startswith(displayName, 'query')
+                    # Sanitize: Escape single quotes
+                    safe_query = query.replace("'", "''")
+                    filter_q = f"startswith(displayName, '{safe_query}')" if query else None
+                    groups = self.intune_service.list_groups(token, filter_query=filter_q)
+
+                    groups_list.controls.clear()
+                    if not groups:
+                        groups_list.controls.append(ft.Text("No groups found."))
+                    else:
+                        for g in groups:
+                            def _select(e, gid=g['id'], gname=g['displayName']):
+                                selected_group_id[0] = gid
+                                search_box.value = gname
+                                search_box.update()
+                                # Visual feedback could be improved but simple selection for now
+                                self._show_snack(f"Selected: {gname}", "BLUE")
+
+                            groups_list.controls.append(
+                                ft.ListTile(
+                                    title=ft.Text(g.get('displayName', 'Unknown')),
+                                    subtitle=ft.Text(g.get('mail', g.get('description', ''))),
+                                    leading=ft.Icon(ft.Icons.GROUP),
+                                    on_click=_select
+                                )
+                            )
+                    groups_list.update()
+                except Exception as ex:
+                    logger.error(f"Group search failed: {ex}")
+                    groups_list.controls.clear()
+                    groups_list.controls.append(ft.Text(f"Error: {ex}", color="RED"))
+                    groups_list.update()
+
+            threading.Thread(target=_bg, daemon=True).start()
+
+        def _confirm_assign(e):
+            if not selected_group_id[0]:
+                self._show_snack("Please select a group first.", "RED")
+                return
+
+            dlg.open = False
+            self.app_page.update()
+
+            intent = intent_dropdown.value
+            group_id = selected_group_id[0]
+
+            self._show_snack(f"Assigning app to {group_id}...", "BLUE")
+
+            def _deploy_bg():
+                try:
+                    token = self._get_token()
+                    self.intune_service.assign_to_group(token, app['id'], group_id, intent)
+                    self._show_snack(f"Successfully assigned as {intent}!", "GREEN")
+                    # Refresh details
+                    # Use run_task if available to ensure thread safety when calling show_details
+                    if hasattr(self.app_page, 'run_task'):
+                         self.app_page.run_task(lambda: self._show_details(app))
+                    else:
+                         self._show_details(app)
+                except Exception as ex:
+                    self._show_snack(f"Assignment failed: {ex}", "RED")
+
+            threading.Thread(target=_deploy_bg, daemon=True).start()
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(i18n.get("deploy_app_title") or f"Deploy '{app.get('displayName')}'"),
+            content=ft.Container(
+                content=ft.Column([
+                    search_box,
+                    ft.Button(
+                        i18n.get("search") or "Search",
+                        icon=ft.Icons.SEARCH,
+                        on_click=lambda e: _search_groups(search_box.value)
+                    ),
+                    ft.Divider(),
+                    ft.Text(i18n.get("select_group") or "Select Group:", weight="bold"),
+                    groups_list,
+                    ft.Divider(),
+                    intent_dropdown
+                ], spacing=10),
+                width=500,
+                height=450
+            ),
+            actions=[
+                ft.TextButton(i18n.get("cancel") or "Cancel", on_click=lambda e: setattr(dlg, 'open', False) or self.app_page.update()),
+                ft.Button(i18n.get("assign") or "Assign", on_click=_confirm_assign, bgcolor="BLUE", color="WHITE")
+            ]
+        )
+
+        self.app_page.dialog = dlg
+        dlg.open = True
+        self.app_page.update()
+
+        # Trigger initial load if search is empty? Maybe top groups.
+        _search_groups("")

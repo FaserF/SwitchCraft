@@ -1,7 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch, mock_open
-import json
-import os
+from unittest.mock import MagicMock, patch
 import sys
 from pathlib import Path
 from switchcraft.services.winget_manifest_service import WingetManifestService

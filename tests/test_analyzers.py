@@ -3,7 +3,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.exe import ExeAnalyzer
-from switchcraft.models import InstallerInfo
 
 class TestAnalyzers(unittest.TestCase):
     @patch('pathlib.Path.exists', return_value=True)

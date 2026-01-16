@@ -1,6 +1,5 @@
 import sys
 import os
-from pathlib import Path
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -9,8 +8,6 @@ sys.path.insert(0, os.path.abspath("src"))
 
 from switchcraft.services.addon_service import AddonService
 from switchcraft.utils.templates import TemplateGenerator
-from switchcraft.services.signing_service import SigningService
-from switchcraft.utils.config import SwitchCraftConfig
 
 class TestFixes(unittest.TestCase):
 

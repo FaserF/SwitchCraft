@@ -31,7 +31,8 @@ class TestI18nIntegrity(unittest.TestCase):
     def test_placeholders_consistency(self):
         """Ensure placeholders like {version} match in both languages."""
         for key in self.en:
-            if key not in self.de: continue
+            if key not in self.de:
+                continue
 
             en_val = str(self.en[key])
             de_val = str(self.de[key])
@@ -125,7 +126,7 @@ class TestI18nIntegrity(unittest.TestCase):
     def test_german_du_form(self):
         """
         Check that German translations use the informal Du-form rather than the formal Sie-form.
-        
+
         Scans each value in the loaded German translations for capitalized Sie-form tokens and common formal phrases (e.g., "Sie", "Ihnen", "können Sie"). Records any occurrences (except the ambiguous "Ihr") with their translation key and fails the test if any violations are found.
         """
         # Patterns that indicate Sie-Form (formal German)
@@ -156,7 +157,7 @@ class TestI18nIntegrity(unittest.TestCase):
                     if matched_text != "Ihr":  # "Ihr" is too ambiguous
                         violations.append(f"{key}: Contains Sie-Form: '{matched_text}'")
 
-        self.assertFalse(violations, f"Found Sie-Form (formal) in German texts. Use Du-Form instead:\n" + "\n".join(violations))
+        self.assertFalse(violations, "Found Sie-Form (formal) in German texts. Use Du-Form instead:\n" + "\n".join(violations))
 
 if __name__ == '__main__':
     unittest.main()

@@ -184,8 +184,8 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             ],
             selected_index=0,
             animation_duration=300,
-            on_change=on_source_tab_change,
         )
+        source_tabs.on_change = on_source_tab_change
 
         self.results_column = ft.Column(expand=False, spacing=15)
 
@@ -826,9 +826,9 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
     def _run_local_test_action(self, file_path, switches):
         """
         Prompt the user to run the installer locally with elevated privileges and execute it if confirmed.
-        
+
         If the current process lacks administrative rights, shows a confirmation dialog that attempts to restart the application as Administrator (Windows only). If already running as admin, shows a confirmation dialog to run the installer now; constructs an msiexec command for .msi files or uses the installer path directly for other file types, appends provided switches, and launches the command via a UAC-elevated ShellExecute call. Displays user-facing status/snack messages for failures or unsupported platforms.
-        
+
         Parameters:
             file_path (str): Path to the installer file to run.
             switches (Sequence[str]): Command-line switches/arguments to pass to the installer.
@@ -852,9 +852,9 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             def on_restart_confirm(e):
                 """
                 Attempt to relaunch the application with elevated (administrator) privileges on Windows and exit the current process.
-                
+
                 Closes the restart dialog, performs preparatory resource cleanup, launches a new process with administrator rights, and then terminates the current process. If the platform is not Windows or elevation fails, a user-facing error snack is shown instead of relaunching.
-                
+
                 Parameters:
                     e: The confirmation event from the restart dialog (unused beyond dismissing the dialog).
                 """
