@@ -6,7 +6,7 @@ class HoverSidebar(ft.Stack):
     def __init__(self, app, destinations, on_navigate):
         """
         Initialize the HoverSidebar component, configure navigation categories, and build the sidebar and content area controls.
-        
+
         Parameters:
             app: Application instance used by the widget (UI context).
             destinations (list): List of destination definitions available for navigation.
@@ -27,7 +27,7 @@ class HoverSidebar(ft.Stack):
         self.categories = [
             (ft.Icons.DASHBOARD, i18n.get("cat_dashboard") or "Dashboard", [NavIndex.HOME, NavIndex.DASHBOARD]), # Home, Dashboard
             (ft.Icons.APPS, i18n.get("cat_apps_devices") or "Apps & Devices", [NavIndex.INTUNE, NavIndex.INTUNE_STORE, NavIndex.WINGET, NavIndex.LIBRARY, NavIndex.GROUP_MANAGER, NavIndex.STACK_MANAGER]), # Intune, Store, Winget, Library, Groups, Stacks
-            (ft.Icons.BUILD, i18n.get("cat_tools") or "Tools", [NavIndex.ANALYZER, NavIndex.HELPER, NavIndex.SCRIPTS, NavIndex.MACOS, NavIndex.PACKAGING_WIZARD, NavIndex.DETECTION_TESTER, NavIndex.ADDON_MANAGER, NavIndex.WINGET_CREATE]), # Analyze, Generate, Scripts, MacOS, Wizard, Tester, AddonMgr, WingetCreate
+            (ft.Icons.BUILD, i18n.get("cat_tools") or "Tools", [NavIndex.ANALYZER, NavIndex.HELPER, NavIndex.SCRIPTS, NavIndex.MACOS, NavIndex.PACKAGING_WIZARD, NavIndex.DETECTION_TESTER, NavIndex.WINGET_CREATE]), # Analyze, Generate, Scripts, MacOS, Wizard, Tester, WingetCreate
             (ft.Icons.SETTINGS, i18n.get("cat_system") or "System", [NavIndex.SETTINGS, NavIndex.SETTINGS_UPDATES, NavIndex.SETTINGS_GRAPH, NavIndex.HISTORY, NavIndex.SETTINGS_HELP]), # Settings, Updates, Graph, History, Help
         ]
 

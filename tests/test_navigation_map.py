@@ -18,7 +18,6 @@ from switchcraft.gui_modern.views.stack_manager_view import StackManagerView
 from switchcraft.gui_modern.views.dashboard_view import DashboardView
 from switchcraft.gui_modern.views.library_view import LibraryView
 from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
-from switchcraft.gui_modern.views.addon_manager_view import AddonManagerView
 
 @pytest.fixture
 def app_instance(monkeypatch):
@@ -38,14 +37,6 @@ def app_instance(monkeypatch):
     page.theme_mode = ft.ThemeMode.DARK
     page.padding = 10
 
-    # We must patch HistoryService WHERE IT IS USED, and keep it patched if instantiated later?
-    # DashboardView is instantiated inside _switch_to_tab, so the patch must be active during the TEST, not just app init.
-    # So we should yield the app or rely on the fact that if DashboardView is imported, we can patch the class?
-
-    # Actually, DashboardView is instantiated when needed.
-    # The fixture returns the app. The test runs later.
-    # So the patch context manager must wrap the test execution or be a fixture itself.
-
     app = ModernApp(page)
     # Disable actual file system/network calls
     app.addon_service = MagicMock()
@@ -58,56 +49,29 @@ def test_sidebar_navigation_consistency(app_instance):
     """
     Verify that each sidebar index opens the intended view.
 
-    For every index listed in the app's sidebar categories this test switches to the tab and asserts that the view appended to app_instance.content matches the expected view type. For indices mapped to the settings view, the test also verifies the expected initial sub-tab index (2 -> 1, 3 -> 2, 4 -> 3, 13 -> 0). Indices with no defined expectation are skipped.
+    For every index listed in the app's sidebar categories this test switches to the tab and asserts that the view appended to app_instance.content matches the expected view type. For indices mapped to the settings view, the test also verifies the expected initial sub-tab index.
     """
-    # Expected Mapping based on sidebar/app logic
-    # We define what we EXPECT index X to be.
-    # From app.py destinations list (0-indexed):
-    # 0: Home
-    # 1: Addon Manager (Extensions) -> Wait, currently UpdateChecker? No AddonMgr?
-    #    Let's check app.py dest definitions.
-    #    Line 586: Extensions/Addon Manager.
-    #    Index 1 -> AddonManagerView (or similar).
-    # 2: Updates -> Settings(1)
-    # 3: Global Graph -> Settings(2)
-    # 4: Help -> Settings(3) (Since we moved it)
-    # 5: Apps (Winget) -> ModernWingetView
-    # 6: Analyze -> ModernAnalyzerView
-    # 7: Generate -> ModernHelperView
-    # 8: Intune -> ModernIntuneView
-    # 9: Intune Store -> ModernIntuneStoreView
-    # 10: Scripts -> ScriptUploadView
-    # 11: MacOS -> MacOSWizardView
-    # 12: History -> ModernHistoryView
-    # 13: Settings -> ModernSettingsView(0)
-    # 14: Wizard -> PackagingWizardView
-    # 15: Tester -> DetectionTesterView
-    # 16: Stacks -> StackManagerView
-    # 17: Dashboard -> DashboardView
-    # 18: Library -> LibraryView
-    # 19: Groups -> GroupManagerView
-
+    # Expected Mapping based on sidebar/app logic (nav_constants.py)
     expected_views = {
         0: ModernHomeView,
-        1: AddonManagerView,
+        1: ModernSettingsView,
         2: ModernSettingsView,
         3: ModernSettingsView,
-        4: ModernSettingsView,
-        5: ModernWingetView,
-        6: ModernAnalyzerView,
-        7: ft.Column, # ModernHelperView is a function returning Column
-        8: ModernIntuneView,
-        9: ModernIntuneStoreView,
-        10: ScriptUploadView,
-        11: MacOSWizardView,
-        12: ft.Column, # ModernHistoryView is a function
-        13: ModernSettingsView,
-        14: PackagingWizardView,
-        15: DetectionTesterView,
-        16: StackManagerView,
-        17: DashboardView,
-        18: LibraryView,
-        19: GroupManagerView
+        4: ModernWingetView,
+        5: ModernAnalyzerView,
+        6: ft.Column, # ModernHelperView is a function returning Column
+        7: ModernIntuneView,
+        8: ModernIntuneStoreView,
+        9: ScriptUploadView,
+        10: MacOSWizardView,
+        11: ft.Column, # ModernHistoryView is a function
+        12: ModernSettingsView,
+        13: PackagingWizardView,
+        14: DetectionTesterView,
+        15: StackManagerView,
+        16: DashboardView,
+        17: LibraryView,
+        18: GroupManagerView
     }
 
     # Iterate Sidebar Categories
@@ -117,12 +81,6 @@ def test_sidebar_navigation_consistency(app_instance):
             for idx in indices:
                 print(f"  Testing Index {idx}...")
 
-                # Action: Switch Tab
-                # _switch_to_tab usually calls load_view which appends to new_controls
-                # We mock load_view inside app or just inspect internal state?
-                # app._view_cache logic makes this tricky if we don't really instantiate.
-                # But the test imports real classes.
-
                 # Clear previous content to be sure
                 app_instance.content.controls.clear()
 
@@ -130,7 +88,6 @@ def test_sidebar_navigation_consistency(app_instance):
                 app_instance._switch_to_tab(idx)
 
                 # Check what was added
-                # Note: _switch_to_tab creates a Fade Container. Content is inside.
                 assert len(app_instance.content.controls) > 0, f"Index {idx} added no controls"
                 fade_container = app_instance.content.controls[-1]
                 view_instance = fade_container.content
@@ -144,29 +101,23 @@ def test_sidebar_navigation_consistency(app_instance):
                      # Handle placeholders (Type, Value)
                      t, val = expected_type
                      assert isinstance(view_instance, t), f"Index {idx} expected {t}, got {type(view_instance)}"
-                     if isinstance(view_instance, ft.Text):
-                          # Allow "Unknown Tab" if expected?
-                          pass
                 else:
                      # Real View
-                     # Handle cases where view is wrapped or loaded differently?
-                     # Usually it's the direct instance.
-
                      # Settings View checks:
                      if expected_type == ModernSettingsView:
                           assert isinstance(view_instance, ModernSettingsView)
-                          # Verify Sub-Tab?
-                          # Index 2 -> Updates (Tab 1)
-                          # Index 3 -> Graph (Tab 2)
-                          # Index 4 -> Help (Tab 3)
-                          # Index 13 -> General (Tab 0)
-                          if idx == 2:
+                          # Verify Sub-Tab
+                          # Index 1 -> Updates (Tab 1)
+                          # Index 2 -> Graph (Tab 2)
+                          # Index 3 -> Help (Tab 3)
+                          # Index 12 -> General (Tab 0)
+                          if idx == 1:
                               assert view_instance.initial_tab_index == 1, f"Index {idx} should be Settings Tab 1"
-                          if idx == 3:
+                          if idx == 2:
                               assert view_instance.initial_tab_index == 2, f"Index {idx} should be Settings Tab 2"
-                          if idx == 4:
+                          if idx == 3:
                               assert view_instance.initial_tab_index == 3, f"Index {idx} should be Settings Tab 3"
-                          if idx == 13:
+                          if idx == 12:
                               assert view_instance.initial_tab_index == 0, f"Index {idx} should be Settings Tab 0"
                      else:
                           assert isinstance(view_instance, expected_type), f"Index {idx} ({app_instance.destinations[idx].label}) expected {expected_type.__name__}, got {type(view_instance).__name__}"
