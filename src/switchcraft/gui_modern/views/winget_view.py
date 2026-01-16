@@ -329,36 +329,13 @@ class ModernWingetView(ft.Row, ViewMixin):
     def _load_details(self, short_info):
         logger.info(f"Loading details for package: {short_info.get('Id', 'Unknown')}")
 
-        # Create loading area immediately
-        loading_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
-        loading_area.controls.append(ft.ProgressBar())
-        self.details_area = loading_area
-
-        # CRITICAL: Re-assign content to force container refresh
-        self.right_pane.content = self.details_area
+        # Show loading immediately
+        self.details_area.controls.clear()
+        self.details_area.controls.append(ft.ProgressBar())
         self.right_pane.visible = True
 
-        # Force update of details area and page IMMEDIATELY
-        try:
-            self.details_area.update()
-        except Exception as ex:
-            logger.debug(f"Error updating details_area: {ex}")
-
-        try:
-            self.right_pane.update()
-        except Exception as ex:
-            logger.debug(f"Error updating right_pane: {ex}")
-
-        try:
-            self.update()
-        except Exception as ex:
-            logger.debug(f"Error updating row: {ex}")
-
-        if hasattr(self, 'app_page'):
-            try:
-                self.app_page.update()
-            except Exception as ex:
-                logger.debug(f"Error updating app_page: {ex}")
+        # Force update
+        self.update()
 
         def _fetch():
             try:
@@ -376,8 +353,8 @@ class ModernWingetView(ft.Row, ViewMixin):
                     except Exception as ex:
                         logger.exception(f"Error in _show_details_ui: {ex}")
                         # Show error in UI
-                        error_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
-                        error_area.controls.append(
+                        self.details_area.controls.clear()
+                        self.details_area.controls.append(
                             ft.Container(
                                 content=ft.Column([
                                     ft.Icon(ft.Icons.ERROR, color="RED", size=40),
@@ -387,17 +364,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                                 alignment=ft.Alignment(0, 0)
                             )
                         )
-                        self.details_area = error_area
-                        self.right_pane.content = self.details_area
-                        self.right_pane.visible = True
-                        try:
-                            self.details_area.update()
-                            self.right_pane.update()
-                            self.update()
-                            if hasattr(self, 'app_page'):
-                                self.app_page.update()
-                        except Exception:
-                            pass
+                        self.update()
 
                 if hasattr(self.app_page, 'run_task'):
                     try:
@@ -418,8 +385,8 @@ class ModernWingetView(ft.Row, ViewMixin):
 
                 # Update UI on main thread
                 def _show_error_ui():
-                    error_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
-                    error_area.controls.append(
+                    self.details_area.controls.clear()
+                    self.details_area.controls.append(
                         ft.Container(
                             content=ft.Column([
                                 ft.Icon(ft.Icons.ERROR, color="RED", size=40),
@@ -430,27 +397,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                             alignment=ft.Alignment(0, 0)
                         )
                     )
-                    self.details_area = error_area
-                    self.right_pane.content = self.details_area
-                    self.right_pane.visible = True
-
-                    try:
-                        self.details_area.update()
-                    except Exception:
-                        pass
-                    try:
-                        self.right_pane.update()
-                    except Exception:
-                        pass
-                    try:
-                        self.update()
-                    except Exception:
-                        pass
-                    if hasattr(self, 'app_page'):
-                        try:
-                            self.app_page.update()
-                        except Exception:
-                            pass
+                    self.update()
 
                 if hasattr(self.app_page, 'run_task'):
                     self.app_page.run_task(_show_error_ui)
@@ -688,38 +635,9 @@ class ModernWingetView(ft.Row, ViewMixin):
         detail_controls.append(ft.Container(height=20))
         detail_controls.append(ft.Text(i18n.get("winget_tip_autoupdate") or "Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color="GREY", italic=True))
 
-        # CRITICAL: Create a NEW Column instance with all controls
-        # This forces Flet to recognize the change
-        new_details_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
-        new_details_area.controls = detail_controls
-        self.details_area = new_details_area
-
-        # CRITICAL: Re-assign content to force container refresh
-        self.right_pane.content = self.details_area
-        self.right_pane.visible = True
-
-        # Force update of details area, row, and page
-        # Update in correct order: details_area -> right_pane -> row -> page
-        try:
-            self.details_area.update()
-        except Exception as ex:
-            logger.debug(f"Error updating details_area: {ex}")
-
-        try:
-            self.right_pane.update()
-        except Exception as ex:
-            logger.debug(f"Error updating right_pane: {ex}")
-
-        try:
-            self.update()
-        except Exception as ex:
-            logger.debug(f"Error updating row: {ex}")
-
-        if hasattr(self, 'app_page'):
-            try:
-                self.app_page.update()
-            except Exception as ex:
-                logger.debug(f"Error updating app_page: {ex}")
+        # Update in place
+        self.details_area.controls = detail_controls
+        self.update()
 
         logger.info(f"Details UI displayed for package: {info.get('Name', 'Unknown')}")
 

@@ -172,7 +172,7 @@ class WingetHelper:
         """
         try:
             # Use 'winget show' which provides full manifest details
-            cmd = ["winget", "show", "--id", package_id, "--source", "winget", "--accept-source-agreements"]
+            cmd = ["winget", "show", "--id", package_id, "--source", "winget", "--accept-source-agreements", "--accept-package-agreements"]
             startupinfo = self._get_startup_info()
 
             # Additional flags to hide window on Windows
@@ -275,7 +275,8 @@ class WingetHelper:
                 continue
 
             # Check if this is a new key: value pair
-            if ':' in line and not line.startswith(' ') and not line.startswith('\t'):
+            # Improved regex to handle various winget output styles (bullet points, spaces, etc.)
+            if ':' in line and not line.strip().startswith(('*', '-', '·')):
                 # Save previous key if exists
                 if current_key:
                     value = '\n'.join(current_value_lines).strip()

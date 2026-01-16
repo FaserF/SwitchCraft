@@ -249,8 +249,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 app_copy = app  # Create a copy reference for closure
                 tile = ft.ListTile(
                     leading=leading_widget,
-                    title=ft.Text(app.get("displayName", i18n.get("unknown") or "Unknown"), selectable=True),
-                    subtitle=ft.Text(app.get("publisher", ""), selectable=True),
+                    title=ft.Text(app.get("displayName", i18n.get("unknown") or "Unknown")),
+                    subtitle=ft.Text(app.get("publisher", "")),
                     on_click=lambda e, a=app_copy: self._handle_app_click(a)
                 )
                 self.results_list.controls.append(tile)
@@ -294,30 +294,12 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             self.selected_app = app
 
             # Show loading indicator immediately
-            # Create a new Column for loading state to force refresh
-            loading_area = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO)
-            loading_area.controls.append(ft.ProgressBar())
-            self.details_area = loading_area
-
-            # CRITICAL: Re-assign content to force container refresh
-            self.right_pane.content = self.details_area
+            self.details_area.controls.clear()
+            self.details_area.controls.append(ft.ProgressBar())
             self.right_pane.visible = True
 
-            # Force update on the page, not just self
-            try:
-                self.details_area.update()
-            except Exception:
-                pass
-
-            try:
-                self.right_pane.update()
-            except Exception:
-                pass
-
-            if hasattr(self, 'app_page'):
-                self.app_page.update()
-            else:
-                self.update()
+            # Force update
+            self.update()
 
             # Logo and Title - robust extraction
             logo_url = None
@@ -451,34 +433,9 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 ])
             )
 
-            # CRITICAL: Create a NEW Column instance with the controls
-            # This forces Flet to recognize the change
-            new_details_area = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO)
-            new_details_area.controls = detail_controls
-
-            # Replace the old details_area with the new one
-            self.details_area = new_details_area
-
-            # CRITICAL: Re-assign content to force container refresh
-            self.right_pane.content = self.details_area
-            self.right_pane.visible = True
-
-            # Force update on the page to ensure details are visible
-            # Update details_area first, then the right_pane, then the page
-            try:
-                self.details_area.update()
-            except Exception:
-                pass
-
-            try:
-                self.right_pane.update()
-            except Exception:
-                pass
-
-            if hasattr(self, 'app_page'):
-                self.app_page.update()
-            else:
-                self.update()
+            # Update controls in place
+            self.details_area.controls = detail_controls
+            self.update()
 
             logger.info(f"Details displayed for: {app.get('displayName', 'Unknown')}")
         except Exception as ex:

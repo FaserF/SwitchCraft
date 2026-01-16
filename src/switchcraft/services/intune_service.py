@@ -380,9 +380,9 @@ class IntuneService:
         if filter_query:
             params["$filter"] = filter_query
         else:
-            # Default to showing Win32 apps if possible
-            # params["$filter"] = "isof('microsoft.graph.win32LobApp')"
-            pass
+            # Default limits and select to improve performance
+            params["$top"] = "100"
+            params["$select"] = "id,displayName,publisher,appType,largeIcon,iconUrl,logoUrl"
 
         try:
             resp = requests.get(url, headers=headers, params=params, timeout=30)

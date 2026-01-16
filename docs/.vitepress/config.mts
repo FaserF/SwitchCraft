@@ -148,18 +148,6 @@ export default defineConfig({
     },
 
     vite: {
-        publicDir: 'public',
-        build: {
-            rollupOptions: {
-                external: (id) => {
-                    // Treat images in public directory as external static assets
-                    // This prevents Vite from trying to import them as modules
-                    if (typeof id === 'string' && (id.startsWith('/screenshots/') || id.includes('/screenshots/'))) {
-                        return true
-                    }
-                    return false
-                }
-            }
-        }
+        publicDir: 'public'
     }
 })
