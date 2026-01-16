@@ -12,7 +12,7 @@ class TestPackagingWizard(unittest.TestCase):
     def setUp(self):
         """
         Prepare a mocked Flet Page for tests.
-        
+
         Creates self.page as a MagicMock constrained to ft.Page and assigns:
         - switchcraft_session: an empty dict to simulate session storage
         - show_snack_bar: a MagicMock for snackbar interactions

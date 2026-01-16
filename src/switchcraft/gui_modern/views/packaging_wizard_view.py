@@ -62,7 +62,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
         # Use switchcraft_session dict instead of page.session
         """
         Populate upload fields from any pending packaging data stored in the app's session.
-        
+
         If a 'pending_packaging_app' entry exists in self.app_page.switchcraft_session, copy its `displayName`, `publisher`, and `description` into self.upload_info, clear the pending entry, and show a notification to the user.
         """
         session_storage = getattr(self.app_page, 'switchcraft_session', {})
@@ -81,10 +81,10 @@ class PackagingWizardView(ft.Column, ViewMixin):
     def _build_stepper_header(self):
         """
         Create the header row containing the wizard's five step indicators.
-        
+
         The indicators (Select, Analyze, Script, Package, Upload) are created and stored on
         self.steps_indicators for later updates.
-        
+
         Returns:
             ft.Row: A row widget with the five step indicators centered and spaced by 20.
         """

@@ -10,7 +10,7 @@ class TestTemplateWithCompany(unittest.TestCase):
     def tearDown(self):
         """
         Remove the test output file if it exists.
-        
+
         If the configured output path exists, attempt to delete it. On a PermissionError (e.g., file temporarily locked) the method waits 0.1 seconds and retries once; any PermissionError or FileNotFoundError on the retry is ignored.
         """
         if self.output_path.exists():

@@ -850,9 +850,9 @@ class SettingsView(ctk.CTkFrame):
     def _setup_intune_settings(self, parent):
         """
         Builds the Intune/Graph integration UI within the given parent frame and binds inputs to persisted configuration.
-        
+
         Creates input fields for Graph Tenant ID, Client ID, and Client Secret (masked), populates them from stored configuration, and provides Save and Verify buttons. If the required "advanced" addon is not installed, displays a warning and a button to open the Addon Manager and does not render the integration inputs.
-        
+
         Parameters:
             parent: The container widget to host the Intune/Graph settings UI.
         """
@@ -1027,7 +1027,7 @@ class SettingsView(ctk.CTkFrame):
     def _setup_addon_manager(self, parent):
         """
         Create and populate the Addon Manager UI section inside the given parent widget.
-        
+
         Builds a list of known addons (Advanced, Winget, AI), queries installation status via
         AddonService.is_addon_installed_static, and for each addon displays its name, a
         status label (green for installed, orange for not installed), a manual upload

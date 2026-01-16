@@ -37,7 +37,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # CLI flag triggers addon check/prompt on startup
         """
         Start the application's GUI loop, honoring the "--install-addons" CLI flag.
-        
+
         If "--install-addons" appears in sys.argv, schedule an addon status check to run after 2 seconds, then enter the Tkinter main event loop.
         """
         if "--install-addons" in sys.argv:
@@ -47,9 +47,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def __init__(self):
         """
         Initialize the main application window, load visual assets, and display the startup loading screen.
-        
+
         Performs initial window setup (title, size, TkinterDnD integration), loads the app logo, initializes state such as `pending_update`, and constructs a centered loading UI (logo, app title, loading text, indeterminate progress bar). Forces an immediate UI update to show the loading screen and schedules heavy initialization via `_perform_initialization` to run after a short delay.
-        
+
         Raises:
             Exception: If any initialization step fails; the exception is logged and re-raised.
         """
@@ -115,9 +115,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def _update_loading(self, text):
         """
         Set the loading message shown on the startup screen and refresh the UI.
-        
+
         Also logs the message at info level and forces a UI update so the new text is rendered immediately.
-        
+
         Parameters:
             text (str): The loading message to display.
         """
@@ -132,7 +132,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def _run_background_init(self):
         """
         Initialize heavy addons and core services on a background thread and schedule final UI setup on the main thread.
-        
+
         This method performs long-running imports and initialization tasks off the UI thread:
         - Registers available addons and assigns the application window to the notification service.
         - Attempts to load the AI addon and sets `self.ai_service` when available.
@@ -140,7 +140,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         - Attempts to load the Winget addon helper; on failure records a human-readable message in `self.winget_load_error` if the addon is installed but failed to load, otherwise leaves `self.winget_helper` as `None`.
         - Detects whether the debug addon is installed and sets `self.has_debug_addon`.
         - When initialization completes, schedules `self._finalize_startup` to run on the main/UI thread.
-        
+
         On an unexpected, critical error during background initialization, writes a crash dump to a platform-appropriate Logs directory (APPDATA on Windows or a home-directory fallback) and schedules a non-blocking error dialog describing the failure.
         """
         try:
@@ -230,7 +230,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             def show_error():
                 """
                 Display a startup error dialog showing the current error message.
-                
+
                 Attempts to show a messagebox with the startup error text stored in `err_msg`. Any exceptions raised while displaying the dialog are suppressed to avoid further failures. The function does not close or destroy the application automatically; the user must dismiss the dialog manually.
                 """
                 try:
@@ -328,7 +328,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def _check_addon_status(self):
         """
         Check and handle missing addons, installing or prompting as appropriate.
-        
+
         Checks whether the "advanced" and "ai" addons are installed. If running a dev or beta build and any are missing, attempts to install all missing addons silently in a background thread and, on success, schedules a restart countdown. For non-dev builds, if the "advanced" addon is missing and the user has not already been prompted, records that the prompt was shown, asks the user to confirm installation, and if accepted installs the addon in a background thread; on success schedules a restart countdown, otherwise shows an error dialog.
         """
         # 1. Check for Dev Build auto-install
@@ -380,7 +380,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def _show_restart_countdown(self):
         """
         Show a short countdown dialog and then attempt to restart the application to apply changes.
-        
+
         Displays a modal countdown informing the user that a restart is required; when the countdown expires the app launches a replacement process and exits the current process. If the automatic restart fails, an error dialog is shown and the current process remains running.
         """
         from switchcraft.gui.components.countdown_dialog import CountdownDialog
@@ -388,7 +388,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         def do_restart():
             """
             Attempt to restart the running application by launching a new process and exiting the current one.
-            
+
             Performs a best-effort relaunch that handles both frozen (PyInstaller) executables and running scripts: it prepares a cleaned environment, spawns a detached child process with the same invocation, allows it to start, then terminates the current process. On failure, logs the error and shows an error dialog prompting the user to restart manually.
             """
             import sys
@@ -1042,7 +1042,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def setup_helper_tab(self):
         """
         Populate the Helper tab with the AI helper view if the AI addon is available, otherwise show a missing-addon placeholder.
-        
+
         Attempts to load the AI addon's GUI view and instantiate it into the Helper tab when an AI service is present; if the addon view cannot be loaded or the AI service is not available, inserts a MissingAddonView describing the AI Assistant. Any initialization errors are logged.
         """
         try:
@@ -1119,9 +1119,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 def main(splash_proc=None):
     """
     Start and run the SwitchCraft GUI application, optionally closing a provided splash process.
-    
+
     If an uncaught exception occurs during startup or runtime, write a crash dump to the platform-appropriate Logs directory (or crash.log as a fallback), show a fatal error dialog to the user if possible, and exit with status 1.
-    
+
     Parameters:
         splash_proc (optional): A subprocess-like object for the splash screen (must support terminate()). If provided, the function will attempt to terminate it after the main window is painted.
     """

@@ -177,7 +177,7 @@ class IntuneView(ctk.CTkFrame):
     def _run_intune_creation(self):
         """
         Start creation of a .intunewin package from the current form inputs and stream progress to the UI.
-        
+
         Validates that setup, source, and output paths are provided and shows an error dialog if any are missing. If valid, initializes the on-screen log, then launches the packaging operation in a background thread. Progress lines produced by the operation are appended to the log and auto-scrolled. On success, a completion message is appended, an informational dialog is shown, a user notification is sent, the output folder is opened when supported, and the log toggle button text is reset if the log remains hidden. On failure, the error is appended to the log and an error dialog is shown.
         """
         s_setup = self.entry_intune_setup.get()

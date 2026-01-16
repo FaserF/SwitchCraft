@@ -14,9 +14,9 @@ class ModernWingetView(ft.Row, ViewMixin):
     def __init__(self, page: ft.Page):
         """
         Initialize the ModernWingetView attached to the given Flet page.
-        
+
         Attempts to load the Winget addon helper and, if absent, configures a centered prompt with a button to navigate to the Addon Manager. If the helper is available, initializes UI state (search results pane, details pane, results count), builds the filter dropdown, search field, search button, and the left/right layout panes with an initial instruction in the results area. Binds search and action handlers and stores the current package state.
-        
+
         Parameters:
             page (ft.Page): The Flet page instance used for rendering, navigation, and snack messages.
         """
@@ -39,10 +39,10 @@ class ModernWingetView(ft.Row, ViewMixin):
                 # Navigate to Addon Manager (tab index 16)
                 """
                 Navigate the app to the Addon Manager tab or show a manual-navigation prompt.
-                
+
                 If the page exposes a `switchcraft_app.goto_tab` method, calls it with index 16 to switch to the Addon Manager.
                 Otherwise displays an orange snackbar instructing the user to navigate to the Addons tab manually and updates the page.
-                
+
                 Parameters:
                     e: Event object from the UI control (unused).
                 """
@@ -156,13 +156,13 @@ class ModernWingetView(ft.Row, ViewMixin):
     def _run_search(self, e):
         """
         Initiates a package search for the current query, updates the UI to show progress, and asynchronously displays results or an error/timeout message.
-        
+
         Performs a search using the winget helper for the text currently in the search field, clears previous results, shows a searching indicator, and starts a background thread that:
         - waits up to 60 seconds for the search to complete,
         - on success updates the results list via _show_list,
         - on timeout replaces the progress indicator with a localized timeout message,
         - on error replaces the progress indicator with a localized error message.
-        
+
         Parameters:
             e: Event object from the UI action that triggered the search (may be None).
         """
@@ -193,14 +193,14 @@ class ModernWingetView(ft.Row, ViewMixin):
         def _search():
             """
             Perform a winget package search on a background thread and update the UI with results, a timeout message, or an error display.
-            
+
             This helper launches a background search for the current query and:
             - waits up to 60 seconds for the search to complete,
             - on success passes the results to self._show_list(filtered_by, query),
             - on timeout replaces self.search_results with a localized timeout message,
             - on exception replaces self.search_results with a localized error message and logs the error.
             The function updates the page when the UI is modified.
-            
+
             Returns:
                 None
             """
@@ -264,9 +264,9 @@ class ModernWingetView(ft.Row, ViewMixin):
     def _show_list(self, results, filter_by="all", query=""):
         """
         Populate the search results pane with matching Winget packages and update the results count.
-        
+
         Filters the provided package list by `filter_by` ("all", "name", "id", or "publisher") when `query` is present, updates the visible results count text, and renders a ListTile for each package (attempting to use a package logo when available). Each rendered tile is bound to load the package details when clicked and the view is refreshed.
-        
+
         Parameters:
             results (iterable[dict] | None): Iterable of package short-info dictionaries (expected keys: 'Id', 'Name', 'Version').
             filter_by (str): Which field to filter on; one of "all", "name", "id", or "publisher". Defaults to "all".
@@ -347,9 +347,9 @@ class ModernWingetView(ft.Row, ViewMixin):
     def _show_details_ui(self, info):
         """
         Render detailed package information into the view's details_area and update the UI.
-        
+
         Renders a header (including a fetched CDN logo when available), version badge, description, publisher/author, license, tags (up to 10), relevant external links (homepage, publisher site, privacy, release notes, GitHub manifest, winstall.app), and action buttons for copy/install/deploy. Uses localized labels from i18n where available and calls self.update() after composing the UI.
-        
+
         Parameters:
             info (dict): Package metadata used to populate the details view. Common keys:
                 - Id: package identifier (used for logo, winstall and manifest links)
@@ -361,7 +361,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 - Tags / tags: comma- or newline-separated tags
                 - Homepage / homepage, PublisherUrl / publisher url, PrivacyUrl / privacy url,
                   ReleaseNotesUrl / release notes url, ManifestUrl: URLs surfaced as link buttons
-        
+
         Side effects:
             - Mutates self.details_area.controls.
             - Calls self.update() to refresh the UI.
@@ -603,14 +603,14 @@ class ModernWingetView(ft.Row, ViewMixin):
     def _open_deploy_menu(self, info):
         """
         Open a modal dialog that lets the user choose a deployment method for the given package.
-        
+
         Displays a centered alert dialog titled "Deploy <Name>" with three deployment options:
         - Winget-AutoUpdate (opens WAU info via _deploy_wau),
         - Download & Package (downloads installer and prepares a package via _deploy_package),
         - Create Install Script (generates a PowerShell install script via _deploy_script).
-        
+
         The dialog closes before invoking the selected handler. Dialog text and descriptions use i18n lookups when available. The dialog is assigned to self.app_page.dialog, opened, and the page is updated.
-        
+
         Parameters:
             info (dict): Package metadata dictionary expected to contain at least the 'Name' key used in the dialog title.
         """
@@ -702,7 +702,7 @@ class ModernWingetView(ft.Row, ViewMixin):
     def _install_local(self, e):
         """
         Initiates a local installation of the currently selected package using winget, prompting to restart the app with elevated (administrator) privileges if required.
-        
+
         If no package is selected, the function does nothing. If the current process is not running with administrator rights, a confirmation dialog is shown offering to restart the application elevated; accepting will attempt to relaunch the application as administrator and exit the current process. If running as administrator, the function builds a winget install command for the selected package and launches it in a new command prompt window. User-facing status is reported via snack messages for start, success, and failure conditions.
         """
         if not self.current_pkg:
@@ -720,9 +720,9 @@ class ModernWingetView(ft.Row, ViewMixin):
             def on_restart_confirm(e):
                 """
                 Request elevation and restart the current application process with Administrator privileges.
-                
+
                 Attempts to close UI dialog, flush logging, perform a brief cleanup and garbage collection, then relaunch the current Python executable with the same command-line arguments using a Windows elevation (runas) request. If the elevated process is started, the current process exits. On failure, a red snack is shown with the error message.
-                
+
                 Parameters:
                     e: The event object from the confirmation button click that triggered the restart.
                 """

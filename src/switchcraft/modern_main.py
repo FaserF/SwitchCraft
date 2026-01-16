@@ -100,11 +100,11 @@ except Exception:
             def get(self, key, default=None):
                 """
                 Always return the provided default value.
-                
+
                 Parameters:
                     key: The lookup key (ignored by this implementation).
                     default: The value to return.
-                
+
                 Returns:
                     The provided `default` value.
                 """
@@ -198,14 +198,14 @@ def write_crash_dump(exc_info):
 def main(page: ft.Page):
     """
     Initialize and run the Modern Flet GUI, handling early command-line options, applying compatibility patches to the provided Page, showing an immediate loading screen, and starting the ModernApp instance.
-    
+
     This function:
     - Processes top-level CLI flags (--help, --version, --factory-reset, protocol handling) before performing any UI initialization.
     - Patches legacy Flet Page APIs (open, close, set_clipboard, show_snack_bar) to provide a consistent runtime surface across Flet versions.
     - Displays a lightweight loading screen immediately to ensure the user sees progress while heavy imports and initialization happen.
     - Attempts non-critical tasks such as registering a protocol handler, constructs the ModernApp, and dispatches any initial protocol-driven action.
     - On any initialization failure, writes a crash dump and replaces the UI with a crash screen that exposes the dump path and actions to open/copy it.
-    
+
     Parameters:
         page (ft.Page): The Flet Page instance provided by ft.app; used for UI composition, updates, and patched legacy behaviors.
     """

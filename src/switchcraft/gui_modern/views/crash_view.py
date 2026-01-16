@@ -5,9 +5,9 @@ class CrashDumpView(ft.Container):
     def __init__(self, page: ft.Page, error: Exception, traceback_str: str = None):
         """
         Initialize a crash view container that displays an error message, selectable traceback, and action buttons for copying, closing, or reloading the application.
-        
+
         Displays a prominent error icon and title, a short explanatory subtext, a styled expandable error block containing the error message and the traceback (both selectable), and action buttons: "Copy Error" (copies traceback to clipboard), "Close App" (force-exits the process), and "Reload App" (attempts to restart the application). If `traceback_str` is not provided, the current traceback is captured automatically.
-        
+
         Parameters:
             page: The flet Page used for UI updates, clipboard access, and reload/close actions.
             error: The Exception instance whose message will be shown in the error block.
@@ -85,7 +85,7 @@ class CrashDumpView(ft.Container):
     def _close_app(self, e):
         """
         Initiates an immediate, forceful shutdown of the running process.
-        
+
         If the provided event object has a triggering control, that control will be disabled
         and its label updated to indicate the app is closing. A background thread is then
         started to terminate the process after a short delay so the UI update can be shown.
@@ -108,7 +108,7 @@ class CrashDumpView(ft.Container):
         def force_exit():
             """
             Forcefully terminate the running process after a short delay to allow UI updates.
-            
+
             Sleeps for 0.1 seconds to give the UI a moment to update, then performs an immediate, non-interruptible exit: on Windows it attempts to call the Win32 ExitProcess(0) API and falls back to os._exit(0) if that fails; on other platforms it calls os._exit(0).
             """
             import time
@@ -131,9 +131,9 @@ class CrashDumpView(ft.Container):
     def _reload_app(self, page):
         """
         Restart the application by launching a new process with a sanitized environment and then exiting the current process.
-        
+
         This method updates the provided page to show a "Reloading..." message, performs cleanup (logging shutdown and garbage collection), removes PyInstaller-related environment entries, starts a detached new process using the current Python executable and appropriate arguments, waits briefly for startup, and then terminates the current process. If automatic restart fails, a snack bar with an error message is shown on the provided page.
-        
+
         Parameters:
             page (ft.Page): The current Flet page used to display the "Reloading..." message and any error snack bar.
         """

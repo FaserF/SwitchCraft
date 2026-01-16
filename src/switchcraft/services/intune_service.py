@@ -396,16 +396,16 @@ class IntuneService:
     def search_apps(self, token, query):
         """
         Finds Intune apps whose displayName contains the provided query using case-insensitive matching.
-        
+
         Attempts a server-side case-insensitive filter first (using tolower). If that is not supported or returns no results, falls back to a server-side contains filter and then applies client-side case-insensitive filtering. As a last resort, retrieves all apps and filters client-side. An empty or whitespace-only query returns an empty list.
-        
+
         Parameters:
             token: Authentication token used for Graph API requests.
             query: Substring to search for in app display names.
-        
+
         Returns:
             A list of app objects whose `displayName` contains `query`, matched case-insensitively.
-        
+
         Raises:
             Exception: Re-raises the original error from the Graph requests if all search attempts fail.
         """
@@ -448,11 +448,11 @@ class IntuneService:
     def get_app_details(self, token, app_id):
         """
         Retrieve details for a specific Intune mobile app.
-        
+
         Parameters:
             token (str): OAuth2 access token with Graph API permissions.
             app_id (str): The mobileApp resource identifier.
-        
+
         Returns:
             dict: JSON-decoded app resource as returned by Microsoft Graph.
         """

@@ -85,12 +85,24 @@ class ModernApp:
             visible=False  # Hidden initially when no history
         )
 
+        # Hamburger menu button for mobile (will be shown/hidden based on screen size)
+        self.menu_btn = ft.IconButton(
+            icon=ft.Icons.MENU,
+            tooltip=i18n.get("menu") or "Menu",
+            on_click=self._toggle_navigation_drawer,
+            icon_size=24,
+            visible=False  # Will be shown on mobile devices
+        )
+
         # Try to find logo for AppBar
         logo_icon = ft.Icon(ft.Icons.INSTALL_DESKTOP, size=30)
 
         self.page.appbar = ft.AppBar(
-            leading=logo_icon,
-            leading_width=40,
+            leading=ft.Row([
+                self.menu_btn,
+                logo_icon
+            ], spacing=0, tight=True),
+            leading_width=80,
             title=ft.Text("SwitchCraft", weight=ft.FontWeight.BOLD),
             center_title=False,
             bgcolor="SURFACE_VARIANT",
@@ -977,6 +989,16 @@ class ModernApp:
         self.page.update()  # Second update to ensure rendering
         self.page.update()  # Third update for good measure
 
+        # Setup responsive UI (hide/show sidebar and menu button based on window size)
+        self._update_responsive_ui()
+
+        # Add window resize listener if available
+        try:
+            if hasattr(self.page, 'on_resized'):
+                self.page.on_resized = lambda e: self._update_responsive_ui()
+        except Exception:
+            pass
+
         # Now shutdown splash screen after UI is fully visible
         if self.splash_proc:
             try:
@@ -1104,6 +1126,147 @@ class ModernApp:
                     self.back_btn.update()
                 except RuntimeError:
                     pass  # Control not attached to page
+
+    def _build_navigation_drawer(self):
+        """Build the navigation drawer with all destinations for mobile."""
+        if not hasattr(self, 'destinations') or not self.destinations:
+            return None
+
+        drawer_items = []
+        for i, dest in enumerate(self.destinations):
+            # Get label and icon from destination
+            label = getattr(dest, 'label', f'Item {i}')
+            icon = getattr(dest, 'icon', ft.Icons.CIRCLE)
+            selected_icon = getattr(dest, 'selected_icon', icon)
+
+            # Use selected icon if this is the current tab
+            current_icon = selected_icon if i == getattr(self, '_current_tab_index', 0) else icon
+
+            drawer_items.append(
+                ft.ListTile(
+                    leading=ft.Icon(current_icon),
+                    title=ft.Text(label),
+                    on_click=lambda e, idx=i: self._on_drawer_navigate(idx),
+                    selected=i == getattr(self, '_current_tab_index', 0)
+                )
+            )
+
+        # Add dynamic addon destinations if any
+        if hasattr(self, 'dynamic_addons') and self.dynamic_addons and hasattr(self, 'first_dynamic_index'):
+            drawer_items.append(ft.Divider())
+            for idx, addon in enumerate(self.dynamic_addons):
+                addon_idx = self.first_dynamic_index + idx
+                icon_name = addon.get("icon", "EXTENSION")
+                icon_code = getattr(ft.Icons, icon_name, ft.Icons.EXTENSION)
+                drawer_items.append(
+                    ft.ListTile(
+                        leading=ft.Icon(icon_code),
+                        title=ft.Text(addon.get("name", "Addon")),
+                        on_click=lambda e, nav_idx=addon_idx: self._on_drawer_navigate(nav_idx),
+                        selected=addon_idx == getattr(self, '_current_tab_index', 0)
+                    )
+                )
+
+        drawer = ft.NavigationDrawer(
+            controls=drawer_items,
+            on_dismiss=self._on_navigation_drawer_dismiss
+        )
+        return drawer
+
+    def _toggle_navigation_drawer(self, e):
+        """Toggle the navigation drawer for mobile devices."""
+        try:
+            # Check if drawer is currently open
+            is_open = False
+            if hasattr(self.page, 'drawer') and self.page.drawer is not None:
+                try:
+                    is_open = getattr(self.page.drawer, 'open', False)
+                except Exception:
+                    is_open = False
+
+            if is_open:
+                # Close drawer
+                if hasattr(self.page.drawer, 'open'):
+                    self.page.drawer.open = False
+                if hasattr(self.page, 'close') and self.page.drawer:
+                    try:
+                        self.page.close(self.page.drawer)
+                    except Exception:
+                        pass
+                self.page.drawer = None
+                self.page.update()
+            else:
+                # Open drawer
+                drawer = self._build_navigation_drawer()
+                if drawer:
+                    self.page.drawer = drawer
+                    self.page.update()
+                    drawer.open = True
+                    self.page.update()
+        except Exception as ex:
+            logger.exception(f"Error toggling navigation drawer: {ex}")
+
+    def _on_drawer_navigate(self, index):
+        """Handle navigation from drawer item click."""
+        try:
+            # Close drawer first
+            if hasattr(self.page, 'drawer') and self.page.drawer:
+                self.page.drawer.open = False
+                self.page.drawer = None
+                self.page.update()
+
+            # Navigate to the selected tab
+            self.goto_tab(index)
+        except Exception as ex:
+            logger.exception(f"Error navigating from drawer: {ex}")
+
+    def _on_navigation_drawer_dismiss(self, e):
+        """Handle navigation drawer dismiss event."""
+        try:
+            if hasattr(self.page, 'drawer') and self.page.drawer:
+                self.page.drawer.open = False
+                self.page.drawer = None
+                self.page.update()
+        except Exception as ex:
+            logger.debug(f"Error in navigation drawer dismiss handler: {ex}")
+
+    def _update_responsive_ui(self):
+        """Update UI based on window size - hide sidebar on mobile, show hamburger menu."""
+        try:
+            # Get window width if available
+            window_width = None
+            if hasattr(self.page, 'window') and hasattr(self.page.window, 'width'):
+                window_width = self.page.window.width
+            elif hasattr(self.page, 'width'):
+                window_width = self.page.width
+
+            # Use breakpoint of 800px - below this is considered mobile
+            is_mobile = window_width is not None and window_width < 800
+
+            # Update sidebar visibility
+            if hasattr(self, 'sidebar') and hasattr(self.sidebar, 'sidebar_container'):
+                self.sidebar.sidebar_container.visible = not is_mobile
+                try:
+                    self.sidebar.sidebar_container.update()
+                except Exception:
+                    pass
+
+            # Update hamburger menu button visibility
+            if hasattr(self, 'menu_btn'):
+                self.menu_btn.visible = is_mobile
+                try:
+                    self.menu_btn.update()
+                except Exception:
+                    pass
+
+            # Update logo visibility in AppBar leading (hide on mobile to make room for menu)
+            if hasattr(self.page, 'appbar') and self.page.appbar and hasattr(self.page.appbar, 'leading'):
+                # The leading is now a Row with menu_btn and logo_icon
+                # We'll keep both but adjust spacing
+                pass
+
+        except Exception as ex:
+            logger.debug(f"Error updating responsive UI: {ex}")
 
     def nav_change(self, e):
         idx = int(e.control.selected_index)

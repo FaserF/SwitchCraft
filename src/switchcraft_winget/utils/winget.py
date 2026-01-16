@@ -45,12 +45,12 @@ class WingetHelper:
     def search_packages(self, query: str) -> List[Dict[str, str]]:
         """
         Search for Winget packages matching a query using multiple sources and cache results.
-        
+
         Performs searches in this order: PowerShell (Microsoft.WinGet.Client), then the online Winget API, and finally the local Winget CLI as a fallback. Results are cached for 5 minutes.
-        
+
         Parameters:
             query (str): The search term to query for; ignored if empty.
-        
+
         Returns:
             results (List[Dict[str, str]]): A list of result dictionaries (keys include `Name`, `Id`, `Version`, `Source`); empty list if no matches or if `query` is falsy.
         """
@@ -119,10 +119,10 @@ class WingetHelper:
     def _search_via_powershell(self, query: str) -> List[Dict[str, str]]:
         """
         Perform a Winget package search via PowerShell and return normalized results.
-        
+
         Parameters:
             query (str): Search query string used to find matching packages.
-        
+
         Returns:
             List[Dict[str, str]]: A list of result dictionaries with keys 'Name', 'Id', 'Version', and 'Source'. Returns an empty list when no results are found or on error.
         """

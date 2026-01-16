@@ -12,7 +12,7 @@ class TestSettingsLanguage(unittest.TestCase):
     def setUp(self):
         """
         Prepare test fixtures: create a mocked `ft.Page` and attach a mocked `switchcraft_app`.
-        
+
         The mocked page is assigned to `self.page`. A `switchcraft_app` mock is attached with an initial
         `_current_tab_index` of 0 and a `goto_tab` mock. The page's `show_snack_bar` is also mocked.
         """

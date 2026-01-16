@@ -222,10 +222,10 @@ class AddonService:
     def is_addon_installed(self, addon_id):
         """
         Determine whether an addon with the given id is installed.
-        
+
         Parameters:
         	addon_id (str): The addon identifier to look for.
-        
+
         Returns:
         	`true` if an addon with the given id is installed, `false` otherwise.
         """
@@ -238,10 +238,10 @@ class AddonService:
     def is_addon_installed_static(addon_id):
         """
         Check whether an addon with the given identifier is installed.
-        
+
         Parameters:
             addon_id (str): Addon identifier to check.
-        
+
         Returns:
             True if an addon with that id is installed, False otherwise.
         """

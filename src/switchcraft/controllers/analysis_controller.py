@@ -41,17 +41,17 @@ class AnalysisController:
     ) -> AnalysisResult:
         """
         Execute the full installer analysis pipeline for the given file.
-        
+
         Performs analyzer-specific detection, universal/brute-force analysis, optional nested extraction,
         community database lookup, Winget search (if enabled), and updates AI context when available.
         Returns a consolidated AnalysisResult summarizing detections, discovered switches, auxiliary data,
         and any error encountered.
-        
+
         Parameters:
             file_path_str (str): Path to the installer file to analyze.
             progress_callback (Callable[[float, str, Optional[float]], None], optional): Callback invoked with
                 (progress_fraction [0.0-1.0], message, eta_seconds) to report progress and ETA. May be None.
-        
+
         Returns:
             AnalysisResult: Container with analysis outcomes:
                 - info: InstallerInfo or None if analysis failed.

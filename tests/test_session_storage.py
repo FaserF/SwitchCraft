@@ -12,7 +12,7 @@ class TestSessionStorage(unittest.TestCase):
     def setUp(self):
         """
         Prepare a mocked ft.Page with a session storage for tests.
-        
+
         Creates a MagicMock object with the ft.Page spec and ensures it has a `switchcraft_session`
         attribute initialized to an empty dictionary if not already present.
         """
