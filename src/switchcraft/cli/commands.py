@@ -314,6 +314,16 @@ def config_set_secret(key, value):
     SwitchCraftConfig.set_secret(key, value)
     print(f"Secret {key} saved securely.")
 
+@config.command('encrypt')
+@click.argument('plaintext')
+def config_encrypt(plaintext):
+    """Encrypt a value for Registry usage (Obfuscation)."""
+    from switchcraft.utils.crypto import SimpleCrypto
+    encrypted = SimpleCrypto.encrypt(plaintext)
+    print(f"Encrypted Value: {encrypted}")
+    print("[yellow]Store this in the registry with suffix _ENC[/yellow]")
+    print("Example: GraphClientSecret_ENC")
+
 # --- Logs Group ---
 @cli.group()
 def logs():

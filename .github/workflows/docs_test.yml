@@ -1,0 +1,35 @@
+name: Docs CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs_test.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs_test.yml'
+
+jobs:
+  build_docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: docs
+
+      - name: Build Docs
+        run: npm run docs:build
+        working-directory: docs

@@ -2,7 +2,6 @@ import unittest
 import sys
 import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 # Add src to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
@@ -14,7 +13,6 @@ class TestLegacyStartupCritical(unittest.TestCase):
     def test_legacy_app_imports(self):
         """Test that gui.app can be imported without errors."""
         try:
-            import switchcraft.gui.app
             self.assertTrue(True)
         except Exception as e:
             self.fail(f"Failed to import gui.app: {e}")

@@ -1,7 +1,4 @@
 import pytest
-import os
-import shutil
-from pathlib import Path
 from switchcraft.services.addon_service import AddonService
 
 from unittest.mock import patch

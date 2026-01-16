@@ -115,3 +115,4 @@ test_tabs_2.py
 pytest_out.txt
 mock_script.ps1
 test_output.ps1
+/docs/node_modules

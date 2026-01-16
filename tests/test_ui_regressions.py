@@ -3,7 +3,6 @@ import flet as ft
 from unittest.mock import MagicMock
 from switchcraft.gui_modern.app import ModernApp
 from switchcraft.gui_modern.controls.sidebar import HoverSidebar
-import os
 
 class TestUIRegressions:
     def test_app_icon_is_set(self):
@@ -16,7 +15,7 @@ class TestUIRegressions:
         page.window = MagicMock()
         page.window.icon = None # Start as None
 
-        app = ModernApp(page)
+        _ = ModernApp(page)
 
         # Depending on environment, it might set icon or not.
         # But our app code tries to resolve strict paths now.
@@ -49,7 +48,7 @@ class TestUIRegressions:
         page.window.min_width = 1200
         page.window.min_height = 800
 
-        app = ModernApp(page)
+        _ = ModernApp(page)
 
         # verify clean called at least once (in build_ui)
         assert page.clean.call_count >= 1, "page.clean() should be called to remove loading screen"

@@ -2,7 +2,6 @@
 import pytest
 import flet as ft
 from unittest.mock import MagicMock, patch
-import logging
 
 # Mocks
 mock_page = MagicMock(spec=ft.Page)
@@ -29,11 +28,11 @@ def mock_config():
 # Mock Services for isolation
 @pytest.fixture(autouse=True)
 def mock_subsystems():
-    with patch("switchcraft.services.history_service.HistoryService") as m_hist, \
-         patch("switchcraft.services.intune_service.IntuneService") as m_intune, \
-         patch("switchcraft.services.addon_service.AddonService") as m_addon, \
-         patch("switchcraft.services.auth_service.AuthService") as m_auth, \
-         patch("switchcraft.utils.app_updater.UpdateChecker") as m_update:
+    with patch("switchcraft.services.history_service.HistoryService"), \
+         patch("switchcraft.services.intune_service.IntuneService"), \
+         patch("switchcraft.services.addon_service.AddonService"), \
+         patch("switchcraft.services.auth_service.AuthService"), \
+         patch("switchcraft.utils.app_updater.UpdateChecker"):
         yield
 
 def test_instantiate_home_view(page):

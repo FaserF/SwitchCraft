@@ -1,8 +1,6 @@
-import os
 import sys
 import json
 import re
-from datetime import datetime
 from pathlib import Path
 
 def parse_issue_body(body):

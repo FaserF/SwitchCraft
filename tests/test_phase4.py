@@ -3,7 +3,6 @@ import unittest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 import tempfile
-import os
 import shutil
 
 from switchcraft.services.intune_service import IntuneService

@@ -58,12 +58,12 @@ class CrashDumpView(ft.Container):
             import pyperclip
             pyperclip.copy(error_text)
             success = True
-        except Exception as ex1:
+        except Exception:
             # Try Flet Native
             try:
                 self.app_page.set_clipboard(error_text)
                 success = True
-            except Exception as ex2:
+            except Exception:
                 # Log via logger if possible, but minimal deps here
                 pass
 

@@ -243,6 +243,21 @@ class SwitchCraftConfig:
                 val = cls._read_registry(winreg.HKEY_CURRENT_USER, cls.POLICY_PATH, value_name)
                 if val:
                     return val
+
+                # Check for Encrypted variants (_ENC suffix)
+                from switchcraft.utils.crypto import SimpleCrypto
+                enc_name = value_name + "_ENC"
+
+                # HKLM Policy Encrypted
+                val_enc = cls._read_registry(winreg.HKEY_LOCAL_MACHINE, cls.POLICY_PATH, enc_name)
+                if val_enc:
+                    return SimpleCrypto.decrypt(val_enc)
+
+                # HKCU Policy Encrypted
+                val_enc = cls._read_registry(winreg.HKEY_CURRENT_USER, cls.POLICY_PATH, enc_name)
+                if val_enc:
+                    return SimpleCrypto.decrypt(val_enc)
+
              except Exception:
                  pass
 

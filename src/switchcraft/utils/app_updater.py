@@ -71,11 +71,24 @@ class UpdateChecker:
         for ver, data, source in candidates:
              is_newer = False
              if source == "dev":
-                 # For dev, if SHA is different, we assume update (if we are on dev channel)
-                 if "dev-" in self.current_version:
-                      curr_sha = self.current_version.replace("dev-", "").split("-")[0]
-                      new_sha = ver.replace("dev-", "").split("-")[0]
-                      if curr_sha != new_sha:
+                 # For dev, check if SHA is different
+                 # Current version format might be: 2026.1.1-dev-abcdef OR just dev-abcdef (legacy)
+                 if "dev" in self.current_version.lower():
+                      # Extract last part as SHA
+                      parts = self.current_version.split("-")
+                      # If format is YYYY.M.P-dev-SHA
+                      if len(parts) >= 3 and len(parts[-1]) >= 7:
+                           curr_sha = parts[-1]
+                      # If format is dev-SHA
+                      elif len(parts) == 2 and parts[0] == "dev":
+                           curr_sha = parts[1]
+                      else:
+                           curr_sha = "" # Unknown format
+
+                      # Remote 'ver' from _get_latest_dev_commit is 'dev-{sha}'
+                      new_sha = ver.split("-")[-1]
+
+                      if curr_sha and new_sha and curr_sha != new_sha:
                            is_newer = True
                  else:
                       # If currently on Stable/Beta and switching to Dev channel

@@ -7,12 +7,10 @@ from switchcraft.gui_modern.app import ModernApp
 from switchcraft.gui_modern.views.home_view import ModernHomeView
 from switchcraft.gui_modern.views.winget_view import ModernWingetView
 from switchcraft.gui_modern.views.analyzer_view import ModernAnalyzerView
-from switchcraft.gui_modern.views.helper_view import ModernHelperView
 from switchcraft.gui_modern.views.intune_view import ModernIntuneView
 from switchcraft.gui_modern.views.intune_store_view import ModernIntuneStoreView
 from switchcraft.gui_modern.views.script_upload_view import ScriptUploadView
 from switchcraft.gui_modern.views.macos_wizard_view import MacOSWizardView
-from switchcraft.gui_modern.views.history_view import ModernHistoryView
 from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 from switchcraft.gui_modern.views.packaging_wizard_view import PackagingWizardView
 from switchcraft.gui_modern.views.detection_tester_view import DetectionTesterView
@@ -59,7 +57,7 @@ def app_instance(monkeypatch):
 def test_sidebar_navigation_consistency(app_instance):
     """
     Verify that each sidebar index opens the intended view.
-    
+
     For every index listed in the app's sidebar categories this test switches to the tab and asserts that the view appended to app_instance.content matches the expected view type. For indices mapped to the settings view, the test also verifies the expected initial sub-tab index (2 -> 1, 3 -> 2, 4 -> 3, 13 -> 0). Indices with no defined expectation are skipped.
     """
     # Expected Mapping based on sidebar/app logic
@@ -113,7 +111,7 @@ def test_sidebar_navigation_consistency(app_instance):
     }
 
     # Iterate Sidebar Categories
-    with patch("switchcraft.gui_modern.views.dashboard_view.HistoryService") as MockHistoryService:
+    with patch("switchcraft.gui_modern.views.dashboard_view.HistoryService"):
         for cat_icon, cat_name, indices in app_instance.sidebar.categories:
             print(f"\nTesting Category: {cat_name}")
             for idx in indices:
@@ -162,9 +160,13 @@ def test_sidebar_navigation_consistency(app_instance):
                           # Index 3 -> Graph (Tab 2)
                           # Index 4 -> Help (Tab 3)
                           # Index 13 -> General (Tab 0)
-                          if idx == 2: assert view_instance.initial_tab_index == 1, f"Index {idx} should be Settings Tab 1"
-                          if idx == 3: assert view_instance.initial_tab_index == 2, f"Index {idx} should be Settings Tab 2"
-                          if idx == 4: assert view_instance.initial_tab_index == 3, f"Index {idx} should be Settings Tab 3"
-                          if idx == 13: assert view_instance.initial_tab_index == 0, f"Index {idx} should be Settings Tab 0"
+                          if idx == 2:
+                              assert view_instance.initial_tab_index == 1, f"Index {idx} should be Settings Tab 1"
+                          if idx == 3:
+                              assert view_instance.initial_tab_index == 2, f"Index {idx} should be Settings Tab 2"
+                          if idx == 4:
+                              assert view_instance.initial_tab_index == 3, f"Index {idx} should be Settings Tab 3"
+                          if idx == 13:
+                              assert view_instance.initial_tab_index == 0, f"Index {idx} should be Settings Tab 0"
                      else:
                           assert isinstance(view_instance, expected_type), f"Index {idx} ({app_instance.destinations[idx].label}) expected {expected_type.__name__}, got {type(view_instance).__name__}"

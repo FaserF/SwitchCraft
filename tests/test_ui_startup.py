@@ -33,7 +33,7 @@ class TestUIIntegrity(unittest.TestCase):
         """Test if App builds destinations correctly."""
         try:
              # Mock the import inside setup_page causing issues if necessary
-            with unittest.mock.patch("switchcraft.gui_modern.app.SwitchCraftConfig") as m_conf:
+            with unittest.mock.patch("switchcraft.gui_modern.app.SwitchCraftConfig"):
                  app = ModernApp(self.page)
                  self.assertTrue(len(app.sidebar.all_destinations) > 0, "Sidebar has no destinations!")
         except Exception as e:
@@ -43,7 +43,7 @@ class TestUIIntegrity(unittest.TestCase):
         """Test that Sidebar container has bounded height/expansion.
         """
         try:
-            with unittest.mock.patch("switchcraft.gui_modern.app.SwitchCraftConfig") as m_conf:
+            with unittest.mock.patch("switchcraft.gui_modern.app.SwitchCraftConfig"):
                 app = ModernApp(self.page)
 
                 # app.sidebar is the sidebar control

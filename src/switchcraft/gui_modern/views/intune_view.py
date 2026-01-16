@@ -203,7 +203,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                         self.update()
                     self.app_page.run_task(update_success)
 
-                except Exception as ex:
+                except Exception:
                     def update_error():
                         self.up_status.value = f"Connection Failed: {ex}"
                         self.up_status.color = "RED"

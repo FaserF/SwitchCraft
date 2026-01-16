@@ -25,7 +25,7 @@ export default defineConfig({
     lastUpdated: true,
 
     themeConfig: {
-        logo: '/public/screenshots/switchcraft_logo_with_Text.png',
+        logo: '/screenshots/switchcraft_logo_with_Text.png',
         siteTitle: 'SwitchCraft',
 
         nav: [

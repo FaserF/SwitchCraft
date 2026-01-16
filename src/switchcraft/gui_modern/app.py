@@ -26,13 +26,13 @@ class ModernApp:
     def __init__(self, page: ft.Page, splash_proc=None):
         """
         Initialize the ModernApp instance, attach it to the provided page, prepare services and UI, and preserve the startup splash until the UI is ready.
-        
+
         This constructor:
         - Attaches the app instance to the page for inter-view access and ensures a per-page session store exists.
         - Initializes core services (notifications, addon management), navigation history, a view cache, and UI controls (app bar, theme toggle, notification and back buttons, and a global progress bar).
         - Registers notification listeners and synchronizes initial notification state.
         - Builds the main UI and, if a splash process was provided, attempts to terminate it after the UI is constructed.
-        
+
         Parameters:
             page: The Flet Page object that the application will attach to and manage.
             splash_proc: Optional process handle for an external splash screen; if provided, it will be terminated after the UI is built.
@@ -128,9 +128,9 @@ class ModernApp:
     def _toggle_notification_drawer(self, e):
         """
         Toggle the notifications drawer: close it if currently open, otherwise open it.
-        
+
         Attempts several methods to close an open drawer (setting open to False, calling page.close, or removing the drawer) and falls back to opening the notifications drawer when closed or when an error occurs.
-        
+
         Parameters:
             e: UI event or payload passed from the caller; forwarded to the drawer-opening handler.
         """
@@ -194,7 +194,7 @@ class ModernApp:
     def _open_notifications_drawer(self, e):
         """
         Open a navigation drawer containing current notifications.
-        
+
         Builds a notifications drawer from the notification service, opens it on the page, and marks all notifications as read. If there are no notifications, displays a localized "No notifications" message. On failure, attempts to surface an error via a snackbar.
         """
         try:
@@ -288,7 +288,7 @@ class ModernApp:
     def _on_drawer_dismiss(self, e):
         """
         Refresh the notification UI state when a navigation drawer is dismissed.
-        
+
         Parameters:
             e: The drawer-dismiss event object received from the UI callback. This function suppresses and logs any exceptions raised while updating notification state.
         """
@@ -301,7 +301,7 @@ class ModernApp:
     def _mark_notification_read(self, notification_id):
         """
         Mark the notification identified by `notification_id` as read and refresh the notifications drawer.
-        
+
         Parameters:
             notification_id: Identifier of the notification to mark as read. The identifier type is determined by the notification service (commonly a string or integer).
         """
@@ -315,7 +315,7 @@ class ModernApp:
     def _clear_all_notifications(self):
         """
         Clear all notifications and close any open notification drawer.
-        
+
         On success, displays a "Notifications cleared" snackbar. Any exceptions raised while clearing notifications or closing the drawer are caught and logged; they are not propagated.
         """
         try:
@@ -340,7 +340,7 @@ class ModernApp:
     def _clear_notifications(self, e, dlg):
         """
         Clear all notifications, close the given dialog, and show a confirmation snackbar.
-        
+
         Parameters:
             e: The event that triggered this action (unused by the method).
             dlg: The dialog control to close after clearing notifications.
@@ -551,7 +551,7 @@ class ModernApp:
     def _first_run_setup(self):
         """
         Show a first-run setup wizard that installs the required "advanced" addon and optionally installs additional components.
-        
+
         If the "advanced" addon is already installed, this method returns immediately. Otherwise it opens a modal dialog that prompts the user to install the essential "advanced" addon; if installation succeeds the dialog then offers to install optional components (for example, AI helpers and winget). Installations are performed in the background and progress is surfaced via the app's progress indicator and snackbars. The dialog may be skipped to leave the app unchanged. Dynamic loading of newly installed addons may require an application restart to be visible in all UI areas.
         """
         if self.addon_service.is_addon_installed("advanced"):
@@ -569,7 +569,7 @@ class ModernApp:
              # Trigger background download of optionals
              """
              Start background installation of optional addons and update the UI with progress.
-             
+
              Closes the provided dialog, displays an indeterminate global progress indicator and a snackbar, and launches a background thread that installs the "ai" and "winget" optional addons via the app's addon service. On completion the progress indicator is cleared and a success snackbar is shown; individual install failures are logged. This function does not perform a full UI reload and does not guarantee immediate availability of newly installed dynamic addons.
              """
              self.page.close(dlg)
@@ -601,10 +601,10 @@ class ModernApp:
             # Disable button, show progress
             """
             Start the base setup flow: disable the triggering control, start installing the "advanced" addon in a background thread, and update the wizard dialog when installation completes.
-            
+
             Parameters:
                 e: The click/event object from the UI control that initiated the setup; its control will be disabled and its text updated while installation runs.
-            
+
             Behavior:
                 - Disables the invoking button and shows an in-progress label.
                 - Runs addon_service.install_from_github("advanced") on a background thread.
@@ -622,11 +622,11 @@ class ModernApp:
                 # Install Advanced
                 """
                 Install the "advanced" addon and update the setup wizard dialog to reflect success or failure.
-                
+
                 Attempts to install the "advanced" addon via the AddonService and schedules a UI update on the page thread to modify the provided dialog:
                 - On success: replaces dialog content with a success icon and messages, and changes actions to offer installing optional features or skipping.
                 - On failure: appends an error message to the dialog and replaces actions with a Close button.
-                
+
                 The function has side effects on the addon service and the active dialog; it does not return a value.
                 """
                 success, msg = self.addon_service.install_from_github("advanced")
@@ -635,7 +635,7 @@ class ModernApp:
                 def update_ui():
                     """
                     Update the setup wizard dialog to reflect the result of the base addon installation.
-                    
+
                     If the dialog is closed or no longer the active page dialog, this function returns without changes. When the installation succeeded, the dialog content is replaced with a success icon, confirmation text, and actions offering to skip or install optional features; when the installation failed, an error message is appended and a Close action is shown. Any exceptions during UI updates are logged and do not propagate.
                     """
                     if not dlg.open or (hasattr(self.page, "dialog") and dlg != self.page.dialog):
@@ -688,7 +688,7 @@ class ModernApp:
     def toggle_theme(self, e):
         """
         Toggle the application's theme between Light and Dark.
-        
+
         Updates the page's ThemeMode and the theme icon, persists the selected preference via SwitchCraftConfig.set_user_preference("Theme", ...), and calls page.update(). If an error occurs while toggling, the method attempts to display an error SnackBar.
         """
         try:
@@ -723,10 +723,10 @@ class ModernApp:
     def window_event(self, e):
         """
         Handle window-level events such as mouse back navigation and window close.
-        
+
         Detects mouse "back" button presses (XButton1) and delegates to the app's back-navigation handler.
         On a "close" event, attempts to cleanly destroy the window using available Flet API variants; if window destruction fails, the process will be terminated.
-        
+
         Parameters:
             e: The window event object. Its `.data` (or string form) is inspected to determine the event type.
         """
@@ -758,7 +758,7 @@ class ModernApp:
     def setup_banner(self):
         """
         Show a prominent banner for development or beta builds.
-        
+
         If the app version string contains "dev" or "beta", sets self.banner_container to a Flet Container displaying a localized banner message (falls back to a default message containing the version). The banner uses a red/white color scheme for development builds and an amber/black scheme for beta builds, and is centered with padding.
         """
         from switchcraft.utils.i18n import i18n
@@ -785,16 +785,14 @@ class ModernApp:
 
         """
         Constructs and attaches the main application UI: navigation rail (including dynamic addon destinations), sidebar, content area, banner, and global progress wrapper.
-        
+
         This method prepares static navigation destinations, appends dynamically discovered addon entries, initializes the HoverSidebar and the main content column, schedules first-run/demo checks, handles command-line-driven initial navigation (wizard/analyzer) and silent-mode behavior, and finally replaces the startup loading screen with the built UI. If a splash process was provided, it is terminated after the UI is visible.
         """
         self.destinations = [
                 ft.NavigationRailDestination(
                     icon=ft.Icons.HOME_OUTLINED, selected_icon=ft.Icons.HOME, label=i18n.get("nav_home")
                 ),
-                ft.NavigationRailDestination(
-                    icon=ft.Icons.EXTENSION, selected_icon=ft.Icons.EXTENSION, label=i18n.get("addon_manager_title") or "Addon Manager"
-                ),
+
                 # Settings Sub-Pages (Indices 17, 18, 19)
                 ft.NavigationRailDestination(
                     icon=ft.Icons.UPDATE, label=i18n.get("settings_hdr_update") or "Updates"
@@ -927,7 +925,7 @@ class ModernApp:
             def nav_to_wizard():
                 """
                 Navigate to the Packaging Wizard tab after a short delay to allow the UI to finish rendering.
-                
+
                 This helper waits approximately 0.5 seconds and then switches the application view to the Packaging Wizard.
                 """
                 import time
@@ -990,7 +988,7 @@ class ModernApp:
     def _open_notifications(self, e):
         """
         Show the notifications drawer populated from the notification service, or close the drawer if it is currently open.
-        
+
         Builds a NavigationDrawer containing the current notifications and opens it on the page; when opened, all notifications are marked as read. If a notifications drawer is already active and open, the drawer is closed instead. This method updates the instance's active drawer state as a side effect.
         """
         # Simple toggle: if we have it and Flet thinks it's open, close it.
@@ -1134,9 +1132,9 @@ class ModernApp:
     def _switch_to_tab(self, idx):
         """
         Switch the main content area to the view identified by a navigation index.
-        
+
         Loads and displays the view corresponding to `idx`: shows an immediate loading indicator, instantiates the target view (with error fallback to a crash dump view), supports cached views and dynamically loaded addon views, then swaps the content with a fade-in transition. Also records the selected index on self._current_tab_index and updates the page.
-        
+
         Parameters:
             idx (int): Navigation index representing a destination, settings sub-tab, category view (>=100), or a dynamic addon slot (computed from self.first_dynamic_index).
         """
@@ -1211,12 +1209,7 @@ class ModernApp:
                 from switchcraft.gui_modern.views.home_view import ModernHomeView
                 return ModernHomeView(self.page, on_navigate=self.goto_tab)
              load_view(_f)
-        elif idx == NavIndex.ADDON_MANAGER:
-             # Addon Manager
-             def _f():
-                 from switchcraft.gui_modern.views.addon_manager_view import AddonManagerView
-                 return AddonManagerView(self.page)
-             load_view(_f)
+
         elif idx == NavIndex.SETTINGS_UPDATES:
              # Updates (Settings sub)
              def _f():
@@ -1349,7 +1342,7 @@ class ModernApp:
                 def _f():
                     """
                     Load the addon view class for the addon identified by `addon['id']` and return an instance bound to the app's page.
-                    
+
                     Returns:
                         The instantiated view for the addon, constructed with `self.page`.
                     """
@@ -1467,7 +1460,7 @@ class ModernApp:
     def _show_restart_countdown(self):
         """
         Show a modal restart-required dialog and then terminate the application window.
-        
+
         Displays a modal alert dialog with a localized title and message indicating that a restart is required, waits briefly to allow the user to see the message, and then destroys the application window.
         """
         dlg = ft.AlertDialog(
@@ -1484,7 +1477,7 @@ class ModernApp:
     def _clear_all_notifications(self, drawer):
         """
         Close the notifications drawer and clear all stored notifications.
-        
+
         Parameters:
             drawer: The navigation drawer control instance to close after clearing notifications.
         """
@@ -1500,13 +1493,12 @@ class ModernApp:
     def _check_first_run(self):
         """
         Check whether the application is running for the first time and, if so, clear the first-run flag and optionally offer a demo.
-        
+
         If the stored "FirstRun" flag is true, this method sets it to false. When running from source (not a frozen/packaged build), it opens a modal dialog offering to start a demo analysis; choosing to start the demo navigates to the Analyzer tab and initiates the demo analysis, while choosing to defer simply closes the dialog.
         """
         from switchcraft.utils.config import SwitchCraftConfig
         from switchcraft.utils.i18n import i18n
         import sys
-        import webbrowser
 
         if SwitchCraftConfig.get_value("FirstRun", True):
             SwitchCraftConfig.set_user_preference("FirstRun", False)
@@ -1515,7 +1507,7 @@ class ModernApp:
                 def show_demo_dialog():
                     """
                     Show a modal dialog offering the user to run a demo analysis.
-                    
+
                     The dialog presents a brief message and two actions: "Start Demo" begins a demo analysis by navigating to the analyzer view and triggering the demo workflow; "Later" simply closes the dialog.
                     """
                     def start_demo(e):
@@ -1531,7 +1523,7 @@ class ModernApp:
                     def skip_demo(e):
                         """
                         Close the demo dialog and refresh the UI.
-                        
+
                         Intended as an event handler invoked when the user opts to skip the demo; closes the dialog and updates the page.
                         """
                         dlg.open = False
@@ -1560,10 +1552,9 @@ class ModernApp:
     def _start_demo_analysis(self):
         """
         Download a sample installer and initiate a demo analysis in the Analyzer view.
-        
+
         Runs in a background thread: shows a "Downloading..." snack, downloads a demo installer to a temporary file, navigates to the Analyzer tab if necessary, waits briefly for the view to load, and then triggers the analyzer view's start_analysis with the downloaded file path. On failure logs the error and presents a dialog offering to open the project's download/releases page.
         """
-        import sys
         import tempfile
         import threading
         import requests
@@ -1573,9 +1564,9 @@ class ModernApp:
         def download_and_analyze():
             """
             Download a demo installer to a temporary file and, if possible, navigate to the Analyzer view and start analysis on the downloaded file.
-            
+
             Downloads the 7-Zip MSI to a temporary file (left on disk), displays a "downloading" snack while in progress, then navigates to the ANALYZER tab and invokes `start_analysis(path)` on the cached analyzer view if available. On failure, logs the error and opens a dialog offering to open the project's download/releases page.
-            
+
             Note: This function writes a temporary .msi file with delete=False and will not remove it automatically; it performs network I/O and may raise exceptions internally which are handled by showing a user-facing dialog.
             """
             try:
@@ -1635,7 +1626,7 @@ class ModernApp:
 def main(page: ft.Page):
     """
     Create and attach the ModernApp application to the given Flet page.
-    
+
     Instantiates ModernApp with the provided page and exposes its _show_restart_countdown method on the page as page._show_restart_countdown for external use.
     """
     # Add restart method to page for injection if needed, or pass app instance.

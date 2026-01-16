@@ -1,6 +1,42 @@
 import flet as ft
 from switchcraft.utils.i18n import i18n
 
+DESCRIPTION_MAP = {
+    "Dashboard": "desc_dashboard",
+    "Apps & Devices": "desc_winget", # Maps to 'Apps (Winget)' or similar
+    "Apps (Winget)": "desc_winget",
+    "Winget Store": "desc_winget",
+    "Analyzer": "desc_analyzer",
+    "AI Helper": "desc_ai",
+    "KI Helfer": "desc_ai",
+    "Intune Utility": "desc_intune",
+    "Intune": "desc_intune",
+    "Intune Store": "desc_intune_store",
+    "Scripts": "desc_scripts",
+    "Skripte": "desc_scripts",
+    "macOS Utility": "desc_macos",
+    "History": "desc_history",
+    "Verlauf": "desc_history",
+    "Settings": "desc_settings",
+    "Einstellungen": "desc_settings",
+    "Update Settings": "desc_update_settings",
+    "Update Einstellungen": "desc_update_settings",
+    "Deployment Automation": "desc_automation",
+    "Verteilungs-Automatisierung": "desc_automation",
+    "Generate (Wizard)": "desc_wizard",
+    "Generieren (Wizard)": "desc_wizard",
+
+    "Detection Tester": "desc_tester",
+    "Stack Manager": "desc_stacks",
+    "Library": "desc_library",
+    "Group Manager": "desc_groups",
+    "Gruppen-Manager": "desc_groups",
+    "Winget Creator": "desc_wingetcreate",
+    "Startseite": "desc_dashboard",
+    "Help & Resources": "desc_help",
+    "Hilfe & Ressourcen": "desc_help"
+}
+
 class CategoryView(ft.Container):
     def __init__(self, page: ft.Page, category_name: str, items: list, on_navigate, app_destinations):
         super().__init__()
@@ -37,17 +73,36 @@ class CategoryView(ft.Container):
         icon = dest.icon
         label = dest.label
 
+        # Determine description
+        key = DESCRIPTION_MAP.get(label, "click_to_open")
+        desc_text = i18n.get(key)
+
+        if not desc_text:
+            desc_text = i18n.get("click_to_open") or "Click to open"
+
         return ft.Container(
             content=ft.Column([
-                ft.Icon(icon, size=40, color="PRIMARY"),
-                ft.Text(label, size=16, weight=ft.FontWeight.BOLD, color="ON_SURFACE"),
-                ft.Text(i18n.get("click_to_open") or "Click to open", size=12, color="OUTLINE")
-            ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            width=200,
-            height=200,
+                ft.Container(
+                    content=ft.Icon(icon, size=40, color="PRIMARY"),
+                    alignment=ft.alignment.center,
+                    height=50,
+                ),
+                ft.Text(label, size=16, weight=ft.FontWeight.BOLD, color="ON_SURFACE", text_align=ft.TextAlign.CENTER),
+                ft.Text(
+                    desc_text,
+                    size=13,
+                    color="OUTLINE",
+                    text_align=ft.TextAlign.CENTER,
+                    no_wrap=False,
+                    max_lines=3,
+                    overflow=ft.TextOverflow.ELLIPSIS
+                )
+            ], alignment=ft.MainAxisAlignment.START, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+            width=220,  # Slightly wider for text
+            height=200, # Fixed height
             bgcolor="SURFACE_VARIANT",
             border_radius=15,
-            padding=20,
+            padding=ft.padding.all(20),
             ink=True,
             on_click=lambda e: self.on_navigate(idx),
             border=ft.Border.all(1, "OUTLINE_VARIANT"),

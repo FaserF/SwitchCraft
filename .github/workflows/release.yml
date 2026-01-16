@@ -57,7 +57,7 @@ jobs:
       - name: Generate Changelog
         id: changelog
         run: |
-          python .github/scripts/generate_changelog.py --output changelog.md
+          python .github/scripts/generate_changelog.py --output changelog.md --type ${{ github.event.inputs.release_type }}
           # Read changelog content into a variable safely (multiline)
           {
             echo 'CHANGELOG_BODY<<EOF'

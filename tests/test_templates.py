@@ -2,7 +2,6 @@
 import unittest
 import tempfile
 import shutil
-import os
 from pathlib import Path
 from switchcraft.utils.templates import TemplateGenerator
 

@@ -2,115 +2,144 @@
 
 Use the following settings to configure SwitchCraft via Microsoft Intune Custom Profiles.
 
-**OMA-URI Prefix**: `./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft`
+## Step 1: ADMX Ingestion (Required)
 
-| Setting | OMA-URI | Data Type | Value / Description |
+You **must** first ingest the ADMX file so Intune understands the policy structure.
+
+- **OMA-URI**: `./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/SwitchCraft/Policy/SwitchCraftPolicy`
+- **Data Type**: `String`
+- **Value**: [Copy content from SwitchCraft.admx](https://github.com/FaserF/SwitchCraft/blob/main/docs/PolicyDefinitions/SwitchCraft.admx)
+
+## Step 2: Configure Settings
+
+**OMA-URI Prefix**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced`
+
+| Setting | OMA-URI Suffix | Data Type | Value / Description |
 | :--- | :--- | :--- | :--- |
-| **Debug Mode** | `.../DebugMode` | Integer | `0` (Disabled), `1` (Enabled) |
-| **Update Channel** | `.../UpdateChannel` | String | `stable`, `beta`, `dev` |
-| **Enable Winget** | `.../EnableWinget` | Integer | `0` (Disabled), `1` (Enabled) |
-| **Language** | `.../Language` | String | `en`, `de` |
-| **Git Repository Path** | `.../GitRepoPath` | String | Path to local git repo (e.g. `C:\Data\Repo`) |
-| **Company Name** | `.../CompanyName` | String | Your Company Name |
-| **AI Provider** | `.../AIProvider` | String | `local`, `openai`, `gemini` |
-| **AI API Key** | `.../AIKey` | String | Your API Key (OpenAI/Gemini) |
-| **Sign Scripts** | `.../SignScripts` | Integer | `0` (Disabled), `1` (Enabled) |
-| **Cert Thumbprint** | `.../CodeSigningCertThumbprint` | String | Thumbprint of Code Signing Cert |
-| **Graph Tenant ID** | `.../GraphTenantId` | String | Azure AD Tenant ID |
-| **Graph Client ID** | `.../GraphClientId` | String | App Registration Client ID |
-| **Graph Client Secret** | `.../GraphClientSecret` | String | App Registration Client Secret |
-| **Intune Test Groups** | `.../IntuneTestGroups` | String | Comma-separated Group IDs |
-| **Custom Template** | `.../CustomTemplatePath` | String | Path to custom templates |
-| **Winget Repo Path** | `.../WingetRepoPath` | String | Path to Winget repo |
-| **Theme** | `.../Theme` | String | `System`, `Light`, `Dark` |
+| **Debug Mode** | `.../DebugMode_Enf` | Integer | `0` (Disabled), `1` (Enabled) |
+| **Update Channel** | `...~Updates_Enf/UpdateChannel_Enf` | String | `<enabled/>` + `<data id="UpdateChannelDropdown" value="stable"/>` |
+| **Enable Winget** | `...~General_Enf/EnableWinget_Enf` | Integer | `0` (Disabled), `1` (Enabled) |
+| **Language** | `...~General_Enf/Language_Enf` | String | `<enabled/>` + `<data id="LanguageDropdown" value="en"/>` |
+| **Git Repo Path** | `...~General_Enf/GitRepoPath_Enf` | String | `<enabled/>` + `<data id="GitRepoPathBox" value="C:\Path"/>` |
+| **Company Name** | `...~General_Enf/CompanyName_Enf` | String | `<enabled/>` + `<data id="CompanyNameBox" value="My Company"/>` |
+| **AI Provider** | `...~AI_Enf/AIProvider_Enf` | String | `<enabled/>` + `<data id="AIProviderDropdown" value="local"/>` |
+| **AI API Key** | `...~AI_Enf/AIKey_Enf` | String | `<enabled/>` + `<data id="AIKeyBox" value="..."/>` |
+| **Sign Scripts** | `...~Security_Enf/SignScripts_Enf` | Integer | `0` (Disabled), `1` (Enabled) |
+| **Cert Thumbprint** | `...~Security_Enf/CodeSigningCertThumbprint_Enf` | String | `<enabled/>` + `<data id="CodeSigningCertThumbprintBox" value="..."/>` |
+| **Graph Tenant ID** | `...~Intune_Enf/GraphTenantId_Enf` | String | `<enabled/>` + `<data id="GraphTenantIdBox" value="..."/>` |
+| **Graph Client ID** | `...~Intune_Enf/GraphClientId_Enf` | String | `<enabled/>` + `<data id="GraphClientIdBox" value="..."/>` |
+| **Graph Client Secret** | `...~Intune_Enf/GraphClientSecret_Enf` | String | `<enabled/>` + `<data id="GraphClientSecretBox" value="..."/>` |
+| **Intune Test Groups** | `...~Intune_Enf/IntuneTestGroups_Enf` | String | `<enabled/>` + `<data id="IntuneTestGroupsBox" value="..."/>` |
+
+> [!IMPORTANT]
+> **String Policies** in ADMX are complex XML strings, not simple text values. See the example block below for the correct format.
 
 ---
 
 ## Copy & Paste Configuration Block
 
 ```text
-AIProvider
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/AIProvider
+ADMX Ingestion
+./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/SwitchCraft/Policy/SwitchCraftPolicy
 String
-local
+<Copy contents of SwitchCraft.admx here>
 
-AIKey
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/AIKey
-String
-<YOUR_API_KEY>
-
-DebugMode
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/DebugMode
-Integer
-0
-
-EnableWinget
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/EnableWinget
+Debug Mode
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced/DebugMode_Enf
 Integer
 1
 
-GraphClientId
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/GraphClientId
+Update Channel
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Updates_Enf/UpdateChannel_Enf
 String
-<YOUR_CLIENT_ID>
+<enabled/>
+<data id="UpdateChannelDropdown" value="stable"/>
 
-GraphClientSecret
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/GraphClientSecret
-String
-<YOUR_CLIENT_SECRET>
-
-GraphTenantId
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/GraphTenantId
-String
-<YOUR_TENANT_ID>
-
-IntuneTestGroups
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/IntuneTestGroups
-String
-<GROUP_ID_1,GROUP_ID_2>
+Enable Winget
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/EnableWinget_Enf
+Integer
+1
 
 Language
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/Language
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/Language_Enf
 String
-en
+<enabled/>
+<data id="LanguageDropdown" value="en"/>
 
-SignScripts
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/SignScripts
-Integer
-0
-
-CodeSigningCertThumbprint
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/CodeSigningCertThumbprint
+Git Repository Path
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/GitRepoPath_Enf
 String
-<CERT_THUMBPRINT>
+<enabled/>
+<data id="GitRepoPathBox" value="C:\ProgramData\SwitchCraft\ConfigRepo"/>
 
-UpdateChannel
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/UpdateChannel
+Company Name
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/CompanyName_Enf
 String
-stable
+<enabled/>
+<data id="CompanyNameBox" value="My Company"/>
 
-GitRepoPath
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/GitRepoPath
+Custom Template Path
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/CustomTemplatePath_Enf
 String
-C:\SwitchCraft\Repo
+<enabled/>
+<data id="CustomTemplatePathBox" value="C:\ProgramData\SwitchCraft\Templates"/>
 
-CompanyName
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/CompanyName
+Winget Repo Path
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/WingetRepoPath_Enf
 String
-My Company
+<enabled/>
+<data id="WingetRepoPathBox" value="C:\ProgramData\SwitchCraft\Winget"/>
 
 Theme
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/Theme
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/Theme_Enf
 String
-System
+<enabled/>
+<data id="ThemeDropdown" value="System"/>
 
-CustomTemplatePath
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/CustomTemplatePath
+AI Provider
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~AI_Enf/AIProvider_Enf
 String
-C:\SwitchCraft\Templates
+<enabled/>
+<data id="AIProviderDropdown" value="local"/>
 
-WingetRepoPath
-./User/Vendor/MSFT/Policy/Config/FaserF~Policy~SwitchCraft/WingetRepoPath
+AI API Key
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~AI_Enf/AIKey_Enf
 String
-C:\SwitchCraft\Winget
+<enabled/>
+<data id="AIKeyBox" value="YOUR_API_KEY"/>
+
+Sign Scripts
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Security_Enf/SignScripts_Enf
+Integer
+1
+
+Code Signing Cert Thumbprint
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Security_Enf/CodeSigningCertThumbprint_Enf
+String
+<enabled/>
+<data id="CodeSigningCertThumbprintBox" value="THUMBPRINT"/>
+
+Graph Tenant ID
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Intune_Enf/GraphTenantId_Enf
+String
+<enabled/>
+<data id="GraphTenantIdBox" value="00000000-0000-0000-0000-000000000000"/>
+
+Graph Client ID
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Intune_Enf/GraphClientId_Enf
+String
+<enabled/>
+<data id="GraphClientIdBox" value="00000000-0000-0000-0000-000000000000"/>
+
+Graph Client Secret
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Intune_Enf/GraphClientSecret_Enf
+String
+<enabled/>
+<data id="GraphClientSecretBox" value="YOUR_SECRET"/>
+
+Intune Test Groups
+./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Intune_Enf/IntuneTestGroups_Enf
+String
+<enabled/>
+<data id="IntuneTestGroupsBox" value="GROUP_ID_1,GROUP_ID_2"/>
 ```

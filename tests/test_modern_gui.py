@@ -1,6 +1,5 @@
 
 import pytest
-import flet as ft
 import importlib
 from switchcraft.gui_modern.app import ModernApp
 

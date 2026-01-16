@@ -2,7 +2,6 @@
 import pytest
 import flet as ft
 from unittest.mock import MagicMock
-import sys
 
 # Mock imports that might be troublesome if environment is partial
 # (Though we prefer testing real imports to catch the bugs!)

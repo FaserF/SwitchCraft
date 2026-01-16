@@ -1,8 +1,6 @@
 import unittest
-from unittest.mock import MagicMock, patch
 import sys
 import os
-from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
@@ -15,7 +13,7 @@ class TestNotificationService(unittest.TestCase):
         # Clear singleton instance to start fresh
         """
         Prepare a clean NotificationService instance and ensure no leftover notifications exist.
-        
+
         This resets the NotificationService singleton, creates a new instance on self.service, and clears any existing notifications so each test starts with an empty notification list.
         """
         NotificationService._instance = None
@@ -41,7 +39,7 @@ class TestNotificationService(unittest.TestCase):
 
     def test_get_unread_count(self):
         """Test getting unread notification count."""
-        initial_count = len(self.service.notifications)
+
         self.service.add_notification("Title 1", "Message 1", "info")
         self.service.add_notification("Title 2", "Message 2", "warning")
         # Mark first one as read
