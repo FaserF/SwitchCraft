@@ -148,6 +148,20 @@ export default defineConfig({
     },
 
     vite: {
-        publicDir: 'public'
+        publicDir: 'public',
+        build: {
+            rollupOptions: {
+                output: {
+                    // Ensure images are copied as static assets
+                    assetFileNames: (assetInfo) => {
+                        // Keep screenshots in their original location
+                        if (assetInfo.name && assetInfo.name.includes('screenshot')) {
+                            return 'screenshots/[name][extname]'
+                        }
+                        return 'assets/[name]-[hash][extname]'
+                    }
+                }
+            }
+        }
     }
 })

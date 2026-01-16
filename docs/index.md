@@ -6,7 +6,7 @@ hero:
   text: "The Ultimate Packaging Assistant"
   tagline: "Analyze installers, create Intune packages, and streamline your IT workflow — all in one powerful tool."
   image:
-    src: https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_logo_with_Text.png
+    src: /screenshots/switchcraft_logo_with_Text.png
     alt: SwitchCraft Logo
   actions:
     - theme: brand
@@ -57,23 +57,23 @@ features:
 ## Preview
 
 <div style="text-align: center; margin: 2rem 0;">
-  <img src="https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_ui.png" alt="SwitchCraft Modern UI" style="max-width: 100%; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);" />
+  <img src="/screenshots/switchcraft_ui.png" alt="SwitchCraft Modern UI" style="max-width: 100%; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);" />
 </div>
 
 ### Screenshots
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
   <div style="text-align: center;">
-    <img src="https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_ui_2.png" alt="SwitchCraft Screenshot 2" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
+    <img src="/screenshots/switchcraft_ui_2.png" alt="SwitchCraft Screenshot 2" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
   </div>
   <div style="text-align: center;">
-    <img src="https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_ui_3.png" alt="SwitchCraft Screenshot 3" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
+    <img src="/screenshots/switchcraft_ui_3.png" alt="SwitchCraft Screenshot 3" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
   </div>
   <div style="text-align: center;">
-    <img src="https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_ui_4.png" alt="SwitchCraft Screenshot 4" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
+    <img src="/screenshots/switchcraft_ui_4.png" alt="SwitchCraft Screenshot 4" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
   </div>
   <div style="text-align: center;">
-    <img src="https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_ui_5.png" alt="SwitchCraft Screenshot 5" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
+    <img src="/screenshots/switchcraft_ui_5.png" alt="SwitchCraft Screenshot 5" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
   </div>
 </div>
 
