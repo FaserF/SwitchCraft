@@ -40,6 +40,8 @@ jobs:
         run: |
           cd docs
           npx vitepress build
+        env:
+          BASE_URL: /
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
