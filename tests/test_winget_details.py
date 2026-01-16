@@ -16,8 +16,6 @@ def mock_page():
     page.run_task = lambda func: func()  # Execute immediately for testing
 
     # Mock page property to avoid RuntimeError
-    def get_page():
-        return page
     type(page).page = property(lambda self: page)
 
     return page
@@ -97,7 +95,7 @@ def test_winget_details_shows_loading_state(mock_page, mock_winget_helper):
 
     # Mock slow details loading
     def slow_get_details(package_id):
-        time.sleep(0.2)
+        time.sleep(0.3)
         return {"Description": "Test description"}
     mock_winget_helper.get_package_details = slow_get_details
 

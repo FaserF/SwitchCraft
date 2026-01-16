@@ -4,7 +4,6 @@ Tests for language change functionality in settings.
 import pytest
 import flet as ft
 from unittest.mock import MagicMock, patch
-import time
 
 
 @pytest.fixture
@@ -62,6 +61,9 @@ def test_language_change_shows_restart_message(mock_page):
 
         view._on_lang_change("de")
 
-        # Should show restart message
+        # Should show language change message (either "Language changed. UI updated." or restart message)
         assert len(snack_calls) > 0
-        assert any("restart" in str(call[0]).lower() for call in snack_calls)
+        # Check for either success message or restart message
+        snack_messages = [str(call[0]).lower() for call in snack_calls]
+        assert any("language changed" in msg or "ui updated" in msg or "restart" in msg for msg in snack_messages), \
+            f"Expected language change message, but got: {snack_messages}"

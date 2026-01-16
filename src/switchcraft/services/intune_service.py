@@ -397,9 +397,6 @@ class IntuneService:
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error in list_apps: {e}")
             raise
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Network error while listing apps: {e}")
-            raise Exception(f"Network error: {str(e)}")
         except Exception as e:
             logger.error(f"Failed to list apps: {e}")
             raise e

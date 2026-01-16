@@ -99,11 +99,15 @@ class WingetCreateView(ft.Column, ViewMixin):
                     ft.Container(
                         content=ft.Row([
                             ft.Icon(ft.Icons.INFO_OUTLINE, size=18, color="BLUE_300"),
-                            ft.Text(
-                                i18n.get("wingetcreate_info", path=str(self.manifest_dir)) or
-                                f"Manifests are saved to: {self.manifest_dir}",
-                                size=12,
-                                color="GREY_400"
+                            ft.Container(
+                                content=ft.Text(
+                                    i18n.get("wingetcreate_info", path=str(self.manifest_dir)) or
+                                    f"Manifests are saved to: {self.manifest_dir}",
+                                    size=12,
+                                    color="GREY_400"
+                                ),
+                                expand=True,
+                                width=None
                             ),
                             ft.IconButton(
                                 ft.Icons.FOLDER_OPEN,
@@ -111,7 +115,7 @@ class WingetCreateView(ft.Column, ViewMixin):
                                 tooltip=i18n.get("open_folder") or "Open Folder",
                                 on_click=self._open_manifest_dir
                             )
-                        ], spacing=10),
+                        ], spacing=10, wrap=False),
                         padding=10,
                         bgcolor="BLACK12",
                         border_radius=8

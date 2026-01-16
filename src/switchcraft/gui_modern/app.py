@@ -191,18 +191,12 @@ class ModernApp:
                     self.page.update()
                 except Exception as ex:
                     logger.exception(f"Error opening notification drawer: {ex}")
-                    # Try again with simpler approach
-                    try:
-                        self._open_notifications_drawer(e)
-                        self.page.update()
-                    except Exception as ex2:
-                        logger.error(f"Failed to open drawer after retry: {ex2}")
-                        self.page.snack_bar = ft.SnackBar(
-                            content=ft.Text(f"Failed to open notifications: {ex2}"),
-                            bgcolor="RED"
-                        )
-                        self.page.snack_bar.open = True
-                        self.page.update()
+                    self.page.snack_bar = ft.SnackBar(
+                        content=ft.Text(f"Failed to open notifications: {ex}"),
+                        bgcolor="RED"
+                    )
+                    self.page.snack_bar.open = True
+                    self.page.update()
         except Exception as ex:
             logger.exception(f"Error toggling notification drawer: {ex}")
             # Try to open anyway
@@ -281,13 +275,13 @@ class ModernApp:
                 on_dismiss=self._on_drawer_dismiss
             )
 
-            # Set drawer and open it
+            # Set drawer on page FIRST
             self.page.end_drawer = drawer
 
-            # Force update BEFORE setting open to ensure drawer is attached
+            # Force update to attach drawer to page
             self.page.update()
 
-            # Now set open and update again
+            # Now set open BEFORE updating (Flet needs this order)
             drawer.open = True
             self.page.update()
 
@@ -299,8 +293,16 @@ class ModernApp:
             except Exception as ex:
                 logger.debug(f"page.open() not available or failed: {ex}, using direct assignment")
 
+            # Final verification and update
+            if not drawer.open:
+                logger.warning("Drawer open flag is False, forcing it to True")
+                drawer.open = True
+                self.page.update()
+
             # Final update to ensure drawer is visible
             self.page.update()
+
+            logger.info(f"Notification drawer should now be visible. open={drawer.open}, page.end_drawer={self.page.end_drawer is not None}")
 
             # Mark all as read after opening
             self.notification_service.mark_all_read()
@@ -1003,10 +1005,8 @@ class ModernApp:
         self.page.add(
              ft.Column(layout_controls, expand=True, spacing=0)
         )
-        # Force multiple updates to ensure UI is visible and rendered
+        # Force update to ensure UI is visible and rendered
         self.page.update()
-        self.page.update()  # Second update to ensure rendering
-        self.page.update()  # Third update for good measure
 
         # Setup responsive UI (hide/show sidebar and menu button based on window size)
         self._update_responsive_ui()

@@ -373,7 +373,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 logger.info(f"Package details fetched, showing UI for: {merged.get('Name', 'Unknown')}")
                 logger.info(f"Merged package data keys: {list(merged.keys())}")
 
-                # Use run_task if available to ensure UI updates happen on the correct thread
+                # Update UI directly - Flet's update() is thread-safe
                 def _show_ui():
                     try:
                         self._show_details_ui(merged)
@@ -403,15 +403,17 @@ class ModernWingetView(ft.Row, ViewMixin):
                         except Exception:
                             pass
 
-                if hasattr(self.app_page, 'run_task'):
-                    try:
-                        self.app_page.run_task(_show_ui)
-                    except Exception as ex:
-                        logger.exception(f"Error in run_task for _show_details_ui: {ex}")
-                        # Fallback: try direct call
-                        _show_ui()
-                else:
+                # Always call directly - Flet's update() is thread-safe
+                try:
                     _show_ui()
+                except Exception as ex:
+                    logger.exception(f"Failed to show UI: {ex}")
+                    # Try with run_task as fallback
+                    if hasattr(self.app_page, 'run_task'):
+                        try:
+                            self.app_page.run_task(_show_ui)
+                        except Exception:
+                            pass
             except Exception as ex:
                 logger.exception(f"Error fetching package details: {ex}")
                 error_msg = str(ex)
@@ -420,7 +422,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 elif "not found" in error_msg.lower() or "no package" in error_msg.lower():
                     error_msg = f"Package not found: {short_info.get('Id', 'Unknown')}"
 
-                # Update UI on main thread
+                # Update UI directly - Flet's update() is thread-safe
                 def _show_error_ui():
                     error_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
                     error_area.controls.append(
@@ -446,10 +448,17 @@ class ModernWingetView(ft.Row, ViewMixin):
                     except Exception:
                         pass
 
-                if hasattr(self.app_page, 'run_task'):
-                    self.app_page.run_task(_show_error_ui)
-                else:
+                # Always call directly - Flet's update() is thread-safe
+                try:
                     _show_error_ui()
+                except Exception as ex:
+                    logger.exception(f"Failed to show error UI: {ex}")
+                    # Try with run_task as fallback
+                    if hasattr(self.app_page, 'run_task'):
+                        try:
+                            self.app_page.run_task(_show_error_ui)
+                        except Exception:
+                            pass
 
         threading.Thread(target=_fetch, daemon=True).start()
 
@@ -686,30 +695,41 @@ class ModernWingetView(ft.Row, ViewMixin):
         # This forces Flet to recognize the change
         new_details_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
         new_details_area.controls = detail_controls
-        self.details_area = new_details_area
 
-        # CRITICAL: Re-assign content to force container refresh
+        # CRITICAL: Re-assign both details_area and right_pane.content
+        self.details_area = new_details_area
         self.right_pane.content = self.details_area
         self.right_pane.visible = True
 
-        # Force update of details area, row, and page
+        # Force update of all UI components - MUST update in correct order
+        logger.debug("Updating UI components for package details")
         try:
+            # Update details area first
             self.details_area.update()
         except Exception as ex:
             logger.debug(f"Error updating details_area: {ex}")
+
         try:
+            # Then update right pane container
             self.right_pane.update()
         except Exception as ex:
             logger.debug(f"Error updating right_pane: {ex}")
+
         try:
+            # Then update the row (this view)
             self.update()
         except Exception as ex:
             logger.debug(f"Error updating row: {ex}")
+
+        # Finally update the page
         if hasattr(self, 'app_page'):
             try:
                 self.app_page.update()
+                logger.debug("Successfully updated app_page")
             except Exception as ex:
                 logger.debug(f"Error updating app_page: {ex}")
+
+        logger.info(f"Package details UI updated for: {info.get('Name', 'Unknown')}")
 
         logger.info(f"Details UI displayed for package: {info.get('Name', 'Unknown')}")
 

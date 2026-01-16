@@ -120,7 +120,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
             ],
             expand=True,
         )
-        lang_dd.on_change = lambda e: self._on_lang_change(e.control.value)
+        # Set on_change handler - use a proper function reference, not lambda
+        def _handle_lang_change(e):
+            if e.control.value:
+                self._on_lang_change(e.control.value)
+        lang_dd.on_change = _handle_lang_change
 
         # Winget Toggle
         winget_sw = ft.Switch(
@@ -664,49 +668,52 @@ class ModernSettingsView(ft.Column, ViewMixin):
         """
         Start an interactive GitHub device‑flow login in a background thread and handle the result.
 
-        Starts the device authorization flow, presents a dialog with the verification URL and user code, opens the browser when requested, polls for an access token, and on success saves the token, updates the cloud-sync UI, and shows a success or failure notification. All UI interactions and the polling run in a background thread to avoid blocking the main thread.
+        Starts the device authorization flow, presents a dialog with the verification URL and user code, opens the browser when requested, polls for an access token, and on success saves the token, updates the cloud-sync UI, and shows a success or failure notification. The dialog is shown on the main thread, but network calls run in background threads.
 
         Parameters:
             e: The triggering event (e.g., button click). The value is accepted but not used by this method.
         """
         logger.info("GitHub login button clicked, starting device flow...")
 
+        # Show loading dialog immediately on main thread
+        loading_dlg = ft.AlertDialog(
+            title=ft.Text("Initializing..."),
+            content=ft.Column([
+                ft.ProgressRing(),
+                ft.Text("Connecting to GitHub...")
+            ], tight=True)
+        )
+        self.app_page.dialog = loading_dlg
+        loading_dlg.open = True
+        self.app_page.update()
+
         # Start device flow in background (network call)
         def _init_flow():
             try:
                 flow = AuthService.initiate_device_flow()
                 if not flow:
-                    def _show_error():
-                        self._show_snack("Login init failed", "RED")
-                    if hasattr(self.app_page, 'run_task'):
-                        self.app_page.run_task(_show_error)
-                    else:
-                        _show_error()
+                    # Close loading dialog and show error
+                    loading_dlg.open = False
+                    self.app_page.update()
+                    self._show_snack("Login init failed", "RED")
                     return None
                 return flow
             except Exception as ex:
                 logger.exception(f"Error initiating device flow: {ex}")
-                def _show_error():
-                    self._show_snack(f"Login error: {ex}", "RED")
-                if hasattr(self.app_page, 'run_task'):
-                    self.app_page.run_task(_show_error)
-                else:
-                    _show_error()
+                # Close loading dialog and show error
+                loading_dlg.open = False
+                self.app_page.update()
+                self._show_snack(f"Login error: {ex}", "RED")
                 return None
 
-        # Show dialog immediately on main thread
+        # Show dialog with flow data on main thread
         def _show_dialog_with_flow(flow):
             if not flow:
                 return
 
             def close_dlg(e):
-                def _close():
-                    self.app_page.dialog.open = False
-                    self.app_page.update()
-                if hasattr(self.app_page, 'run_task'):
-                    self.app_page.run_task(_close)
-                else:
-                    _close()
+                self.app_page.dialog.open = False
+                self.app_page.update()
 
             def copy_code(e):
                 try:
@@ -730,6 +737,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ], height=150, scroll=ft.ScrollMode.AUTO),
                 actions=[btn_copy, btn_cancel]
             )
+
+            # Close loading dialog first
+            try:
+                if hasattr(self.app_page, 'dialog') and self.app_page.dialog:
+                    self.app_page.dialog.open = False
+                    self.app_page.update()
+            except Exception:
+                pass
 
             # Show dialog on main thread
             logger.info("Showing GitHub login dialog...")
@@ -760,6 +775,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 dlg.open = True
                 self.app_page.update()
 
+            logger.info(f"Dialog opened successfully. open={dlg.open}, page.dialog={self.app_page.dialog is not None}")
+
             # Poll for token in background thread
             def _poll_token():
                 token = AuthService.poll_for_token(flow.get("device_code"), flow.get("interval"), flow.get("expires_in"))
@@ -786,7 +803,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         def _flow_complete():
             flow = _init_flow()
             if flow:
-                # MUST show dialog on main thread - use run_task if available
+                # MUST show dialog on main thread - use run_task to ensure it's on the UI thread
                 if hasattr(self.app_page, 'run_task'):
                     try:
                         self.app_page.run_task(lambda: _show_dialog_with_flow(flow))
@@ -797,13 +814,17 @@ class ModernSettingsView(ft.Column, ViewMixin):
                             _show_dialog_with_flow(flow)
                         except Exception as ex2:
                             logger.exception(f"Error showing dialog directly: {ex2}")
+                            loading_dlg.open = False
+                            self.app_page.update()
                             self._show_snack(f"Failed to show login dialog: {ex2}", "RED")
                 else:
-                    # No run_task, try direct call
+                    # No run_task, try direct call (should work if we're already on main thread)
                     try:
                         _show_dialog_with_flow(flow)
                     except Exception as ex:
                         logger.exception(f"Error showing dialog: {ex}")
+                        loading_dlg.open = False
+                        self.app_page.update()
                         self._show_snack(f"Failed to show login dialog: {ex}", "RED")
 
         threading.Thread(target=_flow_complete, daemon=True).start()
@@ -974,14 +995,17 @@ class ModernSettingsView(ft.Column, ViewMixin):
         Parameters:
             val (str): Language code or identifier to set (e.g., "en", "fr", etc.).
         """
+        logger.info(f"Language change requested: {val}")
         from switchcraft.utils.config import SwitchCraftConfig
         from switchcraft.utils.i18n import i18n
 
         # Save preference
         SwitchCraftConfig.set_user_preference("Language", val)
+        logger.debug(f"Language preference saved: {val}")
 
         # Actually update the i18n singleton
         i18n.set_language(val)
+        logger.debug(f"i18n language updated: {val}")
 
         # Immediately refresh the current view to apply language change
         # Get current tab index and reload the view
@@ -1055,17 +1079,30 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         "GREEN"
                     )
 
-            # Always call directly - Flet's update() is thread-safe
-            try:
-                _reload_app()
-            except Exception as ex:
-                logger.exception(f"Failed to reload app: {ex}")
-                # Try with run_task as fallback
-                if hasattr(self.app_page, 'run_task'):
+            # Use run_task to ensure UI updates happen on main thread
+            if hasattr(self.app_page, 'run_task'):
+                try:
+                    self.app_page.run_task(_reload_app)
+                except Exception as ex:
+                    logger.exception(f"Error in run_task for reload: {ex}")
+                    # Fallback: try direct call
                     try:
-                        self.app_page.run_task(_reload_app)
+                        _reload_app()
                     except Exception:
-                        pass
+                        self._show_snack(
+                            i18n.get("language_changed") or "Language changed. Please restart to see all changes.",
+                            "GREEN"
+                        )
+            else:
+                # No run_task, try direct call
+                try:
+                    _reload_app()
+                except Exception as ex:
+                    logger.exception(f"Failed to reload app: {ex}")
+                    self._show_snack(
+                        i18n.get("language_changed") or "Language changed. Please restart to see all changes.",
+                        "GREEN"
+                    )
         else:
             # Fallback: Show restart dialog if app reference not available
             def do_restart(e):

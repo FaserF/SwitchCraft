@@ -39,18 +39,20 @@ class StackManagerView(ft.Column, ViewMixin):
         """Build the main UI with proper padding and layout."""
         # Description text explaining the Stacks feature
         description = ft.Container(
-            content=ft.Column([
-                ft.Row([
-                    ft.Icon(ft.Icons.INFO_OUTLINE, color="BLUE_400", size=20),
-                    ft.Text(
+            content=ft.Row([
+                ft.Icon(ft.Icons.INFO_OUTLINE, color="BLUE_400", size=20),
+                ft.Container(
+                    content=ft.Text(
                         i18n.get("stacks_description") or
                         "Stacks allow you to group multiple apps together for batch deployment. "
                         "Create a stack, add apps by Winget ID or file path, then deploy them all at once to Intune.",
                         size=14,
                         color="GREY_400"
-                    )
-                ], spacing=10)
-            ]),
+                    ),
+                    expand=True,
+                    width=None
+                )
+            ], spacing=10, wrap=False),
             padding=ft.Padding.only(bottom=15),
         )
 

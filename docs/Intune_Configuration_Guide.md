@@ -191,7 +191,7 @@ All settings below use the base path:
 
 ---
 
-### Top Level Settings
+### Top-Level Settings
 
 #### 1. Debug Mode (`DebugMode_Enf`)
 - **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced/DebugMode_Enf`

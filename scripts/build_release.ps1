@@ -225,9 +225,33 @@ function Run-PyInstaller {
             exit 1
         }
     }
+
     else {
         Write-Error "Spec file not found: $SpecFile"
     }
+}
+
+function Get-InnoSetupPath {
+    $IsccPath = (Get-Command "iscc" -ErrorAction SilentlyContinue).Source
+    if ($IsccPath) {
+        Write-Host "Found Inno Setup in PATH: $IsccPath" -ForegroundColor Gray
+        return $IsccPath
+    }
+
+    # Search in common installation paths for Inno Setup (multiple versions)
+    $PossiblePaths = @(
+        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+        "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+        "${env:ProgramFiles(x86)}\Inno Setup 5\ISCC.exe",
+        "$env:ProgramFiles\Inno Setup 5\ISCC.exe"
+    )
+    foreach ($p in $PossiblePaths) {
+        if (Test-Path $p) {
+            Write-Host "Found Inno Setup at: $p" -ForegroundColor Gray
+            return $p
+        }
+    }
+    return $null
 }
 
 # --- 0. PREPARE ASSETS ---
@@ -327,29 +351,7 @@ if ($Pip) {
 # --- 5. INSTALLERS (Windows Only) ---
 if ($Installer -and $IsWinBuild) {
     Write-Host "`nBuilding Modern Installer..." -ForegroundColor Cyan
-    $IsccPath = (Get-Command "iscc" -ErrorAction SilentlyContinue).Source
-    if (-not $IsccPath) {
-        # Search in common installation paths for Inno Setup (multiple versions)
-        $PossiblePaths = @(
-            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
-            "C:\Program Files\Inno Setup 6\ISCC.exe",
-            "C:\Program Files (x86)\Inno Setup 5\ISCC.exe",
-            "C:\Program Files\Inno Setup 5\ISCC.exe",
-            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-            "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
-            "${env:ProgramFiles(x86)}\Inno Setup 5\ISCC.exe",
-            "$env:ProgramFiles\Inno Setup 5\ISCC.exe"
-        )
-        foreach ($p in $PossiblePaths) {
-            if (Test-Path $p) {
-                $IsccPath = $p
-                Write-Host "Found Inno Setup at: $IsccPath" -ForegroundColor Gray
-                break
-            }
-        }
-    } else {
-        Write-Host "Found Inno Setup in PATH: $IsccPath" -ForegroundColor Gray
-    }
+    $IsccPath = Get-InnoSetupPath
 
     if ($IsccPath) {
         $ModernExe = Join-Path $DistDir "SwitchCraft.exe"
@@ -401,26 +403,7 @@ if ($Legacy -and $IsWinBuild) {
 
     if ($Installer) {
         Write-Host "`nBuilding Legacy Installer..." -ForegroundColor Cyan
-        $IsccPath = (Get-Command "iscc" -ErrorAction SilentlyContinue).Source
-        if (-not $IsccPath) {
-            # Search in common installation paths for Inno Setup (multiple versions)
-            $PossiblePaths = @(
-                "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
-                "C:\Program Files\Inno Setup 6\ISCC.exe",
-                "C:\Program Files (x86)\Inno Setup 5\ISCC.exe",
-                "C:\Program Files\Inno Setup 5\ISCC.exe",
-                "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-                "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
-                "${env:ProgramFiles(x86)}\Inno Setup 5\ISCC.exe",
-                "$env:ProgramFiles\Inno Setup 5\ISCC.exe"
-            )
-            foreach ($p in $PossiblePaths) {
-                if (Test-Path $p) {
-                    $IsccPath = $p
-                    break
-                }
-            }
-        }
+        $IsccPath = Get-InnoSetupPath
         if ($IsccPath -and (Test-Path "switchcraft_legacy.iss")) {
             & $IsccPath "/DMyAppVersion=$AppVersion" "/DMyAppVersionNumeric=$AppVersionNumeric" "switchcraft_legacy.iss" | Out-Null
             Write-Host "Installer Created: SwitchCraft-Legacy-Setup.exe" -ForegroundColor Green

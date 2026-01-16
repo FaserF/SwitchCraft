@@ -5,8 +5,6 @@ Tests that buttons actually work when clicked.
 import pytest
 import flet as ft
 from unittest.mock import MagicMock, patch
-import inspect
-import importlib
 
 
 @pytest.fixture
@@ -28,6 +26,18 @@ def mock_page():
     return page
 
 
+
+def find_clickables(control, clickables):
+    """Recursively find all clickable controls."""
+    if hasattr(control, 'on_click') and control.on_click is not None:
+        clickables.append(control)
+    if hasattr(control, 'content'):
+        find_clickables(control.content, clickables)
+    if hasattr(control, 'controls'):
+        for child in control.controls:
+            find_clickables(child, clickables)
+
+
 def test_home_view_buttons(mock_page):
     """Test that Home View buttons work."""
     from switchcraft.gui_modern.views.home_view import ModernHomeView
@@ -38,15 +48,6 @@ def test_home_view_buttons(mock_page):
 
     view = ModernHomeView(mock_page, on_navigate=track_navigate)
 
-    # Find all clickable containers
-    def find_clickables(control, clickables):
-        if hasattr(control, 'on_click') and control.on_click is not None:
-            clickables.append(control)
-        if hasattr(control, 'content'):
-            find_clickables(control.content, clickables)
-        if hasattr(control, 'controls'):
-            for child in control.controls:
-                find_clickables(child, clickables)
 
     clickables = []
     find_clickables(view, clickables)
@@ -82,15 +83,6 @@ def test_category_view_buttons(mock_page):
 
     view = CategoryView(mock_page, "Test Category", [0, 1], track_navigate, mock_destinations)
 
-    # Find all clickable containers
-    def find_clickables(control, clickables):
-        if hasattr(control, 'on_click') and control.on_click is not None:
-            clickables.append(control)
-        if hasattr(control, 'content'):
-            find_clickables(control.content, clickables)
-        if hasattr(control, 'controls'):
-            for child in control.controls:
-                find_clickables(child, clickables)
 
     clickables = []
     find_clickables(view, clickables)
@@ -197,4 +189,4 @@ def test_intune_store_search_button(mock_page):
                 except Exception as e:
                     pass
 
-        assert True  # Just verify view was created
+        assert view is not None

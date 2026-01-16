@@ -211,17 +211,23 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     logger.exception(f"Error in _update_ui: {ex}")
                     self._show_error(f"Error updating UI: {ex}")
 
-            # Always call directly - Flet's update() is thread-safe
-            try:
-                _update_ui()
-            except Exception as ex:
-                logger.exception(f"Failed to update UI: {ex}")
-                # Try with run_task as fallback
-                if hasattr(self.app_page, 'run_task'):
+            # Use run_task as primary method to marshal UI updates to the page event loop
+            if hasattr(self.app_page, 'run_task'):
+                try:
+                    self.app_page.run_task(_update_ui)
+                except Exception as ex:
+                    logger.exception(f"Error in run_task for UI update: {ex}")
+                    # Fallback to direct call if run_task fails
                     try:
-                        self.app_page.run_task(_update_ui)
-                    except Exception:
-                        pass
+                        _update_ui()
+                    except Exception as ex2:
+                        logger.exception(f"Failed to update UI directly: {ex2}")
+            else:
+                # Fallback to direct call if run_task is not available
+                try:
+                    _update_ui()
+                except Exception as ex:
+                    logger.exception(f"Failed to update UI: {ex}")
 
         threading.Thread(target=_bg, daemon=True).start()
 

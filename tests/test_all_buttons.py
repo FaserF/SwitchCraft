@@ -29,6 +29,25 @@ def find_all_buttons_in_control(control, buttons_found):
 
 def test_all_views_have_buttons():
     """Test that all views can be instantiated and have buttons."""
+    all_buttons = collect_all_buttons()
+    
+    # Verify we found views
+    assert len(all_buttons) > 0, "No views found"
+
+    # Print summary
+    print("\n=== Button Summary ===")
+    for view_name, info in all_buttons.items():
+        if 'error' in info:
+            print(f"{view_name}: ERROR - {info['error']}")
+        else:
+            print(f"{view_name}: {info['count']} buttons")
+    
+    # Test should not return a value (pytest warning)
+    # But we keep the assertion to verify views were found
+
+
+def collect_all_buttons():
+    """Helper function to collect all buttons from all views."""
     views_dir = os.path.join(os.path.dirname(__file__), '..', 'src', 'switchcraft', 'gui_modern', 'views')
     view_files = [
         'home_view', 'settings_view', 'winget_view', 'intune_store_view',
@@ -43,6 +62,12 @@ def test_all_views_have_buttons():
     mock_page.switchcraft_app = MagicMock()
     mock_page.switchcraft_app.goto_tab = MagicMock()
     mock_page.switchcraft_app._current_tab_index = 0
+    mock_page.dialog = None
+    mock_page.end_drawer = None
+    mock_page.snack_bar = None
+    mock_page.open = MagicMock()
+    mock_page.close = MagicMock()
+    mock_page.run_task = lambda func: func()
     type(mock_page).page = property(lambda self: mock_page)
 
     all_buttons = {}
@@ -98,23 +123,12 @@ def test_all_views_have_buttons():
                 'count': 0
             }
 
-    # Verify we found views
-    assert len(all_buttons) > 0, "No views found"
-
-    # Print summary
-    print("\n=== Button Summary ===")
-    for view_name, info in all_buttons.items():
-        if 'error' in info:
-            print(f"{view_name}: ERROR - {info['error']}")
-        else:
-            print(f"{view_name}: {info['count']} buttons")
-
     return all_buttons
 
 
 def test_all_buttons_have_handlers():
     """Test that all buttons have on_click handlers."""
-    all_buttons = test_all_views_have_buttons()
+    all_buttons = collect_all_buttons()
 
     buttons_without_handlers = []
 
@@ -135,14 +149,16 @@ def test_all_buttons_have_handlers():
         for item in buttons_without_handlers:
             print(f"{item['view']}: {item['text']}")
 
-    # Allow some buttons without handlers (e.g., disabled buttons)
-    # But log them for review
-    assert True  # Don't fail, just report
+    # Assert that no buttons are without handlers
+    assert not buttons_without_handlers, f"Buttons without handlers: {buttons_without_handlers}"
 
 
 def test_button_handlers_are_callable():
     """Test that all button handlers are callable."""
-    all_buttons = test_all_views_have_buttons()
+    all_buttons = collect_all_buttons()
+    
+    if not all_buttons:
+        pytest.skip("No views found to test")
 
     invalid_handlers = []
 
@@ -193,6 +209,12 @@ def test_view_buttons_work(view_name, view_file):
     mock_page.switchcraft_app = MagicMock()
     mock_page.switchcraft_app.goto_tab = MagicMock()
     mock_page.switchcraft_app._current_tab_index = 0
+    mock_page.dialog = None
+    mock_page.end_drawer = None
+    mock_page.snack_bar = None
+    mock_page.open = MagicMock()
+    mock_page.close = MagicMock()
+    mock_page.run_task = lambda func: func()
     type(mock_page).page = property(lambda self: mock_page)
 
     try:
@@ -220,6 +242,10 @@ def test_view_buttons_work(view_name, view_file):
         buttons = []
         find_all_buttons_in_control(view, buttons)
 
+        # Verify buttons is a list and contains elements
+        assert isinstance(buttons, list), "buttons should be a list"
+        assert len(buttons) > 0, f"View {view_name} should have at least one button"
+
         # Test that buttons can be clicked
         for button in buttons:
             if hasattr(button, 'on_click') and button.on_click is not None:
@@ -237,7 +263,7 @@ def test_view_buttons_work(view_name, view_file):
                     # But log it
                     print(f"Button handler failed in {view_name}: {e}")
 
-        assert len(buttons) >= 0  # At least the view was created
+        assert view is not None
 
     except Exception as e:
         pytest.skip(f"Could not test {view_name}: {e}")

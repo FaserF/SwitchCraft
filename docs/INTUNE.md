@@ -15,7 +15,7 @@ Pro-Users can enable the **"All-in-One"** button in the Analyzer result pane to 
 ## ⚙️ Configuration & Settings
 
 SwitchCraft supports extensive configuration via the GUI or Registry/GPO for enterprise environments.
-w
+
 > [!IMPORTANT]
 > **Intune OMA-URI Configuration**: For detailed instructions on configuring Intune Custom Profiles (OMA-URI), please refer to the **[Intune Configuration Guide](Intune_Configuration_Guide.md)**.
 > **Critical**: Ensure you use the **String (XML)** Data Type for all ADMX-backed policies.
