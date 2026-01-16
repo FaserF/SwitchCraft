@@ -54,6 +54,12 @@ jobs:
           # Update file_version_info.txt
           python .github/scripts/update_version_info.py "$VERSION"
 
+          # Update .iss files (Inno Setup installer scripts)
+          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$VERSION\"/" switchcraft_modern.iss
+          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$VERSION\"/" switchcraft_modern.iss
+          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$VERSION\"/" switchcraft_legacy.iss
+          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$VERSION\"/" switchcraft_legacy.iss
+
       - name: Generate Changelog
         id: changelog
         run: |
@@ -86,7 +92,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt
+          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft_modern.iss switchcraft_legacy.iss
 
           # Only commit if there are changes
           if ! git diff --cached --quiet; then
@@ -141,8 +147,15 @@ jobs:
           sed -i "s/__version__ = \".*\"/__version__ = \"$DEV_VERSION\"/" src/switchcraft/__init__.py
           python .github/scripts/update_version_info.py "$DEV_VERSION"
 
+          # Update .iss files (Inno Setup installer scripts) - keep base version without -dev suffix for installer
+          BASE_VERSION=$(echo $DEV_VERSION | sed 's/-dev$//')
+          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$BASE_VERSION\"/" switchcraft_modern.iss
+          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_modern.iss
+          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$BASE_VERSION\"/" switchcraft_legacy.iss
+          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
+
           # Commit
-          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt
+          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft_modern.iss switchcraft_legacy.iss
           git commit -m "chore: bump version to $DEV_VERSION for development [skip ci]"
           git push origin main
 

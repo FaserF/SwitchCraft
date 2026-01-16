@@ -329,13 +329,34 @@ class ModernWingetView(ft.Row, ViewMixin):
     def _load_details(self, short_info):
         logger.info(f"Loading details for package: {short_info.get('Id', 'Unknown')}")
 
-        # Show loading immediately
-        self.details_area.controls.clear()
-        self.details_area.controls.append(ft.ProgressBar())
+        # Create new loading area immediately
+        loading_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+        loading_area.controls.append(ft.ProgressBar())
+        loading_area.controls.append(ft.Text("Loading package details...", color="GREY_500", italic=True))
+        self.details_area = loading_area
+
+        # CRITICAL: Re-assign content to force container refresh
+        self.right_pane.content = self.details_area
         self.right_pane.visible = True
 
-        # Force update
-        self.update()
+        # Force update of details area, row, and page
+        try:
+            self.details_area.update()
+        except Exception as ex:
+            logger.debug(f"Error updating details_area: {ex}")
+        try:
+            self.right_pane.update()
+        except Exception as ex:
+            logger.debug(f"Error updating right_pane: {ex}")
+        try:
+            self.update()
+        except Exception as ex:
+            logger.debug(f"Error updating row: {ex}")
+        if hasattr(self, 'app_page'):
+            try:
+                self.app_page.update()
+            except Exception as ex:
+                logger.debug(f"Error updating app_page: {ex}")
 
         def _fetch():
             try:
@@ -353,8 +374,8 @@ class ModernWingetView(ft.Row, ViewMixin):
                     except Exception as ex:
                         logger.exception(f"Error in _show_details_ui: {ex}")
                         # Show error in UI
-                        self.details_area.controls.clear()
-                        self.details_area.controls.append(
+                        error_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+                        error_area.controls.append(
                             ft.Container(
                                 content=ft.Column([
                                     ft.Icon(ft.Icons.ERROR, color="RED", size=40),
@@ -364,7 +385,17 @@ class ModernWingetView(ft.Row, ViewMixin):
                                 alignment=ft.Alignment(0, 0)
                             )
                         )
-                        self.update()
+                        self.details_area = error_area
+                        self.right_pane.content = self.details_area
+                        self.right_pane.visible = True
+                        try:
+                            self.details_area.update()
+                            self.right_pane.update()
+                            self.update()
+                            if hasattr(self, 'app_page'):
+                                self.app_page.update()
+                        except Exception:
+                            pass
 
                 if hasattr(self.app_page, 'run_task'):
                     try:
@@ -385,8 +416,8 @@ class ModernWingetView(ft.Row, ViewMixin):
 
                 # Update UI on main thread
                 def _show_error_ui():
-                    self.details_area.controls.clear()
-                    self.details_area.controls.append(
+                    error_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+                    error_area.controls.append(
                         ft.Container(
                             content=ft.Column([
                                 ft.Icon(ft.Icons.ERROR, color="RED", size=40),
@@ -397,7 +428,17 @@ class ModernWingetView(ft.Row, ViewMixin):
                             alignment=ft.Alignment(0, 0)
                         )
                     )
-                    self.update()
+                    self.details_area = error_area
+                    self.right_pane.content = self.details_area
+                    self.right_pane.visible = True
+                    try:
+                        self.details_area.update()
+                        self.right_pane.update()
+                        self.update()
+                        if hasattr(self, 'app_page'):
+                            self.app_page.update()
+                    except Exception:
+                        pass
 
                 if hasattr(self.app_page, 'run_task'):
                     self.app_page.run_task(_show_error_ui)

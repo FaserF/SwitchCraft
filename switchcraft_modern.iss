@@ -5,8 +5,12 @@
 ; Debug Mode: /DEBUGMODE=1 (enables verbose logging)
 
 #define MyAppName "SwitchCraft"
-#define MyAppVersion "2025.12.4"
-#define MyAppVersionNumeric "2025.12.4"
+#ifndef MyAppVersion
+  #define MyAppVersion "2026.1.1"
+#endif
+#ifndef MyAppVersionNumeric
+  #define MyAppVersionNumeric "2026.1.1"
+#endif
 #define MyAppPublisher "FaserF"
 #define MyAppURL "https://github.com/FaserF/SwitchCraft"
 #define MyAppExeName "SwitchCraft.exe"

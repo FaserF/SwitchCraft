@@ -147,16 +147,20 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     else:
                         apps = self.intune_service.list_apps(token) # Top 50?
 
-                    result_holder["apps"] = apps
+                    result_holder["apps"] = apps if apps else []
                     result_holder["completed"] = True
                 except requests.exceptions.Timeout:
-                    result_holder["error"] = "Request timed out. The server took too long to respond. Please try again."
+                    result_holder["error"] = "Request timed out after 30 seconds. Please check your connection and try again."
                     result_holder["completed"] = True
                 except requests.exceptions.RequestException as ex:
-                    result_holder["error"] = f"Network error: {str(ex)}"
+                    result_holder["error"] = f"Network error: {str(ex)}. Please check your connection."
                     result_holder["completed"] = True
                 except Exception as ex:
-                    result_holder["error"] = f"Error: {str(ex)}"
+                    error_msg = str(ex)
+                    if "timeout" in error_msg.lower():
+                        result_holder["error"] = "Request timed out. Please check your connection and try again."
+                    else:
+                        result_holder["error"] = f"Error: {error_msg}"
                     result_holder["completed"] = True
 
             # Start search in background thread

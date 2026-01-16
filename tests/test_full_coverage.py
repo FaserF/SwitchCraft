@@ -66,6 +66,7 @@ def test_intune_packaging(mock_popen, mock_is_avail, intune_service, tmp_path):
     process_mock.stdout = ["Output line 1\n", "Output line 2\n"]
     process_mock.returncode = 0
     process_mock.wait.return_value = None
+    process_mock.__enter__.return_value = process_mock
     mock_popen.return_value = process_mock
 
     # Correct args: source_folder, setup_file, output_folder

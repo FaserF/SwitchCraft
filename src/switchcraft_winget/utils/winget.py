@@ -131,7 +131,17 @@ class WingetHelper:
             cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script]
             startupinfo = self._get_startup_info()
 
-            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo, timeout=45)
+            # Hide CMD window on Windows
+            kwargs = {}
+            if startupinfo:
+                kwargs['startupinfo'] = startupinfo
+            import sys
+            if sys.platform == "win32":
+                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                else:
+                    kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW constant
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=45, **kwargs)
 
             if proc.returncode != 0:
                 logger.debug(f"PowerShell search failed: {proc.stderr[:200] if proc.stderr else 'No error'}")
@@ -317,7 +327,17 @@ class WingetHelper:
             "--accept-source-agreements"
         ]
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True)
+            startupinfo = self._get_startup_info()
+            kwargs = {}
+            if startupinfo:
+                kwargs['startupinfo'] = startupinfo
+            import sys
+            if sys.platform == "win32":
+                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                else:
+                    kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW constant
+            proc = subprocess.run(cmd, capture_output=True, text=True, **kwargs)
             if proc.returncode != 0:
                 logger.error(f"Winget install failed: {proc.stderr}")
                 return False
@@ -330,7 +350,17 @@ class WingetHelper:
         """Download a package installer to dest_dir. Returns path to installer if found."""
         cmd = ["winget", "download", "--id", package_id, "--dir", str(dest_dir), "--accept-source-agreements", "--accept-package-agreements"]
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True)
+            startupinfo = self._get_startup_info()
+            kwargs = {}
+            if startupinfo:
+                kwargs['startupinfo'] = startupinfo
+            import sys
+            if sys.platform == "win32":
+                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                else:
+                    kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW constant
+            proc = subprocess.run(cmd, capture_output=True, text=True, **kwargs)
             if proc.returncode != 0:
                 logger.error(f"Winget download failed: {proc.stderr}")
                 return None
@@ -351,7 +381,17 @@ class WingetHelper:
              cmd = ["winget", "search", query, "--accept-source-agreements"]
              startupinfo = self._get_startup_info()
 
-             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", startupinfo=startupinfo)
+             # Hide CMD window on Windows
+             kwargs = {}
+             if startupinfo:
+                 kwargs['startupinfo'] = startupinfo
+             import sys
+             if sys.platform == "win32":
+                 if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                     kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                 else:
+                     kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW constant
+             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", **kwargs)
              if proc.returncode != 0:
                  return []
 

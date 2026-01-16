@@ -20,6 +20,10 @@
     "**/venv/**",
     "**/__pycache__/**"
   ],
+  "schedule": [
+    "before 4am on monday"
+  ],
+  "timezone": "Europe/Berlin",
   "packageRules": [
     {
       "matchManagers": [
@@ -32,6 +36,16 @@
       ],
       "groupName": "flet packages",
       "description": "Group flet and flet-desktop updates together to keep them in sync"
+    },
+    {
+      "matchManagers": [
+        "pep621",
+        "pip_requirements"
+      ],
+      "matchPackageNames": [
+        "pyinstaller"
+      ],
+      "description": "PyInstaller build dependency - ensure updates are detected"
     },
     {
       "matchManagers": [

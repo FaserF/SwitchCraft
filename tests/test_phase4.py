@@ -61,6 +61,7 @@ class TestPhase4Features(unittest.TestCase):
         mock_proc.returncode = 0
         mock_proc.stdout = ["Package created\n"] # Iterable
         mock_proc.wait.return_value = None
+        mock_proc.__enter__.return_value = mock_proc
         mock_popen.return_value = mock_proc
 
         output_dir = Path(self.test_dir) / "output"

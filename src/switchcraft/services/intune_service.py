@@ -106,7 +106,7 @@ class IntuneService:
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
         try:
-            process = subprocess.Popen(
+            with subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -115,19 +115,21 @@ class IntuneService:
                 startupinfo=startupinfo,
                 bufsize=1,
                 universal_newlines=True
-            )
+            ) as process:
 
-            full_output = []
+                full_output = []
 
-            # Stream output
-            for line in process.stdout:
-                line_str = line
-                full_output.append(line_str)
-                # If a callback is provided (e.g. for UI)
-                if progress_callback:
-                    progress_callback(line_str)
+                # Stream output
+                for line in process.stdout:
+                    line_str = line
+                    full_output.append(line_str)
+                    # If a callback is provided (e.g. for UI)
+                    if progress_callback:
+                        progress_callback(line_str)
 
-            process.wait()
+                # No need to call process.wait() explicitly as 'with' handles it,
+                # but we can do it if we want the return code check immediately after loop
+                # The loop ends when stdout closes (process exit usually)
 
             output_str = "".join(full_output)
 
@@ -385,7 +387,7 @@ class IntuneService:
             params["$select"] = "id,displayName,publisher,appType,largeIcon,iconUrl,logoUrl"
 
         try:
-            resp = requests.get(url, headers=headers, params=params, timeout=30)
+            resp = requests.get(url, headers=headers, params=params, timeout=30, stream=False)
             resp.raise_for_status()
             data = resp.json()
             return data.get("value", [])
@@ -466,9 +468,15 @@ class IntuneService:
         base_url = f"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{app_id}"
 
         try:
-            resp = requests.get(base_url, headers=headers, timeout=30)
+            resp = requests.get(base_url, headers=headers, timeout=30, stream=False)
             resp.raise_for_status()
             return resp.json()
+        except requests.exceptions.Timeout:
+            logger.error(f"Request timed out while getting app details for {app_id}")
+            raise Exception("Request timed out. The server took too long to respond.")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error getting app details: {e}")
+            raise Exception(f"Network error: {str(e)}")
         except Exception as e:
             logger.error(f"Failed to get app details: {e}")
             raise e

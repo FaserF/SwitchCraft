@@ -32,6 +32,7 @@ class TestIntuneService(unittest.TestCase):
         process_mock.stdout = ["Line 1\n", "Line 2\n"] # Iterable
         process_mock.returncode = 0
         process_mock.wait.return_value = None
+        process_mock.__enter__.return_value = process_mock
 
         mock_popen.return_value = process_mock
 

@@ -32,6 +32,13 @@ class SessionLogHandler(logging.Handler):
             filename = f"SwitchCraft_Session_{timestamp}.log"
             self.current_log_path = log_dir / filename
 
+            # Close existing handler if it exists
+            if self.file_handler:
+                try:
+                    self.file_handler.close()
+                except Exception:
+                    pass
+
             # Create FileHandler
             self.file_handler = logging.FileHandler(self.current_log_path, encoding='utf-8')
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
