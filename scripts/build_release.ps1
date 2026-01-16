@@ -152,8 +152,9 @@ Write-Host "Project Root: $RepoRoot" -ForegroundColor Gray
 
 # --- Version Extraction ---
 $PyProjectFile = Join-Path $RepoRoot "pyproject.toml"
-$AppVersion = "0.0.0"
-$AppVersionNumeric = "0.0.0"
+# Fallback version if extraction fails (should match current release cycle)
+$AppVersion = "2026.1.2"
+$AppVersionNumeric = "2026.1.2"
 
 if (Test-Path $PyProjectFile) {
     try {
@@ -162,10 +163,14 @@ if (Test-Path $PyProjectFile) {
             $AppVersion = $Matches[1]
             $AppVersionNumeric = $AppVersion -replace '-.*', '' # Remove suffixes like -dev for numeric parsing
             Write-Host "Detected Version: $AppVersion (Numeric base: $AppVersionNumeric)" -ForegroundColor Cyan
+        } else {
+            Write-Warning "Could not parse version from pyproject.toml, using fallback: $AppVersion"
         }
     } catch {
-        Write-Warning "Failed to extract version from pyproject.toml: $_"
+        Write-Warning "Failed to extract version from pyproject.toml: $_, using fallback: $AppVersion"
     }
+} else {
+    Write-Warning "pyproject.toml not found, using fallback version: $AppVersion"
 }
 
 
@@ -324,8 +329,26 @@ if ($Installer -and $IsWinBuild) {
     Write-Host "`nBuilding Modern Installer..." -ForegroundColor Cyan
     $IsccPath = (Get-Command "iscc" -ErrorAction SilentlyContinue).Source
     if (-not $IsccPath) {
-        $PossiblePaths = @("C:\Program Files (x86)\Inno Setup 6\ISCC.exe", "C:\Program Files\Inno Setup 6\ISCC.exe")
-        foreach ($p in $PossiblePaths) { if (Test-Path $p) { $IsccPath = $p; break } }
+        # Search in common installation paths for Inno Setup (multiple versions)
+        $PossiblePaths = @(
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            "C:\Program Files\Inno Setup 6\ISCC.exe",
+            "C:\Program Files (x86)\Inno Setup 5\ISCC.exe",
+            "C:\Program Files\Inno Setup 5\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 5\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 5\ISCC.exe"
+        )
+        foreach ($p in $PossiblePaths) {
+            if (Test-Path $p) {
+                $IsccPath = $p
+                Write-Host "Found Inno Setup at: $IsccPath" -ForegroundColor Gray
+                break
+            }
+        }
+    } else {
+        Write-Host "Found Inno Setup in PATH: $IsccPath" -ForegroundColor Gray
     }
 
     if ($IsccPath) {
@@ -349,6 +372,25 @@ if ($Installer -and $IsWinBuild) {
     }
     else {
         Write-Warning "Inno Setup not found. Skipping installers."
+        Write-Host "`nTo build installers, please install Inno Setup:" -ForegroundColor Yellow
+        Write-Host "  - Download from: https://jrsoftware.org/isdl.php" -ForegroundColor Yellow
+        Write-Host "  - Or install via winget: winget install JRSoftware.InnoSetup" -ForegroundColor Yellow
+        Write-Host "  - Or install via chocolatey: choco install innosetup" -ForegroundColor Yellow
+
+        # Offer to install via winget if available
+        $wingetAvailable = (Get-Command "winget" -ErrorAction SilentlyContinue)
+        if ($wingetAvailable) {
+            $response = Read-Host "`nWould you like to install Inno Setup via winget now? (y/N)"
+            if ($response -eq 'y' -or $response -eq 'Y') {
+                Write-Host "Installing Inno Setup via winget..." -ForegroundColor Cyan
+                try {
+                    winget install --id JRSoftware.InnoSetup --silent --accept-package-agreements --accept-source-agreements
+                    Write-Host "Inno Setup installed successfully. Please run the build script again." -ForegroundColor Green
+                } catch {
+                    Write-Warning "Failed to install Inno Setup via winget: $_"
+                }
+            }
+        }
     }
 }
 
@@ -361,8 +403,23 @@ if ($Legacy -and $IsWinBuild) {
         Write-Host "`nBuilding Legacy Installer..." -ForegroundColor Cyan
         $IsccPath = (Get-Command "iscc" -ErrorAction SilentlyContinue).Source
         if (-not $IsccPath) {
-            $PossiblePaths = @("C:\Program Files (x86)\Inno Setup 6\ISCC.exe", "C:\Program Files\Inno Setup 6\ISCC.exe")
-            foreach ($p in $PossiblePaths) { if (Test-Path $p) { $IsccPath = $p; break } }
+            # Search in common installation paths for Inno Setup (multiple versions)
+            $PossiblePaths = @(
+                "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+                "C:\Program Files\Inno Setup 6\ISCC.exe",
+                "C:\Program Files (x86)\Inno Setup 5\ISCC.exe",
+                "C:\Program Files\Inno Setup 5\ISCC.exe",
+                "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+                "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+                "${env:ProgramFiles(x86)}\Inno Setup 5\ISCC.exe",
+                "$env:ProgramFiles\Inno Setup 5\ISCC.exe"
+            )
+            foreach ($p in $PossiblePaths) {
+                if (Test-Path $p) {
+                    $IsccPath = $p
+                    break
+                }
+            }
         }
         if ($IsccPath -and (Test-Path "switchcraft_legacy.iss")) {
             & $IsccPath "/DMyAppVersion=$AppVersion" "/DMyAppVersionNumeric=$AppVersionNumeric" "switchcraft_legacy.iss" | Out-Null

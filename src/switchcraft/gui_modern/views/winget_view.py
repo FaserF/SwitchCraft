@@ -240,7 +240,9 @@ class ModernWingetView(ft.Row, ViewMixin):
                 if result_holder["error"]:
                     raise result_holder["error"]
 
-                self._show_list(result_holder["data"], filter_by, query)
+                # Always call _show_list, even if data is empty
+                data = result_holder["data"] if result_holder["data"] is not None else []
+                self._show_list(data, filter_by, query)
             except Exception as ex:
                 logger.error(f"Winget search error: {ex}")
                 self.search_results.controls.clear()
@@ -272,7 +274,11 @@ class ModernWingetView(ft.Row, ViewMixin):
             filter_by (str): Which field to filter on; one of "all", "name", "id", or "publisher". Defaults to "all".
             query (str): Case-insensitive query string used when a non-"all" filter is selected. If empty, no filtering is applied.
         """
-        logger.debug(f"Showing Winget results: count={len(results) if results else 0}, filter={filter_by}, query='{query}'")
+        # Ensure results is a list
+        if results is None:
+            results = []
+
+        logger.debug(f"Showing Winget results: count={len(results)}, filter={filter_by}, query='{query}'")
         self.search_results.controls.clear()
 
         # Filter results based on selected filter
@@ -676,9 +682,34 @@ class ModernWingetView(ft.Row, ViewMixin):
         detail_controls.append(ft.Container(height=20))
         detail_controls.append(ft.Text(i18n.get("winget_tip_autoupdate") or "Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color="GREY", italic=True))
 
-        # Update in place
-        self.details_area.controls = detail_controls
-        self.update()
+        # CRITICAL: Create a NEW Column instance with all controls
+        # This forces Flet to recognize the change
+        new_details_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+        new_details_area.controls = detail_controls
+        self.details_area = new_details_area
+
+        # CRITICAL: Re-assign content to force container refresh
+        self.right_pane.content = self.details_area
+        self.right_pane.visible = True
+
+        # Force update of details area, row, and page
+        try:
+            self.details_area.update()
+        except Exception as ex:
+            logger.debug(f"Error updating details_area: {ex}")
+        try:
+            self.right_pane.update()
+        except Exception as ex:
+            logger.debug(f"Error updating right_pane: {ex}")
+        try:
+            self.update()
+        except Exception as ex:
+            logger.debug(f"Error updating row: {ex}")
+        if hasattr(self, 'app_page'):
+            try:
+                self.app_page.update()
+            except Exception as ex:
+                logger.debug(f"Error updating app_page: {ex}")
 
         logger.info(f"Details UI displayed for package: {info.get('Name', 'Unknown')}")
 

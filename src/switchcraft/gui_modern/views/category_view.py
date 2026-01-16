@@ -89,7 +89,7 @@ class CategoryView(ft.Container):
             content=ft.Column([
                 ft.Container(
                     content=ft.Icon(icon, size=40, color="PRIMARY"),
-                    alignment=ft.alignment.center,
+                    alignment=ft.Alignment(0, 0),
                     height=50,
                 ),
                 ft.Text(label, size=16, weight=ft.FontWeight.BOLD, color="ON_SURFACE", text_align=ft.TextAlign.CENTER),

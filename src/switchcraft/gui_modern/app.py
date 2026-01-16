@@ -162,13 +162,14 @@ class ModernApp:
                 # Close drawer
                 logger.debug("Closing notification drawer")
                 try:
+                    drawer_ref = self.page.end_drawer  # Save reference before clearing
                     # Method 1: Set open to False first
-                    if hasattr(self.page.end_drawer, 'open'):
-                        self.page.end_drawer.open = False
+                    if drawer_ref and hasattr(drawer_ref, 'open'):
+                        drawer_ref.open = False
                     # Method 2: Use page.close if available
-                    if hasattr(self.page, 'close'):
+                    if hasattr(self.page, 'close') and drawer_ref:
                         try:
-                            self.page.close(self.page.end_drawer)
+                            self.page.close(drawer_ref)
                         except Exception:
                             pass
                     # Method 3: Remove drawer entirely
@@ -184,7 +185,24 @@ class ModernApp:
             else:
                 # Open drawer
                 logger.debug("Opening notification drawer")
-                self._open_notifications_drawer(e)
+                try:
+                    self._open_notifications_drawer(e)
+                    # Force update to ensure drawer is visible
+                    self.page.update()
+                except Exception as ex:
+                    logger.exception(f"Error opening notification drawer: {ex}")
+                    # Try again with simpler approach
+                    try:
+                        self._open_notifications_drawer(e)
+                        self.page.update()
+                    except Exception as ex2:
+                        logger.error(f"Failed to open drawer after retry: {ex2}")
+                        self.page.snack_bar = ft.SnackBar(
+                            content=ft.Text(f"Failed to open notifications: {ex2}"),
+                            bgcolor="RED"
+                        )
+                        self.page.snack_bar.open = True
+                        self.page.update()
         except Exception as ex:
             logger.exception(f"Error toggling notification drawer: {ex}")
             # Try to open anyway
@@ -792,8 +810,9 @@ class ModernApp:
             )
 
     def build_ui(self):
-        # Keep loading screen visible during build - clear only at the end
-        # Don't clear page.clean() here - we'll replace the loading screen with the actual UI
+        # IMPORTANT: Keep loading screen visible during build
+        # We will replace it at the end, but don't clear immediately
+        # This ensures the loading screen is visible while UI is being built
 
         """
         Constructs and attaches the main application UI: navigation rail (including dynamic addon destinations), sidebar, content area, banner, and global progress wrapper.
@@ -1203,6 +1222,12 @@ class ModernApp:
                     self.page.update()
                     drawer.open = True
                     self.page.update()
+
+                    # Ensure drawer is actually open
+                    if not drawer.open:
+                        logger.warning("Drawer open flag is False, forcing it to True")
+                        drawer.open = True
+                        self.page.update()
         except Exception as ex:
             logger.exception(f"Error toggling navigation drawer: {ex}")
 
@@ -1795,6 +1820,8 @@ def main(page: ft.Page):
     # Add restart method to page for injection if needed, or pass app instance.
     app = ModernApp(page)
     page._show_restart_countdown = app._show_restart_countdown
+    # Make app accessible to views via page
+    page.switchcraft_app = app
 
 if __name__ == "__main__":
     assets_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")

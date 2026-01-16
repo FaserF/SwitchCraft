@@ -128,8 +128,16 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         query = self.search_field.value
         self.results_list.controls.clear()
         self.results_list.controls.append(ft.ProgressBar())
-        self.results_list.controls.append(ft.Text("Searching...", color="GREY_500", italic=True))
-        self.update()
+        self.results_list.controls.append(ft.Text(i18n.get("searching") or "Searching...", color="GREY_500", italic=True))
+        try:
+            self.update()
+        except Exception as ex:
+            logger.debug(f"Error updating view in _run_search: {ex}")
+            # Try updating just the results list if view update fails
+            try:
+                self.results_list.update()
+            except Exception:
+                pass
 
         def _bg():
             result_holder = {"apps": None, "error": None, "completed": False}
@@ -174,29 +182,46 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             if search_thread.is_alive():
                 result_holder["error"] = "Search timed out after 60 seconds. Please check your connection and try again."
                 result_holder["completed"] = True
+                # Force stop the thread (it's daemon, so it will be killed when main thread exits)
+                logger.warning("Search thread timed out and is still running")
 
-            # Wait a bit more to ensure result_holder is set
+            # Wait a bit more to ensure result_holder is set (max 1 second)
             import time
             timeout_count = 0
             while not result_holder["completed"] and timeout_count < 10:
                 time.sleep(0.1)
                 timeout_count += 1
 
-            # Update UI on main thread
-            if hasattr(self.app_page, 'run_task'):
-                if result_holder["error"]:
-                    self.app_page.run_task(lambda: self._show_error(result_holder["error"]))
-                elif result_holder["apps"] is not None:
-                    self.app_page.run_task(lambda: self._update_list(result_holder["apps"]))
-                else:
-                    self.app_page.run_task(lambda: self._show_error("Search failed: No results and no error message."))
-            else:
-                if result_holder["error"]:
-                    self._show_error(result_holder["error"])
-                elif result_holder["apps"] is not None:
-                    self._update_list(result_holder["apps"])
-                else:
-                    self._show_error("Search failed: No results and no error message.")
+            # Ensure completed is set
+            if not result_holder["completed"]:
+                result_holder["completed"] = True
+                if not result_holder["error"] and result_holder["apps"] is None:
+                    result_holder["error"] = "Search failed: No response received."
+
+            # Update UI on main thread - MUST use page.update() directly, not run_task
+            def _update_ui():
+                try:
+                    if result_holder["error"]:
+                        self._show_error(result_holder["error"])
+                    elif result_holder["apps"] is not None:
+                        self._update_list(result_holder["apps"])
+                    else:
+                        self._show_error("Search failed: No results and no error message.")
+                except Exception as ex:
+                    logger.exception(f"Error in _update_ui: {ex}")
+                    self._show_error(f"Error updating UI: {ex}")
+
+            # Always call directly - Flet's update() is thread-safe
+            try:
+                _update_ui()
+            except Exception as ex:
+                logger.exception(f"Failed to update UI: {ex}")
+                # Try with run_task as fallback
+                if hasattr(self.app_page, 'run_task'):
+                    try:
+                        self.app_page.run_task(_update_ui)
+                    except Exception:
+                        pass
 
         threading.Thread(target=_bg, daemon=True).start()
 
