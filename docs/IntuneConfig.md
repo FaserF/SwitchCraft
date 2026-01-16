@@ -17,19 +17,19 @@ You **must** first ingest the ADMX file so Intune understands the policy structu
 | Setting | OMA-URI Suffix | Data Type | Value / Description |
 | :--- | :--- | :--- | :--- |
 | **Debug Mode** | `.../DebugMode_Enf` | Integer | `0` (Disabled), `1` (Enabled) |
-| **Update Channel** | `...~Updates_Enf/UpdateChannel_Enf` | String | `<enabled/>` + `<data id="UpdateChannelDropdown" value="stable"/>` |
+| **Update Channel** | `...~Updates_Enf/UpdateChannel_Enf` | String | `<enabled/>`<br>`<data id="UpdateChannelDropdown" value="stable"/>` |
 | **Enable Winget** | `...~General_Enf/EnableWinget_Enf` | Integer | `0` (Disabled), `1` (Enabled) |
-| **Language** | `...~General_Enf/Language_Enf` | String | `<enabled/>` + `<data id="LanguageDropdown" value="en"/>` |
-| **Git Repo Path** | `...~General_Enf/GitRepoPath_Enf` | String | `<enabled/>` + `<data id="GitRepoPathBox" value="C:\Path"/>` |
-| **Company Name** | `...~General_Enf/CompanyName_Enf` | String | `<enabled/>` + `<data id="CompanyNameBox" value="My Company"/>` |
-| **AI Provider** | `...~AI_Enf/AIProvider_Enf` | String | `<enabled/>` + `<data id="AIProviderDropdown" value="local"/>` |
-| **AI API Key** | `...~AI_Enf/AIKey_Enf` | String | `<enabled/>` + `<data id="AIKeyBox" value="..."/>` |
+| **Language** | `...~General_Enf/Language_Enf` | String | `<enabled/>`<br>`<data id="LanguageDropdown" value="en"/>` |
+| **Git Repo Path** | `...~General_Enf/GitRepoPath_Enf` | String | `<enabled/>`<br>`<data id="GitRepoPathBox" value="C:\Path"/>` |
+| **Company Name** | `...~General_Enf/CompanyName_Enf` | String | `<enabled/>`<br>`<data id="CompanyNameBox" value="My Company"/>` |
+| **AI Provider** | `...~AI_Enf/AIProvider_Enf` | String | `<enabled/>`<br>`<data id="AIProviderDropdown" value="local"/>` |
+| **AI API Key** | `...~AI_Enf/AIKey_Enf` | String | `<enabled/>`<br>`<data id="AIKeyBox" value="..."/>` |
 | **Sign Scripts** | `...~Security_Enf/SignScripts_Enf` | Integer | `0` (Disabled), `1` (Enabled) |
-| **Cert Thumbprint** | `...~Security_Enf/CodeSigningCertThumbprint_Enf` | String | `<enabled/>` + `<data id="CodeSigningCertThumbprintBox" value="..."/>` |
-| **Graph Tenant ID** | `...~Intune_Enf/GraphTenantId_Enf` | String | `<enabled/>` + `<data id="GraphTenantIdBox" value="..."/>` |
-| **Graph Client ID** | `...~Intune_Enf/GraphClientId_Enf` | String | `<enabled/>` + `<data id="GraphClientIdBox" value="..."/>` |
-| **Graph Client Secret** | `...~Intune_Enf/GraphClientSecret_Enf` | String | `<enabled/>` + `<data id="GraphClientSecretBox" value="..."/>` |
-| **Intune Test Groups** | `...~Intune_Enf/IntuneTestGroups_Enf` | String | `<enabled/>` + `<data id="IntuneTestGroupsBox" value="..."/>` |
+| **Cert Thumbprint** | `...~Security_Enf/CodeSigningCertThumbprint_Enf` | String | `<enabled/>`<br>`<data id="CodeSigningCertThumbprintBox" value="..."/>` |
+| **Graph Tenant ID** | `...~Intune_Enf/GraphTenantId_Enf` | String | `<enabled/>`<br>`<data id="GraphTenantIdBox" value="..."/>` |
+| **Graph Client ID** | `...~Intune_Enf/GraphClientId_Enf` | String | `<enabled/>`<br>`<data id="GraphClientIdBox" value="..."/>` |
+| **Graph Client Secret** | `...~Intune_Enf/GraphClientSecret_Enf` | String | `<enabled/>`<br>`<data id="GraphClientSecretBox" value="..."/>` |
+| **Intune Test Groups** | `...~Intune_Enf/IntuneTestGroups_Enf` | String | `<enabled/>`<br>`<data id="IntuneTestGroupsBox" value="..."/>` |
 
 > [!IMPORTANT]
 > **String Policies** in ADMX are complex XML strings, not simple text values. See the example block below for the correct format.

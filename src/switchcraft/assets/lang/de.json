@@ -942,6 +942,7 @@
     "select_group": "Gruppe auswählen:",
     "intent": "Zuweisungsart",
     "assign": "Zuweisen",
+    "status_failed": "Fehlgeschlagen",
     "desc_update_settings": "Verwalte Update-Kanäle und Versionseinstellungen.",
     "desc_automation": "Automatisiere deine Verteilungsaufgaben und Zeitpläne.",
     "desc_help": "Dokumentation, Tutorials und Support-Ressourcen.",

@@ -5,6 +5,8 @@ export default defineConfig({
     title: "SwitchCraft",
     description: "The Ultimate Packaging Assistant for IT Professionals - Streamline your application packaging workflow with smart analysis, Intune integration, and AI assistance.",
 
+    base: process.env.BASE_URL || '/SwitchCraft/',
+
     // English only
     lang: 'en-US',
 

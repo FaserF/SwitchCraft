@@ -27,7 +27,6 @@ hidden_imports = [
     'switchcraft.gui_modern.views.script_upload_view',
     'switchcraft.gui_modern.views.helper_view',
     'switchcraft.gui_modern.views.macos_wizard_view',
-    'switchcraft.gui_modern.views.addon_manager_view',
     'switchcraft.gui_modern.views.group_manager_view',
     'switchcraft.gui_modern.views.stack_manager_view',
     'switchcraft.gui_modern.views.detection_tester_view',

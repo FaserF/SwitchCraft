@@ -60,10 +60,7 @@ def test_instantiate_group_manager_view(page):
     view = GroupManagerView(page)
     assert isinstance(view, ft.Column)
 
-def test_instantiate_addon_manager_view(page):
-    from switchcraft.gui_modern.views.addon_manager_view import AddonManagerView
-    view = AddonManagerView(page)
-    assert isinstance(view, ft.Column)
+
 
 def test_instantiate_settings_view(page):
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView

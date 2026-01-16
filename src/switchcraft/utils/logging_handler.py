@@ -147,6 +147,7 @@ class SessionLogHandler(logging.Handler):
             # For Issue Forms, we pass params matching the 'id' of fields
             params = {
                 "template": template,
+                "labels": "bug",
                 "title": f"[Bug]: Error in v{__version__}",
                 "version": f"v{__version__}",
                 "os": os_map,

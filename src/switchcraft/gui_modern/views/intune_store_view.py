@@ -416,7 +416,9 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     token = self._get_token()
                     # Filter query for Graph
                     # startswith(displayName, 'query')
-                    filter_q = f"startswith(displayName, '{query}')" if query else None
+                    # Sanitize: Escape single quotes
+                    safe_query = query.replace("'", "''")
+                    filter_q = f"startswith(displayName, '{safe_query}')" if query else None
                     groups = self.intune_service.list_groups(token, filter_query=filter_q)
 
                     groups_list.controls.clear()

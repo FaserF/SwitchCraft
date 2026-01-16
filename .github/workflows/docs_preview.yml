@@ -42,6 +42,8 @@ jobs:
       - name: Build Docs
         run: npm run docs:build
         working-directory: docs
+        env:
+          BASE_URL: /SwitchCraft/pr-preview/pr-${{ github.event.pull_request.number }}/
 
       - name: Deploy Preview
         uses: rossjrw/pr-preview-action@v1

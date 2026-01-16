@@ -942,6 +942,7 @@
     "select_group": "Select Group:",
     "intent": "Assignment Intent",
     "assign": "Assign",
+    "status_failed": "Failed",
     "desc_update_settings": "Manage update channels and version settings.",
     "desc_automation": "Automate your deployment tasks and schedules.",
     "desc_help": "Documentation, tutorials, and support resources.",

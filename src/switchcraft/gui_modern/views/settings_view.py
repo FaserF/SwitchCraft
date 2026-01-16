@@ -1318,7 +1318,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
             # Safer to queue it on the page loop if possible, but self.update() works in most simple cases.
             try:
                 # self.update() inside thread might work, but let's try calling it directly.
-                _ui_update()
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(_ui_update)
+                else:
+                    _ui_update()
             except Exception as e:
                 logger.error(f"UI update failed: {e}")
 
