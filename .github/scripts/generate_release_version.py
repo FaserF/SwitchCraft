@@ -3,6 +3,7 @@ import re
 import datetime
 import argparse
 import subprocess
+import sys
 
 def get_current_date_version():
     """Returns the current date in Year.Month format (e.g., 2025.12)."""
@@ -70,9 +71,21 @@ def main():
                        help="Type of release (stable, prerelease, development)")
     args = parser.parse_args()
 
-    base_ver = get_current_date_version()
-    tags = get_existing_tags()
-    next_version = calculate_next_version(base_ver, tags, args.release_type)
+    # Fallback version if version generation fails
+    FALLBACK_VERSION = "2026.1.2"
+
+    try:
+        base_ver = get_current_date_version()
+        tags = get_existing_tags()
+        next_version = calculate_next_version(base_ver, tags, args.release_type)
+
+        # Validate version format
+        if not next_version or not re.match(r'^\d+\.\d+\.\d+', next_version):
+            print(f"Warning: Generated version '{next_version}' is invalid, using fallback: {FALLBACK_VERSION}", file=sys.stderr)
+            next_version = FALLBACK_VERSION
+    except Exception as e:
+        print(f"Error generating version: {e}, using fallback: {FALLBACK_VERSION}", file=sys.stderr)
+        next_version = FALLBACK_VERSION
 
     print(next_version)
 

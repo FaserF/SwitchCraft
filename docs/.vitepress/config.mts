@@ -149,6 +149,9 @@ export default defineConfig({
 
     vite: {
         publicDir: 'public',
+        server: {
+            cors: false
+        },
         build: {
             rollupOptions: {
                 output: {

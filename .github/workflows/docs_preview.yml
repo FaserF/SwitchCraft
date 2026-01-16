@@ -51,6 +51,7 @@ jobs:
           source-dir: docs/.vitepress/dist
           preview-branch: gh-pages
           umbrella-dir: pr-preview
+          pages-base-path: /SwitchCraft
           action: auto
 
   cleanup-preview:

@@ -38,7 +38,16 @@ jobs:
 
       - name: Generate Version
         id: version
-        run: python .github/scripts/generate_release_version.py --type ${{ github.event.inputs.release_type }}
+        run: |
+          VERSION=$(python .github/scripts/generate_release_version.py --type ${{ github.event.inputs.release_type }})
+          # Fallback to 2026.1.2 if version generation fails or returns invalid version
+          if [ -z "$VERSION" ] || [ "$VERSION" = "0.0.0" ] || ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "Warning: Version generation failed or returned invalid version '$VERSION', using fallback: 2026.1.2"
+            VERSION="2026.1.2"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_prerelease=${{ github.event.inputs.release_type != 'stable' }}" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
 
       - name: Update Version in Files
         run: |
@@ -139,8 +148,11 @@ jobs:
           PATCH=$(echo $VERSION | cut -d. -f3)
           NEXT_PATCH=$((PATCH + 1))
           DEV_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-dev"
+          # Use release version as fallback (without -dev suffix)
+          FALLBACK_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
           echo "Setting development version to $DEV_VERSION"
+          echo "Updating fallback versions to $FALLBACK_VERSION"
 
           # Update version files
           sed -i "s/version = \".*\"/version = \"$DEV_VERSION\"/" pyproject.toml
@@ -154,9 +166,17 @@ jobs:
           sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$BASE_VERSION\"/" switchcraft_legacy.iss
           sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
 
+          # Update fallback versions in build scripts and version generator
+          # Update build_release.ps1 fallback
+          sed -i "s/\$AppVersion = \".*\"/\$AppVersion = \"$FALLBACK_VERSION\"/" scripts/build_release.ps1
+          sed -i "s/\$AppVersionNumeric = \".*\"/\$AppVersionNumeric = \"$FALLBACK_VERSION\"/" scripts/build_release.ps1
+
+          # Update generate_release_version.py fallback
+          sed -i "s/FALLBACK_VERSION = \".*\"/FALLBACK_VERSION = \"$FALLBACK_VERSION\"/" .github/scripts/generate_release_version.py
+
           # Commit
-          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft_modern.iss switchcraft_legacy.iss
-          git commit -m "chore: bump version to $DEV_VERSION for development [skip ci]"
+          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft_modern.iss switchcraft_legacy.iss scripts/build_release.ps1 .github/scripts/generate_release_version.py
+          git commit -m "chore: bump version to $DEV_VERSION and update fallback versions to $FALLBACK_VERSION [skip ci]"
           git push origin main
 
   build:

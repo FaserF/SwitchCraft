@@ -489,7 +489,11 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 ft.Container(
                     content=ft.Column([
                         ft.Row([ft.Icon(ft.Icons.INFO_OUTLINE, color="WHITE"), ft.Text("7-ZIP SFX DETECTED", weight=ft.FontWeight.BOLD)]),
-                        ft.Text(i18n.get("sfx_notice_msg") or "This is a self-extracting archive. Silent switches might apply to the wrapper or the content inside.", size=12),
+                        ft.Container(
+                            content=ft.Text(i18n.get("sfx_notice_msg") or "This is a self-extracting archive. Silent switches might apply to the wrapper or the content inside.", size=12),
+                            expand=True,
+                            width=None
+                        ),
                     ]),
                     bgcolor="BLUE_900", padding=10, border_radius=5
                 )

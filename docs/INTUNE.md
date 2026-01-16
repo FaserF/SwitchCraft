@@ -16,6 +16,10 @@ Pro-Users can enable the **"All-in-One"** button in the Analyzer result pane to 
 
 SwitchCraft supports extensive configuration via the GUI or Registry/GPO for enterprise environments.
 
+> [!IMPORTANT]
+> **Intune OMA-URI Configuration**: For detailed instructions on configuring Intune Custom Profiles (OMA-URI), please refer to the **[Intune Configuration Guide](Intune_Configuration_Guide.md)**.
+> **Critical**: Ensure you use the **String (XML)** Data Type for all ADMX-backed policies.
+
 ### Intune API Access
 To enable direct uploads, you must register an App in Azure AD (Entra ID) and provide the credentials in Settings:
 -   **Tenant ID**

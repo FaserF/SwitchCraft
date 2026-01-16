@@ -1,21 +1,20 @@
 name: CI
 
-# on:
-#   push:
-#     branches: [ main ]
-#     paths-ignore:
-#       - '**.md'
-#       - 'docs/**'
-#       - 'LICENSE'
-#       - '.github/ISSUE_TEMPLATE/**'
-#   pull_request:
-#     branches: [ main ]
-#     paths-ignore:
-#       - '**.md'
-#       - 'docs/**'
-#       - 'LICENSE'
-#       - '.github/ISSUE_TEMPLATE/**'
 on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
   workflow_dispatch:
 
 concurrency:
@@ -26,10 +25,14 @@ jobs:
   test:
     name: Run Tests
     runs-on: ${{ matrix.os }}
+    # Python 3.15 only on main branch push (not PRs) to save time
+    if: |
+      matrix.python-version == '3.14' ||
+      (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.14", "3.15"]
 
     steps:
     - uses: actions/checkout@v6
@@ -49,6 +52,8 @@ jobs:
     - name: Run Tests
       run: |
         export PYTHONPATH=$PYTHONPATH:$(pwd)/src:$(pwd)/src/switchcraft:$(pwd)/src/switchcraft_advanced:$(pwd)/src/switchcraft_ai:$(pwd)/src/switchcraft_winget:$(pwd)/src/switchcraft_debug
+        export CI=true
+        export GITHUB_ACTIONS=true
         python -m pytest tests
       shell: bash
 

@@ -10,12 +10,17 @@ on:
 jobs:
   test-backend:
     runs-on: windows-latest
-    if: inputs.component == 'backend'
+    if: |
+      inputs.component == 'backend' &&
+      (
+        matrix.python-version == '3.14' ||
+        (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+      )
     strategy:
       fail-fast: true
       max-parallel: 1
       matrix:
-        python-version: ["3.13", "3.14"]
+        python-version: ["3.14", "3.15"]
 
     steps:
       - uses: actions/checkout@v6
@@ -35,6 +40,8 @@ jobs:
           pytest tests/ -v --tb=short
         env:
           PYTHONPATH: ${{ github.workspace }}/src
+          CI: true
+          GITHUB_ACTIONS: true
 
   test-cli-core:
     runs-on: windows-latest
@@ -45,7 +52,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Install Core (No GUI)
         run: |

@@ -44,9 +44,15 @@ Method 2: **Custom OMA-URI** (Preferred for Intune)
 
 SwitchCraft fully supports Intune's custom OMA-URI policies that target the `Software\Policies` keys via ADMX Ingestion.
 
+> [!IMPORTANT]
+> **CRITICAL CONFIGURATION NOTE**
+> When configuring ADMX-backed policies in Intune, you must **ALWAYS** select **String** (or **String (XML)** depending on the portal version) as the Data Type.
+>
+> **NEVER** use "Integer" or "Boolean", even if the setting logically represents a number or switch. The value field MUST contain the XML payload defined below.
+
 **Step 1: Ingest ADMX**
 - OMA-URI: `./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/SwitchCraft/Policy/SwitchCraftPolicy`
-- Data Type: String
+- Data Type: **String**
 - Value: Copy contents of `SwitchCraft.admx`
 
 **Step 2: Configure Policies**
@@ -54,23 +60,23 @@ The Base URI is: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraf
 
 ### Configuration Reference
 
-| Setting | OMA-URI Path Suffix | Data Type | Default | Allowed Values |
-|---------|---------------------|-----------|---------|----------------|
-| **Debug Mode** | `/DebugMode_Enf` | Integer | `0` | `0` (Off), `1` (On) |
-| **Update Channel** | `~Updates_Enf/UpdateChannel_Enf` | String | `stable` | `<enabled/><data id="UpdateChannelDropdown" value="stable"/>` |
-| **Enable Winget** | `~General_Enf/EnableWinget_Enf` | Integer | `0` | `0` (Disabled), `1` (Enabled) |
-| **Language** | `~General_Enf/Language_Enf` | String | `en` | `<enabled/><data id="LanguageDropdown" value="en"/>` |
-| **Git Repo Path** | `~General_Enf/GitRepoPath_Enf` | String | *Empty* | `<enabled/><data id="GitRepoPathBox" value="C:\Path"/>` |
-| **AI Provider** | `~AI_Enf/AIProvider_Enf` | String | `local` | `<enabled/><data id="AIProviderDropdown" value="local"/>` |
-| **Sign Scripts** | `~Security_Enf/SignScripts_Enf` | Integer | `0` | `0` (Disabled), `1` (Enabled) |
-| **Cert Thumbprint** | `~Security_Enf/CodeSigningCertThumbprint_Enf` | String | *Empty* | `<enabled/><data id="CodeSigningCertThumbprintBox" value="..."/>` |
-| **Tenant ID** | `~Intune_Enf/GraphTenantId_Enf` | String | *Empty* | `<enabled/><data id="GraphTenantIdBox" value="..."/>` |
-| **Client ID** | `~Intune_Enf/GraphClientId_Enf` | String | *Empty* | `<enabled/><data id="GraphClientIdBox" value="..."/>` |
-| **Client Secret** | `~Intune_Enf/GraphClientSecret_Enf` | String | *Empty* | `<enabled/><data id="GraphClientSecretBox" value="..."/>` |
+| Setting | OMA-URI Path Suffix | Intune Data Type | Value Format (XML) |
+|---------|---------------------|-----------|----------------|
+| **Debug Mode** | `/DebugMode_Enf` | **String** | `<enabled/>` |
+| **Update Channel** | `~Updates_Enf/UpdateChannel_Enf` | **String** | `<enabled/><data id="UpdateChannelDropdown" value="stable"/>` |
+| **Enable Winget** | `~General_Enf/EnableWinget_Enf` | **String** | `<enabled/>` |
+| **Language** | `~General_Enf/Language_Enf` | **String** | `<enabled/><data id="LanguageDropdown" value="en"/>` |
+| **Git Repo Path** | `~General_Enf/GitRepoPath_Enf` | **String** | `<enabled/><data id="GitRepoPathBox" value="C:\Path"/>` |
+| **AI Provider** | `~AI_Enf/AIProvider_Enf` | **String** | `<enabled/><data id="AIProviderDropdown" value="local"/>` |
+| **Sign Scripts** | `~Security_Enf/SignScripts_Enf` | **String** | `<enabled/>` |
+| **Cert Thumbprint** | `~Security_Enf/CodeSigningCertThumbprint_Enf` | **String** | `<enabled/><data id="CodeSigningCertThumbprintBox" value="..."/>` |
+| **Tenant ID** | `~Intune_Enf/GraphTenantId_Enf` | **String** | `<enabled/><data id="GraphTenantIdBox" value="..."/>` |
+| **Client ID** | `~Intune_Enf/GraphClientId_Enf` | **String** | `<enabled/><data id="GraphClientIdBox" value="..."/>` |
+| **Client Secret** | `~Intune_Enf/GraphClientSecret_Enf` | **String** | `<enabled/><data id="GraphClientSecretBox" value="..."/>` |
 
 ### Complete OMA-URI XML Example
 
-Use this XML structure to bulk import settings.
+Use this XML structure to bulk import settings. Note that **DataType** is always `String`.
 
 ```xml
 <Data>
@@ -84,8 +90,8 @@ Use this XML structure to bulk import settings.
   <!-- Debug Mode -->
   <Row>
     <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced/DebugMode_Enf</OMAURI>
-    <DataType>Integer</DataType>
-    <Value>1</Value>
+    <DataType>String</DataType>
+    <Value><![CDATA[<enabled/>]]></Value>
   </Row>
 
   <!-- Update Channel -->
@@ -98,8 +104,8 @@ Use this XML structure to bulk import settings.
   <!-- Enable Winget -->
   <Row>
     <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/EnableWinget_Enf</OMAURI>
-    <DataType>Integer</DataType>
-    <Value>1</Value>
+    <DataType>String</DataType>
+    <Value><![CDATA[<enabled/>]]></Value>
   </Row>
 
   <!-- Language -->
@@ -161,8 +167,8 @@ Use this XML structure to bulk import settings.
   <!-- Sign Scripts -->
   <Row>
     <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Security_Enf/SignScripts_Enf</OMAURI>
-    <DataType>Integer</DataType>
-    <Value>1</Value>
+    <DataType>String</DataType>
+    <Value><![CDATA[<enabled/>]]></Value>
   </Row>
 
   <!-- Code Signing Cert Thumbprint -->
@@ -200,7 +206,6 @@ Use this XML structure to bulk import settings.
     <Value><![CDATA[<enabled/><data id="IntuneTestGroupsBox" value="GROUP_ID_1,GROUP_ID_2"/>]]></Value>
   </Row>
 </Data>
-```
 
 ## Registry Reference & Precedence
 
