@@ -380,6 +380,14 @@ class GroupManagerView(ft.Column, ViewMixin):
             )
             results_list = ft.ListView(expand=True, height=200)
 
+            # Create dialog first so it can be referenced in nested functions
+            add_dlg = ft.AlertDialog(
+                title=ft.Text(i18n.get("dlg_add_member") or "Add Member"),
+                content=ft.Column([search_box, results_list], height=300, width=400),
+                actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(add_dlg))]
+            )
+            self.dlg_add_member = add_dlg
+
             def search_users(e):
                 query = search_box.value
                 if not query or not query.strip(): return
@@ -413,7 +421,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                 threading.Thread(target=_bg, daemon=True).start()
 
             def add_user(user_id):
-                self._close_dialog(self.dlg_add_member) # Close add dialog
+                self._close_dialog(add_dlg) # Close add dialog
 
                 def _bg():
                     try:
@@ -424,12 +432,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self._show_snack(f"Failed to add member: {ex}", "RED")
                 threading.Thread(target=_bg, daemon=True).start()
 
-            self.dlg_add_member = ft.AlertDialog(
-                title=ft.Text(i18n.get("dlg_add_member") or "Add Member"),
-                content=ft.Column([search_box, results_list], height=300, width=400),
-                actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(self.dlg_add_member))]
-            )
-            self.app_page.open(self.dlg_add_member)
+            self.app_page.open(add_dlg)
             self.app_page.update()
 
         title_tmpl = i18n.get("members_title") or "Members: {group}"

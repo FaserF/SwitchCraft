@@ -10,6 +10,7 @@ from switchcraft.utils.app_updater import UpdateChecker
 from switchcraft.services.auth_service import AuthService
 from switchcraft.services.sync_service import SyncService
 from switchcraft.services.intune_service import IntuneService
+from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)

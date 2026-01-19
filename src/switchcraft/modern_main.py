@@ -371,8 +371,7 @@ def main(page: ft.Page):
             pass  # Non-critical
 
         # Pass splash proc to app for cleanup
-        # Access global splash_proc variable (declared at module level)
-        global splash_proc
+        # Access module-level splash_proc variable (declared at module level)
         app = ModernApp(page, splash_proc=splash_proc)
 
         # Handle initial action from protocol URL

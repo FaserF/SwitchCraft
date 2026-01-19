@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import webbrowser
 import flet as ft
 from switchcraft import __version__
 from switchcraft.utils.config import SwitchCraftConfig
@@ -1791,6 +1792,7 @@ class ModernApp:
 
             except Exception as e:
                 logger.error(f"Demo failed: {e}")
+                error_msg = str(e)  # Capture error message for use in nested function
                 def show_error():
                     def open_download(e):
                         dlg.open = False
@@ -1799,7 +1801,7 @@ class ModernApp:
 
                     dlg = ft.AlertDialog(
                         title=ft.Text(i18n.get("demo_error_title") or "Download Error"),
-                        content=ft.Text(i18n.get("demo_ask_download", error=str(e)) or f"Could not download demo installer.\nError: {e}\n\nOpen download page instead?"),
+                        content=ft.Text(i18n.get("demo_ask_download", error=error_msg) or f"Could not download demo installer.\nError: {error_msg}\n\nOpen download page instead?"),
                         actions=[
                             ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda e: setattr(dlg, "open", False) or self.page.update()),
                             ft.Button("Open Download Page", on_click=open_download, bgcolor="BLUE_700", color="WHITE"),
