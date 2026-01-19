@@ -32,6 +32,7 @@ jobs:
           else
             echo "should_run=false" >> $GITHUB_OUTPUT
           fi
+        shell: bash
 
       - name: Set up Python ${{ matrix.python-version }}
         if: steps.should_run.outputs.should_run == 'true'

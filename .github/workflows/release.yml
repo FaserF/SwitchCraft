@@ -146,13 +146,21 @@ jobs:
         if: ${{ github.event.inputs.release_type == 'stable' }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # Calculate next dev version (increment patch and add -dev)
+          # Calculate next dev version (increment patch and use PEP 440 compliant format)
           MAJOR=$(echo $VERSION | cut -d. -f1)
           MINOR=$(echo $VERSION | cut -d. -f2)
           PATCH=$(echo $VERSION | cut -d. -f3)
           NEXT_PATCH=$((PATCH + 1))
-          DEV_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-dev"
-          # Use release version as fallback (without -dev suffix)
+
+          # Get commit SHA for build metadata (PEP 440: X.Y.Z.dev0+sha)
+          SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "")
+          if [ -n "$SHA" ]; then
+            DEV_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}.dev0+${SHA}"
+          else
+            DEV_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}.dev0"
+          fi
+
+          # Use release version as fallback (without .dev0 suffix)
           FALLBACK_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
           echo "Setting development version to $DEV_VERSION"
@@ -163,8 +171,8 @@ jobs:
           sed -i "s/__version__ = \".*\"/__version__ = \"$DEV_VERSION\"/" src/switchcraft/__init__.py
           python .github/scripts/update_version_info.py "$DEV_VERSION"
 
-          # Update .iss files (Inno Setup installer scripts) - keep base version without -dev suffix for installer
-          BASE_VERSION=$(echo $DEV_VERSION | sed 's/-dev$//')
+          # Update .iss files (Inno Setup installer scripts) - keep base version without .dev0 suffix for installer
+          BASE_VERSION=$(echo $DEV_VERSION | sed 's/\.dev0.*$//')
           sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$BASE_VERSION\"/" switchcraft_modern.iss
           sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_modern.iss
           sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$BASE_VERSION\"/" switchcraft_legacy.iss

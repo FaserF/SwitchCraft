@@ -80,8 +80,10 @@ def main():
         tags = get_existing_tags()
         next_version = calculate_next_version(base_ver, tags, args.release_type)
 
-        # Validate version format
-        if not next_version or not re.match(r'^\d+\.\d+\.\d+', next_version):
+        # Validate version format (PEP 440 compliant)
+        # Pattern matches MAJOR.MINOR.PATCH with optional pre-release (.dev0, .a1, .b1, .rc1) and build (+build) suffixes
+        # Examples: 2026.1.2, 2026.1.2.dev0+9d07a00, 2026.1.2b1, 2026.1.2+9d07a00
+        if not next_version or not re.match(r'^[0-9]+\.[0-9]+\.[0-9]+(\.[a-z]+[0-9]+|[a-z]+[0-9]+)?(\+[a-zA-Z0-9.-]+)?$', next_version):
             print(f"Warning: Generated version '{next_version}' is invalid, using fallback: {FALLBACK_VERSION}", file=sys.stderr)
             next_version = FALLBACK_VERSION
     except Exception as e:
