@@ -409,7 +409,8 @@ def main(page: ft.Page):
 
         def open_dump_folder(e):
             import subprocess
-            proc = subprocess.Popen(f'explorer "{dump_folder}"')
+            # Use list args for explorer to avoid quoting edge cases with paths containing spaces/quotes
+            proc = subprocess.Popen(['explorer', dump_folder])
             # Don't wait for explorer, but ensure it's properly started
             # Explorer will close itself, so we don't need to wait
             try:

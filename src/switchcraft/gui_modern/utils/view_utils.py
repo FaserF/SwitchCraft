@@ -119,15 +119,28 @@ class ViewMixin:
         if fallback_func is None:
             fallback_func = task_func
 
+        # Check if task_func is a coroutine function
+        import asyncio
+        is_coroutine = asyncio.iscoroutinefunction(task_func)
+        is_fallback_coroutine = asyncio.iscoroutinefunction(fallback_func) if fallback_func else False
+
         if hasattr(page, 'run_task'):
             try:
                 page.run_task(task_func)
                 return True
             except Exception as ex:
                 logger.exception(f"Error in run_task: {ex}")
-                # Fallback: try direct call
+                # Fallback: handle coroutine functions properly
                 try:
-                    fallback_func()
+                    if is_fallback_coroutine:
+                        # Fallback is async, need to run it
+                        try:
+                            loop = asyncio.get_running_loop()
+                            asyncio.create_task(fallback_func())
+                        except RuntimeError:
+                            asyncio.run(fallback_func())
+                    else:
+                        fallback_func()
                     return True
                 except Exception as ex2:
                     logger.exception(f"Error in fallback execution: {ex2}")
@@ -135,9 +148,17 @@ class ViewMixin:
                         self._show_snack(error_msg, "RED")
                     return False
         else:
-            # No run_task, try direct call
+            # No run_task, handle coroutine functions properly
             try:
-                fallback_func()
+                if is_fallback_coroutine:
+                    # Fallback is async, need to run it
+                    try:
+                        loop = asyncio.get_running_loop()
+                        asyncio.create_task(fallback_func())
+                    except RuntimeError:
+                        asyncio.run(fallback_func())
+                else:
+                    fallback_func()
                 return True
             except Exception as ex:
                 logger.exception(f"Error in direct execution: {ex}")

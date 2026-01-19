@@ -41,7 +41,7 @@ class NotificationService:
                         if isinstance(n.get("timestamp"), str):
                             try:
                                 n["timestamp"] = datetime.fromisoformat(n["timestamp"])
-                            except:
+                            except Exception:
                                 n["timestamp"] = datetime.now()
                     self.notifications = data
         except Exception as e:

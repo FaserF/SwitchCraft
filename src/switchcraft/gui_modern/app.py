@@ -129,6 +129,15 @@ class ModernApp:
         self.build_ui()
 
         # Now that UI is built, shutdown splash screen
+        self._terminate_splash()
+
+    def _terminate_splash(self):
+        """
+        Terminate the splash screen process if it exists.
+
+        Centralized method to handle splash process termination, waiting, and cleanup.
+        Clears self.splash_proc after successful termination to avoid double termination attempts.
+        """
         if self.splash_proc:
             try:
                 self.splash_proc.terminate()
@@ -141,11 +150,10 @@ class ModernApp:
                         self.splash_proc.kill()
                     except Exception:
                         pass
+                # Clear the handle after successful termination
+                self.splash_proc = None
             except Exception:
                 pass
-
-
-
 
     def _toggle_notification_drawer(self, e):
         """
@@ -201,8 +209,10 @@ class ModernApp:
                     self.page.update()
                 except Exception as ex:
                     logger.exception(f"Error opening notification drawer: {ex}")
+                    from switchcraft.utils.i18n import i18n
+                    error_msg = i18n.get("error_opening_notifications") or "Failed to open notifications"
                     self.page.snack_bar = ft.SnackBar(
-                        content=ft.Text(f"Failed to open notifications: {ex}"),
+                        content=ft.Text(error_msg),
                         bgcolor="RED"
                     )
                     self.page.snack_bar.open = True
@@ -1023,20 +1033,7 @@ class ModernApp:
             pass
 
         # Now shutdown splash screen after UI is fully visible
-        if self.splash_proc:
-            try:
-                self.splash_proc.terminate()
-                # Wait for process to terminate to avoid ResourceWarning
-                try:
-                    self.splash_proc.wait(timeout=1.0)
-                except Exception:
-                    # If wait fails, try kill as fallback
-                    try:
-                        self.splash_proc.kill()
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+        self._terminate_splash()
 
 
     def _open_notifications(self, e):

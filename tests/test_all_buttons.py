@@ -9,6 +9,7 @@ import inspect
 import importlib
 import os
 import sys
+import asyncio
 
 # Import CI detection helper
 try:
@@ -48,6 +49,10 @@ def test_all_views_have_buttons():
     # Verify we found views
     assert len(all_buttons) > 0, "No views found"
 
+    # Check that at least one view instantiated successfully (no 'error' key)
+    successes = [view_name for view_name, info in all_buttons.items() if 'error' not in info]
+    assert len(successes) > 0, f"No views instantiated successfully. All {len(all_buttons)} views had errors."
+
     # Print summary
     print("\n=== Button Summary ===")
     for view_name, info in all_buttons.items():
@@ -55,9 +60,6 @@ def test_all_views_have_buttons():
             print(f"{view_name}: ERROR - {info['error']}")
         else:
             print(f"{view_name}: {info['count']} buttons")
-
-    # Test should not return a value (pytest warning)
-    # But we keep the assertion to verify views were found
 
 
 def _create_mock_page():
@@ -275,8 +277,17 @@ def test_view_buttons_work(view_name, view_file):
                     mock_event.control = button
                     mock_event.data = "true"
 
-                    # Call the handler
-                    button.on_click(mock_event)
+                    # Call the handler - handle both sync and async handlers
+                    handler = button.on_click
+                    if inspect.iscoroutinefunction(handler):
+                        # Handler is async, need to run it
+                        try:
+                            loop = asyncio.get_running_loop()
+                            asyncio.create_task(handler(mock_event))
+                        except RuntimeError:
+                            asyncio.run(handler(mock_event))
+                    else:
+                        handler(mock_event)
                     successes += 1
 
                 except Exception as e:

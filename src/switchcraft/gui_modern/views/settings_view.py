@@ -705,10 +705,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 logger.exception(f"Error initiating device flow: {ex}")
                 # Marshal UI updates to main thread
                 error_msg = f"Failed to initiate login flow: {ex}"
-                def _handle_error():
+                # Capture error_msg in closure using default parameter to avoid scope issues
+                def _handle_error(msg=error_msg):
                     loading_dlg.open = False
                     self.app_page.update()
-                    self._show_snack(f"Login error: {ex}", "RED")
+                    self._show_snack(f"Login error: {msg}", "RED")
                 self._run_task_with_fallback(_handle_error, error_msg=error_msg)
                 return None
 
@@ -804,24 +805,19 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         # Note: This is not ideal but provides backward compatibility
                         import asyncio
                         try:
-                            loop = asyncio.get_running_loop()
-                            # If loop is running, schedule the coroutine
-                            asyncio.create_task(_close_and_result())
-                        except RuntimeError:
-                            # No event loop available, create one
-                            try:
-                                asyncio.run(_close_and_result())
-                            except Exception:
-                                # Last resort: try to execute the logic directly
-                                dlg.open = False
-                                self.app_page.update()
-                                if token:
-                                    AuthService.save_token(token)
-                                    self._update_sync_ui()
-                                    self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
-                                else:
-                                    self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
-                except BaseException:
+                            # In a background thread, there's no running loop, so go directly to asyncio.run
+                            asyncio.run(_close_and_result())
+                        except Exception:
+                            # Last resort: try to execute the logic directly
+                            dlg.open = False
+                            self.app_page.update()
+                            if token:
+                                AuthService.save_token(token)
+                                self._update_sync_ui()
+                                self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
+                            else:
+                                self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
+                except Exception:
                     # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
                     logger.exception("Unexpected error in token polling background thread")
 
@@ -1423,7 +1419,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
         controls["status"].color = "BLUE"
         try:
             self.update()
-        except: pass
+        except Exception:
+            pass
 
         # Determine path (logic from original _install_addon)
         import sys
@@ -1454,8 +1451,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 logger.exception(f"Addon install error: {e}")
                 error_msg = str(e)
 
-            # UI Update needs to be safe
-            def _ui_update():
+            # UI Update needs to be safe - must be async for run_task
+            async def _ui_update():
                 controls["btn"].visible = True
                 controls["progress"].visible = False
 
@@ -1471,15 +1468,18 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
                 self.update()
 
-            # Since we are in a thread, we should use page.run_task or similar if available, or just self.update() if thread-safe enough
-            # Flet's update() is generally thread-safe if page is valid?
-            # Safer to queue it on the page loop if possible, but self.update() works in most simple cases.
+            # Marshal UI update to main thread using run_task (requires async function)
             try:
-                # self.update() inside thread might work, but let's try calling it directly.
                 if hasattr(self.app_page, 'run_task'):
                     self.app_page.run_task(_ui_update)
                 else:
-                    _ui_update()
+                    # Fallback: execute synchronously if run_task not available
+                    import asyncio
+                    try:
+                        loop = asyncio.get_running_loop()
+                        asyncio.create_task(_ui_update())
+                    except RuntimeError:
+                        asyncio.run(_ui_update())
             except Exception as e:
                 logger.error(f"UI update failed: {e}")
 
@@ -1516,7 +1516,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
         finally:
             try:
                 os.unlink(tmp_path)
-            except: pass
+            except Exception:
+                pass
 
     def _download_addon_from_github(self, addon_id):
         """

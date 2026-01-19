@@ -141,11 +141,17 @@ class GroupManagerView(ft.Column, ViewMixin):
                 self.token = self.intune_service.authenticate(tenant, client, secret)
                 self.groups = self.intune_service.list_groups(self.token)
                 self.filtered_groups = self.groups
-                try:
-                    self._update_table()
-                except (RuntimeError, AttributeError):
-                    # Control not added to page yet (common in tests)
-                    logger.debug("Cannot update table: control not added to page")
+                # Marshal UI update to main thread
+                def update_table():
+                    try:
+                        self._update_table()
+                    except (RuntimeError, AttributeError):
+                        # Control not added to page yet (common in tests)
+                        logger.debug("Cannot update table: control not added to page")
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(update_table)
+                else:
+                    update_table()
             except requests.exceptions.HTTPError as e:
                 # Handle specific permission error (403)
                 logger.error(f"Permission denied loading groups: {e}")
@@ -154,52 +160,76 @@ class GroupManagerView(ft.Column, ViewMixin):
                     error_msg = i18n.get("graph_permission_error", permissions=missing_perms) or f"Missing Graph API permissions: {missing_perms}"
                 else:
                     error_msg = f"HTTP Error: {e}"
-                try:
-                    self._show_snack(error_msg, "RED")
-                except (RuntimeError, AttributeError):
-                    pass  # Control not added to page (common in tests)
+                # Marshal UI update to main thread
+                def show_error():
+                    try:
+                        self._show_snack(error_msg, "RED")
+                    except (RuntimeError, AttributeError):
+                        pass  # Control not added to page (common in tests)
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(show_error)
+                else:
+                    show_error()
             except requests.exceptions.ConnectionError as e:
                 # Handle authentication failure
                 logger.error(f"Authentication failed: {e}")
                 error_msg = i18n.get("graph_auth_error") or "Authentication failed. Please check your credentials."
-                try:
-                    self._show_snack(error_msg, "RED")
-                except (RuntimeError, AttributeError):
-                    pass  # Control not added to page (common in tests)
+                # Marshal UI update to main thread
+                def show_error():
+                    try:
+                        self._show_snack(error_msg, "RED")
+                    except (RuntimeError, AttributeError):
+                        pass  # Control not added to page (common in tests)
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(show_error)
+                else:
+                    show_error()
             except Exception as e:
                 error_str = str(e).lower()
                 # Detect permission issues from error message
                 if "403" in error_str or "forbidden" in error_str or "insufficient" in error_str:
                     error_msg = i18n.get("graph_permission_error", permissions="Group.Read.All") or "Missing Graph API permissions: Group.Read.All"
-                    try:
-                        self._show_snack(error_msg, "RED")
-                    except (RuntimeError, AttributeError):
-                        pass  # Control not added to page (common in tests)
                 elif "401" in error_str or "unauthorized" in error_str:
                     error_msg = i18n.get("graph_auth_error") or "Authentication failed. Please check your credentials."
+                else:
+                    logger.error(f"Failed to load groups: {e}")
+                    error_msg = f"Error loading groups: {e}"
+                # Marshal UI update to main thread
+                def show_error():
                     try:
                         self._show_snack(error_msg, "RED")
                     except (RuntimeError, AttributeError):
                         pass  # Control not added to page (common in tests)
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(show_error)
                 else:
-                    logger.error(f"Failed to load groups: {e}")
-                    try:
-                        self._show_snack(f"Error loading groups: {e}", "RED")
-                    except (RuntimeError, AttributeError):
-                        pass  # Control not added to page (common in tests)
+                    show_error()
             except BaseException as be:
                 # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
                 logger.exception("Unexpected error in group loading background thread")
-                # Don't try to update UI if control not added to page (common in tests)
-                try:
-                    self.list_container.disabled = False
-                    self.update()
-                except (RuntimeError, AttributeError):
-                    pass
+                # Marshal UI update to main thread
+                def update_ui():
+                    try:
+                        self.list_container.disabled = False
+                        self.update()
+                    except (RuntimeError, AttributeError):
+                        pass
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(update_ui)
+                else:
+                    update_ui()
             else:
-                # Only update UI if no exception occurred
-                self.list_container.disabled = False
-                self.update()
+                # Only update UI if no exception occurred - marshal to main thread
+                def update_ui():
+                    try:
+                        self.list_container.disabled = False
+                        self.update()
+                    except (RuntimeError, AttributeError):
+                        pass
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(update_ui)
+                else:
+                    update_ui()
 
         threading.Thread(target=_bg, daemon=True).start()
 

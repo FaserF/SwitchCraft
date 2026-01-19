@@ -29,15 +29,12 @@ def test_loading_screen_is_displayed():
 
         # Call main
         # main() may call sys.exit(0) early (e.g., for --version flag), which raises SystemExit
-        # We need to catch this in tests
+        # We need to catch this in tests, but let other exceptions propagate to surface real regressions
         try:
             main(mock_page)
         except SystemExit:
             # Expected behavior - main() calls sys.exit(0) for version/help flags
             # In this case, we can't verify add/update were called since main exits early
-            pass
-        except Exception:
-            # Other exceptions during initialization
             pass
 
         # Check that loading screen was added (only if main didn't exit early)
