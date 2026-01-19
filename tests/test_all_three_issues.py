@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch, Mock
 import threading
 import time
 import os
+import asyncio
 
 @pytest.fixture
 def mock_page():

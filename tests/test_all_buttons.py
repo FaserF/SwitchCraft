@@ -28,13 +28,16 @@ def find_all_buttons_in_control(control, buttons_found):
     if isinstance(control, (ft.Button, ft.IconButton, ft.TextButton, ft.ElevatedButton, ft.OutlinedButton, ft.FilledButton)):
         buttons_found.append(control)
 
-    # Check if control has children/controls
-    if hasattr(control, 'controls'):
+    # Check all possible child attributes to ensure complete button discovery
+    # Some controls may have both controls and content, so check all of them
+    if hasattr(control, 'controls') and control.controls:
         for child in control.controls:
             find_all_buttons_in_control(child, buttons_found)
-    elif hasattr(control, 'content'):
+
+    if hasattr(control, 'content') and control.content:
         find_all_buttons_in_control(control.content, buttons_found)
-    elif hasattr(control, 'actions') and control.actions:
+
+    if hasattr(control, 'actions') and control.actions:
         for action in control.actions:
             find_all_buttons_in_control(action, buttons_found)
 
@@ -86,13 +89,23 @@ def _create_mock_page():
 def collect_all_buttons():
     """Helper function to collect all buttons from all views."""
     views_dir = os.path.join(os.path.dirname(__file__), '..', 'src', 'switchcraft', 'gui_modern', 'views')
-    view_files = [
-        'home_view', 'settings_view', 'winget_view', 'intune_store_view',
-        'group_manager_view', 'category_view', 'dashboard_view', 'analyzer_view',
-        'intune_view', 'helper_view', 'packaging_wizard_view', 'script_upload_view',
-        'macos_wizard_view', 'history_view', 'library_view', 'stack_manager_view',
-        'detection_tester_view', 'wingetcreate_view'
-    ]
+
+    # Dynamically discover view files to avoid maintaining a hardcoded list
+    view_files = []
+    if os.path.exists(views_dir):
+        for filename in os.listdir(views_dir):
+            if filename.endswith('_view.py') and filename != '__init__.py':
+                # Remove .py extension to get module name
+                view_files.append(filename[:-3])
+    else:
+        # Fallback to hardcoded list if directory doesn't exist (shouldn't happen in normal tests)
+        view_files = [
+            'home_view', 'settings_view', 'winget_view', 'intune_store_view',
+            'group_manager_view', 'category_view', 'dashboard_view', 'analyzer_view',
+            'intune_view', 'helper_view', 'packaging_wizard_view', 'script_upload_view',
+            'macos_wizard_view', 'history_view', 'library_view', 'stack_manager_view',
+            'detection_tester_view', 'wingetcreate_view'
+        ]
 
     mock_page = _create_mock_page()
 
@@ -268,7 +281,9 @@ def test_view_buttons_work(view_name, view_file):
 
         # Verify buttons is a list and contains elements
         assert isinstance(buttons, list), "buttons should be a list"
-        assert len(buttons) > 0, f"View {view_name} should have at least one button"
+        # Allow zero buttons for display-only views like DashboardView
+        if view_name != "DashboardView":
+            assert len(buttons) > 0, f"View {view_name} should have at least one button"
 
         # Test that buttons can be clicked
         failures = []
@@ -284,12 +299,11 @@ def test_view_buttons_work(view_name, view_file):
                     # Call the handler - handle both sync and async handlers
                     handler = button.on_click
                     if inspect.iscoroutinefunction(handler):
-                        # Handler is async, need to run it
-                        try:
-                            loop = asyncio.get_running_loop()
-                            asyncio.create_task(handler(mock_event))
-                        except RuntimeError:
-                            asyncio.run(handler(mock_event))
+                        # Handler is async, need to run it and await to catch exceptions
+                        # Don't use create_task without awaiting - it silently swallows errors
+                        # Always use asyncio.run() which properly awaits and raises exceptions
+                        # This ensures exceptions are properly raised and caught by the test
+                        asyncio.run(handler(mock_event))
                     else:
                         handler(mock_event)
                     successes += 1

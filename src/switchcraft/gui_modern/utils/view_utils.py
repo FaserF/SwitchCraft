@@ -1,5 +1,6 @@
 import flet as ft
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -124,31 +125,39 @@ class ViewMixin:
         is_coroutine = inspect.iscoroutinefunction(task_func)
         is_fallback_coroutine = inspect.iscoroutinefunction(fallback_func) if fallback_func else False
 
-        if hasattr(page, 'run_task'):
+        # Branch up front: use run_task only for coroutines, avoid exception-driven flow
+        if hasattr(page, 'run_task') and is_coroutine:
+            # Use run_task for coroutine functions (async)
             try:
                 page.run_task(task_func)
                 return True
             except Exception as ex:
-                logger.exception(f"Error in run_task: {ex}")
+                logger.exception(f"Error in run_task for coroutine: {ex}")
                 # Fallback: handle coroutine functions properly
                 try:
-                    if is_fallback_coroutine:
-                        # Fallback is async, need to run it
-                        try:
-                            loop = asyncio.get_running_loop()
-                            asyncio.create_task(fallback_func())
-                        except RuntimeError:
-                            asyncio.run(fallback_func())
-                    else:
-                        fallback_func()
+                    try:
+                        loop = asyncio.get_running_loop()
+                        asyncio.create_task(fallback_func())
+                    except RuntimeError:
+                        asyncio.run(fallback_func())
                     return True
                 except Exception as ex2:
                     logger.exception(f"Error in fallback execution: {ex2}")
                     if error_msg:
                         self._show_snack(error_msg, "RED")
                     return False
+        elif not is_coroutine:
+            # For sync functions, call directly (no run_task needed)
+            try:
+                fallback_func()
+                return True
+            except Exception as ex:
+                logger.exception(f"Error in direct execution of sync function: {ex}")
+                if error_msg:
+                    self._show_snack(error_msg, "RED")
+                return False
         else:
-            # No run_task, handle coroutine functions properly
+            # No run_task available, handle coroutine functions properly
             try:
                 if is_fallback_coroutine:
                     # Fallback is async, need to run it

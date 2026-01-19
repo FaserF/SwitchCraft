@@ -27,14 +27,15 @@ jobs:
     - uses: actions/checkout@v6
 
     # Set condition as env variable for reuse across steps
-    # Condition: Python 3.14 always runs, Python 3.15 only on main branch push events
+    # Condition: Python 3.14 always runs, Python 3.15 on main branch push events or workflow_dispatch
     - name: Set condition variable
       id: should_run
       run: |
         if [[ "${{ matrix.python-version }}" == "3.14" ]] || \
            ([[ "${{ matrix.python-version }}" == "3.15" ]] && \
-            [[ "${{ github.event_name }}" == "push" ]] && \
-            [[ "${{ github.ref }}" == "refs/heads/main" ]]); then
+            ([[ "${{ github.event_name }}" == "workflow_dispatch" ]] || \
+             ([[ "${{ github.event_name }}" == "push" ]] && \
+              [[ "${{ github.ref }}" == "refs/heads/main" ]])); then
           echo "should_run=true" >> $GITHUB_OUTPUT
         else
           echo "should_run=false" >> $GITHUB_OUTPUT
