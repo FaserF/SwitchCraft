@@ -710,7 +710,14 @@ class ModernApp:
                         logging.getLogger(__name__).warning(f"Failed to update wizard UI: {ex}")
 
                 if self.page:
-                    self.page.run_task(update_ui)
+                    # Wrap sync function in async wrapper for run_task
+                    import inspect
+                    if inspect.iscoroutinefunction(update_ui):
+                        self.page.run_task(update_ui)
+                    else:
+                        async def async_update_ui():
+                            update_ui()
+                        self.page.run_task(async_update_ui)
 
             threading.Thread(target=_base_install, daemon=True).start()
 
@@ -1745,7 +1752,13 @@ class ModernApp:
                     self.page.open(dlg)
 
                 # Show dialog on UI thread
-                self.page.run_task(show_demo_dialog)
+                import inspect
+                if inspect.iscoroutinefunction(show_demo_dialog):
+                    self.page.run_task(show_demo_dialog)
+                else:
+                    async def async_show_demo_dialog():
+                        show_demo_dialog()
+                    self.page.run_task(async_show_demo_dialog)
 
     def _start_demo_analysis(self):
         """
@@ -1797,7 +1810,10 @@ class ModernApp:
                 if 'analyzer' in self._view_cache:
                     analyzer_view = self._view_cache['analyzer']
                     if hasattr(analyzer_view, 'start_analysis'):
-                        self.page.run_task(lambda: analyzer_view.start_analysis(tmp.name))
+                        # Wrap lambda in async wrapper for run_task
+                        async def async_start_analysis():
+                            analyzer_view.start_analysis(tmp.name)
+                        self.page.run_task(async_start_analysis)
 
             except Exception as e:
                 logger.error(f"Demo failed: {e}")
@@ -1818,7 +1834,14 @@ class ModernApp:
                     )
                     self.page.open(dlg)
 
-                self.page.run_task(show_error)
+                # Wrap sync function in async wrapper for run_task
+                import inspect
+                if inspect.iscoroutinefunction(show_error):
+                    self.page.run_task(show_error)
+                else:
+                    async def async_show_error():
+                        show_error()
+                    self.page.run_task(async_show_error)
 
         threading.Thread(target=download_and_analyze, daemon=True).start()
 

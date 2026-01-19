@@ -371,10 +371,16 @@ class ModernWingetView(ft.Row, ViewMixin):
             try:
                 logger.info(f"Fetching package details for: {short_info['Id']}")
                 full = self.winget.get_package_details(short_info['Id'])
+                logger.debug(f"Raw package details received: {list(full.keys()) if full else 'empty'}")
                 merged = {**short_info, **full}
                 self.current_pkg = merged
                 logger.info(f"Package details fetched, showing UI for: {merged.get('Name', 'Unknown')}")
                 logger.info(f"Merged package data keys: {list(merged.keys())}")
+
+                # Validate that we got some data
+                if not full:
+                    logger.warning(f"get_package_details returned empty dict for {short_info['Id']}")
+                    raise Exception(f"No details found for package: {short_info['Id']}")
 
                 # Update UI using run_task to marshal back to main thread
                 def _show_ui():
@@ -454,20 +460,37 @@ class ModernWingetView(ft.Row, ViewMixin):
         Parameters:
             ui_func (callable): Function that performs UI updates. Must be callable with no arguments.
         """
-        if hasattr(self.app_page, 'run_task'):
+        import inspect
+        import asyncio
+
+        # Check if function is async
+        is_async = inspect.iscoroutinefunction(ui_func)
+
+        if hasattr(self, 'app_page') and hasattr(self.app_page, 'run_task'):
             try:
-                self.app_page.run_task(ui_func)
+                if is_async:
+                    # Function is already async, can use run_task directly
+                    self.app_page.run_task(ui_func)
+                    logger.debug("UI update scheduled via run_task (async)")
+                else:
+                    # Wrap sync function in async wrapper for run_task
+                    async def async_wrapper():
+                        ui_func()
+                    self.app_page.run_task(async_wrapper)
+                    logger.debug("UI update scheduled via run_task (sync wrapped)")
             except Exception as ex:
                 logger.exception(f"Failed to run UI update via run_task: {ex}")
                 # Fallback: try direct call (not recommended but better than nothing)
                 try:
                     ui_func()
-                except Exception:
-                    pass
+                    logger.debug("UI update executed directly (fallback)")
+                except Exception as ex2:
+                    logger.exception(f"Failed to run UI update directly: {ex2}")
         else:
             # Fallback if run_task is not available
             try:
                 ui_func()
+                logger.debug("UI update executed directly (no run_task available)")
             except Exception as ex:
                 logger.exception(f"Failed to run UI update: {ex}")
 
@@ -767,7 +790,10 @@ class ModernWingetView(ft.Row, ViewMixin):
                             logger.debug(f"Failed to replace header icon: {ex}")
 
                     if hasattr(self, 'app_page') and hasattr(self.app_page, 'run_task'):
-                        self.app_page.run_task(_replace)
+                        # Wrap sync function in async wrapper for run_task
+                        async def async_replace():
+                            _replace()
+                        self.app_page.run_task(async_replace)
                     else:
                         _replace()
                 except Exception as ex:

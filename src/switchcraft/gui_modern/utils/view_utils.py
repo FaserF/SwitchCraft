@@ -54,6 +54,50 @@ class ViewMixin:
             except Exception as e2:
                 self._show_snack(f"Failed to open path: {path}", "RED")
                 logger.error(f"Failed to open path: {e2}")
+    def _run_task_safe(self, func):
+        """
+        Safely run a function via page.run_task, wrapping sync functions in async wrappers.
+
+        This helper ensures that both sync and async functions can be passed to run_task
+        without causing TypeError: handler must be a coroutine function.
+
+        Parameters:
+            func: A callable (sync or async function)
+
+        Returns:
+            bool: True if task was scheduled, False otherwise
+        """
+        import inspect
+
+        try:
+            page = getattr(self, "app_page", None)
+            if not page:
+                try:
+                    page = self.page
+                except (RuntimeError, AttributeError):
+                    return False
+            if not page or not hasattr(page, 'run_task'):
+                return False
+
+            # Check if function is already async
+            if inspect.iscoroutinefunction(func):
+                page.run_task(func)
+                return True
+            else:
+                # Wrap sync function in async wrapper
+                async def async_wrapper():
+                    func()
+                page.run_task(async_wrapper)
+                return True
+        except Exception as ex:
+            logger.debug(f"Failed to run task safely: {ex}")
+            # Fallback: try direct call
+            try:
+                func()
+                return True
+            except Exception:
+                return False
+
     def _close_dialog(self, dialog=None):
         """Close a dialog on the page."""
         try:

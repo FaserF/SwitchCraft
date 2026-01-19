@@ -998,6 +998,18 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
             if exported:
                 self._show_snack(i18n.get("logs_exported") or f"Logs exported to {path}", "GREEN")
+                # Open the folder containing the exported file
+                try:
+                    folder_path = Path(path).parent
+                    if os.name == 'nt':  # Windows
+                        import subprocess
+                        subprocess.Popen(['explorer', str(folder_path)])
+                    else:
+                        # Use ViewMixin's _open_path method for cross-platform support
+                        self._open_path(str(folder_path))
+                except Exception as ex:
+                    logger.debug(f"Failed to open folder: {ex}")
+                    # Don't show error to user, folder opening is a nice-to-have feature
             else:
                 self._show_snack(i18n.get("logs_export_failed") or "Log export failed.", "RED")
 
@@ -1477,7 +1489,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     import asyncio
                     try:
                         loop = asyncio.get_running_loop()
-                        asyncio.create_task(_ui_update())
+                        task = asyncio.create_task(_ui_update())
+                        # Add exception handler to catch and log exceptions from the task
+                        def handle_task_exception(task):
+                            try:
+                                task.result()
+                            except Exception as task_ex:
+                                logger.exception(f"Exception in async UI update task: {task_ex}")
+                        task.add_done_callback(handle_task_exception)
                     except RuntimeError:
                         asyncio.run(_ui_update())
             except Exception as e:
@@ -1498,12 +1517,40 @@ class ModernSettingsView(ft.Column, ViewMixin):
         resp.raise_for_status()
 
         assets = resp.json().get("assets", [])
-        asset = next((a for a in assets if a["name"] == f"{addon_id}.zip"), None)
+
+        # Naming convention: switchcraft_{addon_id}.zip OR {addon_id}.zip
+        # Try both naming patterns (matching AddonService.install_from_github logic)
+        candidates = [f"switchcraft_{addon_id}.zip", f"{addon_id}.zip"]
+
+        asset = None
+        for candidate in candidates:
+            # Try exact match first
+            asset = next((a for a in assets if a["name"] == candidate), None)
+            if asset:
+                break
+
+            # Fallback: try case-insensitive match
+            asset = next((a for a in assets if a["name"].lower() == candidate.lower()), None)
+            if asset:
+                break
+
+        # Fallback: try prefix-based match (e.g., "ai" matches "switchcraft_ai.zip")
+        if not asset:
+            asset = next((a for a in assets if a["name"].startswith(f"switchcraft_{addon_id}") and a["name"].endswith(".zip")), None)
+
+        # Last fallback: try any match with addon_id prefix
+        if not asset:
+            asset = next((a for a in assets if a["name"].startswith(addon_id) and a["name"].endswith(".zip")), None)
 
         if not asset:
-            raise Exception(f"Addon {addon_id}.zip not found in latest release")
+            # List available assets for debugging
+            available_assets = [a["name"] for a in assets]
+            logger.warning(f"Addon {addon_id} not found in latest release. Searched for: {candidates}. Available assets: {available_assets}")
+            raise Exception(f"Addon {addon_id} not found in latest release. Searched for: {', '.join(candidates)}. Available: {', '.join(available_assets[:10])}")
 
         download_url = asset["browser_download_url"]
+        asset_name = asset.get("name", f"{addon_id}.zip")
+        logger.info(f"Found {asset_name} in release, downloading from: {download_url}")
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
             d_resp = requests.get(download_url, timeout=30)
@@ -1544,10 +1591,34 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 assets = release.get("assets", [])
 
                 # Look for the addon ZIP in assets
-                asset = next((a for a in assets if a["name"] == f"{addon_id}.zip"), None)
+                # Naming convention: switchcraft_{addon_id}.zip OR {addon_id}.zip
+                # Try both naming patterns (matching AddonService.install_from_github logic)
+                candidates = [f"switchcraft_{addon_id}.zip", f"{addon_id}.zip"]
+
+                asset = None
+                for candidate in candidates:
+                    # Try exact match first
+                    asset = next((a for a in assets if a["name"] == candidate), None)
+                    if asset:
+                        break
+
+                    # Fallback: try case-insensitive match
+                    asset = next((a for a in assets if a["name"].lower() == candidate.lower()), None)
+                    if asset:
+                        break
+
+                # Fallback: try prefix-based match (e.g., "ai" matches "switchcraft_ai.zip")
+                if not asset:
+                    asset = next((a for a in assets if a["name"].startswith(f"switchcraft_{addon_id}") and a["name"].endswith(".zip")), None)
+
+                # Last fallback: try any match with addon_id prefix
+                if not asset:
+                    asset = next((a for a in assets if a["name"].startswith(addon_id) and a["name"].endswith(".zip")), None)
+
                 if asset:
                     download_url = asset["browser_download_url"]
-                    logger.info(f"Found {addon_id}.zip in release, downloading from: {download_url}")
+                    asset_name = asset.get("name", f"{addon_id}.zip")
+                    logger.info(f"Found {asset_name} in release, downloading from: {download_url}")
 
                     # Download to temp location
                     import tempfile
@@ -1571,8 +1642,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     return
 
             # If not found in latest release, show error
-            logger.warning(f"Addon {addon_id}.zip not found in GitHub releases")
-            self._show_snack(f"Addon {addon_id} not found. Please download manually from GitHub.", "RED")
+            available_assets = [a["name"] for a in assets] if assets else []
+            candidates = [f"switchcraft_{addon_id}.zip", f"{addon_id}.zip"]
+            logger.warning(f"Addon {addon_id} not found in GitHub releases. Searched for: {candidates}. Available assets: {available_assets}")
+            self._show_snack(f"Addon {addon_id} not found. Searched for: {', '.join(candidates)}. Available: {', '.join(available_assets[:10]) if available_assets else 'none'}", "RED")
         except Exception as ex:
             logger.exception(f"Failed to download addon from GitHub: {ex}")
             self._show_snack(f"Failed to download addon: {str(ex)}", "RED")
@@ -1667,19 +1740,62 @@ class ModernSettingsView(ft.Column, ViewMixin):
         """Handle Code Signing toggle."""
         SwitchCraftConfig.set_user_preference("SignScripts", value)
         if value:
-            # Auto-detect on enable if no cert configured
-            if not SwitchCraftConfig.get_value("CodeSigningCertThumbprint") and not SwitchCraftConfig.get_value("CodeSigningCertPath"):
-                self._auto_detect_signing_cert(None)
+            # Always run auto-detect when enabling code signing
+            # This ensures GPO-configured certificates are detected automatically
+            # If a cert is already configured, auto-detect will update it if a better match is found
+            self._auto_detect_signing_cert(None)
 
     def _auto_detect_signing_cert(self, e):
-        """Auto-detect code signing certificates from Windows Certificate Store."""
+        """Auto-detect code signing certificates from Windows Certificate Store.
+
+        Checks in order:
+        1. GPO/Policy configured certificate (CodeSigningCertThumbprint from Policy)
+        2. CurrentUser\My certificate store (user certificates)
+        3. LocalMachine\My certificate store (GPO-deployed certificates)
+        """
         import subprocess
+        import json
+
+        # First, check if GPO/Policy has configured a certificate
+        # SwitchCraftConfig.get_value() already checks Policy paths first
+        gpo_thumb = SwitchCraftConfig.get_value("CodeSigningCertThumbprint", "")
+        gpo_cert_path = SwitchCraftConfig.get_value("CodeSigningCertPath", "")
+
+        # If GPO has configured a certificate, verify it exists and use it
+        if gpo_thumb or gpo_cert_path:
+            # Verify the certificate exists in the store
+            try:
+                if gpo_thumb:
+                    # Check if thumbprint exists in certificate stores
+                    verify_cmd = [
+                        "powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
+                        f"$cert = Get-ChildItem -Recurse Cert:\\ -CodeSigningCert | Where-Object {{ $_.Thumbprint -eq '{gpo_thumb}' }} | Select-Object -First 1; "
+                        f"if ($cert) {{ Write-Output 'FOUND' }} else {{ Write-Output 'NOT_FOUND' }}"
+                    ]
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    verify_proc = subprocess.run(verify_cmd, capture_output=True, text=True, startupinfo=startupinfo, timeout=5)
+
+                    if verify_proc.returncode == 0 and "FOUND" in verify_proc.stdout:
+                        # GPO certificate exists, use it
+                        # Don't overwrite Policy settings, just display them
+                        self.cert_status_text.value = f"GPO: {gpo_thumb[:8]}..." if gpo_thumb else f"GPO: {gpo_cert_path}"
+                        self.cert_status_text.color = "GREEN"
+                        self.update()
+                        self._show_snack(i18n.get("cert_gpo_detected") or "GPO-configured certificate detected.", "GREEN")
+                        return
+            except Exception as ex:
+                logger.debug(f"GPO cert verification failed: {ex}")
+                # Continue with auto-detection if verification fails
 
         try:
-            # Added Timeout and simplified command
+            # Search in order: CurrentUser\My, then LocalMachine\My (for GPO-deployed certs)
             cmd = [
                 "powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
-                "Get-ChildItem Cert:\\CurrentUser\\My -CodeSigningCert | Select-Object Subject, Thumbprint | ConvertTo-Json -Depth 1"
+                "$certs = @(); "
+                "$certs += Get-ChildItem Cert:\\CurrentUser\\My -CodeSigningCert -ErrorAction SilentlyContinue | Select-Object Subject, Thumbprint; "
+                "$certs += Get-ChildItem Cert:\\LocalMachine\\My -CodeSigningCert -ErrorAction SilentlyContinue | Select-Object Subject, Thumbprint; "
+                "$certs | ConvertTo-Json -Depth 1"
             ]
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -1689,10 +1805,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
             output = proc.stdout.strip()
             if proc.returncode != 0 or not output:
                 logger.warning(f"Cert detect returned empty or error: {proc.stderr}")
-                self._show_snack(i18n.get("cert_not_found") or "No code signing certificates found.", "ORANGE")
+                # If GPO cert was found but verification failed, don't show error
+                if not (gpo_thumb or gpo_cert_path):
+                    self._show_snack(i18n.get("cert_not_found") or "No code signing certificates found.", "ORANGE")
                 return
 
-            import json
             try:
                 data = json.loads(output)
             except json.JSONDecodeError:
@@ -1703,23 +1820,30 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 data = [data]
 
             if len(data) == 0:
-                self._show_snack(i18n.get("cert_not_found") or "No code signing certificates found.", "ORANGE")
+                # If GPO cert was found but not in store, don't show error
+                if not (gpo_thumb or gpo_cert_path):
+                    self._show_snack(i18n.get("cert_not_found") or "No code signing certificates found.", "ORANGE")
             elif len(data) == 1:
                 cert = data[0]
                 thumb = cert.get("Thumbprint", "")
                 subj = cert.get("Subject", "").split(",")[0]
-                SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", thumb)
-                SwitchCraftConfig.set_user_preference("CodeSigningCertPath", "")
+                # Only save to user preferences if not set by GPO
+                if not gpo_thumb:
+                    SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", thumb)
+                    SwitchCraftConfig.set_user_preference("CodeSigningCertPath", "")
                 self.cert_status_text.value = f"{subj} ({thumb[:8]}...)"
                 self.cert_status_text.color = "GREEN"
                 self.update()
                 self._show_snack(f"{i18n.get('cert_auto_detected') or 'Certificate auto-detected'}: {subj}", "GREEN")
             else:
-                # Multiple certs - just use the first one for now (could show a picker)
+                # Multiple certs - prefer CurrentUser over LocalMachine, use first one
+                # Sort: CurrentUser first, then LocalMachine
                 cert = data[0]
                 thumb = cert.get("Thumbprint", "")
                 subj = cert.get("Subject", "").split(",")[0]
-                SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", thumb)
+                # Only save to user preferences if not set by GPO
+                if not gpo_thumb:
+                    SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", thumb)
                 self.cert_status_text.value = f"{subj} ({thumb[:8]}...)"
                 self.cert_status_text.color = "GREEN"
                 self.update()
@@ -1727,7 +1851,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         except Exception as ex:
             logger.error(f"Cert auto-detect failed: {ex}")
-            self._show_snack(f"{i18n.get('cert_detect_failed') or 'Cert detection failed'}: {ex}", "RED")
+            # If GPO cert exists, don't show error
+            if not (gpo_thumb or gpo_cert_path):
+                self._show_snack(f"{i18n.get('cert_detect_failed') or 'Cert detection failed'}: {ex}", "RED")
 
     def _browse_signing_cert(self, e):
         """Browse for a .pfx certificate file."""

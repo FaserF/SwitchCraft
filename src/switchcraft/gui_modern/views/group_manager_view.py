@@ -91,22 +91,10 @@ class GroupManagerView(ft.Column, ViewMixin):
             self.delete_btn
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
-        # Datatable
-        self.dt = ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Text(i18n.get("col_name") or "Name")),
-                ft.DataColumn(ft.Text(i18n.get("col_description") or "Description")),
-                ft.DataColumn(ft.Text(i18n.get("col_id") or "ID")),
-                ft.DataColumn(ft.Text(i18n.get("col_type") or "Type")),
-            ],
-            rows=[],
-            border=ft.Border.all(1, "GREY_400"),
-            vertical_lines=ft.border.BorderSide(1, "GREY_400"),
-            horizontal_lines=ft.border.BorderSide(1, "GREY_400"),
-            heading_row_color="BLACK12",
-        )
+        # Groups List (replacing DataTable with clickable ListView)
+        self.groups_list = ft.ListView(expand=True, spacing=5)
 
-        self.list_container = ft.Column([self.dt], scroll=ft.ScrollMode.AUTO, expand=True)
+        self.list_container = ft.Column([self.groups_list], scroll=ft.ScrollMode.AUTO, expand=True)
 
         # Main Layout
         self.controls = [
@@ -148,10 +136,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                     except (RuntimeError, AttributeError):
                         # Control not added to page yet (common in tests)
                         logger.debug("Cannot update table: control not added to page")
-                if hasattr(self.app_page, 'run_task'):
-                    self.app_page.run_task(update_table)
-                else:
-                    update_table()
+                self._run_task_safe(update_table)
             except requests.exceptions.HTTPError as e:
                 # Handle specific permission error (403)
                 logger.error(f"Permission denied loading groups: {e}")
@@ -166,10 +151,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self._show_snack(error_msg, "RED")
                     except (RuntimeError, AttributeError):
                         pass  # Control not added to page (common in tests)
-                if hasattr(self.app_page, 'run_task'):
-                    self.app_page.run_task(show_error)
-                else:
-                    show_error()
+                self._run_task_safe(show_error)
             except requests.exceptions.ConnectionError as e:
                 # Handle authentication failure
                 logger.error(f"Authentication failed: {e}")
@@ -180,10 +162,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self._show_snack(error_msg, "RED")
                     except (RuntimeError, AttributeError):
                         pass  # Control not added to page (common in tests)
-                if hasattr(self.app_page, 'run_task'):
-                    self.app_page.run_task(show_error)
-                else:
-                    show_error()
+                self._run_task_safe(show_error)
             except Exception as e:
                 error_str = str(e).lower()
                 # Detect permission issues from error message
@@ -200,10 +179,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self._show_snack(error_msg, "RED")
                     except (RuntimeError, AttributeError):
                         pass  # Control not added to page (common in tests)
-                if hasattr(self.app_page, 'run_task'):
-                    self.app_page.run_task(show_error)
-                else:
-                    show_error()
+                self._run_task_safe(show_error)
             except BaseException as be:
                 # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
                 logger.exception("Unexpected error in group loading background thread")
@@ -214,10 +190,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self.update()
                     except (RuntimeError, AttributeError):
                         pass
-                if hasattr(self.app_page, 'run_task'):
-                    self.app_page.run_task(update_ui)
-                else:
-                    update_ui()
+                self._run_task_safe(update_ui)
             else:
                 # Only update UI if no exception occurred - marshal to main thread
                 def update_ui():
@@ -226,33 +199,54 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self.update()
                     except (RuntimeError, AttributeError):
                         pass
-                if hasattr(self.app_page, 'run_task'):
-                    self.app_page.run_task(update_ui)
-                else:
-                    update_ui()
+                self._run_task_safe(update_ui)
 
         threading.Thread(target=_bg, daemon=True).start()
 
     def _update_table(self):
         try:
-            self.dt.rows.clear()
-            for g in self.filtered_groups:
-                 self.dt.rows.append(
-                     ft.DataRow(
-                         cells=[
-                             ft.DataCell(ft.Text(g.get('displayName', ''))),
-                             ft.DataCell(ft.Text(g.get('description', ''))),
-                             ft.DataCell(ft.Text(g.get('id', ''))),
-                             ft.DataCell(ft.Text(", ".join(g.get('groupTypes', [])) or "Security")),
-                         ],
-                         on_select_change=lambda e, grp=g: self._on_select(e.control.selected, grp),
-                         selected=self.selected_group == g
-                     )
-                 )
+            self.groups_list.controls.clear()
+
+            if not self.filtered_groups:
+                self.groups_list.controls.append(
+                    ft.Container(
+                        content=ft.Text(i18n.get("no_groups_found") or "No groups found.", italic=True, color="GREY"),
+                        padding=20,
+                        alignment=ft.Alignment(0, 0)
+                    )
+                )
+            else:
+                for g in self.filtered_groups:
+                    is_selected = self.selected_group == g or (self.selected_group and self.selected_group.get('id') == g.get('id'))
+
+                    # Create clickable tile for each group
+                    tile = ft.Container(
+                        content=ft.ListTile(
+                            leading=ft.Icon(
+                                ft.Icons.CHECK_CIRCLE if is_selected else ft.Icons.RADIO_BUTTON_UNCHECKED,
+                                color="BLUE" if is_selected else "GREY"
+                            ),
+                            title=ft.Text(g.get('displayName', ''), weight=ft.FontWeight.BOLD if is_selected else None),
+                            subtitle=ft.Column([
+                                ft.Text(g.get('description', '') or i18n.get("no_description") or "No description", size=12, color="GREY_600"),
+                                ft.Text(f"ID: {g.get('id', '')}", size=10, color="GREY_500"),
+                                ft.Text(f"Type: {', '.join(g.get('groupTypes', [])) or 'Security'}", size=10, color="GREY_500"),
+                            ], spacing=2, tight=True),
+                            trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT, color="GREY_400") if is_selected else None,
+                        ),
+                        bgcolor="BLUE_50" if is_selected else None,
+                        border=ft.Border.all(2, "BLUE" if is_selected else "GREY_300"),
+                        border_radius=5,
+                        padding=5,
+                        on_click=lambda e, grp=g: self._on_group_click(grp),
+                        data=g  # Store group data in container
+                    )
+                    self.groups_list.controls.append(tile)
+
             self.update()
         except (RuntimeError, AttributeError):
             # Control not added to page yet (common in tests)
-            logger.debug("Cannot update table: control not added to page")
+            logger.debug("Cannot update groups list: control not added to page")
 
     def _on_search(self, e):
         query = self.search_field.value.lower()
@@ -265,16 +259,26 @@ class GroupManagerView(ft.Column, ViewMixin):
             ]
         self._update_table()
 
-    def _on_select(self, selected, group):
-        if selected:
-            self.selected_group = group
-        else:
+    def _on_group_click(self, group):
+        """Handle click on a group tile to select/deselect it."""
+        # Toggle selection: if same group clicked, deselect; otherwise select new group
+        if self.selected_group and self.selected_group.get('id') == group.get('id'):
             self.selected_group = None
+        else:
+            self.selected_group = group
+
+        # Update UI to reflect selection
+        self._update_table()
 
         # Enable delete only if toggle on and item selected
         self.delete_btn.disabled = not (self.delete_toggle.value and self.selected_group)
         self.members_btn.disabled = not self.selected_group
-        self.update()
+
+        # Show feedback
+        if self.selected_group:
+            self._show_snack(f"Selected: {self.selected_group.get('displayName', '')}", "BLUE")
+        else:
+            self._show_snack(i18n.get("group_deselected") or "Group deselected", "GREY")
 
     def _toggle_delete_mode(self, e):
         self.delete_btn.disabled = not (self.delete_toggle.value and self.selected_group)
@@ -483,7 +487,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                         results_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
                     # Marshal UI update to main thread
                     if hasattr(self.app_page, 'run_task'):
-                        self.app_page.run_task(add_dlg.update)
+                        self._run_task_safe(add_dlg.update)
                     else:
                         add_dlg.update()
 
