@@ -127,12 +127,17 @@ def test_winget_details_shows_loading_state(mock_page, mock_winget_helper):
     # Load details
     view._load_details(short_info)
 
-    # Immediately check loading state
-    assert view.details_area is not None
-    assert isinstance(view.details_area, ft.Column)
-    assert len(view.details_area.controls) > 0
-    # Should have progress bar
-    assert any(isinstance(c, ft.ProgressBar) for c in view.details_area.controls)
+    # Wait for loading state to appear (deterministic polling instead of fixed sleep)
+    def has_loading_state():
+        if view.details_area is None:
+            return False
+        if not isinstance(view.details_area, ft.Column):
+            return False
+        if len(view.details_area.controls) == 0:
+            return False
+        return any(isinstance(c, ft.ProgressBar) for c in view.details_area.controls)
+
+    assert poll_until(has_loading_state, timeout=2.0), "Loading state (ProgressBar) should appear"
 
     # Check that right_pane is visible
     assert view.right_pane.visible is True
@@ -157,20 +162,23 @@ def test_winget_details_shows_error_on_failure(mock_page, mock_winget_helper):
     # Load details
     view._load_details(short_info)
 
+    # Helper function to collect text from controls (used in both polling and assertion)
+    def collect_text(control, text_list):
+        """Recursively collect text values from controls."""
+        if isinstance(control, ft.Text):
+            text_list.append(control.value)
+        elif hasattr(control, 'controls'):
+            for c in control.controls:
+                collect_text(c, text_list)
+        elif hasattr(control, 'content'):
+            collect_text(control.content, text_list)
+
     # Wait for error handling using polling
     def error_shown():
         if view.details_area is None:
             return False
         error_texts = []
-        def collect_text(control):
-            if isinstance(control, ft.Text):
-                error_texts.append(control.value)
-            elif hasattr(control, 'controls'):
-                for c in control.controls:
-                    collect_text(c)
-            elif hasattr(control, 'content'):
-                collect_text(control.content)
-        collect_text(view.details_area)
+        collect_text(view.details_area, error_texts)
         return any("error" in str(text).lower() or "failed" in str(text).lower() for text in error_texts)
 
     assert poll_until(error_shown, timeout=2.0), "Error should be shown within timeout"
@@ -180,16 +188,7 @@ def test_winget_details_shows_error_on_failure(mock_page, mock_winget_helper):
     assert isinstance(view.details_area, ft.Column)
     # Should have error message
     error_texts = []
-    def collect_text(control):
-        if isinstance(control, ft.Text):
-            error_texts.append(control.value)
-        elif hasattr(control, 'controls'):
-            for c in control.controls:
-                collect_text(c)
-        elif hasattr(control, 'content'):
-            collect_text(control.content)
-
-    collect_text(view.details_area)
+    collect_text(view.details_area, error_texts)
     assert any("error" in str(text).lower() or "failed" in str(text).lower() for text in error_texts)
 
 

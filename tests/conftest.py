@@ -3,6 +3,7 @@ Pytest configuration and shared fixtures.
 """
 import os
 import time
+import asyncio
 import pytest
 from unittest.mock import MagicMock
 import flet as ft
@@ -104,9 +105,20 @@ def mock_page():
             self.switchcraft_app._view_cache = {}
             self.switchcraft_app.goto_tab = MagicMock()
 
-            # Mock run_task to actually execute the function
+            # Mock run_task to actually execute the function (handle both sync and async)
             def run_task(func):
-                func()
+                if asyncio.iscoroutinefunction(func):
+                    # For async functions, create a task and run it
+                    try:
+                        # Use get_running_loop() instead of deprecated get_event_loop()
+                        loop = asyncio.get_running_loop()
+                        # If loop is running, schedule the coroutine
+                        asyncio.create_task(func())
+                    except RuntimeError:
+                        # No event loop, create one
+                        asyncio.run(func())
+                else:
+                    func()
             self.run_task = run_task
 
             # Mock page.open to set dialog/drawer/snackbar and open it

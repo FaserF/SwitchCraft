@@ -132,6 +132,15 @@ class ModernApp:
         if self.splash_proc:
             try:
                 self.splash_proc.terminate()
+                # Wait for process to terminate to avoid ResourceWarning
+                try:
+                    self.splash_proc.wait(timeout=1.0)
+                except Exception:
+                    # If wait fails, try kill as fallback
+                    try:
+                        self.splash_proc.kill()
+                    except Exception:
+                        pass
             except Exception:
                 pass
 
@@ -279,28 +288,22 @@ class ModernApp:
             # Set drawer on page FIRST
             self.page.end_drawer = drawer
 
-            # Force update to attach drawer to page
-            self.page.update()
-
-            # Now set open BEFORE updating (Flet needs this order)
+            # Now set open (Flet needs this order)
             drawer.open = True
-            self.page.update()
 
             # Try additional methods if drawer didn't open
             try:
                 if hasattr(self.page, 'open'):
                     self.page.open(drawer)
-                    self.page.update()
             except Exception as ex:
                 logger.debug(f"page.open() not available or failed: {ex}, using direct assignment")
 
-            # Final verification and update
+            # Final verification
             if not drawer.open:
                 logger.warning("Drawer open flag is False, forcing it to True")
                 drawer.open = True
-                self.page.update()
 
-            # Final update to ensure drawer is visible
+            # Single update after all state changes to avoid flicker
             self.page.update()
 
             logger.info(f"Notification drawer should now be visible. open={drawer.open}, page.end_drawer={self.page.end_drawer is not None}")
@@ -1023,6 +1026,15 @@ class ModernApp:
         if self.splash_proc:
             try:
                 self.splash_proc.terminate()
+                # Wait for process to terminate to avoid ResourceWarning
+                try:
+                    self.splash_proc.wait(timeout=1.0)
+                except Exception:
+                    # If wait fails, try kill as fallback
+                    try:
+                        self.splash_proc.kill()
+                    except Exception:
+                        pass
             except Exception:
                 pass
 

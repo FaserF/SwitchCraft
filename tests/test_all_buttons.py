@@ -60,17 +60,8 @@ def test_all_views_have_buttons():
     # But we keep the assertion to verify views were found
 
 
-def collect_all_buttons():
-    """Helper function to collect all buttons from all views."""
-    views_dir = os.path.join(os.path.dirname(__file__), '..', 'src', 'switchcraft', 'gui_modern', 'views')
-    view_files = [
-        'home_view', 'settings_view', 'winget_view', 'intune_store_view',
-        'group_manager_view', 'category_view', 'dashboard_view', 'analyzer_view',
-        'intune_view', 'helper_view', 'packaging_wizard_view', 'script_upload_view',
-        'macos_wizard_view', 'history_view', 'library_view', 'stack_manager_view',
-        'detection_tester_view', 'wingetcreate_view'
-    ]
-
+def _create_mock_page():
+    """Helper function to create a mock page for view instantiation."""
     mock_page = MagicMock(spec=ft.Page)
     mock_page.update = MagicMock()
     mock_page.switchcraft_app = MagicMock()
@@ -83,6 +74,21 @@ def collect_all_buttons():
     mock_page.close = MagicMock()
     mock_page.run_task = lambda func: func()
     type(mock_page).page = property(lambda self: mock_page)
+    return mock_page
+
+
+def collect_all_buttons():
+    """Helper function to collect all buttons from all views."""
+    views_dir = os.path.join(os.path.dirname(__file__), '..', 'src', 'switchcraft', 'gui_modern', 'views')
+    view_files = [
+        'home_view', 'settings_view', 'winget_view', 'intune_store_view',
+        'group_manager_view', 'category_view', 'dashboard_view', 'analyzer_view',
+        'intune_view', 'helper_view', 'packaging_wizard_view', 'script_upload_view',
+        'macos_wizard_view', 'history_view', 'library_view', 'stack_manager_view',
+        'detection_tester_view', 'wingetcreate_view'
+    ]
+
+    mock_page = _create_mock_page()
 
     all_buttons = {}
 
@@ -117,8 +123,7 @@ def collect_all_buttons():
 
                 all_buttons[view_class.__name__] = {
                     'buttons': buttons,
-                    'count': len(buttons),
-                    'view': view
+                    'count': len(buttons)
                 }
 
             except Exception as e:
@@ -227,18 +232,8 @@ def test_view_buttons_work(view_name, view_file):
     # Skip in CI as view instantiation may start background threads that hang
     skip_if_ci("View instantiation with threading not suitable for CI")
 
-    mock_page = MagicMock(spec=ft.Page)
-    mock_page.update = MagicMock()
-    mock_page.switchcraft_app = MagicMock()
-    mock_page.switchcraft_app.goto_tab = MagicMock()
-    mock_page.switchcraft_app._current_tab_index = 0
-    mock_page.dialog = None
-    mock_page.end_drawer = None
-    mock_page.snack_bar = None
-    mock_page.open = MagicMock()
-    mock_page.close = MagicMock()
-    mock_page.run_task = lambda func: func()
-    type(mock_page).page = property(lambda self: mock_page)
+    # Use shared helper to create mock page
+    mock_page = _create_mock_page()
 
     try:
         module = importlib.import_module(f'switchcraft.gui_modern.views.{view_file}')

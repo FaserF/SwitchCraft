@@ -9,7 +9,12 @@ class ViewMixin:
     def _show_snack(self, msg, color="GREEN"):
         """Show a snackbar message on the page using modern API."""
         try:
-            page = getattr(self, "app_page", getattr(self, "page", None))
+            page = getattr(self, "app_page", None)
+            if not page:
+                try:
+                    page = self.page
+                except (RuntimeError, AttributeError):
+                    return
             if not page:
                 return
 
@@ -50,7 +55,12 @@ class ViewMixin:
     def _close_dialog(self, dialog=None):
         """Close a dialog on the page."""
         try:
-            page = getattr(self, "app_page", getattr(self, "page", None))
+            page = getattr(self, "app_page", None)
+            if not page:
+                try:
+                    page = self.page
+                except (RuntimeError, AttributeError):
+                    return
             if not page:
                 return
 
@@ -92,7 +102,16 @@ class ViewMixin:
         Returns:
             bool: True if task was executed successfully, False otherwise
         """
-        page = getattr(self, "app_page", getattr(self, "page", None))
+        # Try app_page first (commonly used in views)
+        page = getattr(self, "app_page", None)
+        # If not available, try page property (but catch RuntimeError if control not added to page)
+        if not page:
+            try:
+                # Direct access to page property (not getattr) to catch RuntimeError
+                page = self.page
+            except (RuntimeError, AttributeError):
+                # Control not added to page yet (common in tests)
+                page = None
         if not page:
             logger.warning("No page available for run_task")
             return False

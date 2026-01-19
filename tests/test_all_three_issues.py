@@ -28,9 +28,22 @@ def mock_page():
     mock_app.goto_tab = MagicMock()
     page.switchcraft_app = mock_app
 
-    # Mock run_task to actually execute the function
+    # Mock run_task to actually execute the function (handle both sync and async)
+    import asyncio
     def run_task(func):
-        func()
+        if asyncio.iscoroutinefunction(func):
+            # For async functions, run them properly
+            try:
+                asyncio.run(func())
+            except RuntimeError:
+                # Event loop already running, create task
+                try:
+                    loop = asyncio.get_running_loop()
+                    asyncio.create_task(func())
+                except RuntimeError:
+                    asyncio.run(func())
+        else:
+            func()
     page.run_task = run_task
 
     # Mock page.open to set dialog and open it
@@ -78,13 +91,15 @@ def test_github_login_opens_dialog(mock_page, mock_auth_service):
     mock_event = MagicMock()
     view._start_github_login(mock_event)
 
-    # Wait for background thread to complete
-    time.sleep(1.0)
+    # Wait for background thread to complete using polling instead of fixed sleep
+    from conftest import poll_until
 
-    # Check that dialog was created and opened
-    assert mock_page.dialog is not None, "Dialog should be created"
-    assert isinstance(mock_page.dialog, ft.AlertDialog), "Dialog should be AlertDialog"
-    assert mock_page.dialog.open is True, "Dialog should be open"
+    def dialog_opened():
+        return (mock_page.dialog is not None and
+                isinstance(mock_page.dialog, ft.AlertDialog) and
+                mock_page.dialog.open is True)
+
+    assert poll_until(dialog_opened, timeout=3.0), "Dialog should be created and opened"
     assert mock_page.update.called, "Page should be updated"
 
 
@@ -101,14 +116,26 @@ def test_language_change_updates_ui(mock_page):
     lang_dd = None
     # Search recursively in ListView controls
     def find_dropdown(control):
+        if control is None:
+            return None
         if isinstance(control, ft.Dropdown):
+            # Check if it's the language dropdown by label or by checking options
             if control.label and ("Language" in control.label or "language" in control.label.lower()):
                 return control
+            # Also check by options (en/de are language options)
+            if hasattr(control, 'options') and control.options:
+                option_values = [opt.key if hasattr(opt, 'key') else str(opt) for opt in control.options]
+                if 'en' in option_values and 'de' in option_values:
+                    return control
         if hasattr(control, 'controls'):
             for child in control.controls:
                 result = find_dropdown(child)
                 if result:
                     return result
+        if hasattr(control, 'content') and control.content is not None:
+            result = find_dropdown(control.content)
+            if result:
+                return result
         return None
 
     lang_dd = find_dropdown(general_tab)

@@ -698,17 +698,18 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         loading_dlg.open = False
                         self.app_page.update()
                         self._show_snack("Login init failed", "RED")
-                    self._run_task_with_fallback(_handle_no_flow)
+                    self._run_task_with_fallback(_handle_no_flow, error_msg="Failed to initialize login flow")
                     return None
                 return flow
             except Exception as ex:
                 logger.exception(f"Error initiating device flow: {ex}")
                 # Marshal UI updates to main thread
+                error_msg = f"Failed to initiate login flow: {ex}"
                 def _handle_error():
                     loading_dlg.open = False
                     self.app_page.update()
                     self._show_snack(f"Login error: {ex}", "RED")
-                self._run_task_with_fallback(_handle_error)
+                self._run_task_with_fallback(_handle_error, error_msg=error_msg)
                 return None
 
         # Show dialog with flow data on main thread
@@ -774,58 +775,55 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     self._show_snack(f"Failed to show login dialog: {ex2}", "RED")
                     return
 
-            # Ensure dialog is actually open
+            # Verify dialog state (if not open after attempts, log warning but don't force)
             if not dlg.open:
-                logger.warning("Dialog open flag is False, forcing it to True")
-                dlg.open = True
-                self.app_page.update()
+                logger.warning("Dialog open flag is False after all attempts. This may indicate a race condition or dialog opening issue.")
 
             logger.info(f"Dialog opened successfully. open={dlg.open}, page.dialog={self.app_page.dialog is not None}")
 
             # Poll for token in background thread
             def _poll_token():
-                token = AuthService.poll_for_token(flow.get("device_code"), flow.get("interval"), flow.get("expires_in"))
+                try:
+                    token = AuthService.poll_for_token(flow.get("device_code"), flow.get("interval"), flow.get("expires_in"))
 
-                # Close dialog and show result on main thread
-                async def _close_and_result():
-                    dlg.open = False
-                    self.app_page.update()
-                    if token:
-                        AuthService.save_token(token)
-                        self._update_sync_ui()
-                        self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
+                    # Close dialog and show result on main thread
+                    async def _close_and_result():
+                        dlg.open = False
+                        self.app_page.update()
+                        if token:
+                            AuthService.save_token(token)
+                            self._update_sync_ui()
+                            self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
+                        else:
+                            self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
+
+                    if hasattr(self.app_page, 'run_task'):
+                        self.app_page.run_task(_close_and_result)
                     else:
-                        self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
-
-                if hasattr(self.app_page, 'run_task'):
-                    self.app_page.run_task(_close_and_result)
-                else:
-                    # Fallback: execute synchronously if run_task not available
-                    # Note: This is not ideal but provides backward compatibility
-                    import asyncio
-                    try:
-                        loop = asyncio.get_event_loop()
-                        if loop.is_running():
+                        # Fallback: execute synchronously if run_task not available
+                        # Note: This is not ideal but provides backward compatibility
+                        import asyncio
+                        try:
+                            loop = asyncio.get_running_loop()
                             # If loop is running, schedule the coroutine
                             asyncio.create_task(_close_and_result())
-                        else:
-                            # If no loop is running, run it
-                            loop.run_until_complete(_close_and_result())
-                    except RuntimeError:
-                        # No event loop available, try to run synchronously
-                        # This is a fallback and may not work correctly
-                        try:
-                            asyncio.run(_close_and_result())
-                        except Exception:
-                            # Last resort: try to execute the logic directly
-                            dlg.open = False
-                            self.app_page.update()
-                            if token:
-                                AuthService.save_token(token)
-                                self._update_sync_ui()
-                                self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
-                            else:
-                                self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
+                        except RuntimeError:
+                            # No event loop available, create one
+                            try:
+                                asyncio.run(_close_and_result())
+                            except Exception:
+                                # Last resort: try to execute the logic directly
+                                dlg.open = False
+                                self.app_page.update()
+                                if token:
+                                    AuthService.save_token(token)
+                                    self._update_sync_ui()
+                                    self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
+                                else:
+                                    self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
+                except BaseException:
+                    # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
+                    logger.exception("Unexpected error in token polling background thread")
 
             threading.Thread(target=_poll_token, daemon=True).start()
 

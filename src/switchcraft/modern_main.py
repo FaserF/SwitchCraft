@@ -409,7 +409,15 @@ def main(page: ft.Page):
 
         def open_dump_folder(e):
             import subprocess
-            subprocess.Popen(f'explorer "{dump_folder}"')
+            proc = subprocess.Popen(f'explorer "{dump_folder}"')
+            # Don't wait for explorer, but ensure it's properly started
+            # Explorer will close itself, so we don't need to wait
+            try:
+                # Give it a moment to start, then detach
+                import time
+                time.sleep(0.1)
+            except Exception:
+                pass
 
         def open_dump_file(e):
             import os

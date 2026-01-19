@@ -210,6 +210,9 @@ class ModernIntuneView(ft.Column, ViewMixin):
                         self.up_status.color = "RED"
                         self.update()
                     self.app_page.run_task(update_error)
+                except BaseException:
+                    # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
+                    logger.exception("Unexpected error in connection background thread")
 
             threading.Thread(target=_bg, daemon=True).start()
 
@@ -615,7 +618,12 @@ class ModernIntuneView(ft.Column, ViewMixin):
                         # We need to pass the whole string "/select,path" as one arg if we want explorer to receive it?
                         # Actually explorer expects: explorer /select,path
                         # If we pass ["explorer", "/select," + safe_path] it might be quoted as "/select,path" which is fine.
-                        subprocess.run(['explorer', f'/select,{safe_path}'])
+                        proc = subprocess.run(['explorer', f'/select,{safe_path}'])
+                        # Wait for process to complete to avoid ResourceWarning
+                        try:
+                            proc.wait(timeout=5.0)
+                        except Exception:
+                            pass
                     dlg.open = False
                     self.app_page.update()
 
