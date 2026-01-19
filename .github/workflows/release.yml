@@ -68,10 +68,24 @@ jobs:
           python .github/scripts/update_version_info.py "$VERSION"
 
           # Update .iss files (Inno Setup installer scripts)
-          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$VERSION\"/" switchcraft_modern.iss
-          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$VERSION\"/" switchcraft_modern.iss
-          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$VERSION\"/" switchcraft_legacy.iss
-          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$VERSION\"/" switchcraft_legacy.iss
+          # Extract numeric version only (remove .dev0, +build, etc.) for VersionInfoVersion
+          BASE_VERSION=$(echo "$VERSION" | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+          # VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
+          VERSION_INFO="${BASE_VERSION}.0"
+          # For MyAppVersion: use full version for dev (with commit ID), but remove commit ID for beta/stable
+          if [[ "${{ github.event.inputs.release_type }}" == "development" ]]; then
+            # Dev release: keep full version with commit ID (e.g., "2026.1.2.dev0+9d07a00")
+            APP_VERSION="$VERSION"
+          else
+            # Beta/Stable: remove commit ID if present (e.g., "2026.1.2b1" or "2026.1.2")
+            APP_VERSION=$(echo "$VERSION" | sed -E 's/\+[a-zA-Z0-9.-]+$//')
+          fi
+          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$APP_VERSION\"/" switchcraft_modern.iss
+          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_modern.iss
+          sed -i "s/#define MyAppVersionInfo \".*\"/#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_modern.iss
+          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$APP_VERSION\"/" switchcraft_legacy.iss
+          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
+          sed -i "s/#define MyAppVersionInfo \".*\"/#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_legacy.iss
 
       - name: Generate Changelog
         id: changelog
@@ -171,12 +185,19 @@ jobs:
           sed -i "s/__version__ = \".*\"/__version__ = \"$DEV_VERSION\"/" src/switchcraft/__init__.py
           python .github/scripts/update_version_info.py "$DEV_VERSION"
 
-          # Update .iss files (Inno Setup installer scripts) - keep base version without .dev0 suffix for installer
-          BASE_VERSION=$(echo $DEV_VERSION | sed 's/\.dev0.*$//')
-          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$BASE_VERSION\"/" switchcraft_modern.iss
+          # Update .iss files (Inno Setup installer scripts)
+          # Extract numeric version only (remove .dev0, +build, etc.) for VersionInfoVersion
+          BASE_VERSION=$(echo "$DEV_VERSION" | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+          # VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
+          VERSION_INFO="${BASE_VERSION}.0"
+          # For dev releases: MyAppVersion should include commit ID (full DEV_VERSION)
+          # MyAppVersionNumeric should be numeric only (BASE_VERSION)
+          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$DEV_VERSION\"/" switchcraft_modern.iss
           sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_modern.iss
-          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$BASE_VERSION\"/" switchcraft_legacy.iss
+          sed -i "s/#define MyAppVersionInfo \".*\"/#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_modern.iss
+          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$DEV_VERSION\"/" switchcraft_legacy.iss
           sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
+          sed -i "s/#define MyAppVersionInfo \".*\"/#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_legacy.iss
 
           # Update fallback versions in build scripts and version generator
           # Update build_release.ps1 fallback

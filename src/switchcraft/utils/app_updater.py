@@ -72,23 +72,34 @@ class UpdateChecker:
              is_newer = False
              if source == "dev":
                  # For dev, check if SHA is different
-                 # Current version format might be: 2026.1.1-dev-abcdef OR just dev-abcdef (legacy)
+                 # Current version format might be:
+                 # - PEP 440: 2026.1.2.dev0+9d07a00
+                 # - Legacy: 2026.1.1-dev-abcdef OR just dev-abcdef
                  if "dev" in self.current_version.lower():
-                      # Extract last part as SHA
-                      parts = self.current_version.split("-")
-                      # If format is YYYY.M.P-dev-SHA
-                      if len(parts) >= 3 and len(parts[-1]) >= 7:
-                           curr_sha = parts[-1]
-                      # If format is dev-SHA
-                      elif len(parts) == 2 and parts[0] == "dev":
-                           curr_sha = parts[1]
-                      else:
-                           curr_sha = "" # Unknown format
+                      curr_sha = ""
+                      # Try PEP 440 format first: YYYY.M.P.dev0+SHA
+                      if "+" in self.current_version:
+                           # Extract SHA after the + sign
+                           parts = self.current_version.split("+")
+                           if len(parts) >= 2:
+                                curr_sha = parts[-1]
+                      # Fallback to legacy format: YYYY.M.P-dev-SHA or dev-SHA
+                      if not curr_sha:
+                           parts = self.current_version.split("-")
+                           # If format is YYYY.M.P-dev-SHA
+                           if len(parts) >= 3 and len(parts[-1]) >= 7:
+                                curr_sha = parts[-1]
+                           # If format is dev-SHA
+                           elif len(parts) == 2 and parts[0].lower() == "dev":
+                                curr_sha = parts[1]
 
                       # Remote 'ver' from _get_latest_dev_commit is 'dev-{sha}'
-                      new_sha = ver.split("-")[-1]
+                      new_sha = ver.split("-")[-1] if "-" in ver else ""
 
                       if curr_sha and new_sha and curr_sha != new_sha:
+                           is_newer = True
+                      elif not curr_sha:
+                           # If we can't extract current SHA, assume update available
                            is_newer = True
                  else:
                       # If currently on Stable/Beta and switching to Dev channel

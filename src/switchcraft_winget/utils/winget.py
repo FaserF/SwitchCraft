@@ -127,8 +127,11 @@ class WingetHelper:
             List[Dict[str, str]]: A list of result dictionaries with keys 'Name', 'Id', 'Version', and 'Source'. Returns an empty list when no results are found or on error.
         """
         try:
-            ps_script = f"Find-WinGetPackage -Query '{query}' | Select-Object Name, Id, Version, Source | ConvertTo-Json -Depth 1"
-            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script]
+            # Ensure module is available (but don't fail if it's not - we have fallbacks)
+            self._ensure_winget_module()
+            
+            ps_script = f"Import-Module Microsoft.WinGet.Client -ErrorAction SilentlyContinue; Find-WinGetPackage -Query '{query}' | Select-Object Name, Id, Version, Source | ConvertTo-Json -Depth 1"
+            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_script]
             startupinfo = self._get_startup_info()
 
             # Hide CMD window on Windows
@@ -177,20 +180,32 @@ class WingetHelper:
 
     def get_package_details(self, package_id: str) -> Dict[str, str]:
         """
-        Get detailed package information using 'winget show' command.
+        Get detailed package information using PowerShell Get-WinGetPackage cmdlet (primary) or 'winget show' (fallback).
         This provides full manifest details including Description, License, Homepage, etc.
         """
+        # Try PowerShell first (preferred method)
+        try:
+            details = self._get_package_details_via_powershell(package_id)
+            if details:
+                return details
+        except Exception as e:
+            logger.debug(f"PowerShell Get-WinGetPackage failed for {package_id}, falling back to CLI: {e}")
+
+        # Fallback to CLI
         try:
             # Use 'winget show' which provides full manifest details
-            cmd = ["winget", "show", "--id", package_id, "--source", "winget", "--accept-source-agreements", "--accept-package-agreements"]
+            # Add --disable-interactivity to prevent any interactive prompts
+            cmd = ["winget", "show", "--id", package_id, "--source", "winget",
+                   "--accept-source-agreements", "--accept-package-agreements",
+                   "--disable-interactivity"]
             startupinfo = self._get_startup_info()
 
             # Additional flags to hide window on Windows
             kwargs = {}
-            if startupinfo:
-                kwargs['startupinfo'] = startupinfo
             import sys
             if sys.platform == "win32":
+                if startupinfo:
+                    kwargs['startupinfo'] = startupinfo
                 # Use CREATE_NO_WINDOW flag to prevent console window
                 if hasattr(subprocess, 'CREATE_NO_WINDOW'):
                     kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
@@ -314,11 +329,19 @@ class WingetHelper:
         return details
 
     def install_package(self, package_id: str, scope: str = "machine") -> bool:
-        """Install a package via Winget CLI."""
+        """Install a package via PowerShell Install-WinGetPackage (primary) or Winget CLI (fallback)."""
         if scope not in ("machine", "user"):
             logger.error(f"Invalid scope: {scope}")
             return False
 
+        # Try PowerShell first (preferred method)
+        try:
+            if self._install_via_powershell(package_id, scope):
+                return True
+        except Exception as e:
+            logger.debug(f"PowerShell Install-WinGetPackage failed for {package_id}, falling back to CLI: {e}")
+
+        # Fallback to CLI
         cmd = [
             "winget", "install",
             "--id", package_id,
@@ -347,7 +370,16 @@ class WingetHelper:
             return False
 
     def download_package(self, package_id: str, dest_dir: Path) -> Optional[Path]:
-        """Download a package installer to dest_dir. Returns path to installer if found."""
+        """Download a package installer to dest_dir using PowerShell (primary) or Winget CLI (fallback). Returns path to installer if found."""
+        # Try PowerShell first (preferred method)
+        try:
+            result = self._download_via_powershell(package_id, dest_dir)
+            if result:
+                return result
+        except Exception as e:
+            logger.debug(f"PowerShell download failed for {package_id}, falling back to CLI: {e}")
+
+        # Fallback to CLI
         cmd = ["winget", "download", "--id", package_id, "--dir", str(dest_dir), "--accept-source-agreements", "--accept-package-agreements"]
         try:
             startupinfo = self._get_startup_info()
@@ -500,6 +532,174 @@ class WingetHelper:
         except Exception as e:
             logger.debug(f"Winget CLI fallback failed: {e}")
             return []
+
+    def _ensure_winget_module(self) -> bool:
+        """
+        Ensure Microsoft.WinGet.Client module is available.
+        Returns True if module is available or successfully installed, False otherwise.
+        """
+        try:
+            ps_script = """
+            if (-not (Get-Module -ListAvailable -Name Microsoft.WinGet.Client)) {
+                try {
+                    Install-Module -Name Microsoft.WinGet.Client -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
+                    Write-Output "INSTALLED"
+                } catch {
+                    Write-Output "FAILED: $_"
+                    exit 1
+                }
+            } else {
+                Write-Output "AVAILABLE"
+            }
+            """
+            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_script]
+            startupinfo = self._get_startup_info()
+            kwargs = {}
+            if startupinfo:
+                kwargs['startupinfo'] = startupinfo
+            import sys
+            if sys.platform == "win32":
+                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                else:
+                    kwargs['creationflags'] = 0x08000000
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=60, **kwargs)
+            if proc.returncode == 0 and ("AVAILABLE" in proc.stdout or "INSTALLED" in proc.stdout):
+                return True
+            logger.warning(f"WinGet module check failed: {proc.stderr}")
+            return False
+        except Exception as e:
+            logger.debug(f"WinGet module check exception: {e}")
+            return False
+
+    def _get_package_details_via_powershell(self, package_id: str) -> Dict[str, str]:
+        """Get package details using PowerShell Get-WinGetPackage cmdlet."""
+        try:
+            # Ensure module is available
+            if not self._ensure_winget_module():
+                return {}
+
+            ps_script = f"""
+            Import-Module Microsoft.WinGet.Client -ErrorAction SilentlyContinue
+            $pkg = Get-WinGetPackage -Id '{package_id}' -ErrorAction SilentlyContinue
+            if ($pkg) {{
+                $pkg | Select-Object Name, Id, Version, Publisher, Description, Homepage, License, LicenseUrl, PrivacyUrl, Copyright, ReleaseNotes, Tags | ConvertTo-Json -Depth 2
+            }}
+            """
+            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_script]
+            startupinfo = self._get_startup_info()
+            kwargs = {}
+            if startupinfo:
+                kwargs['startupinfo'] = startupinfo
+            import sys
+            if sys.platform == "win32":
+                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                else:
+                    kwargs['creationflags'] = 0x08000000
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=30, **kwargs)
+
+            if proc.returncode != 0 or not proc.stdout.strip():
+                return {}
+
+            try:
+                data = json.loads(proc.stdout.strip())
+                # Convert PowerShell object to our format
+                details = {
+                    "Name": data.get("Name", ""),
+                    "Id": data.get("Id", package_id),
+                    "Version": str(data.get("Version", "")),
+                    "Publisher": data.get("Publisher", ""),
+                    "Description": data.get("Description", ""),
+                    "Homepage": data.get("Homepage", ""),
+                    "License": data.get("License", ""),
+                    "LicenseUrl": data.get("LicenseUrl", ""),
+                    "PrivacyUrl": data.get("PrivacyUrl", ""),
+                    "Copyright": data.get("Copyright", ""),
+                    "ReleaseNotes": data.get("ReleaseNotes", ""),
+                    "Tags": ", ".join(data.get("Tags", [])) if isinstance(data.get("Tags"), list) else str(data.get("Tags", ""))
+                }
+                return {k: v for k, v in details.items() if v}  # Remove empty values
+            except json.JSONDecodeError:
+                return {}
+        except Exception as e:
+            logger.debug(f"PowerShell Get-WinGetPackage error: {e}")
+            return {}
+
+    def _install_via_powershell(self, package_id: str, scope: str) -> bool:
+        """Install a package using PowerShell Install-WinGetPackage cmdlet."""
+        try:
+            # Ensure module is available
+            if not self._ensure_winget_module():
+                return False
+
+            scope_param = "Machine" if scope == "machine" else "User"
+            ps_script = f"""
+            Import-Module Microsoft.WinGet.Client -ErrorAction SilentlyContinue
+            $result = Install-WinGetPackage -Id '{package_id}' -Scope {scope_param} -AcceptPackageAgreements -AcceptSourceAgreements -ErrorAction Stop
+            if ($result -and $result.ExitCode -eq 0) {{
+                Write-Output "SUCCESS"
+            }} else {{
+                Write-Output "FAILED"
+                exit 1
+            }}
+            """
+            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_script]
+            startupinfo = self._get_startup_info()
+            kwargs = {}
+            if startupinfo:
+                kwargs['startupinfo'] = startupinfo
+            import sys
+            if sys.platform == "win32":
+                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                else:
+                    kwargs['creationflags'] = 0x08000000
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=300, **kwargs)
+            return proc.returncode == 0 and "SUCCESS" in proc.stdout
+        except Exception as e:
+            logger.debug(f"PowerShell Install-WinGetPackage error: {e}")
+            return False
+
+    def _download_via_powershell(self, package_id: str, dest_dir: Path) -> Optional[Path]:
+        """Download a package using PowerShell (via Get-WinGetPackage and manual download)."""
+        try:
+            # PowerShell module doesn't have a direct download cmdlet, so we fall back to CLI
+            # But we can use it to verify the package exists first
+            if not self._ensure_winget_module():
+                return None
+
+            ps_script = f"""
+            Import-Module Microsoft.WinGet.Client -ErrorAction SilentlyContinue
+            $pkg = Get-WinGetPackage -Id '{package_id}' -ErrorAction SilentlyContinue
+            if ($pkg) {{
+                Write-Output "EXISTS"
+            }} else {{
+                Write-Output "NOT_FOUND"
+                exit 1
+            }}
+            """
+            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_script]
+            startupinfo = self._get_startup_info()
+            kwargs = {}
+            if startupinfo:
+                kwargs['startupinfo'] = startupinfo
+            import sys
+            if sys.platform == "win32":
+                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+                else:
+                    kwargs['creationflags'] = 0x08000000
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=30, **kwargs)
+            
+            # If package exists, use CLI to download (PowerShell module doesn't have download cmdlet)
+            if proc.returncode == 0 and "EXISTS" in proc.stdout:
+                # Fall through to CLI download
+                return None
+            return None
+        except Exception as e:
+            logger.debug(f"PowerShell download check error: {e}")
+            return None
 
     def _get_startup_info(self):
         """Create STARTUPINFO to hide console window on Windows."""

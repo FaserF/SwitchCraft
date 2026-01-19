@@ -154,15 +154,23 @@ Write-Host "Project Root: $RepoRoot" -ForegroundColor Gray
 $PyProjectFile = Join-Path $RepoRoot "pyproject.toml"
 # Fallback version if extraction fails (can be overridden via env variable)
 $AppVersion = if ($env:SWITCHCRAFT_VERSION) { $env:SWITCHCRAFT_VERSION } else { "2026.1.2" }
-$AppVersionNumeric = $AppVersion -replace '-.*', '' # Remove suffixes like -dev for numeric parsing
+# Extract numeric version only (remove .dev0, +build, -dev, etc.) for VersionInfoVersion
+# Pattern: extract MAJOR.MINOR.PATCH from any version format
+$AppVersionNumeric = if ($AppVersion -match '^(\d+\.\d+\.\d+)') { $Matches[1] } else { $AppVersion -replace '[^0-9.].*', '' }
+# VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
+$AppVersionInfo = "$AppVersionNumeric.0"
 
 if (Test-Path $PyProjectFile) {
     try {
         $VersionLine = Get-Content -Path $PyProjectFile | Select-String "version = " | Select-Object -First 1
         if ($VersionLine -match 'version = "(.*)"') {
             $AppVersion = $Matches[1]
-            $AppVersionNumeric = $AppVersion -replace '-.*', '' # Remove suffixes like -dev for numeric parsing
-            Write-Host "Detected Version: $AppVersion (Numeric base: $AppVersionNumeric)" -ForegroundColor Cyan
+            # Extract numeric version only (remove .dev0, +build, -dev, etc.) for VersionInfoVersion
+            # Pattern: extract MAJOR.MINOR.PATCH from any version format
+            $AppVersionNumeric = if ($AppVersion -match '^(\d+\.\d+\.\d+)') { $Matches[1] } else { $AppVersion -replace '[^0-9.].*', '' }
+            # VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
+            $AppVersionInfo = "$AppVersionNumeric.0"
+            Write-Host "Detected Version: $AppVersion (Numeric base: $AppVersionNumeric, Info: $AppVersionInfo)" -ForegroundColor Cyan
         } else {
             Write-Warning "Could not parse version from pyproject.toml, using fallback: $AppVersion"
         }
@@ -364,12 +372,18 @@ if ($Installer -and $IsWinBuild) {
 
         if (Test-Path "switchcraft_modern.iss") {
             Write-Host "Compiling Modern Installer..."
-            & $IsccPath "/DMyAppVersion=$AppVersion" "/DMyAppVersionNumeric=$AppVersionNumeric" "switchcraft_modern.iss" | Out-Null
+            & $IsccPath "/DMyAppVersion=$AppVersion" "/DMyAppVersionNumeric=$AppVersionNumeric" "/DMyAppVersionInfo=$AppVersionInfo" "switchcraft_modern.iss" | Out-Null
 
             # Cleanup temporary SwitchCraft.exe used for bundling
             if (Test-Path $ModernExe) { Remove-Item $ModernExe -Force }
 
-            Write-Host "Installer Created: SwitchCraft-Setup.exe" -ForegroundColor Green
+            # Get full path to created installer (OutputDir is "dist" in switchcraft_modern.iss)
+            $InstallerPath = Join-Path (Resolve-Path "dist") "SwitchCraft-Setup.exe"
+            if (Test-Path $InstallerPath) {
+                Write-Host "Installer Created: $InstallerPath" -ForegroundColor Green
+            } else {
+                Write-Host "Installer Created: SwitchCraft-Setup.exe (in dist)" -ForegroundColor Green
+            }
         }
     }
     else {
@@ -409,8 +423,14 @@ if ($Legacy -and $IsWinBuild) {
         Write-Host "`nBuilding Legacy Installer..." -ForegroundColor Cyan
         $IsccPath = Get-InnoSetupPath
         if ($IsccPath -and (Test-Path "switchcraft_legacy.iss")) {
-            & $IsccPath "/DMyAppVersion=$AppVersion" "/DMyAppVersionNumeric=$AppVersionNumeric" "switchcraft_legacy.iss" | Out-Null
-            Write-Host "Installer Created: SwitchCraft-Legacy-Setup.exe" -ForegroundColor Green
+            & $IsccPath "/DMyAppVersion=$AppVersion" "/DMyAppVersionNumeric=$AppVersionNumeric" "/DMyAppVersionInfo=$AppVersionInfo" "switchcraft_legacy.iss" | Out-Null
+            # Get full path to created installer (OutputDir is "dist" in switchcraft_legacy.iss)
+            $LegacyInstallerPath = Join-Path (Resolve-Path "dist") "SwitchCraft-Legacy-Setup.exe"
+            if (Test-Path $LegacyInstallerPath) {
+                Write-Host "Installer Created: $LegacyInstallerPath" -ForegroundColor Green
+            } else {
+                Write-Host "Installer Created: SwitchCraft-Legacy-Setup.exe (in dist)" -ForegroundColor Green
+            }
         }
     }
 }

@@ -211,9 +211,19 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     self._show_error(f"Error updating UI: {ex}")
 
             # Use run_task as primary method to marshal UI updates to the page event loop
+            # run_task requires async functions, so wrap sync function if needed
+            import inspect
+            is_async = inspect.iscoroutinefunction(_update_ui)
+
             if hasattr(self.app_page, 'run_task'):
                 try:
-                    self.app_page.run_task(_update_ui)
+                    if is_async:
+                        self.app_page.run_task(_update_ui)
+                    else:
+                        # Wrap sync function in async wrapper
+                        async def async_wrapper():
+                            _update_ui()
+                        self.app_page.run_task(async_wrapper)
                 except Exception as ex:
                     logger.exception(f"Error in run_task for UI update: {ex}")
                     # Fallback to direct call if run_task fails
@@ -302,9 +312,13 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         try:
             logger.info(f"App clicked: {app.get('displayName', 'Unknown')}")
             # Use run_task to ensure UI updates happen on the correct thread
+            # run_task requires async functions, so wrap sync function if needed
             if hasattr(self.app_page, 'run_task'):
                 try:
-                    self.app_page.run_task(lambda: self._show_details(app))
+                    # Create async wrapper for sync function
+                    async def async_show_details():
+                        self._show_details(app)
+                    self.app_page.run_task(async_show_details)
                 except Exception:
                     # Fallback if run_task fails
                     self._show_details(app)
@@ -367,7 +381,10 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                         img = ft.Image(src=logo_url, width=64, height=64, fit=ft.ImageFit.CONTAIN, error_content=ft.Icon(ft.Icons.APPS, size=64))
                         # Replace icon with image in title row
                         if hasattr(self, 'app_page') and hasattr(self.app_page, 'run_task'):
-                            self.app_page.run_task(lambda: self._replace_title_icon(title_row_container, img))
+                            # Create async wrapper for sync function
+                            async def async_replace_icon():
+                                self._replace_title_icon(title_row_container, img)
+                            self.app_page.run_task(async_replace_icon)
                         else:
                             self._replace_title_icon(title_row_container, img)
                     except Exception as ex:
@@ -587,9 +604,12 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     # Refresh details
                     # Use run_task if available to ensure thread safety when calling show_details
                     if hasattr(self.app_page, 'run_task'):
-                         self.app_page.run_task(lambda: self._show_details(app))
+                        # Create async wrapper for sync function
+                        async def async_show_details():
+                            self._show_details(app)
+                        self.app_page.run_task(async_show_details)
                     else:
-                         self._show_details(app)
+                        self._show_details(app)
                 except Exception as ex:
                     self._show_snack(f"Assignment failed: {ex}", "RED")
 

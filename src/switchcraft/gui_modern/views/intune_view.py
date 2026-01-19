@@ -190,7 +190,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                             self.up_status.value = "Missing Credentials (check Settings)"
                             self.up_status.color = "RED"
                             self.update()
-                        self.app_page.run_task(update_fail_creds)
+                        self._run_task_safe(update_fail_creds)
                         return
 
                     auth_token = self.intune_service.authenticate(self.tenant_id, self.client_id, self.client_secret)
@@ -201,7 +201,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                         self.up_status.color = "GREEN"
                         self.btn_upload.disabled = False
                         self.update()
-                    self.app_page.run_task(update_success)
+                    self._run_task_safe(update_success)
 
                 except Exception as ex:
                     # Capture error message for use in nested function
@@ -211,7 +211,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                         self.up_status.value = f"Connection Failed: {error_msg}"
                         self.up_status.color = "RED"
                         self.update()
-                    self.app_page.run_task(update_error)
+                    self._run_task_safe(update_error)
 
             threading.Thread(target=_bg, daemon=True).start()
 
@@ -280,10 +280,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                         self.update()
 
                     # Use run_task if available, otherwise update directly
-                    try:
-                        self.app_page.run_task(update_results)
-                    except Exception:
-                        update_results()
+                    self._run_task_safe(update_results)
 
                 except Exception as ex:
                     logger.exception(f"Error searching apps: {ex}")
@@ -296,10 +293,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                         self.supersede_copy_btn.visible = False
                         self.update()
 
-                    try:
-                        self.app_page.run_task(update_error)
-                    except Exception:
-                        update_error()
+                    self._run_task_safe(update_error)
 
             threading.Thread(target=_bg, daemon=True).start()
 
@@ -507,15 +501,8 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     self.update()
                     self._show_snack((i18n.get("metadata_copied_from") or "Metadata copied from {name}").format(name=full_app.get("displayName", "")), "GREEN")
 
-                # Use page.update() directly instead of run_task to avoid coroutine requirement
-                if hasattr(self.app_page, 'run_task'):
-                    try:
-                        self.app_page.run_task(update_ui)
-                    except TypeError:
-                        # If run_task requires async, use update directly
-                        update_ui()
-                else:
-                    update_ui()
+                # Use safe run_task helper to handle sync/async properly
+                self._run_task_safe(update_ui)
 
             except Exception as ex:
                 logger.exception(f"Error copying metadata: {ex}")
@@ -524,13 +511,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     self.supersede_status_text.value = f"{i18n.get('copy_failed') or 'Copy Failed'}: {error_msg}"
                     self.supersede_status_text.color = "RED"
                     self.update()
-                if hasattr(self.app_page, 'run_task'):
-                    try:
-                        self.app_page.run_task(update_error)
-                    except TypeError:
-                        update_error()
-                else:
-                    update_error()
+                self._run_task_safe(update_error)
         threading.Thread(target=_bg, daemon=True).start()
 
     def _log(self, msg):
@@ -545,13 +526,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
         def _update_ui():
             self.log_view.controls.append(ft.Text(msg, font_family="Consolas", size=12, color="GREEN_400"))
             self.update()
-        if hasattr(self.app_page, 'run_task'):
-            try:
-                self.app_page.run_task(_update_ui)
-            except TypeError:
-                _update_ui()
-        else:
-            _update_ui()
+        self._run_task_safe(_update_ui)
 
     def _run_creation(self, e):
         # ... logic mainly same as before ...
@@ -630,13 +605,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                 )
                 def show_dialog():
                     self.app_page.open(dlg)
-                if hasattr(self.app_page, 'run_task'):
-                    try:
-                        self.app_page.run_task(show_dialog)
-                    except TypeError:
-                        show_dialog()
-                else:
-                    show_dialog()
+                self._run_task_safe(show_dialog)
 
             except Exception as ex:
                 self._log(f"ERROR: {ex}")
@@ -673,7 +642,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     def _u():
                         self.up_status.value = f"{int(pct*100)}% - {msg}"
                         self.update()
-                    self.app_page.run_task(_u)
+                    self._run_task_safe(_u)
 
                 # 1. Upload
                 new_app_id = self.intune_service.upload_win32_app(
@@ -688,7 +657,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     def update_sup():
                         self.up_status.value = "Adding Supersedence..."
                         self.update()
-                    self.app_page.run_task(update_sup)
+                    self._run_task_safe(update_sup)
 
                     self.intune_service.add_supersedence(self.token, new_app_id, child_supersede, uninstall_prev=uninstall_prev)
 
@@ -698,7 +667,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     self.btn_upload.disabled = False
                     self.update()
                     self._show_success_dialog(new_app_id)
-                self.app_page.run_task(update_done)
+                self._run_task_safe(update_done)
 
             except Exception as ex:
                 logger.error(f"Upload failed: {ex}")
@@ -708,7 +677,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     self.up_status.color = "RED"
                     self.btn_upload.disabled = False
                     self.update()
-                self.app_page.run_task(update_fail)
+                self._run_task_safe(update_fail)
 
         threading.Thread(target=_bg, daemon=True).start()
 
