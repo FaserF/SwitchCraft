@@ -72,7 +72,6 @@ def mock_page():
 def mock_auth_service():
     """Mock AuthService responses."""
     with patch('switchcraft.gui_modern.views.settings_view.AuthService') as mock:
-        mock_service = MagicMock()
         mock.initiate_device_flow.return_value = {
             "device_code": "test_code",
             "user_code": "ABC-123",
@@ -82,10 +81,7 @@ def mock_auth_service():
         }
         mock.poll_for_token.return_value = "test_token_123"
         mock.save_token = MagicMock()
-        mock_service.initiate_device_flow = mock.initiate_device_flow
-        mock_service.poll_for_token = mock.poll_for_token
-        mock_service.save_token = mock.save_token
-        return mock
+        yield mock
 
 
 def test_github_login_opens_dialog(mock_page, mock_auth_service):
@@ -204,13 +200,22 @@ def test_language_dropdown_handler_exists(mock_page):
     view = ModernSettingsView(mock_page)
     mock_page.add(view)
 
-    # Get the language dropdown
+    # Get the language dropdown - search recursively
     general_tab = view._build_general_tab()
     lang_dd = None
-    for control in general_tab.controls:
+    def find_dropdown(control):
         if isinstance(control, ft.Dropdown):
-            lang_dd = control
-            break
+            return control
+        if hasattr(control, 'controls'):
+            for child in control.controls:
+                result = find_dropdown(child)
+                if result:
+                    return result
+        if hasattr(control, 'content'):
+            return find_dropdown(control.content)
+        return None
+
+    lang_dd = find_dropdown(general_tab)
 
     assert lang_dd is not None, "Language dropdown should exist"
     assert lang_dd.on_change is not None, "Language dropdown must have on_change handler"

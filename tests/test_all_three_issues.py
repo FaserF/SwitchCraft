@@ -60,7 +60,7 @@ def mock_auth_service():
         }
         mock.poll_for_token.return_value = "test_token_123"
         mock.save_token = MagicMock()
-        return mock
+        yield mock
 
 
 def test_github_login_opens_dialog(mock_page, mock_auth_service):

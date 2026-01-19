@@ -391,9 +391,9 @@ class IntuneService:
             resp.raise_for_status()
             data = resp.json()
             return data.get("value", [])
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as e:
             logger.error("Request to Graph API timed out after 30 seconds")
-            raise requests.exceptions.Timeout("Request timed out. The server took too long to respond.")
+            raise requests.exceptions.Timeout("Request timed out. The server took too long to respond.") from e
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error in list_apps: {e}")
             raise
@@ -481,12 +481,12 @@ class IntuneService:
             resp = requests.get(base_url, headers=headers, timeout=30, stream=False)
             resp.raise_for_status()
             return resp.json()
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as e:
             logger.error(f"Request timed out while getting app details for {app_id}")
-            raise requests.exceptions.Timeout("Request timed out. The server took too long to respond.")
+            raise requests.exceptions.Timeout("Request timed out. The server took too long to respond.") from e
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error getting app details: {e}")
-            raise Exception(f"Network error: {str(e)}")
+            raise requests.exceptions.RequestException(f"Network error: {str(e)}") from e
         except Exception as e:
             logger.error(f"Failed to get app details: {e}")
             raise e

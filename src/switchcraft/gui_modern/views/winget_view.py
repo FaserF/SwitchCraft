@@ -241,8 +241,11 @@ class ModernWingetView(ft.Row, ViewMixin):
                     raise result_holder["error"]
 
                 # Always call _show_list, even if data is empty
+                # Route through _run_ui_update for thread safety (this runs in background thread)
                 data = result_holder["data"] if result_holder["data"] is not None else []
-                self._show_list(data, filter_by, query)
+                def _update_list():
+                    self._show_list(data, filter_by, query)
+                self._run_ui_update(_update_list)
             except Exception as ex:
                 logger.error(f"Winget search error: {ex}")
                 self.search_results.controls.clear()

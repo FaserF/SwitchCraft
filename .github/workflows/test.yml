@@ -20,27 +20,34 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Set condition as env variable for reuse across steps
+      - name: Set condition variable
+        id: should_run
+        run: |
+          if [[ "${{ matrix.python-version }}" == "3.14" ]] || \
+             ([[ "${{ matrix.python-version }}" == "3.15" ]] && \
+              [[ "${{ github.event_name }}" == "push" ]] && \
+              [[ "${{ github.ref }}" == "refs/heads/main" ]]); then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Python ${{ matrix.python-version }}
-        if: |
-          matrix.python-version == '3.14' ||
-          (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: steps.should_run.outputs.should_run == 'true'
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: ${{ matrix.python-version == '3.15' }}
 
       - name: Install dependencies
-        if: |
-          matrix.python-version == '3.14' ||
-          (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: steps.should_run.outputs.should_run == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install .[test,gui]
 
       - name: Run All Python Tests
-        if: |
-          matrix.python-version == '3.14' ||
-          (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: steps.should_run.outputs.should_run == 'true'
         run: |
           pytest tests/ -v --tb=short
         env:

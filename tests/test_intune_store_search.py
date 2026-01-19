@@ -61,9 +61,11 @@ def test_intune_search_shows_timeout_error(mock_page, mock_intune_service):
     if os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true':
         pytest.skip("Skipping test with long time.sleep in CI environment")
 
-    # Mock slow search that times out
+    # Mock slow search that times out - use Event to block without long sleep
+    search_blocker = threading.Event()
     def slow_search(token, query):
-        time.sleep(70)  # Simulate timeout (longer than 60 second timeout)
+        # Block indefinitely until test completes (no actual sleep)
+        search_blocker.wait(timeout=300)  # Long timeout, but test will finish before
         return []
     mock_intune_service.search_apps = slow_search
     mock_intune_service.list_apps = slow_search
@@ -105,6 +107,9 @@ def test_intune_search_shows_timeout_error(mock_page, mock_intune_service):
         assert len(error_calls) > 0, "Timeout error should have been shown"
         assert any("timeout" in str(msg).lower() or "60 seconds" in str(msg) for msg in error_calls), \
             f"Expected timeout message, but got: {error_calls}"
+
+        # Clean up: unblock the search thread so it can exit (it's daemon, but good practice)
+        search_blocker.set()
 
 
 def test_intune_search_handles_network_error(mock_page, mock_intune_service):
@@ -174,19 +179,22 @@ def test_intune_search_timeout_mechanism(mock_page, mock_intune_service):
     if os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true':
         pytest.skip("Skipping test with long time.sleep in CI environment")
 
-    # Mock a search that takes longer than timeout
+    # Mock a search that takes longer than timeout - use Event to block without long sleep
     search_started = threading.Event()
     search_completed = threading.Event()
+    search_blocker = threading.Event()
 
     def slow_search(token, query):
         search_started.set()
-        time.sleep(65)  # Longer than 60 second timeout
+        # Block indefinitely until test completes (no actual sleep)
+        search_blocker.wait(timeout=300)  # Long timeout, but test will finish before
         search_completed.set()
         return []
 
     def slow_list(token):
         search_started.set()
-        time.sleep(65)  # Longer than 60 second timeout
+        # Block indefinitely until test completes (no actual sleep)
+        search_blocker.wait(timeout=300)  # Long timeout, but test will finish before
         search_completed.set()
         return []
 
@@ -246,6 +254,9 @@ def test_intune_search_timeout_mechanism(mock_page, mock_intune_service):
         assert len(error_calls) > 0, "Timeout error should have been shown"
         assert any("timeout" in str(msg).lower() or "60 seconds" in str(msg) for msg in error_calls), \
             f"Expected timeout message, but got: {error_calls}"
+
+        # Clean up: unblock the search thread so it can exit (it's daemon, but good practice)
+        search_blocker.set()
         # Verify that search did not complete
         assert not search_completed.is_set(), "Search should not have completed due to timeout"
     finally:

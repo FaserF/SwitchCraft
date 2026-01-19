@@ -59,7 +59,6 @@ def mock_page():
 def mock_auth_service():
     """Mock AuthService responses."""
     with patch('switchcraft.gui_modern.views.settings_view.AuthService') as mock:
-        mock_service = MagicMock()
         mock.initiate_device_flow.return_value = {
             "device_code": "test_code",
             "user_code": "ABC-123",
@@ -69,10 +68,7 @@ def mock_auth_service():
         }
         mock.poll_for_token.return_value = "test_token_123"
         mock.save_token = MagicMock()
-        mock_service.initiate_device_flow = mock.initiate_device_flow
-        mock_service.poll_for_token = mock.poll_for_token
-        mock_service.save_token = mock.save_token
-        return mock
+        yield mock
 
 
 def test_github_login_dialog_opens(mock_page, mock_auth_service):

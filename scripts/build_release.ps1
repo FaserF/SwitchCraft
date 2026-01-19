@@ -152,9 +152,9 @@ Write-Host "Project Root: $RepoRoot" -ForegroundColor Gray
 
 # --- Version Extraction ---
 $PyProjectFile = Join-Path $RepoRoot "pyproject.toml"
-# Fallback version if extraction fails (should match current release cycle)
-$AppVersion = "2026.1.2"
-$AppVersionNumeric = "2026.1.2"
+# Fallback version if extraction fails (can be overridden via env variable)
+$AppVersion = if ($env:SWITCHCRAFT_VERSION) { $env:SWITCHCRAFT_VERSION } else { "2026.1.2" }
+$AppVersionNumeric = $AppVersion -replace '-.*', '' # Remove suffixes like -dev for numeric parsing
 
 if (Test-Path $PyProjectFile) {
     try {

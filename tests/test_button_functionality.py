@@ -171,13 +171,18 @@ def test_winget_view_search_button(mock_page):
         if search_button and hasattr(search_button, 'on_click') and search_button.on_click:
             # Verify handler exists and is callable
             assert callable(search_button.on_click), "Search button handler should be callable"
+            failures = []
             try:
                 mock_event = MagicMock()
                 mock_event.control = search_button
                 search_button.on_click(mock_event)
             except Exception as e:
-                # Allow some failures due to missing dependencies
-                pass
+                # Track failures for reporting
+                failures.append(str(e))
+
+            # Fail test if handler raised an exception
+            if failures:
+                pytest.fail(f"Search button handler raised exception: {failures[0]}")
 
         assert view is not None, "View should be created"
         assert hasattr(view, 'update'), "View should have update method"
@@ -200,13 +205,18 @@ def test_intune_store_search_button(mock_page):
             if hasattr(view.btn_search, 'on_click') and view.btn_search.on_click:
                 # Verify handler exists and is callable
                 assert callable(view.btn_search.on_click), "Search button handler should be callable"
+                failures = []
                 try:
                     mock_event = MagicMock()
                     mock_event.control = view.btn_search
                     view.btn_search.on_click(mock_event)
                 except Exception as e:
-                    # Allow some failures due to missing dependencies
-                    pass
+                    # Track failures for reporting
+                    failures.append(str(e))
+
+                # Fail test if handler raised an exception
+                if failures:
+                    pytest.fail(f"Search button handler raised exception: {failures[0]}")
 
         assert view is not None, "View should be created"
         assert hasattr(view, 'update'), "View should have update method"

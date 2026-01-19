@@ -186,7 +186,6 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 logger.warning("Search thread timed out and is still running")
 
             # Wait a bit more to ensure result_holder is set (max 1 second)
-            import time
             timeout_count = 0
             while not result_holder["completed"] and timeout_count < 10:
                 time.sleep(0.1)
