@@ -128,13 +128,21 @@ def test_language_change_updates_ui(mock_page):
     # Search recursively in ListView controls
     def find_dropdown(control):
         if isinstance(control, ft.Dropdown):
+            # Check if it's the language dropdown by label or by checking if it has language options
             if control.label and ("Language" in control.label or "language" in control.label.lower()):
                 return control
+            # Also check by options (en/de are language codes)
+            if hasattr(control, 'options') and control.options:
+                option_values = [opt.key if hasattr(opt, 'key') else str(opt) for opt in control.options]
+                if "en" in option_values and "de" in option_values:
+                    return control
         if hasattr(control, 'controls'):
             for child in control.controls:
                 result = find_dropdown(child)
                 if result:
                     return result
+        if hasattr(control, 'content'):
+            return find_dropdown(control.content)
         return None
 
     lang_dd = find_dropdown(general_tab)

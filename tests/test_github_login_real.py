@@ -127,6 +127,8 @@ def test_notification_bell_opens_drawer(mock_page):
     from switchcraft.gui_modern.app import ModernApp
 
     app = ModernApp(mock_page)
+    # Ensure run_task is available for UI updates
+    mock_page.run_task = lambda func: func()
 
     # Mock notification service
     with patch.object(app, 'notification_service') as mock_notif:

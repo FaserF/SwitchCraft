@@ -30,6 +30,8 @@ def test_language_change_updates_config(mock_page):
 
         view = ModernSettingsView(mock_page)
         view.update = MagicMock()
+        # Ensure run_task is available for UI updates
+        mock_page.run_task = lambda func: func()
 
         # Change language
         view._on_lang_change("de")
@@ -55,6 +57,8 @@ def test_language_change_shows_restart_message(mock_page):
     view = ModernSettingsView(mock_page)
     view._show_snack = track_snack
     view.update = MagicMock()
+    # Ensure run_task is available for UI updates
+    mock_page.run_task = lambda func: func()
 
     with patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference'), \
          patch('switchcraft.utils.i18n.i18n.set_language'):

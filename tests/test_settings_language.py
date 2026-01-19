@@ -29,6 +29,8 @@ class TestSettingsLanguage(unittest.TestCase):
         from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
         view = ModernSettingsView(self.page)
+        # Ensure run_task is available for UI updates
+        self.page.run_task = lambda func: func()
 
         # Simulate language change
         view._on_lang_change("en")
