@@ -128,8 +128,16 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         query = self.search_field.value
         self.results_list.controls.clear()
         self.results_list.controls.append(ft.ProgressBar())
-        self.results_list.controls.append(ft.Text("Searching...", color="GREY_500", italic=True))
-        self.update()
+        self.results_list.controls.append(ft.Text(i18n.get("searching", default="Searching..."), color="GREY_500", italic=True))
+        try:
+            self.update()
+        except Exception as ex:
+            logger.debug(f"Error updating view in _run_search: {ex}")
+            # Try updating just the results list if view update fails
+            try:
+                self.results_list.update()
+            except Exception:
+                pass
 
         def _bg():
             result_holder = {"apps": None, "error": None, "completed": False}
@@ -174,29 +182,51 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             if search_thread.is_alive():
                 result_holder["error"] = "Search timed out after 60 seconds. Please check your connection and try again."
                 result_holder["completed"] = True
+                # Force stop the thread (it's daemon, so it will be killed when main thread exits)
+                logger.warning("Search thread timed out and is still running")
 
-            # Wait a bit more to ensure result_holder is set
-            import time
+            # Wait a bit more to ensure result_holder is set (max 1 second)
             timeout_count = 0
             while not result_holder["completed"] and timeout_count < 10:
                 time.sleep(0.1)
                 timeout_count += 1
 
-            # Update UI on main thread
+            # Ensure completed is set
+            if not result_holder["completed"]:
+                result_holder["completed"] = True
+                if not result_holder["error"] and result_holder["apps"] is None:
+                    result_holder["error"] = "Search failed: No response received."
+
+            # Update UI on main thread - use run_task to marshal UI updates to the page event loop
+            def _update_ui():
+                try:
+                    if result_holder["error"]:
+                        self._show_error(result_holder["error"])
+                    elif result_holder["apps"] is not None:
+                        self._update_list(result_holder["apps"])
+                    else:
+                        self._show_error("Search failed: No results and no error message.")
+                except Exception as ex:
+                    logger.exception(f"Error in _update_ui: {ex}")
+                    self._show_error(f"Error updating UI: {ex}")
+
+            # Use run_task as primary method to marshal UI updates to the page event loop
             if hasattr(self.app_page, 'run_task'):
-                if result_holder["error"]:
-                    self.app_page.run_task(lambda: self._show_error(result_holder["error"]))
-                elif result_holder["apps"] is not None:
-                    self.app_page.run_task(lambda: self._update_list(result_holder["apps"]))
-                else:
-                    self.app_page.run_task(lambda: self._show_error("Search failed: No results and no error message."))
+                try:
+                    self.app_page.run_task(_update_ui)
+                except Exception as ex:
+                    logger.exception(f"Error in run_task for UI update: {ex}")
+                    # Fallback to direct call if run_task fails
+                    try:
+                        _update_ui()
+                    except Exception as ex2:
+                        logger.exception(f"Failed to update UI directly: {ex2}")
             else:
-                if result_holder["error"]:
-                    self._show_error(result_holder["error"])
-                elif result_holder["apps"] is not None:
-                    self._update_list(result_holder["apps"])
-                else:
-                    self._show_error("Search failed: No results and no error message.")
+                # Fallback to direct call if run_task is not available
+                try:
+                    _update_ui()
+                except Exception as ex:
+                    logger.exception(f"Failed to update UI: {ex}")
 
         threading.Thread(target=_bg, daemon=True).start()
 

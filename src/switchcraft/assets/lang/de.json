@@ -460,6 +460,7 @@
     "error_loading": "Fehler beim Laden der Ansicht",
     "error_tab_builder": "Fehler: Tab-Builder fehlt",
     "error_check_logs": "Details in den Logs prüfen.",
+    "error_opening_notifications": "Fehler beim Öffnen der Benachrichtigungen",
     "no_notifications": "Keine Benachrichtigungen",
     "notifications_cleared": "Benachrichtigungen gelöscht",
     "please_navigate_manually": "Bitte zum Addon-Manager navigieren",

@@ -1,7 +1,20 @@
+import os
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 from switchcraft.utils.templates import TemplateGenerator
+
+# Import CI detection helper
+try:
+    from conftest import is_ci_environment
+except ImportError:
+    # Fallback if conftest not available - mirror conftest.is_ci_environment() conditions
+    def is_ci_environment():
+        return (
+            os.environ.get('CI') == 'true' or
+            os.environ.get('GITHUB_ACTIONS') == 'true' or
+            os.environ.get('GITHUB_RUN_ID') is not None
+        )
 
 class TestTemplateWithCompany(unittest.TestCase):
     def setUp(self):
@@ -12,18 +25,23 @@ class TestTemplateWithCompany(unittest.TestCase):
         Remove the test output file if it exists.
 
         If the configured output path exists, attempt to delete it. On a PermissionError (e.g., file temporarily locked) the method waits 0.1 seconds and retries once; any PermissionError or FileNotFoundError on the retry is ignored.
+
+        In CI environments, only a single attempt is made without retries to avoid hangs.
         """
         if self.output_path.exists():
             try:
                 self.output_path.unlink()
             except PermissionError:
-                # File might still be open, try again after a short delay
-                import time
-                time.sleep(0.1)
-                try:
-                    self.output_path.unlink()
-                except (PermissionError, FileNotFoundError):
-                    pass  # File was deleted or still locked, skip
+                # File might still be open
+                if not is_ci_environment():
+                    # In non-CI, retry after a short delay
+                    import time
+                    time.sleep(0.1)
+                    try:
+                        self.output_path.unlink()
+                    except (PermissionError, FileNotFoundError):
+                        pass
+                # In CI, skip retry to avoid hangs - single attempt only  # File was deleted or still locked, skip
 
     @patch("switchcraft.utils.config.SwitchCraftConfig.get_value")
     @patch("switchcraft.utils.config.SwitchCraftConfig.get_company_name")

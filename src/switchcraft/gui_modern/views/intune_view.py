@@ -204,8 +204,11 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     self.app_page.run_task(update_success)
 
                 except Exception as ex:
+                    # Capture error message for use in nested function
+                    error_msg = str(ex)
+                    logger.exception("Error in connection background thread")
                     def update_error():
-                        self.up_status.value = f"Connection Failed: {ex}"
+                        self.up_status.value = f"Connection Failed: {error_msg}"
                         self.up_status.color = "RED"
                         self.update()
                     self.app_page.run_task(update_error)
@@ -284,9 +287,10 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
                 except Exception as ex:
                     logger.exception(f"Error searching apps: {ex}")
+                    error_msg = str(ex)  # Capture error message for use in nested function
                     def update_error():
                         self.supersede_search_progress.visible = False
-                        self.supersede_status_text.value = f"{i18n.get('search_error') or 'Search Error'}: {str(ex)}"
+                        self.supersede_status_text.value = f"{i18n.get('search_error') or 'Search Error'}: {error_msg}"
                         self.supersede_status_text.color = "RED"
                         self.supersede_options.visible = False
                         self.supersede_copy_btn.visible = False
@@ -515,8 +519,9 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
             except Exception as ex:
                 logger.exception(f"Error copying metadata: {ex}")
+                error_msg = str(ex)  # Capture error message for use in nested function
                 def update_error():
-                    self.supersede_status_text.value = f"{i18n.get('copy_failed') or 'Copy Failed'}: {ex}"
+                    self.supersede_status_text.value = f"{i18n.get('copy_failed') or 'Copy Failed'}: {error_msg}"
                     self.supersede_status_text.color = "RED"
                     self.update()
                 if hasattr(self.app_page, 'run_task'):
@@ -612,6 +617,8 @@ class ModernIntuneView(ft.Column, ViewMixin):
                         # We need to pass the whole string "/select,path" as one arg if we want explorer to receive it?
                         # Actually explorer expects: explorer /select,path
                         # If we pass ["explorer", "/select," + safe_path] it might be quoted as "/select,path" which is fine.
+                        # subprocess.run returns CompletedProcess and blocks until completion
+                        # No need to wait as it's already completed
                         subprocess.run(['explorer', f'/select,{safe_path}'])
                     dlg.open = False
                     self.app_page.update()
@@ -695,8 +702,9 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
             except Exception as ex:
                 logger.error(f"Upload failed: {ex}")
+                error_msg = str(ex)  # Capture error message for use in nested function
                 def update_fail():
-                    self.up_status.value = f"Error: {ex}"
+                    self.up_status.value = f"Error: {error_msg}"
                     self.up_status.color = "RED"
                     self.btn_upload.disabled = False
                     self.update()

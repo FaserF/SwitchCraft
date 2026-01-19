@@ -138,9 +138,12 @@ ruff check src/ --fix
 ```powershell
 cd docs
 npm install
-npm run dev      # Development server
+npm run dev      # Development server (VitePress - secure)
 npm run build    # Production build
 ```
+
+> [!WARNING]
+> **Security Note**: The documentation uses VitePress, which handles esbuild securely. If you add custom build scripts using esbuild's `serve` feature directly, be aware of the [CORS security vulnerability](SECURITY.md#development-server-security). Always restrict CORS to localhost only and never expose the dev server to external networks.
 
 ## Troubleshooting
 

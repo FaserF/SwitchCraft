@@ -15,12 +15,15 @@ class TestSettingsLanguage(unittest.TestCase):
 
         The mocked page is assigned to `self.page`. A `switchcraft_app` mock is attached with an initial
         `_current_tab_index` of 0 and a `goto_tab` mock. The page's `show_snack_bar` is also mocked.
+        run_task is set here for consistency with other test files.
         """
         self.page = MagicMock(spec=ft.Page)
         self.page.switchcraft_app = MagicMock()
         self.page.switchcraft_app._current_tab_index = 0
         self.page.switchcraft_app.goto_tab = MagicMock()
         self.page.show_snack_bar = MagicMock()
+        # Set run_task in setUp for consistency with other test files
+        self.page.run_task = lambda func: func()
 
     @patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference')
     @patch('switchcraft.utils.i18n.i18n.set_language')
@@ -29,6 +32,7 @@ class TestSettingsLanguage(unittest.TestCase):
         from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
         view = ModernSettingsView(self.page)
+        # run_task is already set in setUp
 
         # Simulate language change
         view._on_lang_change("en")

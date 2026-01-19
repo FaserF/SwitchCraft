@@ -141,7 +141,17 @@ class GroupManagerView(ft.Column, ViewMixin):
                 self.token = self.intune_service.authenticate(tenant, client, secret)
                 self.groups = self.intune_service.list_groups(self.token)
                 self.filtered_groups = self.groups
-                self._update_table()
+                # Marshal UI update to main thread
+                def update_table():
+                    try:
+                        self._update_table()
+                    except (RuntimeError, AttributeError):
+                        # Control not added to page yet (common in tests)
+                        logger.debug("Cannot update table: control not added to page")
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(update_table)
+                else:
+                    update_table()
             except requests.exceptions.HTTPError as e:
                 # Handle specific permission error (403)
                 logger.error(f"Permission denied loading groups: {e}")
@@ -150,46 +160,99 @@ class GroupManagerView(ft.Column, ViewMixin):
                     error_msg = i18n.get("graph_permission_error", permissions=missing_perms) or f"Missing Graph API permissions: {missing_perms}"
                 else:
                     error_msg = f"HTTP Error: {e}"
-                self._show_snack(error_msg, "RED")
+                # Marshal UI update to main thread
+                def show_error():
+                    try:
+                        self._show_snack(error_msg, "RED")
+                    except (RuntimeError, AttributeError):
+                        pass  # Control not added to page (common in tests)
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(show_error)
+                else:
+                    show_error()
             except requests.exceptions.ConnectionError as e:
                 # Handle authentication failure
                 logger.error(f"Authentication failed: {e}")
                 error_msg = i18n.get("graph_auth_error") or "Authentication failed. Please check your credentials."
-                self._show_snack(error_msg, "RED")
+                # Marshal UI update to main thread
+                def show_error():
+                    try:
+                        self._show_snack(error_msg, "RED")
+                    except (RuntimeError, AttributeError):
+                        pass  # Control not added to page (common in tests)
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(show_error)
+                else:
+                    show_error()
             except Exception as e:
                 error_str = str(e).lower()
                 # Detect permission issues from error message
                 if "403" in error_str or "forbidden" in error_str or "insufficient" in error_str:
                     error_msg = i18n.get("graph_permission_error", permissions="Group.Read.All") or "Missing Graph API permissions: Group.Read.All"
-                    self._show_snack(error_msg, "RED")
                 elif "401" in error_str or "unauthorized" in error_str:
                     error_msg = i18n.get("graph_auth_error") or "Authentication failed. Please check your credentials."
-                    self._show_snack(error_msg, "RED")
                 else:
                     logger.error(f"Failed to load groups: {e}")
-                    self._show_snack(f"Error loading groups: {e}", "RED")
-            finally:
-                self.list_container.disabled = False
-                self.update()
+                    error_msg = f"Error loading groups: {e}"
+                # Marshal UI update to main thread
+                def show_error():
+                    try:
+                        self._show_snack(error_msg, "RED")
+                    except (RuntimeError, AttributeError):
+                        pass  # Control not added to page (common in tests)
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(show_error)
+                else:
+                    show_error()
+            except BaseException as be:
+                # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
+                logger.exception("Unexpected error in group loading background thread")
+                # Marshal UI update to main thread
+                def update_ui():
+                    try:
+                        self.list_container.disabled = False
+                        self.update()
+                    except (RuntimeError, AttributeError):
+                        pass
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(update_ui)
+                else:
+                    update_ui()
+            else:
+                # Only update UI if no exception occurred - marshal to main thread
+                def update_ui():
+                    try:
+                        self.list_container.disabled = False
+                        self.update()
+                    except (RuntimeError, AttributeError):
+                        pass
+                if hasattr(self.app_page, 'run_task'):
+                    self.app_page.run_task(update_ui)
+                else:
+                    update_ui()
 
         threading.Thread(target=_bg, daemon=True).start()
 
     def _update_table(self):
-        self.dt.rows.clear()
-        for g in self.filtered_groups:
-             self.dt.rows.append(
-                 ft.DataRow(
-                     cells=[
-                         ft.DataCell(ft.Text(g.get('displayName', ''))),
-                         ft.DataCell(ft.Text(g.get('description', ''))),
-                         ft.DataCell(ft.Text(g.get('id', ''))),
-                         ft.DataCell(ft.Text(", ".join(g.get('groupTypes', [])) or "Security")),
-                     ],
-                     on_select_change=lambda e, grp=g: self._on_select(e.control.selected, grp),
-                     selected=self.selected_group == g
+        try:
+            self.dt.rows.clear()
+            for g in self.filtered_groups:
+                 self.dt.rows.append(
+                     ft.DataRow(
+                         cells=[
+                             ft.DataCell(ft.Text(g.get('displayName', ''))),
+                             ft.DataCell(ft.Text(g.get('description', ''))),
+                             ft.DataCell(ft.Text(g.get('id', ''))),
+                             ft.DataCell(ft.Text(", ".join(g.get('groupTypes', [])) or "Security")),
+                         ],
+                         on_select_change=lambda e, grp=g: self._on_select(e.control.selected, grp),
+                         selected=self.selected_group == g
+                     )
                  )
-             )
-        self.update()
+            self.update()
+        except (RuntimeError, AttributeError):
+            # Control not added to page yet (common in tests)
+            logger.debug("Cannot update table: control not added to page")
 
     def _on_search(self, e):
         query = self.search_field.value.lower()
@@ -239,6 +302,9 @@ class GroupManagerView(ft.Column, ViewMixin):
                     self._load_data()
                 except Exception as ex:
                     self._show_snack(f"Creation failed: {ex}", "RED")
+                except BaseException:
+                    # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
+                    logger.exception("Unexpected error in group creation background thread")
 
             threading.Thread(target=_bg, daemon=True).start()
 
@@ -380,6 +446,13 @@ class GroupManagerView(ft.Column, ViewMixin):
             )
             results_list = ft.ListView(expand=True, height=200)
 
+            # Create dialog first so it can be referenced in nested functions
+            add_dlg = ft.AlertDialog(
+                title=ft.Text(i18n.get("dlg_add_member") or "Add Member"),
+                content=ft.Column([search_box, results_list], height=300, width=400),
+                actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(add_dlg))]
+            )
+
             def search_users(e):
                 query = search_box.value
                 if not query or not query.strip(): return
@@ -408,12 +481,16 @@ class GroupManagerView(ft.Column, ViewMixin):
                         results_list.controls.clear()
                         error_tmpl = i18n.get("error_search_failed") or "Search failed: {error}"
                         results_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
-                    add_dlg.update()
+                    # Marshal UI update to main thread
+                    if hasattr(self.app_page, 'run_task'):
+                        self.app_page.run_task(add_dlg.update)
+                    else:
+                        add_dlg.update()
 
                 threading.Thread(target=_bg, daemon=True).start()
 
             def add_user(user_id):
-                self._close_dialog(self.dlg_add_member) # Close add dialog
+                self._close_dialog(add_dlg) # Close add dialog
 
                 def _bg():
                     try:
@@ -424,12 +501,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self._show_snack(f"Failed to add member: {ex}", "RED")
                 threading.Thread(target=_bg, daemon=True).start()
 
-            self.dlg_add_member = ft.AlertDialog(
-                title=ft.Text(i18n.get("dlg_add_member") or "Add Member"),
-                content=ft.Column([search_box, results_list], height=300, width=400),
-                actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(self.dlg_add_member))]
-            )
-            self.app_page.open(self.dlg_add_member)
+            self.app_page.open(add_dlg)
             self.app_page.update()
 
         title_tmpl = i18n.get("members_title") or "Members: {group}"
@@ -444,7 +516,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                 ft.Divider(),
                 members_list
             ], height=400, width=500),
-            actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(self.app_page.dialog))],
+            actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(dlg))],
         )
 
         self.app_page.open(dlg)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "switchcraft"
-version = "2026.1.2-dev-9d07a00"
+version = "2026.1.2.dev0+9d07a00"
 description = "A universal silent switch finder and installer analyzer."
 readme = "README.md"
 authors = [{ name = "FaserF" }]
@@ -27,8 +27,7 @@ dependencies = [
     "google-generativeai",
     "defusedxml",
     "PyJWT",
-    "winotify",
-    "requests"
+    "winotify"
 ]
 requires-python = ">=3.9"
 

@@ -81,7 +81,7 @@ jobs:
       contents: write
       pull-requests: write
       checks: read
-      issues: read
+      issues: write
     steps:
       - uses: actions/checkout@v6
 
@@ -92,6 +92,23 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           echo "Processing PR #$PR_NUMBER for Auto-Merge..."
+
+          # 0. Check for no-auto-merge label
+          echo "Checking for no-auto-merge label..."
+          HAS_NO_AUTO_MERGE=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[] | select(.name == "no-auto-merge") | .name' | head -n 1)
+          if [[ -n "$HAS_NO_AUTO_MERGE" ]]; then
+             echo "::notice::PR has 'no-auto-merge' label. Skipping auto-merge."
+             # Check if comment already exists to avoid duplicates
+             COMMENT_EXISTS=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --jq '.[] | select(.body | contains("Auto-Merge Skipped") and contains("no-auto-merge")) | .id' | head -n 1)
+             if [[ -z "$COMMENT_EXISTS" ]]; then
+               # Post a comment explaining why auto-merge was skipped (only if not already posted)
+               # Use heredoc to preserve multi-line message and avoid YAML parsing issues
+               BODY=$'🚫 **Auto-Merge Skipped**\n\nThis PR has the `no-auto-merge` label. Auto-merge was not executed.\n\nTo enable auto-merge, please remove the `no-auto-merge` label.'
+               gh pr comment "$PR_NUMBER" --body "$BODY"
+             fi
+             exit 0
+          fi
+          echo "No 'no-auto-merge' label found. Proceeding..."
 
           # 1. Check CI Status
           # Implicitly passed because this job 'needs' build/test-backend.

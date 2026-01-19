@@ -437,6 +437,7 @@
     "error_loading": "Error loading view",
     "error_tab_builder": "Error: Tab builder missing",
     "error_check_logs": "Check logs for details.",
+    "error_opening_notifications": "Failed to open notifications",
     "no_notifications": "No notifications",
     "notifications_cleared": "Notifications cleared",
     "please_navigate_manually": "Please navigate to Addons tab manually",

@@ -3,6 +3,7 @@ import re
 import datetime
 import argparse
 import subprocess
+import sys
 
 def get_current_date_version():
     """Returns the current date in Year.Month format (e.g., 2025.12)."""
@@ -49,15 +50,16 @@ def calculate_next_version(base_version, tags, release_type="stable"):
     next_patch = max_patch + 1
     base_ver = f"{base_version}.{next_patch}"
 
-    # Add suffix based on release type
+    # Add suffix based on release type (PEP 440 compliant)
     if release_type == "prerelease":
-        return f"{base_ver}-beta"
+        return f"{base_ver}b1"  # beta1 is PEP 440 compliant
     elif release_type == "development":
         try:
             sha = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
-            return f"{base_ver}-dev-{sha}"
+            # PEP 440: Use .dev0 for development, +sha for build metadata
+            return f"{base_ver}.dev0+{sha}"
         except Exception:
-            return f"{base_ver}-dev"
+            return f"{base_ver}.dev0"
     else:  # stable
         return base_ver
 
@@ -70,9 +72,23 @@ def main():
                        help="Type of release (stable, prerelease, development)")
     args = parser.parse_args()
 
-    base_ver = get_current_date_version()
-    tags = get_existing_tags()
-    next_version = calculate_next_version(base_ver, tags, args.release_type)
+    # Fallback version if version generation fails
+    FALLBACK_VERSION = "2026.1.2"
+
+    try:
+        base_ver = get_current_date_version()
+        tags = get_existing_tags()
+        next_version = calculate_next_version(base_ver, tags, args.release_type)
+
+        # Validate version format (PEP 440 compliant)
+        # Pattern matches MAJOR.MINOR.PATCH with optional pre-release (.dev0, .a1, .b1, .rc1) and build (+build) suffixes
+        # Examples: 2026.1.2, 2026.1.2.dev0+9d07a00, 2026.1.2b1, 2026.1.2+9d07a00
+        if not next_version or not re.match(r'^[0-9]+\.[0-9]+\.[0-9]+(\.[a-z]+[0-9]+|[a-z]+[0-9]+)?(\+[a-zA-Z0-9.-]+)?$', next_version):
+            print(f"Warning: Generated version '{next_version}' is invalid, using fallback: {FALLBACK_VERSION}", file=sys.stderr)
+            next_version = FALLBACK_VERSION
+    except Exception as e:
+        print(f"Error generating version: {e}, using fallback: {FALLBACK_VERSION}", file=sys.stderr)
+        next_version = FALLBACK_VERSION
 
     print(next_version)
 

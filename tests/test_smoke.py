@@ -22,6 +22,9 @@ class TestSmoke(unittest.TestCase):
             import switchcraft.gui.app  # noqa: F401
             self.assertTrue(True)
         except ImportError as e:
+            # Skip if GUI dependencies are not installed (customtkinter is optional)
+            if "customtkinter" in str(e) or "No module named 'customtkinter'" in str(e):
+                self.skipTest(f"GUI dependencies not installed: {e}")
             self.fail(f"Failed to import GUI module: {e}")
 
     def test_cli_version(self):

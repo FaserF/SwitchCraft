@@ -10,6 +10,7 @@ from switchcraft.utils.app_updater import UpdateChecker
 from switchcraft.services.auth_service import AuthService
 from switchcraft.services.sync_service import SyncService
 from switchcraft.services.intune_service import IntuneService
+from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
@@ -120,7 +121,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
             ],
             expand=True,
         )
-        lang_dd.on_change = lambda e: self._on_lang_change(e.control.value)
+        # Set on_change handler - use a proper function reference, not lambda
+        def _handle_lang_change(e):
+            if e.control.value:
+                self._on_lang_change(e.control.value)
+        lang_dd.on_change = _handle_lang_change
 
         # Winget Toggle
         winget_sw = ft.Switch(
@@ -664,15 +669,53 @@ class ModernSettingsView(ft.Column, ViewMixin):
         """
         Start an interactive GitHub device‑flow login in a background thread and handle the result.
 
-        Starts the device authorization flow, presents a dialog with the verification URL and user code, opens the browser when requested, polls for an access token, and on success saves the token, updates the cloud-sync UI, and shows a success or failure notification. All UI interactions and the polling run in a background thread to avoid blocking the main thread.
+        Starts the device authorization flow, presents a dialog with the verification URL and user code, opens the browser when requested, polls for an access token, and on success saves the token, updates the cloud-sync UI, and shows a success or failure notification. The dialog is shown on the main thread, but network calls run in background threads.
 
         Parameters:
             e: The triggering event (e.g., button click). The value is accepted but not used by this method.
         """
-        def _flow():
-            flow = AuthService.initiate_device_flow()
+        logger.info("GitHub login button clicked, starting device flow...")
+
+        # Show loading dialog immediately on main thread
+        loading_dlg = ft.AlertDialog(
+            title=ft.Text("Initializing..."),
+            content=ft.Column([
+                ft.ProgressRing(),
+                ft.Text("Connecting to GitHub...")
+            ], tight=True)
+        )
+        self.app_page.dialog = loading_dlg
+        loading_dlg.open = True
+        self.app_page.update()
+
+        # Start device flow in background (network call)
+        def _init_flow():
+            try:
+                flow = AuthService.initiate_device_flow()
+                if not flow:
+                    # Marshal UI updates to main thread
+                    def _handle_no_flow():
+                        loading_dlg.open = False
+                        self.app_page.update()
+                        self._show_snack("Login init failed", "RED")
+                    self._run_task_with_fallback(_handle_no_flow, error_msg="Failed to initialize login flow")
+                    return None
+                return flow
+            except Exception as ex:
+                logger.exception(f"Error initiating device flow: {ex}")
+                # Marshal UI updates to main thread
+                error_msg = f"Failed to initiate login flow: {ex}"
+                # Capture error_msg in closure using default parameter to avoid scope issues
+                def _handle_error(msg=error_msg):
+                    loading_dlg.open = False
+                    self.app_page.update()
+                    self._show_snack(f"Login error: {msg}", "RED")
+                self._run_task_with_fallback(_handle_error, error_msg=error_msg)
+                return None
+
+        # Show dialog with flow data on main thread
+        def _show_dialog_with_flow(flow):
             if not flow:
-                self._show_snack("Login init failed")
                 return
 
             def close_dlg(e):
@@ -688,11 +731,6 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 import webbrowser
                 webbrowser.open(flow.get("verification_uri"))
 
-            # Button handlers need to assign on_click here too?
-            # ElevButton(on_click=...) seems to work in other views?
-            # Wait, ElevButton usually supports on_click in init even in old versions.
-            # But Dropdown/FilePicker didn't.
-            # I will assume ElevatedButton works safe.
             btn_copy = ft.TextButton("Copy & Open", on_click=copy_code)
             btn_cancel = ft.TextButton("Cancel", on_click=close_dlg)
 
@@ -700,28 +738,117 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 title=ft.Text(i18n.get("github_login") or "GitHub Login"),
                 content=ft.Column([
                     ft.Text(i18n.get("please_visit") or "Please visit:"),
-                    ft.Text(flow.get("verification_uri"), color="BLUE"),
+                    ft.Text(flow.get("verification_uri"), color="BLUE", selectable=True),
                     ft.Text(i18n.get("and_enter_code") or "And enter code:"),
-                    ft.Text(flow.get("user_code"), size=24, weight=ft.FontWeight.BOLD),
-                ], height=150),
+                    ft.Text(flow.get("user_code"), size=24, weight=ft.FontWeight.BOLD, selectable=True),
+                ], height=150, scroll=ft.ScrollMode.AUTO),
                 actions=[btn_copy, btn_cancel]
             )
-            self.app_page.dialog = dlg
-            dlg.open = True
-            self.app_page.update()
 
-            token = AuthService.poll_for_token(flow.get("device_code"), flow.get("interval"), flow.get("expires_in"))
-            dlg.open = False
-            if token:
-                AuthService.save_token(token)
-                self._update_sync_ui()
-                self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
-            else:
-                self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
-            self.app_page.update()
+            # Close loading dialog first
+            try:
+                if hasattr(self.app_page, 'dialog') and self.app_page.dialog:
+                    self.app_page.dialog.open = False
+                    self.app_page.update()
+            except Exception:
+                pass
 
+            # Show dialog on main thread
+            logger.info("Showing GitHub login dialog...")
+            try:
+                if hasattr(self.app_page, 'open') and callable(getattr(self.app_page, 'open')):
+                    self.app_page.open(dlg)
+                    logger.info("Dialog opened via page.open()")
+                else:
+                    self.app_page.dialog = dlg
+                    dlg.open = True
+                    self.app_page.update()
+                    logger.info("Dialog opened via manual assignment")
+            except Exception as ex:
+                logger.exception(f"Error showing dialog: {ex}")
+                try:
+                    self.app_page.dialog = dlg
+                    dlg.open = True
+                    self.app_page.update()
+                    logger.info("Dialog opened via fallback")
+                except Exception as ex2:
+                    logger.exception(f"Fallback dialog show also failed: {ex2}")
+                    self._show_snack(f"Failed to show login dialog: {ex2}", "RED")
+                    return
 
-        threading.Thread(target=_flow, daemon=True).start()
+            # Verify dialog state (if not open after attempts, log warning but don't force)
+            if not dlg.open:
+                logger.warning("Dialog open flag is False after all attempts. This may indicate a race condition or dialog opening issue.")
+
+            logger.info(f"Dialog opened successfully. open={dlg.open}, page.dialog={self.app_page.dialog is not None}")
+
+            # Poll for token in background thread
+            def _poll_token():
+                try:
+                    token = AuthService.poll_for_token(flow.get("device_code"), flow.get("interval"), flow.get("expires_in"))
+
+                    # Close dialog and show result on main thread
+                    async def _close_and_result():
+                        dlg.open = False
+                        self.app_page.update()
+                        if token:
+                            AuthService.save_token(token)
+                            self._update_sync_ui()
+                            self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
+                        else:
+                            self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
+
+                    if hasattr(self.app_page, 'run_task'):
+                        self.app_page.run_task(_close_and_result)
+                    else:
+                        # Fallback: execute synchronously if run_task not available
+                        # Note: This is not ideal but provides backward compatibility
+                        import asyncio
+                        try:
+                            # In a background thread, there's no running loop, so go directly to asyncio.run
+                            asyncio.run(_close_and_result())
+                        except Exception:
+                            # Last resort: try to execute the logic directly
+                            dlg.open = False
+                            self.app_page.update()
+                            if token:
+                                AuthService.save_token(token)
+                                self._update_sync_ui()
+                                self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
+                            else:
+                                self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
+                except Exception:
+                    # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
+                    logger.exception("Unexpected error in token polling background thread")
+
+            threading.Thread(target=_poll_token, daemon=True).start()
+
+        # Start flow initiation in background, then show dialog on main thread
+        def _flow_complete():
+            flow = _init_flow()
+            if flow:
+                # Create a wrapper function that binds the flow argument
+                # This avoids lambda and ensures proper integration with run_task
+                def _show_dialog_wrapper():
+                    _show_dialog_with_flow(flow)
+
+                def _fallback_show_dialog():
+                    try:
+                        _show_dialog_with_flow(flow)
+                    except Exception as ex2:
+                        logger.exception(f"Error showing dialog directly: {ex2}")
+                        loading_dlg.open = False
+                        self.app_page.update()
+                        raise  # Re-raise to trigger error handling in helper
+
+                # Use shared helper for run_task with fallback
+                self._run_task_with_fallback(
+                    _show_dialog_wrapper,
+                    fallback_func=_fallback_show_dialog,
+                    error_msg="Failed to show login dialog"
+                )
+
+        threading.Thread(target=_flow_complete, daemon=True).start()
 
     def _logout_github(self, e):
         """
@@ -889,14 +1016,17 @@ class ModernSettingsView(ft.Column, ViewMixin):
         Parameters:
             val (str): Language code or identifier to set (e.g., "en", "fr", etc.).
         """
+        logger.info(f"Language change requested: {val}")
         from switchcraft.utils.config import SwitchCraftConfig
         from switchcraft.utils.i18n import i18n
 
         # Save preference
         SwitchCraftConfig.set_user_preference("Language", val)
+        logger.debug(f"Language preference saved: {val}")
 
         # Actually update the i18n singleton
         i18n.set_language(val)
+        logger.debug(f"i18n language updated: {val}")
 
         # Immediately refresh the current view to apply language change
         # Get current tab index and reload the view
@@ -945,11 +1075,35 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 pass
 
             # Reload the main app view to update sidebar labels
-            app.goto_tab(current_idx)
+            # Use run_task to ensure UI updates happen on main thread
+            def _reload_app():
+                try:
+                    # Get app reference from page
+                    if hasattr(self.app_page, 'switchcraft_app'):
+                        app = self.app_page.switchcraft_app
+                        app.goto_tab(current_idx)
+                        self._show_snack(
+                            i18n.get("language_changed") or "Language changed. UI updated.",
+                            "GREEN"
+                        )
+                    else:
+                        # Fallback: just show message
+                        self._show_snack(
+                            i18n.get("language_changed") or "Language changed. Please restart to see all changes.",
+                            "GREEN"
+                        )
+                except Exception as ex:
+                    logger.exception(f"Error reloading app view: {ex}")
+                    # Fallback: just show message
+                    self._show_snack(
+                        i18n.get("language_changed") or "Language changed. Please restart to see all changes.",
+                        "GREEN"
+                    )
 
-            self._show_snack(
-                i18n.get("language_changed") or "Language changed. UI updated.",
-                "GREEN"
+            # Use shared helper for run_task with fallback
+            self._run_task_with_fallback(
+                _reload_app,
+                error_msg=i18n.get("language_changed") or "Language changed. Please restart to see all changes."
             )
         else:
             # Fallback: Show restart dialog if app reference not available
@@ -1265,7 +1419,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
         controls["status"].color = "BLUE"
         try:
             self.update()
-        except: pass
+        except Exception:
+            pass
 
         # Determine path (logic from original _install_addon)
         import sys
@@ -1296,8 +1451,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 logger.exception(f"Addon install error: {e}")
                 error_msg = str(e)
 
-            # UI Update needs to be safe
-            def _ui_update():
+            # UI Update needs to be safe - must be async for run_task
+            async def _ui_update():
                 controls["btn"].visible = True
                 controls["progress"].visible = False
 
@@ -1313,15 +1468,18 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
                 self.update()
 
-            # Since we are in a thread, we should use page.run_task or similar if available, or just self.update() if thread-safe enough
-            # Flet's update() is generally thread-safe if page is valid?
-            # Safer to queue it on the page loop if possible, but self.update() works in most simple cases.
+            # Marshal UI update to main thread using run_task (requires async function)
             try:
-                # self.update() inside thread might work, but let's try calling it directly.
                 if hasattr(self.app_page, 'run_task'):
                     self.app_page.run_task(_ui_update)
                 else:
-                    _ui_update()
+                    # Fallback: execute synchronously if run_task not available
+                    import asyncio
+                    try:
+                        loop = asyncio.get_running_loop()
+                        asyncio.create_task(_ui_update())
+                    except RuntimeError:
+                        asyncio.run(_ui_update())
             except Exception as e:
                 logger.error(f"UI update failed: {e}")
 
@@ -1358,7 +1516,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
         finally:
             try:
                 os.unlink(tmp_path)
-            except: pass
+            except Exception:
+                pass
 
     def _download_addon_from_github(self, addon_id):
         """

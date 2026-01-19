@@ -1,5 +1,7 @@
 import flet as ft
 import logging
+import asyncio
+import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -9,7 +11,12 @@ class ViewMixin:
     def _show_snack(self, msg, color="GREEN"):
         """Show a snackbar message on the page using modern API."""
         try:
-            page = getattr(self, "app_page", getattr(self, "page", None))
+            page = getattr(self, "app_page", None)
+            if not page:
+                try:
+                    page = self.page
+                except (RuntimeError, AttributeError):
+                    return
             if not page:
                 return
 
@@ -50,7 +57,12 @@ class ViewMixin:
     def _close_dialog(self, dialog=None):
         """Close a dialog on the page."""
         try:
-            page = getattr(self, "app_page", getattr(self, "page", None))
+            page = getattr(self, "app_page", None)
+            if not page:
+                try:
+                    page = self.page
+                except (RuntimeError, AttributeError):
+                    return
             if not page:
                 return
 
@@ -73,3 +85,118 @@ class ViewMixin:
             page.update()
         except Exception as e:
             logger.debug(f"Failed to close dialog: {e}")
+
+    def _run_task_with_fallback(self, task_func, fallback_func=None, error_msg=None):
+        """
+        Execute a task function on the main thread using run_task, with fallback handling.
+
+        This helper consolidates the common pattern of:
+        1. Try run_task if available
+        2. Fallback to direct call if run_task fails or is unavailable
+        3. Provide error handling and user feedback
+
+        Parameters:
+            task_func (callable): Function to execute on main thread (no arguments)
+            fallback_func (callable, optional): Function to call if run_task fails.
+                                                If None, task_func is called directly.
+            error_msg (str, optional): Error message to show if all attempts fail.
+
+        Returns:
+            bool: True if task was executed successfully, False otherwise
+        """
+        # Try app_page first (commonly used in views)
+        page = getattr(self, "app_page", None)
+        # If not available, try page property (but catch RuntimeError if control not added to page)
+        if not page:
+            try:
+                # Direct access to page property (not getattr) to catch RuntimeError
+                page = self.page
+            except (RuntimeError, AttributeError):
+                # Control not added to page yet (common in tests)
+                page = None
+        if not page:
+            logger.warning("No page available for run_task")
+            return False
+
+        if fallback_func is None:
+            fallback_func = task_func
+
+        # Check if task_func is a coroutine function
+        is_coroutine = inspect.iscoroutinefunction(task_func)
+        is_fallback_coroutine = inspect.iscoroutinefunction(fallback_func) if fallback_func else False
+
+        # Branch up front: use run_task only for coroutines, avoid exception-driven flow
+        if hasattr(page, 'run_task') and is_coroutine:
+            # Use run_task for coroutine functions (async)
+            try:
+                page.run_task(task_func)
+                return True
+            except Exception as ex:
+                logger.exception(f"Error in run_task for coroutine: {ex}")
+                # Fallback: handle coroutine functions properly
+                try:
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # Store task reference and add exception handling to avoid silent failures
+                        task = asyncio.create_task(fallback_func())
+                        # Add exception handler to catch and log exceptions from the task
+                        def handle_task_exception(task):
+                            try:
+                                task.result()
+                            except Exception as task_ex:
+                                logger.exception(f"Exception in async fallback task: {task_ex}")
+                                if error_msg:
+                                    self._show_snack(error_msg, "RED")
+                        task.add_done_callback(handle_task_exception)
+                    except RuntimeError:
+                        asyncio.run(fallback_func())
+                    return True
+                except Exception as ex2:
+                    logger.exception(f"Error in fallback execution: {ex2}")
+                    if error_msg:
+                        self._show_snack(error_msg, "RED")
+                    return False
+        elif not is_coroutine:
+            # For sync functions, try task_func first, then fallback on exception
+            try:
+                task_func()
+                return True
+            except Exception as ex:
+                logger.exception(f"Error in task_func for sync function: {ex}")
+                # Fallback to fallback_func as recovery path
+                try:
+                    fallback_func()
+                    return True
+                except Exception as ex2:
+                    logger.exception(f"Error in fallback execution of sync function: {ex2}")
+                    if error_msg:
+                        self._show_snack(error_msg, "RED")
+                    return False
+        else:
+            # No run_task available, handle coroutine functions properly
+            try:
+                if is_fallback_coroutine:
+                    # Fallback is async, need to run it
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # Store task reference and add exception handling to avoid silent failures
+                        task = asyncio.create_task(fallback_func())
+                        # Add exception handler to catch and log exceptions from the task
+                        def handle_task_exception(task):
+                            try:
+                                task.result()
+                            except Exception as task_ex:
+                                logger.exception(f"Exception in async fallback task: {task_ex}")
+                                if error_msg:
+                                    self._show_snack(error_msg, "RED")
+                        task.add_done_callback(handle_task_exception)
+                    except RuntimeError:
+                        asyncio.run(fallback_func())
+                else:
+                    fallback_func()
+                return True
+            except Exception as ex:
+                logger.exception(f"Error in direct execution: {ex}")
+                if error_msg:
+                    self._show_snack(error_msg, "RED")
+                return False

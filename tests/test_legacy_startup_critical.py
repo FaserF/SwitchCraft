@@ -37,6 +37,9 @@ class TestLegacyStartupCritical(unittest.TestCase):
             from switchcraft.gui.app import main
             self.assertTrue(callable(main))
         except ImportError as e:
+            # Skip if GUI dependencies are not installed (customtkinter is optional)
+            if "customtkinter" in str(e) or "No module named 'customtkinter'" in str(e):
+                self.skipTest(f"GUI dependencies not installed: {e}")
             self.fail(f"Failed to import main function: {e}")
 
     def test_legacy_app_error_handling(self):

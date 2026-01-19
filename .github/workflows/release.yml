@@ -38,7 +38,20 @@ jobs:
 
       - name: Generate Version
         id: version
-        run: python .github/scripts/generate_release_version.py --type ${{ github.event.inputs.release_type }}
+        run: |
+          VERSION=$(python .github/scripts/generate_release_version.py --type ${{ github.event.inputs.release_type }})
+          # Fallback to 2026.1.2 if version generation fails or returns invalid version
+          # Strict regex: PEP 440 compliant format
+          # Matches MAJOR.MINOR.PATCH with optional pre-release (.dev0, .a1, .b1, .rc1) and build (+build) suffixes
+          # Examples: 2026.1.2, 2026.1.2.dev0+9d07a00, 2026.1.2b1, 2026.1.2+9d07a00
+          # Pattern: ^[0-9]+\.[0-9]+\.[0-9]+(\.[a-z]+[0-9]+|[a-z]+[0-9]+)?(\+[a-zA-Z0-9.-]+)?$
+          if [ -z "$VERSION" ] || [ "$VERSION" = "0.0.0" ] || ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.[a-z]+[0-9]+|[a-z]+[0-9]+)?(\+[a-zA-Z0-9.-]+)?$'; then
+            echo "Warning: Version generation failed or returned invalid version '$VERSION', using fallback: 2026.1.2"
+            VERSION="2026.1.2"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_prerelease=${{ github.event.inputs.release_type != 'stable' }}" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
 
       - name: Update Version in Files
         run: |
@@ -133,30 +146,49 @@ jobs:
         if: ${{ github.event.inputs.release_type == 'stable' }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # Calculate next dev version (increment patch and add -dev)
+          # Calculate next dev version (increment patch and use PEP 440 compliant format)
           MAJOR=$(echo $VERSION | cut -d. -f1)
           MINOR=$(echo $VERSION | cut -d. -f2)
           PATCH=$(echo $VERSION | cut -d. -f3)
           NEXT_PATCH=$((PATCH + 1))
-          DEV_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-dev"
+
+          # Get commit SHA for build metadata (PEP 440: X.Y.Z.dev0+sha)
+          SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "")
+          if [ -n "$SHA" ]; then
+            DEV_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}.dev0+${SHA}"
+          else
+            DEV_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}.dev0"
+          fi
+
+          # Use release version as fallback (without .dev0 suffix)
+          FALLBACK_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
           echo "Setting development version to $DEV_VERSION"
+          echo "Updating fallback versions to $FALLBACK_VERSION"
 
           # Update version files
           sed -i "s/version = \".*\"/version = \"$DEV_VERSION\"/" pyproject.toml
           sed -i "s/__version__ = \".*\"/__version__ = \"$DEV_VERSION\"/" src/switchcraft/__init__.py
           python .github/scripts/update_version_info.py "$DEV_VERSION"
 
-          # Update .iss files (Inno Setup installer scripts) - keep base version without -dev suffix for installer
-          BASE_VERSION=$(echo $DEV_VERSION | sed 's/-dev$//')
+          # Update .iss files (Inno Setup installer scripts) - keep base version without .dev0 suffix for installer
+          BASE_VERSION=$(echo $DEV_VERSION | sed 's/\.dev0.*$//')
           sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$BASE_VERSION\"/" switchcraft_modern.iss
           sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_modern.iss
           sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$BASE_VERSION\"/" switchcraft_legacy.iss
           sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
 
+          # Update fallback versions in build scripts and version generator
+          # Update build_release.ps1 fallback
+          sed -i "s/\$AppVersion = \".*\"/\$AppVersion = \"$FALLBACK_VERSION\"/" scripts/build_release.ps1
+          sed -i "s/\$AppVersionNumeric = \".*\"/\$AppVersionNumeric = \"$FALLBACK_VERSION\"/" scripts/build_release.ps1
+
+          # Update generate_release_version.py fallback
+          sed -i "s/FALLBACK_VERSION = \".*\"/FALLBACK_VERSION = \"$FALLBACK_VERSION\"/" .github/scripts/generate_release_version.py
+
           # Commit
-          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft_modern.iss switchcraft_legacy.iss
-          git commit -m "chore: bump version to $DEV_VERSION for development [skip ci]"
+          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft_modern.iss switchcraft_legacy.iss scripts/build_release.ps1 .github/scripts/generate_release_version.py
+          git commit -m "chore: bump version to $DEV_VERSION and update fallback versions to $FALLBACK_VERSION [skip ci]"
           git push origin main
 
   build:

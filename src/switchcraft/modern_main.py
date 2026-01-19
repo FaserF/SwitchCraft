@@ -371,8 +371,7 @@ def main(page: ft.Page):
             pass  # Non-critical
 
         # Pass splash proc to app for cleanup
-        # Access global splash_proc variable (declared at module level)
-        global splash_proc
+        # Access module-level splash_proc variable (declared at module level)
         app = ModernApp(page, splash_proc=splash_proc)
 
         # Handle initial action from protocol URL
@@ -410,7 +409,16 @@ def main(page: ft.Page):
 
         def open_dump_folder(e):
             import subprocess
-            subprocess.Popen(f'explorer "{dump_folder}"')
+            # Use list args for explorer to avoid quoting edge cases with paths containing spaces/quotes
+            proc = subprocess.Popen(['explorer', dump_folder])
+            # Don't wait for explorer, but ensure it's properly started
+            # Explorer will close itself, so we don't need to wait
+            try:
+                # Give it a moment to start, then detach
+                import time
+                time.sleep(0.1)
+            except Exception:
+                pass
 
         def open_dump_file(e):
             import os

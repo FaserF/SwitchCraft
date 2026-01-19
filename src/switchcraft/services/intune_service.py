@@ -391,12 +391,12 @@ class IntuneService:
             resp.raise_for_status()
             data = resp.json()
             return data.get("value", [])
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as e:
             logger.error("Request to Graph API timed out after 30 seconds")
-            raise Exception("Request timed out. The server took too long to respond.")
+            raise requests.exceptions.Timeout("Request timed out. The server took too long to respond.") from e
         except requests.exceptions.RequestException as e:
-            logger.error(f"Network error while listing apps: {e}")
-            raise Exception(f"Network error: {str(e)}")
+            logger.error(f"Network error in list_apps: {e}")
+            raise
         except Exception as e:
             logger.error(f"Failed to list apps: {e}")
             raise e
@@ -442,6 +442,12 @@ class IntuneService:
             query_lower = query.lower()
             filtered_apps = [app for app in apps if query_lower in app.get('displayName', '').lower()]
             return filtered_apps
+        except requests.exceptions.Timeout:
+            # Re-raise timeout immediately - don't try fallbacks
+            raise
+        except requests.exceptions.RequestException:
+            # Re-raise network errors immediately
+            raise
         except Exception as e:
             logger.error(f"Search failed with both methods: {e}")
             # Last resort: get all apps and filter client-side
@@ -449,6 +455,10 @@ class IntuneService:
                 all_apps = self.list_apps(token)
                 query_lower = query.lower()
                 return [app for app in all_apps if query_lower in app.get('displayName', '').lower()]
+            except requests.exceptions.Timeout:
+                raise
+            except requests.exceptions.RequestException:
+                raise
             except Exception as e2:
                 logger.error(f"Fallback search also failed: {e2}")
                 raise e  # Re-raise original error
@@ -471,12 +481,12 @@ class IntuneService:
             resp = requests.get(base_url, headers=headers, timeout=30, stream=False)
             resp.raise_for_status()
             return resp.json()
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as e:
             logger.error(f"Request timed out while getting app details for {app_id}")
-            raise Exception("Request timed out. The server took too long to respond.")
+            raise requests.exceptions.Timeout("Request timed out. The server took too long to respond.") from e
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error getting app details: {e}")
-            raise Exception(f"Network error: {str(e)}")
+            raise requests.exceptions.RequestException(f"Network error: {str(e)}") from e
         except Exception as e:
             logger.error(f"Failed to get app details: {e}")
             raise e

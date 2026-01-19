@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import webbrowser
 import flet as ft
 from switchcraft import __version__
 from switchcraft.utils.config import SwitchCraftConfig
@@ -128,14 +129,31 @@ class ModernApp:
         self.build_ui()
 
         # Now that UI is built, shutdown splash screen
+        self._terminate_splash()
+
+    def _terminate_splash(self):
+        """
+        Terminate the splash screen process if it exists.
+
+        Centralized method to handle splash process termination, waiting, and cleanup.
+        Clears self.splash_proc after successful termination to avoid double termination attempts.
+        """
         if self.splash_proc:
             try:
                 self.splash_proc.terminate()
+                # Wait for process to terminate to avoid ResourceWarning
+                try:
+                    self.splash_proc.wait(timeout=1.0)
+                except Exception:
+                    # If wait fails, try kill as fallback
+                    try:
+                        self.splash_proc.kill()
+                    except Exception:
+                        pass
+                # Clear the handle after successful termination
+                self.splash_proc = None
             except Exception:
                 pass
-
-
-
 
     def _toggle_notification_drawer(self, e):
         """
@@ -162,13 +180,14 @@ class ModernApp:
                 # Close drawer
                 logger.debug("Closing notification drawer")
                 try:
+                    drawer_ref = self.page.end_drawer  # Save reference before clearing
                     # Method 1: Set open to False first
-                    if hasattr(self.page.end_drawer, 'open'):
-                        self.page.end_drawer.open = False
+                    if drawer_ref and hasattr(drawer_ref, 'open'):
+                        drawer_ref.open = False
                     # Method 2: Use page.close if available
-                    if hasattr(self.page, 'close'):
+                    if hasattr(self.page, 'close') and drawer_ref:
                         try:
-                            self.page.close(self.page.end_drawer)
+                            self.page.close(drawer_ref)
                         except Exception:
                             pass
                     # Method 3: Remove drawer entirely
@@ -184,7 +203,20 @@ class ModernApp:
             else:
                 # Open drawer
                 logger.debug("Opening notification drawer")
-                self._open_notifications_drawer(e)
+                try:
+                    self._open_notifications_drawer(e)
+                    # Force update to ensure drawer is visible
+                    self.page.update()
+                except Exception as ex:
+                    logger.exception(f"Error opening notification drawer: {ex}")
+                    from switchcraft.utils.i18n import i18n
+                    error_msg = i18n.get("error_opening_notifications") or "Failed to open notifications"
+                    self.page.snack_bar = ft.SnackBar(
+                        content=ft.Text(error_msg),
+                        bgcolor="RED"
+                    )
+                    self.page.snack_bar.open = True
+                    self.page.update()
         except Exception as ex:
             logger.exception(f"Error toggling notification drawer: {ex}")
             # Try to open anyway
@@ -263,26 +295,28 @@ class ModernApp:
                 on_dismiss=self._on_drawer_dismiss
             )
 
-            # Set drawer and open it
+            # Set drawer on page FIRST
             self.page.end_drawer = drawer
 
-            # Force update BEFORE setting open to ensure drawer is attached
-            self.page.update()
-
-            # Now set open and update again
+            # Now set open (Flet needs this order)
             drawer.open = True
-            self.page.update()
 
             # Try additional methods if drawer didn't open
             try:
                 if hasattr(self.page, 'open'):
                     self.page.open(drawer)
-                    self.page.update()
             except Exception as ex:
                 logger.debug(f"page.open() not available or failed: {ex}, using direct assignment")
 
-            # Final update to ensure drawer is visible
+            # Final verification
+            if not drawer.open:
+                logger.warning("Drawer open flag is False, forcing it to True")
+                drawer.open = True
+
+            # Single update after all state changes to avoid flicker
             self.page.update()
+
+            logger.info(f"Notification drawer should now be visible. open={drawer.open}, page.end_drawer={self.page.end_drawer is not None}")
 
             # Mark all as read after opening
             self.notification_service.mark_all_read()
@@ -792,8 +826,9 @@ class ModernApp:
             )
 
     def build_ui(self):
-        # Keep loading screen visible during build - clear only at the end
-        # Don't clear page.clean() here - we'll replace the loading screen with the actual UI
+        # IMPORTANT: Keep loading screen visible during build
+        # We will replace it at the end, but don't clear immediately
+        # This ensures the loading screen is visible while UI is being built
 
         """
         Constructs and attaches the main application UI: navigation rail (including dynamic addon destinations), sidebar, content area, banner, and global progress wrapper.
@@ -984,10 +1019,8 @@ class ModernApp:
         self.page.add(
              ft.Column(layout_controls, expand=True, spacing=0)
         )
-        # Force multiple updates to ensure UI is visible and rendered
+        # Force update to ensure UI is visible and rendered
         self.page.update()
-        self.page.update()  # Second update to ensure rendering
-        self.page.update()  # Third update for good measure
 
         # Setup responsive UI (hide/show sidebar and menu button based on window size)
         self._update_responsive_ui()
@@ -1000,11 +1033,7 @@ class ModernApp:
             pass
 
         # Now shutdown splash screen after UI is fully visible
-        if self.splash_proc:
-            try:
-                self.splash_proc.terminate()
-            except Exception:
-                pass
+        self._terminate_splash()
 
 
     def _open_notifications(self, e):
@@ -1203,6 +1232,12 @@ class ModernApp:
                     self.page.update()
                     drawer.open = True
                     self.page.update()
+
+                    # Ensure drawer is actually open
+                    if not drawer.open:
+                        logger.warning("Drawer open flag is False, forcing it to True")
+                        drawer.open = True
+                        self.page.update()
         except Exception as ex:
             logger.exception(f"Error toggling navigation drawer: {ex}")
 
@@ -1766,6 +1801,7 @@ class ModernApp:
 
             except Exception as e:
                 logger.error(f"Demo failed: {e}")
+                error_msg = str(e)  # Capture error message for use in nested function
                 def show_error():
                     def open_download(e):
                         dlg.open = False
@@ -1774,7 +1810,7 @@ class ModernApp:
 
                     dlg = ft.AlertDialog(
                         title=ft.Text(i18n.get("demo_error_title") or "Download Error"),
-                        content=ft.Text(i18n.get("demo_ask_download", error=str(e)) or f"Could not download demo installer.\nError: {e}\n\nOpen download page instead?"),
+                        content=ft.Text(i18n.get("demo_ask_download", error=error_msg) or f"Could not download demo installer.\nError: {error_msg}\n\nOpen download page instead?"),
                         actions=[
                             ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda e: setattr(dlg, "open", False) or self.page.update()),
                             ft.Button("Open Download Page", on_click=open_download, bgcolor="BLUE_700", color="WHITE"),
@@ -1795,6 +1831,7 @@ def main(page: ft.Page):
     # Add restart method to page for injection if needed, or pass app instance.
     app = ModernApp(page)
     page._show_restart_countdown = app._show_restart_countdown
+    # Note: page.switchcraft_app is already set in ModernApp.__init__ (line 43)
 
 if __name__ == "__main__":
     assets_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
