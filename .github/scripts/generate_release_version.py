@@ -50,15 +50,16 @@ def calculate_next_version(base_version, tags, release_type="stable"):
     next_patch = max_patch + 1
     base_ver = f"{base_version}.{next_patch}"
 
-    # Add suffix based on release type
+    # Add suffix based on release type (PEP 440 compliant)
     if release_type == "prerelease":
-        return f"{base_ver}-beta"
+        return f"{base_ver}b1"  # beta1 is PEP 440 compliant
     elif release_type == "development":
         try:
             sha = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
-            return f"{base_ver}-dev-{sha}"
+            # PEP 440: Use .dev0 for development, +sha for build metadata
+            return f"{base_ver}.dev0+{sha}"
         except Exception:
-            return f"{base_ver}-dev"
+            return f"{base_ver}.dev0"
     else:  # stable
         return base_ver
 

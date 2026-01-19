@@ -41,9 +41,11 @@ jobs:
         run: |
           VERSION=$(python .github/scripts/generate_release_version.py --type ${{ github.event.inputs.release_type }})
           # Fallback to 2026.1.2 if version generation fails or returns invalid version
-          # Strict regex: ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$
-          # Matches MAJOR.MINOR.PATCH with optional pre-release (-pre) and build (+build) suffixes
-          if [ -z "$VERSION" ] || [ "$VERSION" = "0.0.0" ] || ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$'; then
+          # Strict regex: PEP 440 compliant format
+          # Matches MAJOR.MINOR.PATCH with optional pre-release (.dev0, .a1, .b1, .rc1) and build (+build) suffixes
+          # Examples: 2026.1.2, 2026.1.2.dev0+9d07a00, 2026.1.2b1, 2026.1.2+9d07a00
+          # Pattern: ^[0-9]+\.[0-9]+\.[0-9]+(\.[a-z]+[0-9]+|[a-z]+[0-9]+)?(\+[a-zA-Z0-9.-]+)?$
+          if [ -z "$VERSION" ] || [ "$VERSION" = "0.0.0" ] || ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.[a-z]+[0-9]+|[a-z]+[0-9]+)?(\+[a-zA-Z0-9.-]+)?$'; then
             echo "Warning: Version generation failed or returned invalid version '$VERSION', using fallback: 2026.1.2"
             VERSION="2026.1.2"
           fi
