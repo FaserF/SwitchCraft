@@ -9,50 +9,35 @@ import time
 import requests
 import os
 
-# Import CI detection helper
+# Import CI detection helper and shared fixtures/helpers
 try:
-    from tests.conftest import is_ci_environment, skip_if_ci
+    from tests.conftest import is_ci_environment, skip_if_ci, poll_until, mock_page
 except ImportError:
     # Fallback if conftest not available
     def is_ci_environment():
-        return os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true'
+        return (
+            os.environ.get('CI') == 'true' or
+            os.environ.get('GITHUB_ACTIONS') == 'true' or
+            os.environ.get('GITHUB_RUN_ID') is not None
+        )
     def skip_if_ci(reason="Test not suitable for CI environment"):
         if is_ci_environment():
             pytest.skip(reason)
-
-
-def poll_until(condition, timeout=2.0, interval=0.05):
-    """
-    Poll until condition is met or timeout is reached.
-
-    Parameters:
-        condition: Callable that returns True when condition is met
-        timeout: Maximum time to wait in seconds
-        interval: Time between polls in seconds
-
-    Returns:
-        True if condition was met, False if timeout
-    """
-    elapsed = 0.0
-    while elapsed < timeout:
-        if condition():
-            return True
-        time.sleep(interval)
-        elapsed += interval
-    return False
-
-
-@pytest.fixture
-def mock_page():
-    """Create a mock Flet page with run_task support."""
-    page = MagicMock(spec=ft.Page)
-    page.update = MagicMock()
-    page.run_task = lambda func: func()  # Execute immediately for testing
-
-    # Mock page property to avoid RuntimeError
-    type(page).page = property(lambda self: page)
-
-    return page
+    def poll_until(condition, timeout=2.0, interval=0.05):
+        elapsed = 0.0
+        while elapsed < timeout:
+            if condition():
+                return True
+            time.sleep(interval)
+            elapsed += interval
+        return False
+    @pytest.fixture
+    def mock_page():
+        page = MagicMock(spec=ft.Page)
+        page.update = MagicMock()
+        page.run_task = lambda func: func()
+        type(page).page = property(lambda self: page)
+        return page
 
 
 @pytest.fixture
@@ -272,9 +257,10 @@ def test_intune_search_timeout_mechanism(mock_page, mock_intune_service):
         assert any("timeout" in str(msg).lower() or "60 seconds" in str(msg) for msg in error_calls), \
             f"Expected timeout message, but got: {error_calls}"
 
+        # Verify that search did not complete (check before releasing the worker to avoid race conditions)
+        assert not search_completed.is_set(), "Search should not have completed due to timeout"
+
         # Clean up: unblock the search thread so it can exit (it's daemon, but good practice)
         search_blocker.set()
-        # Verify that search did not complete
-        assert not search_completed.is_set(), "Search should not have completed due to timeout"
     finally:
         threading.Thread = original_thread

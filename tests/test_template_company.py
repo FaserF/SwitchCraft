@@ -8,9 +8,13 @@ import os
 try:
     from tests.conftest import is_ci_environment
 except ImportError:
-    # Fallback if conftest not available
+    # Fallback if conftest not available - mirror conftest.is_ci_environment() conditions
     def is_ci_environment():
-        return os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true'
+        return (
+            os.environ.get('CI') == 'true' or
+            os.environ.get('GITHUB_ACTIONS') == 'true' or
+            os.environ.get('GITHUB_RUN_ID') is not None
+        )
 
 class TestTemplateWithCompany(unittest.TestCase):
     def setUp(self):

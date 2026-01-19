@@ -24,13 +24,17 @@ def is_ci_environment():
 
 def skip_if_ci(reason="Test not suitable for CI environment"):
     """
-    Skip test if running in CI environment.
+    Immediately skip the test if running in CI environment.
+
+    This function calls pytest.skip() immediately if is_ci_environment() returns True,
+    causing the test to be skipped with the provided reason.
 
     Args:
         reason: Reason for skipping the test.
 
-    Returns:
-        pytest.skip decorator or None.
+    Note:
+        This function performs an immediate skip by calling pytest.skip() when
+        running in CI, so it should be called at the beginning of a test function.
     """
     if is_ci_environment():
         pytest.skip(reason)
@@ -81,6 +85,19 @@ def mock_page():
             self.snack_bar = MagicMock(spec=ft.SnackBar)
             self.snack_bar.open = False
 
+            # Controls list for page content
+            self.controls = []
+
+            # Theme mode
+            self.theme_mode = ft.ThemeMode.LIGHT
+
+            # AppBar
+            self.appbar = None
+
+            # Window (for silent mode)
+            self.window = MagicMock()
+            self.window.minimized = False
+
             # Mock app reference
             self.switchcraft_app = MagicMock()
             self.switchcraft_app._current_tab_index = 0
@@ -92,7 +109,7 @@ def mock_page():
                 func()
             self.run_task = run_task
 
-            # Mock page.open to set dialog/drawer and open it
+            # Mock page.open to set dialog/drawer/snackbar and open it
             def mock_open(control):
                 if isinstance(control, ft.AlertDialog):
                     self.dialog = control
@@ -100,11 +117,31 @@ def mock_page():
                 elif isinstance(control, ft.NavigationDrawer):
                     self.end_drawer = control
                     control.open = True
+                elif isinstance(control, ft.SnackBar):
+                    self.snack_bar = control
+                    control.open = True
                 self.update()
             self.open = mock_open
 
-            # Add MagicMock methods for compatibility (e.g., add)
-            self.add = MagicMock()
+            # Mock page.close for closing drawers
+            def mock_close(control):
+                if isinstance(control, ft.NavigationDrawer):
+                    if self.end_drawer == control:
+                        self.end_drawer.open = False
+                self.update()
+            self.close = mock_close
+
+            # Mock page.add to add controls to the page
+            def mock_add(*controls):
+                self.controls.extend(controls)
+                self.update()
+            self.add = mock_add
+
+            # Mock page.clean to clear controls
+            def mock_clean():
+                self.controls.clear()
+                self.update()
+            self.clean = mock_clean
 
     page = MockPage()
     return page

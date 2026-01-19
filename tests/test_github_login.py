@@ -8,41 +8,38 @@ import threading
 import time
 import os
 
-# Import CI detection helper
+# Import CI detection helper and shared fixtures
 try:
-    from tests.conftest import is_ci_environment, skip_if_ci
+    from tests.conftest import is_ci_environment, skip_if_ci, mock_page
 except ImportError:
     # Fallback if conftest not available
     def is_ci_environment():
-        return os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true'
+        return (
+            os.environ.get('CI') == 'true' or
+            os.environ.get('GITHUB_ACTIONS') == 'true' or
+            os.environ.get('GITHUB_RUN_ID') is not None
+        )
     def skip_if_ci(reason="Test not suitable for CI environment"):
         if is_ci_environment():
             pytest.skip(reason)
-
-
-@pytest.fixture
-def mock_page():
-    """Create a mock Flet page with run_task support."""
-    page = MagicMock(spec=ft.Page)
-    page.dialog = None
-    page.update = MagicMock()
-    page.snack_bar = MagicMock(spec=ft.SnackBar)
-    page.snack_bar.open = False
-
-    # Mock run_task to actually execute the function
-    def run_task(func):
-        func()
-    page.run_task = run_task
-
-    # Mock page.open to set dialog and open it
-    def mock_open(control):
-        if isinstance(control, ft.AlertDialog):
-            page.dialog = control
-            control.open = True
-        page.update()
-    page.open = mock_open
-
-    return page
+    # Fallback mock_page if conftest not available
+    @pytest.fixture
+    def mock_page():
+        page = MagicMock(spec=ft.Page)
+        page.dialog = None
+        page.update = MagicMock()
+        page.snack_bar = MagicMock(spec=ft.SnackBar)
+        page.snack_bar.open = False
+        def run_task(func):
+            func()
+        page.run_task = run_task
+        def mock_open(control):
+            if isinstance(control, ft.AlertDialog):
+                page.dialog = control
+                control.open = True
+            page.update()
+        page.open = mock_open
+        return page
 
 
 @pytest.fixture
@@ -183,15 +180,31 @@ def test_github_login_success_saves_token(mock_page, mock_auth_service):
         snack_calls.append((msg, color))
     view._show_snack = track_snack
 
-    # Mock Thread to execute immediately
+    # Mock Thread to execute immediately - use ImmediateThread class
+    class ImmediateThread:
+        """Thread-like mock that executes target immediately when start() is called."""
+        def __init__(self, target=None, daemon=False, **kwargs):
+            self.target = target
+            self.daemon = daemon
+            self.kwargs = kwargs
+            self._started = False
+
+        def start(self):
+            """Execute the stored target exactly once."""
+            if not self._started and self.target:
+                self._started = True
+                self.target()
+
+        def join(self, timeout=None):
+            """No-op for compatibility."""
+            pass
+
+        def is_alive(self):
+            """Return False since we execute immediately."""
+            return False
+
     original_thread = threading.Thread
-    def mock_thread(target=None, daemon=False, **kwargs):
-        thread = original_thread(target=target, daemon=daemon, **kwargs)
-        # Execute immediately instead of starting thread
-        if target:
-            target()
-        return thread
-    threading.Thread = mock_thread
+    threading.Thread = ImmediateThread
 
     try:
         # Simulate button click
