@@ -49,6 +49,7 @@ jobs:
 
       - name: Run All Python Tests
         if: steps.should_run.outputs.should_run == 'true'
+        timeout-minutes: 20
         run: |
           pytest tests/ -v --tb=short
         env:
@@ -73,6 +74,7 @@ jobs:
            pip install .[test]
 
       - name: Run CLI Dynamic Tests
+        timeout-minutes: 10
         run: |
            pytest tests/test_cli_dynamic.py tests/test_cli_core.py -v
         env:

@@ -2,6 +2,15 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from switchcraft.utils.templates import TemplateGenerator
+import os
+
+# Import CI detection helper
+try:
+    from tests.conftest import is_ci_environment
+except ImportError:
+    # Fallback if conftest not available
+    def is_ci_environment():
+        return os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true'
 
 class TestTemplateWithCompany(unittest.TestCase):
     def setUp(self):
@@ -13,6 +22,10 @@ class TestTemplateWithCompany(unittest.TestCase):
 
         If the configured output path exists, attempt to delete it. On a PermissionError (e.g., file temporarily locked) the method waits 0.1 seconds and retries once; any PermissionError or FileNotFoundError on the retry is ignored.
         """
+        # Skip file cleanup in CI to avoid hangs
+        if is_ci_environment():
+            return
+
         if self.output_path.exists():
             try:
                 self.output_path.unlink()

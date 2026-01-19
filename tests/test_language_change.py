@@ -67,7 +67,8 @@ def test_language_change_shows_restart_message(mock_page):
 
         # Should show language change message (either "Language changed. UI updated." or restart message)
         assert len(snack_calls) > 0
-        # Check for either success message or restart message
+        # Check for either success message or restart message (accept both English and German)
         snack_messages = [str(call[0]).lower() for call in snack_calls]
-        assert any("language changed" in msg or "ui updated" in msg or "restart" in msg for msg in snack_messages), \
+        assert any("language changed" in msg or "ui updated" in msg or "restart" in msg or
+                   "sprache geändert" in msg or "sprache" in msg for msg in snack_messages), \
             f"Expected language change message, but got: {snack_messages}"

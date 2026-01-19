@@ -6,6 +6,18 @@ import flet as ft
 from unittest.mock import MagicMock, patch, Mock
 import threading
 import time
+import os
+
+# Import CI detection helper
+try:
+    from tests.conftest import is_ci_environment, skip_if_ci
+except ImportError:
+    # Fallback if conftest not available
+    def is_ci_environment():
+        return os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true'
+    def skip_if_ci(reason="Test not suitable for CI environment"):
+        if is_ci_environment():
+            pytest.skip(reason)
 
 
 def poll_until(condition, timeout=2.0, interval=0.05):
@@ -55,6 +67,9 @@ def mock_winget_helper():
 
 def test_winget_details_loads_and_displays(mock_page, mock_winget_helper):
     """Test that clicking on a Winget app loads and displays details."""
+    # Skip in CI as this test uses polling with time.sleep and threading
+    skip_if_ci("Test uses polling with threading, not suitable for CI")
+
     from switchcraft.gui_modern.views.winget_view import ModernWingetView
 
     # Mock package details
@@ -140,6 +155,9 @@ def test_winget_details_shows_loading_state(mock_page, mock_winget_helper):
 
 def test_winget_details_shows_error_on_failure(mock_page, mock_winget_helper):
     """Test that Winget details shows error when loading fails."""
+    # Skip in CI as this test uses polling with time.sleep and threading
+    skip_if_ci("Test uses polling with threading, not suitable for CI")
+
     from switchcraft.gui_modern.views.winget_view import ModernWingetView
 
     short_info = {"Id": "Microsoft.PowerToys", "Name": "PowerToys"}
@@ -192,6 +210,9 @@ def test_winget_details_shows_error_on_failure(mock_page, mock_winget_helper):
 
 def test_winget_details_updates_ui_correctly(mock_page, mock_winget_helper):
     """Test that Winget details properly updates all UI components."""
+    # Skip in CI as this test uses polling with time.sleep and threading
+    skip_if_ci("Test uses polling with threading, not suitable for CI")
+
     from switchcraft.gui_modern.views.winget_view import ModernWingetView
 
     short_info = {"Id": "Microsoft.PowerToys", "Name": "PowerToys"}

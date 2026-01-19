@@ -8,51 +8,8 @@ import threading
 import time
 import os
 
-
-def poll_until(condition, timeout=2.0, interval=0.05):
-    """
-    Poll until condition is met or timeout is reached.
-
-    Parameters:
-        condition: Callable that returns True when condition is met
-        timeout: Maximum time to wait in seconds
-        interval: Time between polls in seconds
-
-    Returns:
-        True if condition was met, False if timeout
-    """
-    elapsed = 0.0
-    while elapsed < timeout:
-        if condition():
-            return True
-        time.sleep(interval)
-        elapsed += interval
-    return False
-
-@pytest.fixture
-def mock_page():
-    """Create a mock Flet page."""
-    page = MagicMock(spec=ft.Page)
-    page.dialog = None
-    page.update = MagicMock()
-    page.snack_bar = MagicMock(spec=ft.SnackBar)
-    page.snack_bar.open = False
-    page.switchcraft_app = MagicMock()
-
-    # Mock run_task to actually execute the function
-    def run_task(func):
-        func()
-    page.run_task = run_task
-
-    # Mock page.open to set dialog and open it
-    def mock_open(control):
-        if isinstance(control, ft.AlertDialog):
-            page.dialog = control
-            control.open = True
-        page.update()
-    page.open = mock_open
-
-    return page
+# Import shared fixtures and helpers from conftest
+from tests.conftest import poll_until, mock_page
 
 
 @pytest.fixture
@@ -139,7 +96,9 @@ def test_notification_bell_opens_drawer(mock_page):
         app._toggle_notification_drawer(mock_event)
 
         # Check that drawer was created and opened
-        assert mock_page.end_drawer is not None, "Drawer should be created"
-        assert isinstance(mock_page.end_drawer, ft.NavigationDrawer), "Drawer should be NavigationDrawer"
-        assert mock_page.end_drawer.open is True, "Drawer should be open"
+        # Note: self.page.end_drawer should be set by _open_notifications_drawer
+        # Since self.page = mock_page, we check mock_page.end_drawer
+        assert app.page.end_drawer is not None, "Drawer should be created"
+        assert isinstance(app.page.end_drawer, ft.NavigationDrawer), "Drawer should be NavigationDrawer"
+        assert app.page.end_drawer.open is True, "Drawer should be open"
         assert mock_page.update.called, "Page should be updated"

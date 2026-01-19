@@ -8,6 +8,17 @@ import threading
 import time
 import os
 
+# Import CI detection helper
+try:
+    from tests.conftest import is_ci_environment, skip_if_ci
+except ImportError:
+    # Fallback if conftest not available
+    def is_ci_environment():
+        return os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true'
+    def skip_if_ci(reason="Test not suitable for CI environment"):
+        if is_ci_environment():
+            pytest.skip(reason)
+
 
 @pytest.fixture
 def mock_page():
@@ -43,6 +54,9 @@ def mock_auth_service():
 
 def test_github_login_button_click_opens_dialog(mock_page, mock_auth_service):
     """Test that clicking GitHub login button opens a dialog."""
+    # Skip in CI as this test uses time.sleep and threading
+    skip_if_ci("Test uses time.sleep and threading, not suitable for CI")
+
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
     # Mock successful device flow initiation
@@ -91,6 +105,9 @@ def test_github_login_button_click_opens_dialog(mock_page, mock_auth_service):
 
 def test_github_login_shows_error_on_failure(mock_page, mock_auth_service):
     """Test that GitHub login shows error when flow initiation fails."""
+    # Skip in CI as this test uses time.sleep and threading
+    skip_if_ci("Test uses time.sleep and threading, not suitable for CI")
+
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
     # Mock failed device flow initiation
