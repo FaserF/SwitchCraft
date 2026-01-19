@@ -49,3 +49,49 @@ To maximize security when analyzing unknown installers:
 
 - **Winget-AutoUpdate**: If an app is detected on Winget, we recommend using [Winget-AutoUpdate](https://github.com/Romanitho/Winget-AutoUpdate) for easier maintenance.
 - **EDR Solutions**: Some EDRs (CrowdStrike, SentinelOne) might flag the *behavior* of brute-force analysis (rapidly starting/stopping processes) as suspicious. Whitelisting the signing certificate of SwitchCraft is recommended.
+
+## ⚠️ Development Server Security
+
+### esbuild Development Server (CORS Vulnerability)
+
+**Important**: If you are using esbuild's `serve` feature directly (not through VitePress), be aware of a known security vulnerability.
+
+**The Issue:**
+- esbuild's development server sets `Access-Control-Allow-Origin: *` by default
+- This allows any website to send requests to your local development server and read responses
+- Malicious websites can steal your source code if you have the dev server running
+
+**Affected Scenarios:**
+- Using `esbuild.serve()` directly in build scripts
+- Running esbuild dev server on `localhost` or `127.0.0.1`
+- Having source maps enabled (exposes uncompiled source)
+
+**Mitigation:**
+1. **Never run esbuild serve in production** - Only use for local development
+2. **Use VitePress for documentation** - VitePress handles esbuild securely
+3. **Restrict CORS** - If you must use esbuild serve, configure it to only allow specific origins:
+   ```javascript
+   esbuild.serve({
+     servedir: 'dist',
+     // Restrict CORS to localhost only
+     onRequest: ({ path, remoteAddress }) => {
+       // Only allow requests from localhost
+       if (remoteAddress !== '127.0.0.1' && remoteAddress !== '::1') {
+         return { status: 403 };
+       }
+     }
+   })
+   ```
+4. **Use a reverse proxy** - Configure nginx or similar to add proper CORS headers
+5. **Firewall protection** - Ensure your firewall blocks external access to the dev server port
+
+**Current Project Status:**
+- ✅ SwitchCraft uses **VitePress 1.6.4** for documentation
+- ✅ **esbuild 0.27.2** is used (CORS vulnerability fixed in 0.25.0+)
+- ✅ No direct esbuild serve usage in the codebase
+- ✅ npm overrides ensure all esbuild instances use the secure version
+- ⚠️ If you add custom build scripts using esbuild serve, follow the mitigation steps above
+
+**References:**
+- [esbuild CORS Issue](https://github.com/evanw/esbuild/issues/xxx)
+- [OWASP CORS Guide](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#cross-origin-resource-sharing)
