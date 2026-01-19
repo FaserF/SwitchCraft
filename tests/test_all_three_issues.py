@@ -29,9 +29,9 @@ def mock_page():
     page.switchcraft_app = mock_app
 
     # Mock run_task to actually execute the function (handle both sync and async)
-    import asyncio
+    import inspect
     def run_task(func):
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             # For async functions, run them properly
             try:
                 asyncio.run(func())

@@ -106,8 +106,9 @@ def mock_page():
             self.switchcraft_app.goto_tab = MagicMock()
 
             # Mock run_task to actually execute the function (handle both sync and async)
+            import inspect
             def run_task(func):
-                if asyncio.iscoroutinefunction(func):
+                if inspect.iscoroutinefunction(func):
                     # For async functions, create a task and run it
                     try:
                         # Use get_running_loop() instead of deprecated get_event_loop()

@@ -120,9 +120,9 @@ class ViewMixin:
             fallback_func = task_func
 
         # Check if task_func is a coroutine function
-        import asyncio
-        is_coroutine = asyncio.iscoroutinefunction(task_func)
-        is_fallback_coroutine = asyncio.iscoroutinefunction(fallback_func) if fallback_func else False
+        import inspect
+        is_coroutine = inspect.iscoroutinefunction(task_func)
+        is_fallback_coroutine = inspect.iscoroutinefunction(fallback_func) if fallback_func else False
 
         if hasattr(page, 'run_task'):
             try:

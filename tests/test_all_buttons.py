@@ -50,8 +50,12 @@ def test_all_views_have_buttons():
     assert len(all_buttons) > 0, "No views found"
 
     # Check that at least one view instantiated successfully (no 'error' key)
+    # Build a list of successful instantiations where 'error' not in info
     successes = [view_name for view_name, info in all_buttons.items() if 'error' not in info]
-    assert len(successes) > 0, f"No views instantiated successfully. All {len(all_buttons)} views had errors."
+    assert len(successes) > 0, (
+        f"No views instantiated successfully. All {len(all_buttons)} views had errors. "
+        f"Failed views: {[name for name in all_buttons.keys() if name not in successes]}"
+    )
 
     # Print summary
     print("\n=== Button Summary ===")
