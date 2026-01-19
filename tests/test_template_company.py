@@ -6,7 +6,7 @@ import os
 
 # Import CI detection helper
 try:
-    from tests.conftest import is_ci_environment
+    from conftest import is_ci_environment
 except ImportError:
     # Fallback if conftest not available - mirror conftest.is_ci_environment() conditions
     def is_ci_environment():

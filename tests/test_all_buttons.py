@@ -12,7 +12,7 @@ import sys
 
 # Import CI detection helper
 try:
-    from tests.conftest import is_ci_environment, skip_if_ci
+    from conftest import is_ci_environment, skip_if_ci
 except ImportError:
     # Fallback if conftest not available
     def is_ci_environment():

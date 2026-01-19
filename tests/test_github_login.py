@@ -10,7 +10,7 @@ import os
 
 # Import CI detection helper and shared fixtures
 try:
-    from tests.conftest import is_ci_environment, skip_if_ci, mock_page
+    from conftest import is_ci_environment, skip_if_ci, mock_page
 except ImportError:
     # Fallback if conftest not available
     def is_ci_environment():

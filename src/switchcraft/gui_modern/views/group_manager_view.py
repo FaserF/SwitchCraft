@@ -386,7 +386,6 @@ class GroupManagerView(ft.Column, ViewMixin):
                 content=ft.Column([search_box, results_list], height=300, width=400),
                 actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(add_dlg))]
             )
-            self.dlg_add_member = add_dlg
 
             def search_users(e):
                 query = search_box.value
@@ -416,7 +415,11 @@ class GroupManagerView(ft.Column, ViewMixin):
                         results_list.controls.clear()
                         error_tmpl = i18n.get("error_search_failed") or "Search failed: {error}"
                         results_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
-                    add_dlg.update()
+                    # Marshal UI update to main thread
+                    if hasattr(self.app_page, 'run_task'):
+                        self.app_page.run_task(add_dlg.update)
+                    else:
+                        self.app_page.schedule_update()
 
                 threading.Thread(target=_bg, daemon=True).start()
 
@@ -447,7 +450,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                 ft.Divider(),
                 members_list
             ], height=400, width=500),
-            actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(self.app_page.dialog))],
+            actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(dlg))],
         )
 
         self.app_page.open(dlg)

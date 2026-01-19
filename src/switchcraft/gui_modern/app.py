@@ -1822,8 +1822,7 @@ def main(page: ft.Page):
     # Add restart method to page for injection if needed, or pass app instance.
     app = ModernApp(page)
     page._show_restart_countdown = app._show_restart_countdown
-    # Make app accessible to views via page
-    page.switchcraft_app = app
+    # Note: page.switchcraft_app is already set in ModernApp.__init__ (line 43)
 
 if __name__ == "__main__":
     assets_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")

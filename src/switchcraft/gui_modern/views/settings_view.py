@@ -693,18 +693,22 @@ class ModernSettingsView(ft.Column, ViewMixin):
             try:
                 flow = AuthService.initiate_device_flow()
                 if not flow:
-                    # Close loading dialog and show error
-                    loading_dlg.open = False
-                    self.app_page.update()
-                    self._show_snack("Login init failed", "RED")
+                    # Marshal UI updates to main thread
+                    def _handle_no_flow():
+                        loading_dlg.open = False
+                        self.app_page.update()
+                        self._show_snack("Login init failed", "RED")
+                    self._run_task_with_fallback(_handle_no_flow)
                     return None
                 return flow
             except Exception as ex:
                 logger.exception(f"Error initiating device flow: {ex}")
-                # Close loading dialog and show error
-                loading_dlg.open = False
-                self.app_page.update()
-                self._show_snack(f"Login error: {ex}", "RED")
+                # Marshal UI updates to main thread
+                def _handle_error():
+                    loading_dlg.open = False
+                    self.app_page.update()
+                    self._show_snack(f"Login error: {ex}", "RED")
+                self._run_task_with_fallback(_handle_error)
                 return None
 
         # Show dialog with flow data on main thread
@@ -783,7 +787,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 token = AuthService.poll_for_token(flow.get("device_code"), flow.get("interval"), flow.get("expires_in"))
 
                 # Close dialog and show result on main thread
-                def _close_and_result():
+                async def _close_and_result():
                     dlg.open = False
                     self.app_page.update()
                     if token:
@@ -796,7 +800,32 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 if hasattr(self.app_page, 'run_task'):
                     self.app_page.run_task(_close_and_result)
                 else:
-                    _close_and_result()
+                    # Fallback: execute synchronously if run_task not available
+                    # Note: This is not ideal but provides backward compatibility
+                    import asyncio
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            # If loop is running, schedule the coroutine
+                            asyncio.create_task(_close_and_result())
+                        else:
+                            # If no loop is running, run it
+                            loop.run_until_complete(_close_and_result())
+                    except RuntimeError:
+                        # No event loop available, try to run synchronously
+                        # This is a fallback and may not work correctly
+                        try:
+                            asyncio.run(_close_and_result())
+                        except Exception:
+                            # Last resort: try to execute the logic directly
+                            dlg.open = False
+                            self.app_page.update()
+                            if token:
+                                AuthService.save_token(token)
+                                self._update_sync_ui()
+                                self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
+                            else:
+                                self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
 
             threading.Thread(target=_poll_token, daemon=True).start()
 
@@ -804,29 +833,26 @@ class ModernSettingsView(ft.Column, ViewMixin):
         def _flow_complete():
             flow = _init_flow()
             if flow:
-                # MUST show dialog on main thread - use run_task to ensure it's on the UI thread
-                if hasattr(self.app_page, 'run_task'):
-                    try:
-                        self.app_page.run_task(lambda: _show_dialog_with_flow(flow))
-                    except Exception as ex:
-                        logger.exception(f"Error in run_task for dialog: {ex}")
-                        # Fallback: try direct call
-                        try:
-                            _show_dialog_with_flow(flow)
-                        except Exception as ex2:
-                            logger.exception(f"Error showing dialog directly: {ex2}")
-                            loading_dlg.open = False
-                            self.app_page.update()
-                            self._show_snack(f"Failed to show login dialog: {ex2}", "RED")
-                else:
-                    # No run_task, try direct call (should work if we're already on main thread)
+                # Create a wrapper function that binds the flow argument
+                # This avoids lambda and ensures proper integration with run_task
+                def _show_dialog_wrapper():
+                    _show_dialog_with_flow(flow)
+
+                def _fallback_show_dialog():
                     try:
                         _show_dialog_with_flow(flow)
-                    except Exception as ex:
-                        logger.exception(f"Error showing dialog: {ex}")
+                    except Exception as ex2:
+                        logger.exception(f"Error showing dialog directly: {ex2}")
                         loading_dlg.open = False
                         self.app_page.update()
-                        self._show_snack(f"Failed to show login dialog: {ex}", "RED")
+                        raise  # Re-raise to trigger error handling in helper
+
+                # Use shared helper for run_task with fallback
+                self._run_task_with_fallback(
+                    _show_dialog_wrapper,
+                    fallback_func=_fallback_show_dialog,
+                    error_msg="Failed to show login dialog"
+                )
 
         threading.Thread(target=_flow_complete, daemon=True).start()
 
@@ -1080,30 +1106,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         "GREEN"
                     )
 
-            # Use run_task to ensure UI updates happen on main thread
-            if hasattr(self.app_page, 'run_task'):
-                try:
-                    self.app_page.run_task(_reload_app)
-                except Exception as ex:
-                    logger.exception(f"Error in run_task for reload: {ex}")
-                    # Fallback: try direct call
-                    try:
-                        _reload_app()
-                    except Exception:
-                        self._show_snack(
-                            i18n.get("language_changed") or "Language changed. Please restart to see all changes.",
-                            "GREEN"
-                        )
-            else:
-                # No run_task, try direct call
-                try:
-                    _reload_app()
-                except Exception as ex:
-                    logger.exception(f"Failed to reload app: {ex}")
-                    self._show_snack(
-                        i18n.get("language_changed") or "Language changed. Please restart to see all changes.",
-                        "GREEN"
-                    )
+            # Use shared helper for run_task with fallback
+            self._run_task_with_fallback(
+                _reload_app,
+                error_msg=i18n.get("language_changed") or "Language changed. Please restart to see all changes."
+            )
         else:
             # Fallback: Show restart dialog if app reference not available
             def do_restart(e):

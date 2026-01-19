@@ -73,3 +73,55 @@ class ViewMixin:
             page.update()
         except Exception as e:
             logger.debug(f"Failed to close dialog: {e}")
+
+    def _run_task_with_fallback(self, task_func, fallback_func=None, error_msg=None):
+        """
+        Execute a task function on the main thread using run_task, with fallback handling.
+
+        This helper consolidates the common pattern of:
+        1. Try run_task if available
+        2. Fallback to direct call if run_task fails or is unavailable
+        3. Provide error handling and user feedback
+
+        Parameters:
+            task_func (callable): Function to execute on main thread (no arguments)
+            fallback_func (callable, optional): Function to call if run_task fails.
+                                                If None, task_func is called directly.
+            error_msg (str, optional): Error message to show if all attempts fail.
+
+        Returns:
+            bool: True if task was executed successfully, False otherwise
+        """
+        page = getattr(self, "app_page", getattr(self, "page", None))
+        if not page:
+            logger.warning("No page available for run_task")
+            return False
+
+        if fallback_func is None:
+            fallback_func = task_func
+
+        if hasattr(page, 'run_task'):
+            try:
+                page.run_task(task_func)
+                return True
+            except Exception as ex:
+                logger.exception(f"Error in run_task: {ex}")
+                # Fallback: try direct call
+                try:
+                    fallback_func()
+                    return True
+                except Exception as ex2:
+                    logger.exception(f"Error in fallback execution: {ex2}")
+                    if error_msg:
+                        self._show_snack(error_msg, "RED")
+                    return False
+        else:
+            # No run_task, try direct call
+            try:
+                fallback_func()
+                return True
+            except Exception as ex:
+                logger.exception(f"Error in direct execution: {ex}")
+                if error_msg:
+                    self._show_snack(error_msg, "RED")
+                return False
