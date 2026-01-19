@@ -11,6 +11,7 @@ import threading
 import time
 import os
 import asyncio
+from conftest import poll_until
 
 @pytest.fixture
 def mock_page():
@@ -93,8 +94,6 @@ def test_github_login_opens_dialog(mock_page, mock_auth_service):
     view._start_github_login(mock_event)
 
     # Wait for background thread to complete using polling instead of fixed sleep
-    from conftest import poll_until
-
     def dialog_opened():
         return (mock_page.dialog is not None and
                 isinstance(mock_page.dialog, ft.AlertDialog) and
@@ -157,11 +156,11 @@ def test_language_change_updates_ui(mock_page):
     if lang_dd.on_change:
         lang_dd.on_change(mock_event)
 
-    # Wait a bit for any background operations
-    time.sleep(0.5)
-
-    # Check that app was reloaded
-    assert mock_page.switchcraft_app.goto_tab.called, "goto_tab should be called to reload UI"
+    # Wait for app reload using polling instead of fixed sleep to reduce flakiness
+    assert poll_until(
+        lambda: mock_page.switchcraft_app.goto_tab.called,
+        timeout=3.0
+    ), "goto_tab should be called to reload UI"
 
 
 def test_notification_bell_opens_drawer(mock_page):

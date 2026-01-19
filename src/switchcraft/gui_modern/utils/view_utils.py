@@ -1,6 +1,7 @@
 import flet as ft
 import logging
 import asyncio
+import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +122,6 @@ class ViewMixin:
             fallback_func = task_func
 
         # Check if task_func is a coroutine function
-        import inspect
         is_coroutine = inspect.iscoroutinefunction(task_func)
         is_fallback_coroutine = inspect.iscoroutinefunction(fallback_func) if fallback_func else False
 
@@ -137,7 +137,17 @@ class ViewMixin:
                 try:
                     try:
                         loop = asyncio.get_running_loop()
-                        asyncio.create_task(fallback_func())
+                        # Store task reference and add exception handling to avoid silent failures
+                        task = asyncio.create_task(fallback_func())
+                        # Add exception handler to catch and log exceptions from the task
+                        def handle_task_exception(task):
+                            try:
+                                task.result()
+                            except Exception as task_ex:
+                                logger.exception(f"Exception in async fallback task: {task_ex}")
+                                if error_msg:
+                                    self._show_snack(error_msg, "RED")
+                        task.add_done_callback(handle_task_exception)
                     except RuntimeError:
                         asyncio.run(fallback_func())
                     return True
@@ -147,15 +157,21 @@ class ViewMixin:
                         self._show_snack(error_msg, "RED")
                     return False
         elif not is_coroutine:
-            # For sync functions, call directly (no run_task needed)
+            # For sync functions, try task_func first, then fallback on exception
             try:
-                fallback_func()
+                task_func()
                 return True
             except Exception as ex:
-                logger.exception(f"Error in direct execution of sync function: {ex}")
-                if error_msg:
-                    self._show_snack(error_msg, "RED")
-                return False
+                logger.exception(f"Error in task_func for sync function: {ex}")
+                # Fallback to fallback_func as recovery path
+                try:
+                    fallback_func()
+                    return True
+                except Exception as ex2:
+                    logger.exception(f"Error in fallback execution of sync function: {ex2}")
+                    if error_msg:
+                        self._show_snack(error_msg, "RED")
+                    return False
         else:
             # No run_task available, handle coroutine functions properly
             try:
@@ -163,7 +179,17 @@ class ViewMixin:
                     # Fallback is async, need to run it
                     try:
                         loop = asyncio.get_running_loop()
-                        asyncio.create_task(fallback_func())
+                        # Store task reference and add exception handling to avoid silent failures
+                        task = asyncio.create_task(fallback_func())
+                        # Add exception handler to catch and log exceptions from the task
+                        def handle_task_exception(task):
+                            try:
+                                task.result()
+                            except Exception as task_ex:
+                                logger.exception(f"Exception in async fallback task: {task_ex}")
+                                if error_msg:
+                                    self._show_snack(error_msg, "RED")
+                        task.add_done_callback(handle_task_exception)
                     except RuntimeError:
                         asyncio.run(fallback_func())
                 else:
