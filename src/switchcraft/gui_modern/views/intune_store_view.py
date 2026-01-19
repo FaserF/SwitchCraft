@@ -128,7 +128,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         query = self.search_field.value
         self.results_list.controls.clear()
         self.results_list.controls.append(ft.ProgressBar())
-        self.results_list.controls.append(ft.Text(i18n.get("searching") or "Searching...", color="GREY_500", italic=True))
+        self.results_list.controls.append(ft.Text(i18n.get("searching", default="Searching..."), color="GREY_500", italic=True))
         try:
             self.update()
         except Exception as ex:
@@ -198,7 +198,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 if not result_holder["error"] and result_holder["apps"] is None:
                     result_holder["error"] = "Search failed: No response received."
 
-            # Update UI on main thread - MUST use page.update() directly, not run_task
+            # Update UI on main thread - use run_task to marshal UI updates to the page event loop
             def _update_ui():
                 try:
                     if result_holder["error"]:

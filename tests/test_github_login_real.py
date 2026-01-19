@@ -8,6 +8,27 @@ import threading
 import time
 import os
 
+
+def poll_until(condition, timeout=2.0, interval=0.05):
+    """
+    Poll until condition is met or timeout is reached.
+
+    Parameters:
+        condition: Callable that returns True when condition is met
+        timeout: Maximum time to wait in seconds
+        interval: Time between polls in seconds
+
+    Returns:
+        True if condition was met, False if timeout
+    """
+    elapsed = 0.0
+    while elapsed < timeout:
+        if condition():
+            return True
+        time.sleep(interval)
+        elapsed += interval
+    return False
+
 @pytest.fixture
 def mock_page():
     """Create a mock Flet page."""
@@ -17,12 +38,12 @@ def mock_page():
     page.snack_bar = MagicMock(spec=ft.SnackBar)
     page.snack_bar.open = False
     page.switchcraft_app = MagicMock()
-    
+
     # Mock run_task to actually execute the function
     def run_task(func):
         func()
     page.run_task = run_task
-    
+
     # Mock page.open to set dialog and open it
     def mock_open(control):
         if isinstance(control, ft.AlertDialog):
@@ -30,7 +51,7 @@ def mock_page():
             control.open = True
         page.update()
     page.open = mock_open
-    
+
     return page
 
 
@@ -57,21 +78,26 @@ def mock_auth_service():
 def test_github_login_dialog_opens(mock_page, mock_auth_service):
     """Test that GitHub login dialog actually opens when button is clicked."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-    
+
     view = ModernSettingsView(mock_page)
     mock_page.add(view)
-    
+
     # Skip in CI to avoid long waits
     if os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true':
         pytest.skip("Skipping test with time.sleep in CI environment")
-    
+
     # Simulate button click
     mock_event = MagicMock()
     view._start_github_login(mock_event)
-    
-    # Wait a bit for background thread
-    time.sleep(0.5)
-    
+
+    # Wait for dialog to be created and opened using polling
+    def dialog_ready():
+        return (mock_page.dialog is not None and
+                isinstance(mock_page.dialog, ft.AlertDialog) and
+                mock_page.dialog.open is True)
+
+    assert poll_until(dialog_ready, timeout=2.0), "Dialog should be created and opened within timeout"
+
     # Check that dialog was created and opened
     assert mock_page.dialog is not None, "Dialog should be created"
     assert isinstance(mock_page.dialog, ft.AlertDialog), "Dialog should be AlertDialog"
@@ -82,20 +108,20 @@ def test_github_login_dialog_opens(mock_page, mock_auth_service):
 def test_language_change_updates_ui(mock_page):
     """Test that language change actually updates the UI."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-    
+
     view = ModernSettingsView(mock_page)
     mock_page.add(view)
-    
+
     # Mock app reference
     mock_app = MagicMock()
     mock_app._current_tab_index = 0
     mock_app._view_cache = {}
     mock_app.goto_tab = MagicMock()
     mock_page.switchcraft_app = mock_app
-    
+
     # Simulate language change
     view._on_lang_change("de")
-    
+
     # Check that app was reloaded
     assert mock_app.goto_tab.called, "goto_tab should be called to reload UI"
 
@@ -103,17 +129,17 @@ def test_language_change_updates_ui(mock_page):
 def test_notification_bell_opens_drawer(mock_page):
     """Test that notification bell actually opens the drawer."""
     from switchcraft.gui_modern.app import ModernApp
-    
+
     app = ModernApp(mock_page)
-    
+
     # Mock notification service
     with patch.object(app, 'notification_service') as mock_notif:
         mock_notif.get_notifications.return_value = []
-        
+
         # Simulate button click
         mock_event = MagicMock()
         app._toggle_notification_drawer(mock_event)
-        
+
         # Check that drawer was created and opened
         assert mock_page.end_drawer is not None, "Drawer should be created"
         assert isinstance(mock_page.end_drawer, ft.NavigationDrawer), "Drawer should be NavigationDrawer"

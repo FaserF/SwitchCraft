@@ -8,6 +8,27 @@ import threading
 import time
 
 
+def poll_until(condition, timeout=2.0, interval=0.05):
+    """
+    Poll until condition is met or timeout is reached.
+
+    Parameters:
+        condition: Callable that returns True when condition is met
+        timeout: Maximum time to wait in seconds
+        interval: Time between polls in seconds
+
+    Returns:
+        True if condition was met, False if timeout
+    """
+    elapsed = 0.0
+    while elapsed < timeout:
+        if condition():
+            return True
+        time.sleep(interval)
+        elapsed += interval
+    return False
+
+
 @pytest.fixture
 def mock_page():
     """Create a mock Flet page with run_task support."""
@@ -69,8 +90,8 @@ def test_winget_details_loads_and_displays(mock_page, mock_winget_helper):
     # Load details
     view._load_details(short_info)
 
-    # Wait for details to load
-    time.sleep(0.3)
+    # Wait for details to load using polling
+    assert poll_until(lambda: len(details_shown) > 0, timeout=2.0), "Details should be loaded within timeout"
 
     # Check that details were loaded
     assert len(details_shown) > 0
@@ -133,8 +154,23 @@ def test_winget_details_shows_error_on_failure(mock_page, mock_winget_helper):
     # Load details
     view._load_details(short_info)
 
-    # Wait for error handling
-    time.sleep(0.3)
+    # Wait for error handling using polling
+    def error_shown():
+        if view.details_area is None:
+            return False
+        error_texts = []
+        def collect_text(control):
+            if isinstance(control, ft.Text):
+                error_texts.append(control.value)
+            elif hasattr(control, 'controls'):
+                for c in control.controls:
+                    collect_text(c)
+            elif hasattr(control, 'content'):
+                collect_text(control.content)
+        collect_text(view.details_area)
+        return any("error" in str(text).lower() or "failed" in str(text).lower() for text in error_texts)
+
+    assert poll_until(error_shown, timeout=2.0), "Error should be shown within timeout"
 
     # Check that error was shown
     assert view.details_area is not None
@@ -189,11 +225,16 @@ def test_winget_details_updates_ui_correctly(mock_page, mock_winget_helper):
     # Load details
     view._load_details(short_info)
 
-    # Wait for details to load
-    time.sleep(0.3)
+    # Wait for details to load and verify updates were called in sequence
+    def details_loaded():
+        return (view.details_area is not None and
+                view.right_pane.content == view.details_area and
+                view.right_pane.visible is True)
 
-    # Check that updates were called
-    assert len(update_calls) > 0 or len(page_update_calls) > 0
+    assert poll_until(details_loaded, timeout=2.0), "Details should be loaded and UI updated within timeout"
+
+    # Check that updates were called (should have been called during the loading process)
+    assert len(update_calls) > 0 or len(page_update_calls) > 0, "At least one update method should have been called"
 
     # Check that details_area content was set
     assert view.details_area is not None

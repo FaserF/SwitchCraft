@@ -483,7 +483,7 @@ class IntuneService:
             return resp.json()
         except requests.exceptions.Timeout:
             logger.error(f"Request timed out while getting app details for {app_id}")
-            raise Exception("Request timed out. The server took too long to respond.")
+            raise requests.exceptions.Timeout("Request timed out. The server took too long to respond.")
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error getting app details: {e}")
             raise Exception(f"Network error: {str(e)}")

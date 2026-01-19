@@ -30,7 +30,7 @@ def find_all_buttons_in_control(control, buttons_found):
 def test_all_views_have_buttons():
     """Test that all views can be instantiated and have buttons."""
     all_buttons = collect_all_buttons()
-    
+
     # Verify we found views
     assert len(all_buttons) > 0, "No views found"
 
@@ -41,7 +41,7 @@ def test_all_views_have_buttons():
             print(f"{view_name}: ERROR - {info['error']}")
         else:
             print(f"{view_name}: {info['count']} buttons")
-    
+
     # Test should not return a value (pytest warning)
     # But we keep the assertion to verify views were found
 
@@ -156,7 +156,7 @@ def test_all_buttons_have_handlers():
 def test_button_handlers_are_callable():
     """Test that all button handlers are callable."""
     all_buttons = collect_all_buttons()
-    
+
     if not all_buttons:
         pytest.skip("No views found to test")
 
@@ -247,6 +247,8 @@ def test_view_buttons_work(view_name, view_file):
         assert len(buttons) > 0, f"View {view_name} should have at least one button"
 
         # Test that buttons can be clicked
+        failures = []
+        successes = 0
         for button in buttons:
             if hasattr(button, 'on_click') and button.on_click is not None:
                 try:
@@ -257,12 +259,19 @@ def test_view_buttons_work(view_name, view_file):
 
                     # Call the handler
                     button.on_click(mock_event)
+                    successes += 1
 
                 except Exception as e:
-                    # Some handlers might fail due to missing dependencies, that's OK
-                    # But log it
-                    print(f"Button handler failed in {view_name}: {e}")
+                    # Track failures for reporting
+                    failures.append((button, str(e)))
 
+        # Report failures if any
+        if failures:
+            failure_msgs = [f"Button handler failed in {view_name}: {e}" for _, e in failures]
+            print("\n".join(failure_msgs))
+
+        # Assert that at least some buttons succeeded (allowing some failures due to missing dependencies)
+        assert successes > 0, f"At least one button handler should succeed in {view_name}. Failures: {len(failures)}"
         assert view is not None
 
     except Exception as e:

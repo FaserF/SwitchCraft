@@ -373,7 +373,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 logger.info(f"Package details fetched, showing UI for: {merged.get('Name', 'Unknown')}")
                 logger.info(f"Merged package data keys: {list(merged.keys())}")
 
-                # Update UI directly - Flet's update() is thread-safe
+                # Update UI using run_task to marshal back to main thread
                 def _show_ui():
                     try:
                         self._show_details_ui(merged)
@@ -403,17 +403,8 @@ class ModernWingetView(ft.Row, ViewMixin):
                         except Exception:
                             pass
 
-                # Always call directly - Flet's update() is thread-safe
-                try:
-                    _show_ui()
-                except Exception as ex:
-                    logger.exception(f"Failed to show UI: {ex}")
-                    # Try with run_task as fallback
-                    if hasattr(self.app_page, 'run_task'):
-                        try:
-                            self.app_page.run_task(_show_ui)
-                        except Exception:
-                            pass
+                # Use run_task as primary approach to marshal UI updates to main thread
+                self._run_ui_update(_show_ui)
             except Exception as ex:
                 logger.exception(f"Error fetching package details: {ex}")
                 error_msg = str(ex)
@@ -422,7 +413,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 elif "not found" in error_msg.lower() or "no package" in error_msg.lower():
                     error_msg = f"Package not found: {short_info.get('Id', 'Unknown')}"
 
-                # Update UI directly - Flet's update() is thread-safe
+                # Update UI using run_task to marshal back to main thread
                 def _show_error_ui():
                     error_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
                     error_area.controls.append(
@@ -448,19 +439,34 @@ class ModernWingetView(ft.Row, ViewMixin):
                     except Exception:
                         pass
 
-                # Always call directly - Flet's update() is thread-safe
-                try:
-                    _show_error_ui()
-                except Exception as ex:
-                    logger.exception(f"Failed to show error UI: {ex}")
-                    # Try with run_task as fallback
-                    if hasattr(self.app_page, 'run_task'):
-                        try:
-                            self.app_page.run_task(_show_error_ui)
-                        except Exception:
-                            pass
+                # Use run_task as primary approach to marshal UI updates to main thread
+                self._run_ui_update(_show_error_ui)
 
         threading.Thread(target=_fetch, daemon=True).start()
+
+    def _run_ui_update(self, ui_func):
+        """
+        Helper method to marshal UI updates to the main thread using run_task.
+
+        Parameters:
+            ui_func (callable): Function that performs UI updates. Must be callable with no arguments.
+        """
+        if hasattr(self.app_page, 'run_task'):
+            try:
+                self.app_page.run_task(ui_func)
+            except Exception as ex:
+                logger.exception(f"Failed to run UI update via run_task: {ex}")
+                # Fallback: try direct call (not recommended but better than nothing)
+                try:
+                    ui_func()
+                except Exception:
+                    pass
+        else:
+            # Fallback if run_task is not available
+            try:
+                ui_func()
+            except Exception as ex:
+                logger.exception(f"Failed to run UI update: {ex}")
 
     def _show_details_ui(self, info):
         """

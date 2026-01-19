@@ -379,19 +379,23 @@ if ($Installer -and $IsWinBuild) {
         Write-Host "  - Or install via winget: winget install JRSoftware.InnoSetup" -ForegroundColor Yellow
         Write-Host "  - Or install via chocolatey: choco install innosetup" -ForegroundColor Yellow
 
-        # Offer to install via winget if available
-        $wingetAvailable = (Get-Command "winget" -ErrorAction SilentlyContinue)
-        if ($wingetAvailable) {
-            $response = Read-Host "`nWould you like to install Inno Setup via winget now? (y/N)"
-            if ($response -eq 'y' -or $response -eq 'Y') {
-                Write-Host "Installing Inno Setup via winget..." -ForegroundColor Cyan
-                try {
-                    winget install --id JRSoftware.InnoSetup --silent --accept-package-agreements --accept-source-agreements
-                    Write-Host "Inno Setup installed successfully. Please run the build script again." -ForegroundColor Green
-                } catch {
-                    Write-Warning "Failed to install Inno Setup via winget: $_"
+        # Offer to install via winget if available (only in interactive sessions)
+        if (-not $env:CI -and -not $env:GITHUB_ACTIONS) {
+            $wingetAvailable = (Get-Command "winget" -ErrorAction SilentlyContinue)
+            if ($wingetAvailable) {
+                $response = Read-Host "`nWould you like to install Inno Setup via winget now? (y/N)"
+                if ($response -in 'y','Y') {
+                    Write-Host "Installing Inno Setup via winget..." -ForegroundColor Cyan
+                    try {
+                        winget install --id JRSoftware.InnoSetup --silent --accept-package-agreements --accept-source-agreements
+                        Write-Host "Inno Setup installed successfully. Please run the build script again." -ForegroundColor Green
+                    } catch {
+                        Write-Warning "Failed to install Inno Setup via winget: $_"
+                    }
                 }
             }
+        } else {
+            Write-Host "Skipping interactive Inno Setup install in CI." -ForegroundColor Yellow
         }
     }
 }

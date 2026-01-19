@@ -53,18 +53,22 @@ def test_home_view_buttons(mock_page):
     find_clickables(view, clickables)
 
     # Test clicking action cards
+    successes = 0
+    failures = []
     for clickable in clickables:
         if hasattr(clickable, 'on_click') and clickable.on_click:
             try:
                 mock_event = MagicMock()
                 mock_event.control = clickable
                 clickable.on_click(mock_event)
+                successes += 1
             except Exception as e:
-                # Some might fail due to missing dependencies, that's OK
-                pass
+                # Track failures for reporting
+                failures.append((clickable, str(e)))
 
-    # Should have at least some navigation calls
-    assert len(clickables) > 0
+    # Should have at least some clickables and some successful clicks
+    assert len(clickables) > 0, "Should have at least some clickable controls"
+    assert successes > 0 or len(clickables) == 0, f"At least one click should succeed. Failures: {len(failures)}"
 
 
 def test_category_view_buttons(mock_page):
@@ -88,16 +92,20 @@ def test_category_view_buttons(mock_page):
     find_clickables(view, clickables)
 
     # Test clicking cards
+    successes = 0
+    failures = []
     for clickable in clickables:
         if hasattr(clickable, 'on_click') and clickable.on_click:
             try:
                 mock_event = MagicMock()
                 mock_event.control = clickable
                 clickable.on_click(mock_event)
+                successes += 1
             except Exception as e:
-                pass
+                failures.append((clickable, str(e)))
 
-    assert len(clickables) > 0
+    assert len(clickables) > 0, "Should have at least some clickable controls"
+    assert successes > 0 or len(clickables) == 0, f"At least one click should succeed. Failures: {len(failures)}"
 
 
 def test_settings_view_tab_buttons(mock_page):
@@ -114,16 +122,20 @@ def test_settings_view_tab_buttons(mock_page):
             tab_buttons.append(control)
 
     # Test clicking each tab button
+    successes = 0
+    failures = []
     for button in tab_buttons:
         if hasattr(button, 'on_click') and button.on_click:
             try:
                 mock_event = MagicMock()
                 mock_event.control = button
                 button.on_click(mock_event)
+                successes += 1
             except Exception as e:
-                pass
+                failures.append((button, str(e)))
 
-    assert len(tab_buttons) > 0
+    assert len(tab_buttons) > 0, "Should have at least some tab buttons"
+    assert successes > 0 or len(tab_buttons) == 0, f"At least one button click should succeed. Failures: {len(failures)}"
 
 
 def test_winget_view_search_button(mock_page):
@@ -157,14 +169,18 @@ def test_winget_view_search_button(mock_page):
         find_search_button(view)
 
         if search_button and hasattr(search_button, 'on_click') and search_button.on_click:
+            # Verify handler exists and is callable
+            assert callable(search_button.on_click), "Search button handler should be callable"
             try:
                 mock_event = MagicMock()
                 mock_event.control = search_button
                 search_button.on_click(mock_event)
             except Exception as e:
+                # Allow some failures due to missing dependencies
                 pass
 
-        assert True  # Just verify view was created
+        assert view is not None, "View should be created"
+        assert hasattr(view, 'update'), "View should have update method"
 
 
 def test_intune_store_search_button(mock_page):
@@ -182,11 +198,15 @@ def test_intune_store_search_button(mock_page):
         # Test search button
         if hasattr(view, 'btn_search') and view.btn_search:
             if hasattr(view.btn_search, 'on_click') and view.btn_search.on_click:
+                # Verify handler exists and is callable
+                assert callable(view.btn_search.on_click), "Search button handler should be callable"
                 try:
                     mock_event = MagicMock()
                     mock_event.control = view.btn_search
                     view.btn_search.on_click(mock_event)
                 except Exception as e:
+                    # Allow some failures due to missing dependencies
                     pass
 
-        assert view is not None
+        assert view is not None, "View should be created"
+        assert hasattr(view, 'update'), "View should have update method"

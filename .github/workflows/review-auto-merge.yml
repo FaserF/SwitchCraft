@@ -25,10 +25,25 @@ jobs:
         run: |
           echo "Processing PR #$PR_NUMBER for Auto-Merge (Trigger: Review)..."
 
+          # 0. Check for no-auto-merge label
+          echo "Checking for no-auto-merge label..."
+          HAS_NO_AUTO_MERGE=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[] | select(.name == "no-auto-merge") | .name' | head -n 1)
+          if [[ -n "$HAS_NO_AUTO_MERGE" ]]; then
+             echo "::notice::PR has 'no-auto-merge' label. Skipping auto-merge."
+             exit 0
+          fi
+          echo "No 'no-auto-merge' label found. Proceeding..."
+
           # 1. Check CI Status (Must manually verify CI Orchestrator passed)
           echo "Checking CI Status for PR #$PR_NUMBER..."
           PR_HEAD_SHA=$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')
-          CI_CONCLUSION=$(gh run list --commit "$PR_HEAD_SHA" --workflow "CI Orchestrator" --json conclusion --jq '.[0].conclusion')
+          # Use workflow file name instead of display name
+          CI_CONCLUSION=$(gh run list --commit "$PR_HEAD_SHA" --workflow "ci-orchestrator.yml" --json conclusion --jq '.[0].conclusion' || echo "null")
+
+          if [[ "$CI_CONCLUSION" == "null" || "$CI_CONCLUSION" == "" ]]; then
+             echo "::notice::CI Orchestrator workflow not found or not yet run. Skipping merge."
+             exit 0
+          fi
 
           if [[ "$CI_CONCLUSION" != "success" ]]; then
              echo "::notice::CI Orchestrator is not 'success' (current: $CI_CONCLUSION). Skipping merge."

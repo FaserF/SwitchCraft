@@ -10,6 +10,27 @@ import requests
 import os
 
 
+def poll_until(condition, timeout=2.0, interval=0.05):
+    """
+    Poll until condition is met or timeout is reached.
+
+    Parameters:
+        condition: Callable that returns True when condition is met
+        timeout: Maximum time to wait in seconds
+        interval: Time between polls in seconds
+
+    Returns:
+        True if condition was met, False if timeout
+    """
+    elapsed = 0.0
+    while elapsed < timeout:
+        if condition():
+            return True
+        time.sleep(interval)
+        elapsed += interval
+    return False
+
+
 @pytest.fixture
 def mock_page():
     """Create a mock Flet page with run_task support."""
@@ -35,8 +56,6 @@ def mock_intune_service():
 def test_intune_search_shows_timeout_error(mock_page, mock_intune_service):
     """Test that Intune search shows timeout error after 60 seconds."""
     from switchcraft.gui_modern.views.intune_store_view import ModernIntuneStoreView
-    import os
-    import threading
 
     # Skip in CI to avoid 70 second wait
     if os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true':
@@ -59,20 +78,22 @@ def test_intune_search_shows_timeout_error(mock_page, mock_intune_service):
         error_calls.append(msg)
     view._show_error = track_error
 
-    # Mock Thread.join to simulate timeout immediately
-    original_thread = threading.Thread
-    def mock_thread(target=None, daemon=False, **kwargs):
-        thread = original_thread(target=target, daemon=daemon, **kwargs)
-        # Override join to simulate timeout
-        original_join = thread.join
-        def mock_join(timeout=None):
+    # Create a Thread subclass that simulates timeout behavior
+    class TimeoutThread(threading.Thread):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._timeout_simulated = True
+
+        def join(self, timeout=None):
             # Simulate timeout by returning immediately (thread still alive)
             return None
-        thread.join = mock_join
-        return thread
-    threading.Thread = mock_thread
 
-    try:
+        def is_alive(self):
+            # Return True to simulate thread still running (timeout occurred)
+            return True
+
+    # Use patch to override Thread for threads created by view._run_search
+    with patch('threading.Thread', TimeoutThread):
         # Start search
         view.search_field.value = "test"
         view._run_search(None)
@@ -84,8 +105,6 @@ def test_intune_search_shows_timeout_error(mock_page, mock_intune_service):
         assert len(error_calls) > 0, "Timeout error should have been shown"
         assert any("timeout" in str(msg).lower() or "60 seconds" in str(msg) for msg in error_calls), \
             f"Expected timeout message, but got: {error_calls}"
-    finally:
-        threading.Thread = original_thread
 
 
 def test_intune_search_handles_network_error(mock_page, mock_intune_service):
@@ -150,8 +169,6 @@ def test_intune_search_shows_results(mock_page, mock_intune_service):
 def test_intune_search_timeout_mechanism(mock_page, mock_intune_service):
     """Test that Intune search properly times out after 60 seconds."""
     from switchcraft.gui_modern.views.intune_store_view import ModernIntuneStoreView
-    import threading
-    import os
 
     # Skip in CI to avoid 65 second wait
     if os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true':
@@ -167,7 +184,15 @@ def test_intune_search_timeout_mechanism(mock_page, mock_intune_service):
         search_completed.set()
         return []
 
+    def slow_list(token):
+        search_started.set()
+        time.sleep(65)  # Longer than 60 second timeout
+        search_completed.set()
+        return []
+
+    # Mock both methods to ensure test works regardless of which path is taken
     mock_intune_service.search_apps = slow_search
+    mock_intune_service.list_apps = slow_list
 
     view = ModernIntuneStoreView(mock_page)
     view._get_token = lambda: "mock_token"
@@ -201,11 +226,21 @@ def test_intune_search_timeout_mechanism(mock_page, mock_intune_service):
         view.search_field.value = "test"
         view._run_search(None)
 
-        # Wait for search to start
-        assert search_started.wait(timeout=1.0)
+        # Wait for search to start using polling (more reliable than fixed timeout)
+        def search_started_check():
+            return search_started.is_set()
 
-        # Wait a bit for timeout handling
-        time.sleep(0.2)
+        assert poll_until(search_started_check, timeout=2.0), "Search should start within timeout"
+
+        # Wait for timeout handling using polling
+        def timeout_error_shown():
+            return len(error_calls) > 0 and any(
+                "timeout" in str(msg).lower() or "60 seconds" in str(msg)
+                for msg in error_calls
+            )
+
+        assert poll_until(timeout_error_shown, timeout=2.0), \
+            f"Timeout error should be shown within timeout. Got: {error_calls}"
 
         # Verify that timeout error was shown
         assert len(error_calls) > 0, "Timeout error should have been shown"

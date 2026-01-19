@@ -25,10 +25,6 @@ jobs:
   test:
     name: Run Tests
     runs-on: ${{ matrix.os }}
-    # Python 3.15 only on main branch push (not PRs) to save time
-    if: |
-      matrix.python-version == '3.14' ||
-      (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -39,10 +35,17 @@ jobs:
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
+      if: |
+        matrix.python-version == '3.14' ||
+        (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
       with:
         python-version: ${{ matrix.python-version }}
+        allow-prereleases: ${{ matrix.python-version == '3.15' }}
 
     - name: Install dependencies
+      if: |
+        matrix.python-version == '3.14' ||
+        (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
       run: |
         python -m pip install --upgrade pip
         pip install .
@@ -50,6 +53,9 @@ jobs:
         # Install dev dependencies if needed, or just run tests if they don't need extra
 
     - name: Run Tests
+      if: |
+        matrix.python-version == '3.14' ||
+        (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
       run: |
         export PYTHONPATH=$PYTHONPATH:$(pwd)/src:$(pwd)/src/switchcraft:$(pwd)/src/switchcraft_advanced:$(pwd)/src/switchcraft_ai:$(pwd)/src/switchcraft_winget:$(pwd)/src/switchcraft_debug
         export CI=true
@@ -58,12 +64,18 @@ jobs:
       shell: bash
 
     - name: Smoke Test (CLI)
+      if: |
+        matrix.python-version == '3.14' ||
+        (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
       run: |
         python -m switchcraft.main --version
         python -m switchcraft.main --help
       shell: bash
 
     - name: Linting
+      if: |
+        matrix.python-version == '3.14' ||
+        (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
       run: |
         pip install flake8
         # Stop the build if there are Python syntax errors or undefined names
@@ -73,6 +85,9 @@ jobs:
       shell: bash
 
     - name: Check Translations (i18n)
+      if: |
+        matrix.python-version == '3.14' ||
+        (matrix.python-version == '3.15' && github.event_name == 'push' && github.ref == 'refs/heads/main')
       run: |
         python scripts/check_i18n.py
       shell: bash
