@@ -2,64 +2,177 @@
 Pytest configuration and shared fixtures.
 """
 import os
+import sys
 import time
 import asyncio
 import pytest
 from unittest.mock import MagicMock
 import flet as ft
 
+# Make local tests helper module importable when running in CI or from repo root
+TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if TESTS_DIR not in sys.path:
+    sys.path.insert(0, TESTS_DIR)
 
-def is_ci_environment():
+from utils import is_ci_environment, skip_if_ci, poll_until
+
+
+def _create_mock_page():
     """
-    Check if running in a CI environment (GitHub Actions, etc.).
+    Helper function to create a mock Flet page with all necessary attributes.
+    This can be called directly (unlike the pytest fixture).
 
     Returns:
-        bool: True if running in CI, False otherwise.
+        MockPage: A fully configured mock page instance.
     """
-    return (
-        os.environ.get('CI') == 'true' or
-        os.environ.get('GITHUB_ACTIONS') == 'true' or
-        os.environ.get('GITHUB_RUN_ID') is not None
-    )
+    class MockPage(ft.Page):
+        """Mock Flet Page that supports direct attribute assignment."""
+        def __init__(self):
+            # Do not call super().__init__ as it requires connection
+            # Initialize internal Flet attributes needed for __str__ and others
+            self._c = "Page"
+            self._i = "page"
 
+            # Initialize Mock logic (backing fields)
+            self._dialog = None
+            self._end_drawer = None
+            self._snack_bar = MagicMock(spec=ft.SnackBar)
+            self._snack_bar.open = False
 
-def skip_if_ci(reason="Test not suitable for CI environment"):
-    """
-    Immediately skip the test if running in CI environment.
+            self._controls = []
+            self._views = [self] # Root view is self logic if needed, or just list
+            self._padding = 10
+            self._appbar = None
+            self._overlay = []
+            self._theme_mode = ft.ThemeMode.LIGHT
 
-    This function calls pytest.skip() immediately if is_ci_environment() returns True,
-    causing the test to be skipped with the provided reason.
+            # Mock update
+            self.update = MagicMock()
 
-    Args:
-        reason: Reason for skipping the test.
+            # Window (for silent mode)
+            self.window = MagicMock()
+            self.window.minimized = False
 
-    Note:
-        This function performs an immediate skip by calling pytest.skip() when
-        running in CI, so it should be called at the beginning of a test function.
-    """
-    if is_ci_environment():
-        pytest.skip(reason)
+            # Mock app reference
+            self.switchcraft_app = MagicMock()
+            self.switchcraft_app._current_tab_index = 0
+            self.switchcraft_app._view_cache = {}
+            self.switchcraft_app.goto_tab = MagicMock()
 
+        # Properties Overrides
+        @property
+        def dialog(self): return self._dialog
+        @dialog.setter
+        def dialog(self, value): self._dialog = value
 
-def poll_until(condition, timeout=2.0, interval=0.05):
-    """
-    Poll until condition is met or timeout is reached.
+        @property
+        def end_drawer(self): return self._end_drawer
+        @end_drawer.setter
+        def end_drawer(self, value): self._end_drawer = value
 
-    Parameters:
-        condition: Callable that returns True when condition is met
-        timeout: Maximum time to wait in seconds
-        interval: Time between polls in seconds
+        @property
+        def snack_bar(self): return self._snack_bar
+        @snack_bar.setter
+        def snack_bar(self, value): self._snack_bar = value
 
-    Returns:
-        True if condition was met, False if timeout
-    """
-    elapsed = 0.0
-    while elapsed < timeout:
-        if condition():
-            return True
-        time.sleep(interval)
-        elapsed += interval
-    return False
+        @property
+        def controls(self): return self._controls
+        @controls.setter
+        def controls(self, value): self._controls = value
+
+        @property
+        def views(self): return self._views
+
+        @property
+        def padding(self): return self._padding
+        @padding.setter
+        def padding(self, value): self._padding = value
+
+        @property
+        def appbar(self): return self._appbar
+        @appbar.setter
+        def appbar(self, value): self._appbar = value
+
+        @property
+        def overlay(self): return self._overlay
+
+        @property
+        def theme_mode(self): return self._theme_mode
+        @theme_mode.setter
+        def theme_mode(self, value): self._theme_mode = value
+
+        # Methods Overrides
+        def run_task(self, func, *args, **kwargs):
+            import inspect
+            if inspect.iscoroutinefunction(func):
+                try:
+                    loop = asyncio.get_running_loop()
+                    return asyncio.create_task(func(*args, **kwargs))
+                except RuntimeError:
+                    return asyncio.run(func(*args, **kwargs))
+            else:
+                return func(*args, **kwargs)
+
+        def add(self, *controls):
+            import weakref
+            def set_structure_recursive(ctrl, parent):
+                try: ctrl._parent = weakref.ref(parent)
+                except Exception: pass
+
+                try: ctrl._page = self
+                except AttributeError: pass
+
+                # Recurse
+                if hasattr(ctrl, 'controls') and ctrl.controls:
+                    for child in ctrl.controls:
+                        set_structure_recursive(child, ctrl)
+                if hasattr(ctrl, 'content') and ctrl.content:
+                    set_structure_recursive(ctrl.content, ctrl)
+
+            for control in controls:
+                set_structure_recursive(control, self)
+            self._controls.extend(controls)
+            self.update()
+
+        def open(self, control):
+            if isinstance(control, ft.AlertDialog):
+                self.dialog = control
+                control.open = True
+            elif isinstance(control, ft.NavigationDrawer):
+                self.end_drawer = control
+                control.open = True
+            elif isinstance(control, ft.SnackBar):
+                self.snack_bar = control
+                control.open = True
+            self.update()
+
+        def close(self, control):
+            if isinstance(control, ft.AlertDialog) and self.dialog == control:
+                control.open = False
+                self.dialog = None
+            elif isinstance(control, ft.NavigationDrawer) and self.end_drawer == control:
+                control.open = False
+                self.end_drawer = None
+            elif isinstance(control, ft.SnackBar) and self.snack_bar == control:
+                control.open = False
+            self.update()
+
+        def clean(self):
+            self._controls.clear()
+            self.update()
+
+        def open_end_drawer(self, drawer):
+            self.end_drawer = drawer
+            self.end_drawer.open = True
+            self.update()
+
+        def close_end_drawer(self):
+            if self.end_drawer:
+                self.end_drawer.open = False
+            self.update()
+
+    page = MockPage()
+    return page
 
 
 @pytest.fixture
@@ -77,84 +190,4 @@ def mock_page():
     The fixture uses a custom class to ensure direct assignments to page.end_drawer
     work correctly, as the code may set end_drawer directly rather than using page.open().
     """
-    class MockPage:
-        """Mock Flet Page that supports direct attribute assignment."""
-        def __init__(self):
-            self.dialog = None
-            self.end_drawer = None
-            self.update = MagicMock()
-            self.snack_bar = MagicMock(spec=ft.SnackBar)
-            self.snack_bar.open = False
-
-            # Controls list for page content
-            self.controls = []
-
-            # Theme mode
-            self.theme_mode = ft.ThemeMode.LIGHT
-
-            # AppBar
-            self.appbar = None
-
-            # Window (for silent mode)
-            self.window = MagicMock()
-            self.window.minimized = False
-
-            # Mock app reference
-            self.switchcraft_app = MagicMock()
-            self.switchcraft_app._current_tab_index = 0
-            self.switchcraft_app._view_cache = {}
-            self.switchcraft_app.goto_tab = MagicMock()
-
-            # Mock run_task to actually execute the function (handle both sync and async)
-            import inspect
-            def run_task(func):
-                if inspect.iscoroutinefunction(func):
-                    # For async functions, create a task and run it
-                    try:
-                        # Use get_running_loop() instead of deprecated get_event_loop()
-                        loop = asyncio.get_running_loop()
-                        # If loop is running, schedule the coroutine
-                        asyncio.create_task(func())
-                    except RuntimeError:
-                        # No event loop, create one
-                        asyncio.run(func())
-                else:
-                    func()
-            self.run_task = run_task
-
-            # Mock page.open to set dialog/drawer/snackbar and open it
-            def mock_open(control):
-                if isinstance(control, ft.AlertDialog):
-                    self.dialog = control
-                    control.open = True
-                elif isinstance(control, ft.NavigationDrawer):
-                    self.end_drawer = control
-                    control.open = True
-                elif isinstance(control, ft.SnackBar):
-                    self.snack_bar = control
-                    control.open = True
-                self.update()
-            self.open = mock_open
-
-            # Mock page.close for closing drawers
-            def mock_close(control):
-                if isinstance(control, ft.NavigationDrawer):
-                    if self.end_drawer == control:
-                        self.end_drawer.open = False
-                self.update()
-            self.close = mock_close
-
-            # Mock page.add to add controls to the page
-            def mock_add(*controls):
-                self.controls.extend(controls)
-                self.update()
-            self.add = mock_add
-
-            # Mock page.clean to clear controls
-            def mock_clean():
-                self.controls.clear()
-                self.update()
-            self.clean = mock_clean
-
-    page = MockPage()
-    return page
+    return _create_mock_page()

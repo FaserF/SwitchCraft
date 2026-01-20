@@ -178,11 +178,34 @@ class WingetView(ctk.CTkFrame):
         loader.pack(pady=20)
 
         def _fetch():
-            details = self.winget_helper.get_package_details(app_info["Id"])
-            full_info = {**app_info, **details}
-            self.after(0, lambda: self._show_full_details(full_info))
+            try:
+                details = self.winget_helper.get_package_details(app_info["Id"])
+                full_info = {**app_info, **details}
+                self.after(0, lambda: self._show_full_details(full_info))
+            except Exception as e:
+                logger.error(f"Failed to get package details for {app_info.get('Id', 'Unknown')}: {e}", exc_info=True)
+                # Show error state in UI
+                error_msg = f"Package not found or error loading details: {str(e)}"
+                self.after(0, lambda: self._show_error_state(error_msg, app_info))
 
         threading.Thread(target=_fetch, daemon=True).start()
+
+    def _show_error_state(self, error_msg, app_info):
+        """Show error state when package details cannot be loaded."""
+        for w in self.details_content.winfo_children():
+            w.destroy()
+        self.lbl_details_title.configure(text=app_info.get("Name", "Unknown Package"))
+        error_label = ctk.CTkLabel(self.details_content, text=error_msg, text_color="red", wraplength=400)
+        error_label.pack(pady=20, padx=10)
+        # Show basic info from search results
+        basic_frame = ctk.CTkFrame(self.details_content, fg_color="transparent")
+        basic_frame.pack(fill="x", pady=10, padx=10)
+        ctk.CTkLabel(basic_frame, text=i18n.get("winget_filter_id") or "Package ID:", font=ctk.CTkFont(weight="bold"), width=100, anchor="w").pack(side="left")
+        ctk.CTkLabel(basic_frame, text=app_info.get("Id", i18n.get("unknown") or "Unknown"), anchor="w").pack(side="left", fill="x", expand=True)
+        basic_frame2 = ctk.CTkFrame(self.details_content, fg_color="transparent")
+        basic_frame2.pack(fill="x", pady=2, padx=10)
+        ctk.CTkLabel(basic_frame2, text=i18n.get("field_version") or "Version:", font=ctk.CTkFont(weight="bold"), width=100, anchor="w").pack(side="left")
+        ctk.CTkLabel(basic_frame2, text=app_info.get("Version", i18n.get("unknown") or "Unknown"), anchor="w").pack(side="left", fill="x", expand=True)
 
     def _show_full_details(self, info):
         for w in self.details_content.winfo_children():

@@ -91,6 +91,9 @@ def test_github_login_opens_dialog(mock_page, mock_auth_service):
 
     # Simulate button click
     mock_event = MagicMock()
+    # Mock update on login_btn to avoid "Control must be added to page" error in unit test
+    if hasattr(view, 'login_btn'):
+        view.login_btn.update = MagicMock()
     view._start_github_login(mock_event)
 
     # Wait for background thread to complete using polling instead of fixed sleep

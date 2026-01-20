@@ -158,50 +158,106 @@ class AddonService:
         try:
             with zipfile.ZipFile(zip_path, 'r') as z:
                 # Validate manifest
-                valid = False
                 files = z.namelist()
-                # Simple check for manifest.json at root
+                manifest_path = None
+
+                # Check for manifest.json at root first
                 if "manifest.json" in files:
-                     valid = True
+                    manifest_path = "manifest.json"
+                else:
+                    # Check for manifest.json in common subdirectories
+                    # Some ZIPs might have it in a subfolder
+                    for file_path in files:
+                        # Normalize path separators
+                        normalized = file_path.replace('\\', '/')
+                        # Check if it's manifest.json in a subdirectory (root already checked above)
+                        if normalized.endswith('/manifest.json'):
+                            # Accept subdirectory manifest if root not found
+                            if manifest_path is None:
+                                manifest_path = file_path
 
-                # TODO: Support nested, but let's strict for now
-                if not valid:
-                    raise Exception("Invalid addon: manifest.json missing from root")
+                if not manifest_path:
+                    # Fallback: Recursive search (max depth 2)
+                    for file_in_zip in files:
+                        parts = file_in_zip.replace('\\', '/').split('/')
+                        if len(parts) <= 3 and parts[-1].lower() == 'manifest.json':
+                             manifest_path = file_in_zip
+                             break
 
-                # Check ID from manifest
-                with z.open("manifest.json") as f:
-                    data = json.load(f)
+                if not manifest_path:
+                    # Provide helpful error message
+                    root_files = [f for f in files if '/' not in f.replace('\\', '/') or f.replace('\\', '/').count('/') == 0]
+                    raise Exception(
+                        f"Invalid addon: manifest.json not found in ZIP archive.\n"
+                        f"The addon ZIP must contain a manifest.json file at the root level or in a subdirectory.\n"
+                        f"Root files found: {', '.join(root_files[:10]) if root_files else 'none'}"
+                    )
+
+                # Check ID from manifest (use found path, not hardcoded)
+                with z.open(manifest_path) as f:
+                    try:
+                        data = json.load(f)
+                    except json.JSONDecodeError as e:
+                        raise Exception(f"Invalid manifest.json: JSON parse error - {e}")
+
                     addon_id = data.get("id")
                     if not addon_id:
-                        raise Exception("Invalid manifest: missing id")
+                        raise Exception("Invalid manifest.json: missing required field 'id'")
 
                 # Extract
                 target = self.addons_dir / addon_id
                 if target.exists():
                     shutil.rmtree(target) # Overwrite
                 target.mkdir()
+                target_resolved = target.resolve()
 
-                # target.mkdir() was already called above
+                # Compute manifest directory to rebase extraction
+                # If manifest is "A/B/manifest.json", manifest_dir is "A/B"
+                manifest_path_normalized = manifest_path.replace('\\', '/')
+                manifest_dir = os.path.dirname(manifest_path_normalized) if '/' in manifest_path_normalized else ""
 
-                # Secure extraction
+                # Update error message to indicate if manifest was found in subdirectory
+                manifest_location_msg = f" (found in subdirectory: {manifest_dir})" if manifest_dir else ""
+
+                logger.debug(f"Addon extract manifest_dir: '{manifest_dir}'")
+
                 for member in z.infolist():
-                    # Resolve the target path for this member
-                    file_path = (target / member.filename).resolve()
+                    # Normalize path separators for cross-platform compatibility
+                    normalized_name = member.filename.replace('\\', '/')
 
-                    # Ensure the resolved path starts with the target directory (prevent Zip Slip)
-                    if not str(file_path).startswith(str(target.resolve())):
-                        logger.error(f"Security Alert: Attempted Zip Slip with {member.filename}")
+                    # If manifest was in a subdirectory, strip that prefix from all files
+                    if manifest_dir:
+                        if not normalized_name.startswith(manifest_dir + '/'):
+                            continue # Skip files outside the manifest directory
+                        # Strip manifest_dir prefix
+                        target_name = normalized_name[len(manifest_dir) + 1:]  # +1 for the '/'
+                        if not target_name: # Was the directory itself
+                            continue
+                    else:
+                        target_name = normalized_name
+
+                    # Resolve the target path for this member
+                    file_path = (target / target_name).resolve()
+
+                    # Ensure the resolved path is within the target directory (prevent Zip Slip)
+                    # Use Path.relative_to() which is safer than string prefix checks
+                    # It properly handles sibling directories and path traversal attacks
+                    try:
+                        file_path.relative_to(target_resolved)
+                    except ValueError:
+                        # Path is outside target directory - Zip Slip attack detected
+                        logger.error(f"Security Alert: Attempted Zip Slip with {member.filename} -> {file_path}")
                         continue
 
                     # Create parent directories
                     file_path.parent.mkdir(parents=True, exist_ok=True)
 
                     # Extract file
-                    if not member.is_dir():
+                    if not member.is_dir() and not target_name.endswith('/'):
                         with z.open(member, 'r') as source, open(file_path, 'wb') as dest:
                             shutil.copyfileobj(source, dest)
 
-                logger.info(f"Installed addon: {addon_id}")
+                logger.info(f"Installed addon: {addon_id}{manifest_location_msg}")
                 return True
         except Exception as e:
             logger.error(f"Install failed: {e}")

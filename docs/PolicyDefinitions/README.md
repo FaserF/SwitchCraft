@@ -2,6 +2,11 @@
 
 Administrative templates for managing SwitchCraft settings via Group Policy (GPO) or Microsoft Intune.
 
+> [!TIP]
+> **Having issues?** If you see error code **-2016281112** (Remediation Failed) in Intune:
+> - **Multiple policies failed?** → See [Detailed Troubleshooting Guide](../INTUNE_ERROR_FIX.md)
+> - **General issues?** → See [GPO Troubleshooting Guide](../GPO_TROUBLESHOOTING.md)
+
 ## Available Policies
 
 | Policy | Category | Description | Registry Value | Type |
@@ -51,12 +56,15 @@ SwitchCraft fully supports Intune's custom OMA-URI policies that target the `Sof
 > **NEVER** use "Integer" or "Boolean", even if the setting logically represents a number or switch. The value field MUST contain the XML payload defined below.
 
 **Step 1: Ingest ADMX**
-- OMA-URI: `./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/SwitchCraft/Policy/SwitchCraftPolicy`
+- OMA-URI: `./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/switchcraft/Policy/SwitchCraftPolicy`
 - Data Type: **String**
 - Value: Copy contents of `SwitchCraft.admx`
 
 **Step 2: Configure Policies**
-The Base URI is: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced`
+The Base URI is: `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced`
+
+> [!IMPORTANT]
+> **Correct OMA-URI Path Format**: The path is built from the ADMX file's `target prefix` (`switchcraft`) and `namespace` (`FaserF.SwitchCraft`). The namespace dot (`.`) is replaced with a tilde (`~`), resulting in `switchcraft~Policy~FaserF~SwitchCraft~Enforced`.
 
 ### Configuration Reference
 
@@ -82,126 +90,126 @@ Use this XML structure to bulk import settings. Note that **DataType** is always
 <Data>
   <!-- ADMX Ingestion -->
   <Row>
-    <OMAURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/SwitchCraft/Policy/SwitchCraftPolicy</OMAURI>
+    <OMAURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/switchcraft/Policy/SwitchCraftPolicy</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[ ... COPY ADMX CONTENT HERE ... ]]></Value>
   </Row>
 
   <!-- Debug Mode -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced/DebugMode_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced/DebugMode_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/>]]></Value>
   </Row>
 
   <!-- Update Channel -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Updates_Enf/UpdateChannel_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Updates_Enf/UpdateChannel_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="UpdateChannelDropdown" value="stable"/>]]></Value>
   </Row>
 
   <!-- Enable Winget -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/EnableWinget_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~General_Enf/EnableWinget_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/>]]></Value>
   </Row>
 
   <!-- Language -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/Language_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~General_Enf/Language_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="LanguageDropdown" value="en"/>]]></Value>
   </Row>
 
   <!-- Git Repository Path -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/GitRepoPath_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~General_Enf/GitRepoPath_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="GitRepoPathBox" value="C:\ProgramData\SwitchCraft\ConfigRepo"/>]]></Value>
   </Row>
 
   <!-- Company Name -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/CompanyName_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~General_Enf/CompanyName_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="CompanyNameBox" value="My Company"/>]]></Value>
   </Row>
 
   <!-- Custom Template Path -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/CustomTemplatePath_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~General_Enf/CustomTemplatePath_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="CustomTemplatePathBox" value="C:\ProgramData\SwitchCraft\Templates"/>]]></Value>
   </Row>
 
   <!-- Winget Repo Path -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/WingetRepoPath_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~General_Enf/WingetRepoPath_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="WingetRepoPathBox" value="C:\ProgramData\SwitchCraft\Winget"/>]]></Value>
   </Row>
 
   <!-- Theme -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~General_Enf/Theme_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~General_Enf/Theme_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="ThemeDropdown" value="System"/>]]></Value>
   </Row>
 
   <!-- AI Provider -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~AI_Enf/AIProvider_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~AI_Enf/AIProvider_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="AIProviderDropdown" value="local"/>]]></Value>
   </Row>
 
   <!-- AI API Key -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~AI_Enf/AIKey_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~AI_Enf/AIKey_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="AIKeyBox" value="YOUR_API_KEY"/>]]></Value>
   </Row>
 
   <!-- Sign Scripts -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Security_Enf/SignScripts_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Security_Enf/SignScripts_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/>]]></Value>
   </Row>
 
   <!-- Code Signing Cert Thumbprint -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Security_Enf/CodeSigningCertThumbprint_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Security_Enf/CodeSigningCertThumbprint_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="CodeSigningCertThumbprintBox" value="THUMBPRINT"/>]]></Value>
   </Row>
 
   <!-- Graph Tenant ID -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Intune_Enf/GraphTenantId_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/GraphTenantId_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="GraphTenantIdBox" value="00000000-0000-0000-0000-000000000000"/>]]></Value>
   </Row>
 
   <!-- Graph Client ID -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Intune_Enf/GraphClientId_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/GraphClientId_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="GraphClientIdBox" value="00000000-0000-0000-0000-000000000000"/>]]></Value>
   </Row>
 
   <!-- Graph Client Secret -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Intune_Enf/GraphClientSecret_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/GraphClientSecret_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="GraphClientSecretBox" value="YOUR_SECRET"/>]]></Value>
   </Row>
 
   <!-- Intune Test Groups -->
   <Row>
-    <OMAURI>./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~Intune_Enf/IntuneTestGroups_Enf</OMAURI>
+    <OMAURI>./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/IntuneTestGroups_Enf</OMAURI>
     <DataType>String</DataType>
     <Value><![CDATA[<enabled/><data id="IntuneTestGroupsBox" value="GROUP_ID_1,GROUP_ID_2"/>]]></Value>
   </Row>

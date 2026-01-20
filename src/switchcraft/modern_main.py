@@ -11,6 +11,10 @@ if src_path not in sys.path:
 splash_proc = None
 
 def start_splash():
+    # Skip splash on WASM (subprocess not supported)
+    if sys.platform == "emscripten" or sys.platform == "wasi":
+        return
+
     global splash_proc
     try:
         import subprocess
@@ -24,7 +28,10 @@ def start_splash():
             env = os.environ.copy()
             env["PYTHONPATH"] = str(base_dir.parent)
 
-            creationflags = 0x08000000 if sys.platform == "win32" else 0
+            # Use DETACHED_PROCESS instead of CREATE_NO_WINDOW
+            # This ensures the process runs independently and GUI is not suppressed
+            # Note: DETACHED_PROCESS may affect splash logging/cleanup on Windows
+            creationflags = subprocess.DETACHED_PROCESS if sys.platform == "win32" else 0
 
             splash_proc = subprocess.Popen(
                 [sys.executable, str(splash_script)],
@@ -209,8 +216,65 @@ def main(page: ft.Page):
     Parameters:
         page (ft.Page): The Flet Page instance provided by ft.app; used for UI composition, updates, and patched legacy behaviors.
     """
+
+    # --- Config Backend Initialization ---
+    try:
+        from switchcraft.utils.config import SwitchCraftConfig, SessionStoreBackend, RegistryBackend, EnvBackend
+
+        # Determine Backend Mode
+        if page.web:
+            # WEB MODE: Isolate sessions!
+            # Use SessionStoreBackend backed by Flet's page.session
+            session_backend = SessionStoreBackend(page.session)
+            SwitchCraftConfig.set_backend(session_backend)
+            print("Config Backend: SessionStoreBackend (Web/Combined)")
+
+            # --- WEB AUTHENTICATION (SSO) ---
+            # Basic OAuth flow for Entra / GitHub
+            # Requires SC_CLIENT_ID, SC_CLIENT_SECRET env vars
+
+            provider = None
+            # Check Env for Provider Selection (Simplification)
+            if os.environ.get("SC_AUTH_PROVIDER") == "github":
+                provider = ft.OAuthProvider(
+                    client_id=os.environ.get("SC_GITHUB_CLIENT_ID", ""),
+                    client_secret=os.environ.get("SC_GITHUB_CLIENT_SECRET", ""),
+                    authorization_endpoint="https://github.com/login/oauth/authorize",
+                    token_endpoint="https://github.com/login/oauth/access_token",
+                    user_scopes=["read:user", "user:email"],
+                    redirect_url=f"{page.route}/oauth_callback"
+                )
+            elif os.environ.get("SC_AUTH_PROVIDER") == "entra":
+                 tenant_id = os.environ.get("SC_ENTRA_TENANT_ID", "common")
+                 provider = ft.OAuthProvider(
+                    client_id=os.environ.get("SC_ENTRA_CLIENT_ID", ""),
+                    client_secret=os.environ.get("SC_ENTRA_CLIENT_SECRET", ""),
+                    authorization_endpoint=f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize",
+                    token_endpoint=f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
+                    user_scopes=["User.Read"],
+                    redirect_url=f"{page.route}/oauth_callback"
+                )
+
+            if provider:
+                page.login(provider) # Redirects if not logged in?
+                # Note: Real implementation would check session first
+
+        else:
+            # DESKTOP MODE: Use Registry (Windows) or Env (Linux Local)
+            # Default logic in SwitchCraftConfig handles this, but we can set explicitly to be safe
+            if sys.platform == "win32":
+                SwitchCraftConfig.set_backend(RegistryBackend())
+            else:
+                SwitchCraftConfig.set_backend(EnvBackend())
+            print(f"Config Backend: {'RegistryBackend' if sys.platform == 'win32' else 'EnvBackend'} (Desktop)")
+
+    except Exception as e:
+        print(f"Failed to initialize Config Backend: {e}")
+        # Continue... fallback defaults might work or fail gracefully later
+
     # --- Handle Command Line Arguments FIRST ---
     import sys
+
 
     # Check for help/version flags (before UI initialization)
     if "--help" in sys.argv or "-h" in sys.argv or "/?" in sys.argv:
@@ -310,6 +374,28 @@ def main(page: ft.Page):
         page.show_snack_bar = legacy_show_snack
 
     # --- End Patching ---
+
+    # --- Page Configuration ---
+    page.title = "SwitchCraft"
+
+    # Set favicon for web mode
+    try:
+        from pathlib import Path
+        assets_dir = Path(__file__).parent / "assets"
+        favicon_path = assets_dir / "switchcraft_logo.png"
+
+        if page.web:
+             page.favicon = "/switchcraft_logo.png"
+        elif favicon_path.exists():
+            page.favicon = str(favicon_path)
+    except Exception:
+        pass
+
+    page.theme_mode = ft.ThemeMode.SYSTEM
+    page.padding = 0
+    page.spacing = 0
+    # page.window_title_bar_hidden = True # Custom title bar
+    # page.window_title_bar_buttons_hidden = True
 
     # Check for Import Errors first
     if _IMPORT_ERROR:
@@ -459,56 +545,123 @@ def main(page: ft.Page):
                  sys.exit(1)
 
         # Show error message with dump location - centered
+        # Modern Error Screen
         page.clean()
+
+        # Determine strict web mode for button visibility
+        is_web = getattr(page, 'web', False)
+
+        actions = []
+
+        # Open Folder (Desktop Only)
+        if not is_web:
+            actions.append(
+                ft.ElevatedButton(
+                    "Open Logs",
+                    icon=ft.Icons.FOLDER_OPEN,
+                    on_click=open_dump_folder,
+                    style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_700, color=ft.Colors.WHITE)
+                )
+            )
+            actions.append(
+                 ft.ElevatedButton(
+                    "View File",
+                    icon=ft.Icons.DESCRIPTION,
+                    on_click=open_dump_file
+                )
+            )
+
+        # Copy Path/Error (Universal)
+        actions.append(
+            ft.TextButton(
+                "Copy Error",
+                icon=ft.Icons.COPY,
+                on_click=lambda e: [
+                    page.set_clipboard(f"Error: {sys.exc_info()[1]}\nFile: {dump_file}"),
+                    page.show_snack_bar(ft.SnackBar(ft.Text("Error details copied!")))
+                ]
+            )
+        )
+
+        # Close/Reload (Contextual)
+        if not is_web:
+            actions.append(
+                ft.ElevatedButton(
+                    "Exit",
+                    icon=ft.Icons.CLOSE,
+                    on_click=close_app,
+                    style=ft.ButtonStyle(bgcolor=ft.Colors.RED_700, color=ft.Colors.WHITE)
+                )
+            )
+        else:
+             actions.append(
+                ft.ElevatedButton(
+                    "Reload App",
+                    icon=ft.Icons.REFRESH,
+                    on_click=lambda e: page.launch_url(page.route or "/"),
+                )
+            )
+
         page.add(
             ft.Container(
-                content=ft.Column([
-                    ft.Icon(ft.Icons.ERROR_OUTLINE_ROUNDED, color="RED", size=80),
-                    ft.Text("SwitchCraft Initialization Error", size=28, weight=ft.FontWeight.BOLD),
-                    ft.Container(height=10),
-                    ft.Text("A critical error occurred during startup.\nDetails saved to log file.", size=16, text_align="center"),
-                    ft.Text(str(dump_file), size=12, selectable=True, color="BLUE_400", weight="bold"),
-                    ft.Container(height=20),
-                    ft.Row([
-                        ft.Button(
-                            "Open Dump Folder",
-                            icon=ft.Icons.FOLDER_OPEN,
-                            on_click=open_dump_folder,
-                            style=ft.ButtonStyle(color="WHITE", bgcolor="BLUE_700")
+                content=ft.Column(
+                    controls=[
+                        ft.Card(
+                            content=ft.Container(
+                                padding=40,
+                                content=ft.Column(
+                                    [
+                                        ft.Icon(ft.Icons.GPP_MAYBE_ROUNDED, color=ft.Colors.RED_400, size=64),
+                                        ft.Text("Something went wrong", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE),
+                                        ft.Text("SwitchCraft encountered a critical error during initialization.", size=16, color=ft.Colors.ON_SURFACE_VARIANT),
+
+                                        ft.Divider(height=20, color=ft.Colors.TRANSPARENT),
+
+                                        ft.Container(
+                                            content=ft.Column([
+                                                ft.Text("Error Details:", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_500),
+                                                ft.Container(
+                                                    content=ft.Text(
+                                                        f"{sys.exc_info()[1]}",
+                                                        font_family="Consolas, monospace",
+                                                        color=ft.Colors.RED_300,
+                                                        size=13,
+                                                        selectable=True
+                                                    ),
+                                                    bgcolor=ft.Colors.GREY_900,
+                                                    padding=15,
+                                                    border_radius=8,
+                                                    width=600
+                                                ),
+                                                 ft.Text(f"Log ID: {dump_file.name}", size=11, italic=True, color=ft.Colors.GREY_600),
+                                            ]),
+                                            alignment=ft.alignment.center
+                                        ),
+
+                                        ft.Divider(height=30, color=ft.Colors.TRANSPARENT),
+
+                                        ft.Row(
+                                            controls=actions,
+                                            alignment=ft.MainAxisAlignment.CENTER,
+                                            wrap=True,
+                                            spacing=10
+                                        )
+                                    ],
+                                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                                    spacing=5
+                                ),
+                            ),
+                            elevation=10,
                         ),
-                        ft.Button(
-                            "Open Dump File",
-                            icon=ft.Icons.DESCRIPTION,
-                            on_click=open_dump_file,
-                            style=ft.ButtonStyle(color="WHITE", bgcolor="BLUE_700")
-                        ),
-                        ft.Button(
-                            "Copy Path",
-                            icon=ft.Icons.COPY,
-                            on_click=copy_dump_path
-                        ),
-                        ft.Button(
-                            "Close App",
-                            icon=ft.Icons.CLOSE,
-                            on_click=close_app,
-                            style=ft.ButtonStyle(color="WHITE", bgcolor="RED_700")
-                        ),
-                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=20, wrap=True),
-                    ft.Container(height=30),
-                    ft.Divider(color="GREY_800"),
-                    ft.Text("Error Details:", size=14, weight=ft.FontWeight.W_500, color="GREY_400"),
-                    ft.Text(
-                        f"{sys.exc_info()[1]}",
-                        size=14,
-                        color="RED_400",
-                        italic=True,
-                        selectable=True,  # Make error text selectable for copying
-                        font_family="Consolas"  # Use monospace font for better readability
-                    ),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                alignment=ft.Alignment(0, 0),
+                        ft.Container(height=20),
+                        ft.Text("Please report this issue on GitHub if it persists.", size=12, color=ft.Colors.GREY_500)
+                    ],
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    alignment=ft.MainAxisAlignment.CENTER
+                ),
+                alignment=ft.alignment.center,
                 expand=True,
-                padding=50,
+                bgcolor=ft.Colors.BACKGROUND,
             )
         )
         page.update()

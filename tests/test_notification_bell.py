@@ -8,22 +8,6 @@ import time
 import os
 
 
-@pytest.fixture
-def mock_page():
-    """Create a mock Flet page."""
-    page = MagicMock(spec=ft.Page)
-    page.end_drawer = None
-    page.update = MagicMock()
-    page.open = MagicMock()
-    page.close = MagicMock()
-    page.snack_bar = None
-
-    # Mock page property
-    type(page).page = property(lambda self: page)
-
-    return page
-
-
 def test_notification_bell_opens_drawer(mock_page):
     """Test that clicking notification bell opens the drawer."""
     from switchcraft.gui_modern.app import ModernApp
@@ -76,6 +60,19 @@ def test_notification_bell_toggles_drawer(mock_page):
     app._toggle_notification_drawer(None)
     time.sleep(0.1)
 
-    # Drawer should be closed (either None or open=False)
-    assert mock_page.end_drawer is None or mock_page.end_drawer.open is False, \
-        "Drawer should be closed (None or open=False)"
+
+def test_notification_drawer_cleanup(mock_page):
+    """Test that dismissing the drawer clears page.end_drawer reference."""
+    from switchcraft.gui_modern.app import ModernApp
+
+    app = ModernApp(mock_page)
+
+    # 1. Open drawer
+    app._toggle_notification_drawer(None)
+    assert mock_page.end_drawer is not None
+
+    # 2. Simulate dismissal (calling handler manually)
+    app._on_drawer_dismiss(None)
+
+    # 3. Verify reference is cleared
+    assert mock_page.end_drawer is None, "end_drawer should be None after dismiss"

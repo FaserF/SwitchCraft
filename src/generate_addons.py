@@ -52,16 +52,25 @@ class SwitchCraftAI:
     create_addon("Advanced Features", "advanced", {"start.txt": "Advanced features enabled"})
 
     # Winget Addon
-    # Bundle the local source file from utils/winget.py into the addon zip
-    winget_source = Path("src/switchcraft/utils/winget.py")
+    # Bundle the local source file from switchcraft_winget package into the addon zip
+    winget_pkg_dir = Path("src/switchcraft_winget/utils")
+    winget_source = winget_pkg_dir / "winget.py"
+    static_data = winget_pkg_dir / "static_data.json"
+
     if winget_source.exists():
-        content = winget_source.read_text(encoding="utf-8")
-        create_addon("Winget Integration", "winget", {
-            "utils/winget.py": content,
+        files = {
+            "utils/winget.py": winget_source.read_text(encoding="utf-8"),
             "utils/__init__.py": "" # Make utils a package
-        })
+        }
+
+        if static_data.exists():
+            files["utils/static_data.json"] = static_data.read_text(encoding="utf-8")
+        else:
+            print(f"Warning: Static data not found at {static_data}")
+
+        create_addon("Winget Integration", "winget", files)
     else:
-        print("Warning: Winget source not found at src/switchcraft/utils/winget.py")
+        print(f"Warning: Winget source not found at {winget_source}")
 
     print("Done.")
 

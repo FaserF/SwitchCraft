@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import json
 import webbrowser
 import flet as ft
 from switchcraft import __version__
@@ -24,6 +25,64 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 class ModernApp:
+    """Main application class with global error handling."""
+
+    @staticmethod
+    def _show_runtime_error(page: ft.Page, error: Exception, context: str = None):
+        """
+        Show a CrashDumpView for runtime errors that occur outside of view loading.
+
+        This is a static method that can be called from anywhere to show
+        a runtime error in the CrashDumpView.
+
+        Parameters:
+            page: The Flet page to show the error on
+            error: The Exception that occurred
+            context: Optional context string describing where the error occurred
+        """
+        try:
+            import traceback as tb
+            from switchcraft.gui_modern.views.crash_view import CrashDumpView
+
+            # Get traceback from the passed exception object
+            tb_str = ''.join(tb.TracebackException.from_exception(error).format())
+            if context:
+                tb_str = f"Context: {context}\n\n{tb_str}"
+
+            # Log the error
+            error_msg = f"Runtime error in {context or 'application'}: {error}"
+            logger.error(error_msg, exc_info=True)
+
+            # Create crash view
+            crash_view = CrashDumpView(page, error=error, traceback_str=tb_str)
+
+            # Try to replace current content with crash view
+            try:
+                # Get the main content area (usually the first view in the page)
+                if hasattr(page, 'views') and page.views:
+                    # Replace the current view
+                    page.views[-1].controls = [crash_view]
+                    page.update()
+                elif hasattr(page, 'controls') and page.controls:
+                    # Direct controls
+                    page.controls = [crash_view]
+                    page.update()
+                else:
+                    # Fallback: clean and add
+                    page.clean()
+                    page.add(crash_view)
+                    page.update()
+            except Exception as e:
+                logger.error(f"Failed to show error view in UI: {e}", exc_info=True)
+                # Last resort: try to add directly to page
+                try:
+                    page.clean()
+                    page.add(crash_view)
+                    page.update()
+                except Exception as e2:
+                    logger.error(f"Failed to add error view to page: {e2}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Critical error in _show_runtime_error: {e}", exc_info=True)
     def __init__(self, page: ft.Page, splash_proc=None):
         """
         Initialize the ModernApp instance, attach it to the provided page, prepare services and UI, and preserve the startup splash until the UI is ready.
@@ -66,11 +125,32 @@ class ModernApp:
         )
 
         # Notification button
+        def notification_click_handler(e):
+            """Handler for notification button click - ensures it's always called."""
+            logger.info("Notification button clicked - handler called")
+            try:
+                logger.debug("Calling _toggle_notification_drawer")
+                self._toggle_notification_drawer(e)
+                logger.info("_toggle_notification_drawer completed")
+            except Exception as ex:
+                logger.exception(f"Error in notification button click handler: {ex}")
+                # Show error to user
+                try:
+                    self.page.snack_bar = ft.SnackBar(
+                        content=ft.Text(f"Failed to open notifications: {ex}"),
+                        bgcolor="RED"
+                    )
+                    self.page.snack_bar.open = True
+                    self.page.update()
+                except Exception:
+                    pass
+
         self.notif_btn = ft.IconButton(
             icon=ft.Icons.NOTIFICATIONS,
             tooltip="Notifications",
-            on_click=self._toggle_notification_drawer
+            on_click=notification_click_handler
         )
+        logger.debug(f"Notification button created with handler: {self.notif_btn.on_click is not None}")
 
         # Now add listener
         self.notification_service.add_listener(self._on_notification_update)
@@ -165,65 +245,68 @@ class ModernApp:
             e: UI event or payload passed from the caller; forwarded to the drawer-opening handler.
         """
         try:
-            logger.debug("_toggle_notification_drawer called")
+            logger.info("_toggle_notification_drawer called")
             # Check if drawer is currently open
             is_open = False
             if hasattr(self.page, 'end_drawer') and self.page.end_drawer is not None:
                 try:
-                    is_open = getattr(self.page.end_drawer, 'open', False)
-                    logger.debug(f"Drawer open state: {is_open}")
+                    drawer_ref = self.page.end_drawer
+                    is_open = getattr(drawer_ref, 'open', False)
+                    logger.info(f"Drawer open state: {is_open}")
                 except Exception as ex:
                     logger.debug(f"Could not get drawer open state: {ex}")
                     is_open = False
 
             if is_open:
                 # Close drawer
-                logger.debug("Closing notification drawer")
+                logger.info("Closing notification drawer")
                 try:
-                    drawer_ref = self.page.end_drawer  # Save reference before clearing
-                    # Method 1: Set open to False first
-                    if drawer_ref and hasattr(drawer_ref, 'open'):
-                        drawer_ref.open = False
-                    # Method 2: Use page.close if available
-                    if hasattr(self.page, 'close') and drawer_ref:
-                        try:
-                            self.page.close(drawer_ref)
-                        except Exception:
-                            pass
-                    # Method 3: Remove drawer entirely
-                    if hasattr(self.page, 'end_drawer'):
-                        self.page.end_drawer = None
-                    self.page.update()
-                    logger.debug("Notification drawer closed successfully")
+                    # Method 1: Use page.close if available (newer Flet)
+                    if hasattr(self.page, 'close_end_drawer'):
+                        self.page.close_end_drawer()
+                    elif hasattr(self.page, 'close') and self.page.end_drawer:
+                        self.page.close(self.page.end_drawer)
+                    else:
+                        # Fallback for older Flet
+                        if self.page.end_drawer:
+                            self.page.end_drawer.open = False
+                            self.page.update()
+                    logger.info("Notification drawer closed successfully")
                 except Exception as ex:
-                    logger.error(f"Failed to close drawer: {ex}")
-                    # Force close by removing drawer
+                    logger.error(f"Failed to close drawer: {ex}", exc_info=True)
+                    # Force close
                     self.page.end_drawer = None
                     self.page.update()
             else:
                 # Open drawer
-                logger.debug("Opening notification drawer")
+                logger.info("Opening notification drawer")
                 try:
                     self._open_notifications_drawer(e)
                     # Force update to ensure drawer is visible
                     self.page.update()
+                    logger.info("Notification drawer opened and page updated")
                 except Exception as ex:
                     logger.exception(f"Error opening notification drawer: {ex}")
                     from switchcraft.utils.i18n import i18n
                     error_msg = i18n.get("error_opening_notifications") or "Failed to open notifications"
-                    self.page.snack_bar = ft.SnackBar(
-                        content=ft.Text(error_msg),
-                        bgcolor="RED"
-                    )
-                    self.page.snack_bar.open = True
-                    self.page.update()
+                    try:
+                        self.page.snack_bar = ft.SnackBar(
+                            content=ft.Text(error_msg),
+                            bgcolor="RED"
+                        )
+                        self.page.snack_bar.open = True
+                        self.page.update()
+                    except Exception as ex2:
+                        logger.error(f"Failed to show error snackbar: {ex2}", exc_info=True)
         except Exception as ex:
             logger.exception(f"Error toggling notification drawer: {ex}")
             # Try to open anyway
             try:
+                logger.info("Attempting to open drawer after error")
                 self._open_notifications_drawer(e)
+                self.page.update()
             except Exception as ex2:
-                logger.error(f"Failed to open drawer after error: {ex2}")
+                logger.error(f"Failed to open drawer after error: {ex2}", exc_info=True)
                 # Show error to user
                 try:
                     self.page.snack_bar = ft.SnackBar(
@@ -295,28 +378,19 @@ class ModernApp:
                 on_dismiss=self._on_drawer_dismiss
             )
 
-            # Set drawer on page FIRST
+            # Open drawer logic - simplified and robust
             self.page.end_drawer = drawer
+            self.page.update() # Update page to attach drawer
 
-            # Now set open (Flet needs this order)
+            # Use safest method to open
             drawer.open = True
+            self.page.update()
 
-            # Try additional methods if drawer didn't open
-            try:
-                if hasattr(self.page, 'open'):
-                    self.page.open(drawer)
-            except Exception as ex:
-                logger.debug(f"page.open() not available or failed: {ex}, using direct assignment")
-
-            # Final verification
-            if not drawer.open:
-                logger.warning("Drawer open flag is False, forcing it to True")
-                drawer.open = True
 
             # Single update after all state changes to avoid flicker
             self.page.update()
-
-            logger.info(f"Notification drawer should now be visible. open={drawer.open}, page.end_drawer={self.page.end_drawer is not None}")
+            logger.info("Notification drawer opened successfully")
+            logger.info(f"Notification drawer should now be visible. open={getattr(drawer, 'open', 'Unknown')}, page.end_drawer={self.page.end_drawer is not None}")
 
             # Mark all as read after opening
             self.notification_service.mark_all_read()
@@ -334,11 +408,17 @@ class ModernApp:
     def _on_drawer_dismiss(self, e):
         """
         Refresh the notification UI state when a navigation drawer is dismissed.
+        And clears the end_drawer reference to prevent state desync.
 
         Parameters:
             e: The drawer-dismiss event object received from the UI callback. This function suppresses and logs any exceptions raised while updating notification state.
         """
         try:
+            logger.debug("Drawer dismissed, clearing end_drawer reference")
+            # Clear the drawer reference so next toggle knows it's closed
+            self.page.end_drawer = None
+            self.page.update()
+
             # Update notification button state when drawer is dismissed
             self._on_notification_update()
         except Exception as ex:
@@ -353,7 +433,8 @@ class ModernApp:
         """
         try:
             self.notification_service.mark_read(notification_id)
-            # Refresh drawer content
+            # Refresh drawer content by re-opening (re-rendering) it
+            # Since we modify the drawer in-place effectively
             self._open_notifications_drawer(None)
         except Exception as ex:
             logger.error(f"Failed to mark notification as read: {ex}")
@@ -368,11 +449,10 @@ class ModernApp:
             self.notification_service.clear_all()
             # Close drawer
             if hasattr(self.page, 'end_drawer') and self.page.end_drawer:
-                if hasattr(self.page, 'close'):
-                    self.page.close(self.page.end_drawer)
-                else:
-                    self.page.end_drawer.open = False
-            self.page.update()
+                self.page.end_drawer.open = False
+                self.page.update()
+                # We don't verify if it's closed here, _on_drawer_dismiss will handle cleanup
+
             # Show success message
             try:
                 self.page.snack_bar = ft.SnackBar(ft.Text(i18n.get("notifications_cleared") or "Notifications cleared"), bgcolor="GREEN")
@@ -398,7 +478,8 @@ class ModernApp:
         self.page.update()
 
     def setup_page(self):
-        self.page.title = f"SwitchCraft v{__version__}"
+        self.page.title = "SwitchCraft"
+        # self.page.title = f"SwitchCraft v{__version__}"
         # Parse theme
         theme_pref = SwitchCraftConfig.get_value("Theme", "System")
         self.page.theme_mode = ft.ThemeMode.DARK if theme_pref == "Dark" else ft.ThemeMode.LIGHT if theme_pref == "Light" else ft.ThemeMode.SYSTEM
@@ -1380,11 +1461,19 @@ class ModernApp:
         # Helper to safely load views
         def load_view(factory_func):
             try:
-                new_controls.append(factory_func())
+                view = factory_func()
+                if view is None:
+                    logger.warning(f"View factory returned None: {factory_func.__name__ if hasattr(factory_func, '__name__') else 'unknown'}")
+                    new_controls.append(ft.Text(f"Error: View factory returned None", color="red"))
+                else:
+                    new_controls.append(view)
             except Exception as ex:
                 import traceback
-                print(f"DEBUG: Exception loading view: {ex}") # Keep print for immediate debug console visibility
-                logger.error(f"Exception loading view: {ex}", exc_info=True)
+                view_name = factory_func.__name__ if hasattr(factory_func, '__name__') else 'unknown'
+                error_msg = f"Exception loading view '{view_name}': {ex}"
+                print(f"DEBUG: {error_msg}") # Keep print for immediate debug console visibility
+                logger.error(error_msg, exc_info=True)
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 from switchcraft.gui_modern.views.crash_view import CrashDumpView
                 new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
 
@@ -1403,7 +1492,8 @@ class ModernApp:
                     cat_name = cat_data[1]
                     cat_view = CategoryView(self.page, category_name=cat_name, items=cat_data[2], app_destinations=self.destinations, on_navigate=self.goto_tab)
                     new_controls.append(cat_view)
-                except Exception:
+                except Exception as e:
+                    logger.error(f"Failed to load category view: {e}", exc_info=True)
                     new_controls.append(ft.Text(i18n.get("unknown_category") or "Unknown Category", color="red"))
             else:
                 new_controls.append(ft.Text("Unknown Category", color="red"))
@@ -1602,8 +1692,8 @@ class ModernApp:
              except RuntimeError as re:
                  logger.debug(f"Notification update failed (control likely detached): {re}")
 
-             # 2. Windows Toast Logic
-             if notifs and WINOTIFY_AVAILABLE:
+             # 2. System/Browser Notification Logic
+             if notifs:
                  latest = notifs[0]
                  latest_id = latest["id"]
 
@@ -1614,44 +1704,76 @@ class ModernApp:
                  if should_notify_system and not latest["read"] and self._last_notif_id != latest_id:
                      self._last_notif_id = latest_id
 
-                     # Map type to winotify sound/icon?
-                     # Winotify doesn't support custom icons easily without path, use default app icon
+                     # A) Windows Toast
+                     if WINOTIFY_AVAILABLE:
+                         # Map type to winotify sound/icon?
+                         # Winotify doesn't support custom icons easily without path, use default app icon
 
-                     toast = Notification(
-                         app_id="SwitchCraft",
-                         title=latest["title"],
-                         msg=latest["message"],
-                         duration="short",
-                         icon=self._ico_path if hasattr(self, '_ico_path') and self._ico_path else ""
-                     )
+                         toast = Notification(
+                             app_id="SwitchCraft",
+                             title=latest["title"],
+                             msg=latest["message"],
+                             duration="short",
+                             icon=self._ico_path if hasattr(self, '_ico_path') and self._ico_path else ""
+                         )
 
-                     # Add action buttons
-                     notif_type = latest.get("type")
-                     n_data = latest.get("data", {})
+                         # Add action buttons
+                         notif_type = latest.get("type")
+                         n_data = latest.get("data", {})
 
-                     if notif_type == "update":
-                         # Button 1: Open Changelog
-                         changelog_url = n_data.get("url") or "https://github.com/FaserF/SwitchCraft/releases"
-                         toast.add_actions(label=i18n.get("notif_open_changelog") or "Open Changelog", launch=changelog_url)
+                         if notif_type == "update":
+                             # Button 1: Open Changelog
+                             changelog_url = n_data.get("url") or "https://github.com/FaserF/SwitchCraft/releases"
+                             toast.add_actions(label=i18n.get("notif_open_changelog") or "Open Changelog", launch=changelog_url)
 
-                         # Button 2: Open App
-                         toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
-                     else:
-                         # Regular notifications (error/info/warning)
-                         # Button 1: Open Logs Folder (if exists)
-                         logs_path = Path(os.getenv('APPDATA', '')) / "FaserF" / "SwitchCraft" / "Logs"
-                         if logs_path.exists():
-                             toast.add_actions(label=i18n.get("notif_open_logs") or "Open Logs", launch=f"file://{logs_path}")
+                             # Button 2: Open App
+                             toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
+                         else:
+                             # Regular notifications (error/info/warning)
+                             # Button 1: Open Logs Folder (if exists)
+                             logs_path = Path(os.getenv('APPDATA', '')) / "FaserF" / "SwitchCraft" / "Logs"
+                             if logs_path.exists():
+                                 toast.add_actions(label=i18n.get("notif_open_logs") or "Open Logs", launch=f"file://{{logs_path}}")
+
+                             if notif_type == "error":
+                                 toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
 
                          if notif_type == "error":
-                             toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
+                             toast.set_audio(audio.LoopingAlarm, loop=False)
+                         else:
+                             toast.set_audio(audio.Default, loop=False)
 
-                     if notif_type == "error":
-                         toast.set_audio(audio.LoopingAlarm, loop=False)
-                     else:
-                         toast.set_audio(audio.Default, loop=False)
+                         try:
+                             toast.show()
+                         except Exception as ex:
+                             logger.debug(f"Failed to show Windows toast: {{ex}}")
 
-                     toast.show()
+                     # B) Browser Notification
+                     if self.page.web:
+                         try:
+                             js_title = json.dumps(latest["title"])
+                             js_body = json.dumps(latest["message"])
+                             # Simple JS to trigger browser notification
+                             js_code = f"""
+                             (function() {{
+                                 var title = {{js_title}};
+                                 var options = {{ body: {{js_body}}, icon: "/switchcraft_logo.png" }};
+                                 if (!("Notification" in window)) return;
+                                 if (Notification.permission === "granted") {{
+                                     new Notification(title, options);
+                                 }} else if (Notification.permission !== "denied") {{
+                                     Notification.requestPermission().then(function (permission) {{
+                                         if (permission === "granted") {{
+                                             new Notification(title, options);
+                                         }}
+                                     }});
+                                 }}
+                             }})();
+                             """
+                             self.page.run_js(js_code)
+                             logger.debug("Sent browser notification JS")
+                         except Exception as js_ex:
+                             logger.error(f"Failed to trigger browser notification: {{js_ex}}")
 
         except Exception as e:
              logger.error(f"Error updating notification icon: {e}")
@@ -1679,21 +1801,7 @@ class ModernApp:
         time.sleep(2)
         self.page.window.destroy()
 
-    def _clear_all_notifications(self, drawer):
-        """
-        Close the notifications drawer and clear all stored notifications.
 
-        Parameters:
-            drawer: The navigation drawer control instance to close after clearing notifications.
-        """
-        self.notification_service.clear_all()
-        # Close Drawer
-        if hasattr(self.page, "close"):
-            self.page.close(drawer)
-        else:
-            drawer.open = False
-            self.page.update()
-        # Re-open empty? No, just close.
 
     def _check_first_run(self):
         """

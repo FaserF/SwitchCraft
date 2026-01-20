@@ -43,7 +43,7 @@ jobs:
         run: npm run docs:build
         working-directory: docs
         env:
-          BASE_URL: /SwitchCraft/pr-preview/pr-${{ github.event.pull_request.number }}/
+          BASE_URL: /pr-preview/pr-${{ github.event.pull_request.number }}/
 
       - name: Deploy Preview
         uses: rossjrw/pr-preview-action@v1
@@ -51,7 +51,6 @@ jobs:
           source-dir: docs/.vitepress/dist
           preview-branch: gh-pages
           umbrella-dir: pr-preview
-          pages-base-path: /SwitchCraft
           action: auto
 
   cleanup-preview:

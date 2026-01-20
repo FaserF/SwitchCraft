@@ -1,29 +1,21 @@
 import unittest
-from unittest.mock import MagicMock, patch
-import flet as ft
+from unittest.mock import patch
 import sys
 import os
 
 # Add src to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
+# Import shared helper function
+from conftest import _create_mock_page
+
 
 class TestSettingsLanguage(unittest.TestCase):
     def setUp(self):
         """
-        Prepare test fixtures: create a mocked `ft.Page` and attach a mocked `switchcraft_app`.
-
-        The mocked page is assigned to `self.page`. A `switchcraft_app` mock is attached with an initial
-        `_current_tab_index` of 0 and a `goto_tab` mock. The page's `show_snack_bar` is also mocked.
-        run_task is set here for consistency with other test files.
+        Prepare test fixtures using shared mock_page fixture from conftest.
         """
-        self.page = MagicMock(spec=ft.Page)
-        self.page.switchcraft_app = MagicMock()
-        self.page.switchcraft_app._current_tab_index = 0
-        self.page.switchcraft_app.goto_tab = MagicMock()
-        self.page.show_snack_bar = MagicMock()
-        # Set run_task in setUp for consistency with other test files
-        self.page.run_task = lambda func: func()
+        self.page = _create_mock_page()
 
     @patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference')
     @patch('switchcraft.utils.i18n.i18n.set_language')
@@ -32,6 +24,9 @@ class TestSettingsLanguage(unittest.TestCase):
         from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
         view = ModernSettingsView(self.page)
+        # Manually add view to page controls to satisfy Flet's requirement
+        self.page.controls = [view]
+        view._page = self.page
         # run_task is already set in setUp
 
         # Simulate language change

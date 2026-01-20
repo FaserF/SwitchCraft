@@ -132,4 +132,20 @@ SwitchCraft is designed for **Windows**. Core features require Windows-specific 
 | Winget Store | ✅ | ❌ |
 | Installer Analysis | ✅ | ⚠️ Basic |
 
+## Web App vs Static Hosting
+
+SwitchCraft can be deployed in two main ways: as a full **Docker Web App** or as a **Static Site** (e.g., GitHub Pages). It's important to understand the differences:
+
+| Feature | Docker / Web App | Static Site (GitHub Pages) |
+|:---|:---:|:---:|
+| **Description** | Full application with backend | Frontend-only demo |
+| **Backend API** | ✅ Python (FastAPI/Flask) | ❌ None |
+| **Intune Packaging** | ✅ Full generation & upload | ❌ Not available |
+| **Winget Search** | ✅ Live API + PowerShell | ⚠️ Static Dataset only |
+| **Installer Analysis** | ✅ Deep analysis | ⚠️ Basic file inspection |
+| **Use Case** | Production / daily use | Demo / Preview / Docs |
+
+> [!NOTE]
+> The **Static Site** version is primarily for previewing the UI and hosting documentation. For actual packaging work, please use the Desktop App or the Docker container.
+
 </div>

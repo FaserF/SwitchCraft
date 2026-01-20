@@ -23,7 +23,10 @@ def test_stable_channel_stable_update(mock_requests):
         "prerelease": False
     }
 
-    has_update, ver, data = checker.check_for_updates()
+    with patch("switchcraft.utils.app_updater.sys") as mock_sys:
+        mock_sys.frozen = True
+        has_update, ver, data = checker.check_for_updates()
+
     assert has_update is True
     assert ver == "1.1.0"
     assert data["tag_name"] == "v1.1.0"
@@ -60,7 +63,10 @@ def test_dev_channel_finds_stable_if_newer(mock_requests):
 
     mock_requests.get.side_effect = [stable_resp, beta_resp, dev_resp]
 
-    has_update, ver, data = checker.check_for_updates()
+    with patch("switchcraft.utils.app_updater.sys") as mock_sys:
+        mock_sys.frozen = True
+        has_update, ver, data = checker.check_for_updates()
+
     assert has_update is True
     assert ver == "2.0.0" # Should pick Stable 2.0.0 over dev-old
 
@@ -92,7 +98,10 @@ def test_dev_channel_prefers_dev_if_newer(mock_requests):
 
     mock_requests.get.side_effect = [stable_resp, beta_resp, dev_resp]
 
-    has_update, ver, data = checker.check_for_updates()
+    with patch("switchcraft.utils.app_updater.sys") as mock_sys:
+        mock_sys.frozen = True
+        has_update, ver, data = checker.check_for_updates()
+
     assert has_update is True
     assert ver == "dev-newhash"
 
@@ -106,6 +115,9 @@ def test_no_update_found(mock_requests):
         "prerelease": False
     }
 
-    has_update, ver, _ = checker.check_for_updates()
+    with patch("switchcraft.utils.app_updater.sys") as mock_sys:
+        mock_sys.frozen = True
+        has_update, ver, _ = checker.check_for_updates()
+
     assert has_update is False
     assert ver == "1.0.0"

@@ -1,5 +1,6 @@
 import requests
 import logging
+import sys
 from packaging import version
 from switchcraft import __version__
 
@@ -31,6 +32,10 @@ class UpdateChecker:
         Checks for updates based on configured channel with cross-channel logic.
         Returns (has_update, latest_version_str, release_info_dict)
         """
+        # If running from source (not frozen), assume dev and skip update check
+        if not getattr(sys, 'frozen', False):
+             return False, self.current_version, None
+
         candidates = []
 
         # Always check Stable

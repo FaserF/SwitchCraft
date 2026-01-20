@@ -151,25 +151,64 @@ Set-Location $RepoRoot
 Write-Host "Project Root: $RepoRoot" -ForegroundColor Gray
 
 # --- Version Extraction ---
+function Extract-VersionInfo {
+    param(
+        [string]$VersionString
+    )
+    # Extract numeric version only (remove .dev0, +build, -dev, etc.) for VersionInfoVersion
+    # Pattern: extract MAJOR.MINOR.PATCH from any version format
+    $Numeric = if ($VersionString -match '^(\d+\.\d+\.\d+)') { $Matches[1] } else { $VersionString -replace '[^0-9.].*', '' }
+    # VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
+    $Info = "$Numeric.0"
+    return @{
+        Full = $VersionString
+        Numeric = $Numeric
+        Info = $Info
+    }
+}
+
 $PyProjectFile = Join-Path $RepoRoot "pyproject.toml"
 # Fallback version if extraction fails (can be overridden via env variable)
-$AppVersion = if ($env:SWITCHCRAFT_VERSION) { $env:SWITCHCRAFT_VERSION } else { "2026.1.2" }
-# Extract numeric version only (remove .dev0, +build, -dev, etc.) for VersionInfoVersion
-# Pattern: extract MAJOR.MINOR.PATCH from any version format
-$AppVersionNumeric = if ($AppVersion -match '^(\d+\.\d+\.\d+)') { $Matches[1] } else { $AppVersion -replace '[^0-9.].*', '' }
-# VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
-$AppVersionInfo = "$AppVersionNumeric.0"
+# Normalize and validate the fallback version
+$RawFallbackVersion = if ($env:SWITCHCRAFT_VERSION) { $env:SWITCHCRAFT_VERSION } else { "2026.1.2" }
+# Strip common prefixes like "v" and whitespace
+$CleanedFallbackVersion = $RawFallbackVersion.Trim() -replace '^v', ''
+# Extract version info from cleaned value
+$FallbackVersionInfo = Extract-VersionInfo -VersionString $CleanedFallbackVersion
+# Validate that the numeric component is non-empty and matches MAJOR.MINOR.PATCH pattern
+$IsValidFallback = -not [string]::IsNullOrWhiteSpace($FallbackVersionInfo.Numeric) -and
+                   $FallbackVersionInfo.Numeric -match '^\d+\.\d+\.\d+$'
+if (-not $IsValidFallback) {
+    Write-Warning "Fallback version from SWITCHCRAFT_VERSION is malformed (got: '$($FallbackVersionInfo.Numeric)'), expected MAJOR.MINOR.PATCH format. Using hardcoded default: 2026.1.2"
+    $FallbackVersion = "2026.1.2"
+    $VersionInfo = Extract-VersionInfo -VersionString $FallbackVersion
+} else {
+    $FallbackVersion = $CleanedFallbackVersion
+    $VersionInfo = $FallbackVersionInfo
+}
+# Ensure Info still appends a fourth component (Build number)
+if (-not $VersionInfo.Info -match '\.\d+$') {
+    $VersionInfo.Info = "$($VersionInfo.Numeric).0"
+}
+$AppVersion = $VersionInfo.Full
+$AppVersionNumeric = $VersionInfo.Numeric
+$AppVersionInfo = $VersionInfo.Info
 
 if (Test-Path $PyProjectFile) {
     try {
         $VersionLine = Get-Content -Path $PyProjectFile | Select-String "version = " | Select-Object -First 1
         if ($VersionLine -match 'version = "(.*)"') {
-            $AppVersion = $Matches[1]
-            # Extract numeric version only (remove .dev0, +build, -dev, etc.) for VersionInfoVersion
-            # Pattern: extract MAJOR.MINOR.PATCH from any version format
-            $AppVersionNumeric = if ($AppVersion -match '^(\d+\.\d+\.\d+)') { $Matches[1] } else { $AppVersion -replace '[^0-9.].*', '' }
-            # VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
-            $AppVersionInfo = "$AppVersionNumeric.0"
+            $VersionInfo = Extract-VersionInfo -VersionString $Matches[1]
+            # Validate that the parsed version is non-empty and well-formed (MAJOR.MINOR.PATCH format)
+            $IsValidVersion = -not [string]::IsNullOrWhiteSpace($VersionInfo.Numeric) -and
+                              $VersionInfo.Numeric -match '^\d+\.\d+\.\d+$'
+            if (-not $IsValidVersion) {
+                Write-Warning "Parsed version from pyproject.toml is malformed (got: '$($VersionInfo.Numeric)'), expected MAJOR.MINOR.PATCH format. Using fallback: $FallbackVersion"
+                $VersionInfo = Extract-VersionInfo -VersionString $FallbackVersion
+            }
+            $AppVersion = $VersionInfo.Full
+            $AppVersionNumeric = $VersionInfo.Numeric
+            $AppVersionInfo = $VersionInfo.Info
             Write-Host "Detected Version: $AppVersion (Numeric base: $AppVersionNumeric, Info: $AppVersionInfo)" -ForegroundColor Cyan
         } else {
             Write-Warning "Could not parse version from pyproject.toml, using fallback: $AppVersion"
