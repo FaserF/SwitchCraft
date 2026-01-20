@@ -86,7 +86,8 @@ class ScriptUploadView(ft.Column, ViewMixin):
     # --- Platform Script Tab ---
     def _build_platform_script_tab(self):
         # Initialize File Picker
-        self.ps_picker = ft.FilePicker(on_result=self._on_ps_picked)
+        self.ps_picker = ft.FilePicker()
+        self.ps_picker.on_result = self._on_ps_picked
         # Add to page overlay safely
         if self.app_page:
              self.app_page.overlay.append(self.ps_picker)
@@ -223,8 +224,10 @@ class ScriptUploadView(ft.Column, ViewMixin):
     # --- Remediation Tab ---
     def _build_remediation_tab(self):
         # Initialize Pickers
-        self.det_picker = ft.FilePicker(on_result=self._on_det_picked)
-        self.rem_picker = ft.FilePicker(on_result=self._on_rem_picked)
+        self.det_picker = ft.FilePicker()
+        self.det_picker.on_result = self._on_det_picked
+        self.rem_picker = ft.FilePicker()
+        self.rem_picker.on_result = self._on_rem_picked
         if self.app_page:
             self.app_page.overlay.extend([self.det_picker, self.rem_picker])
             self.app_page.update()

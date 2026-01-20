@@ -118,6 +118,10 @@ class RegistryBackend(ConfigBackend):
                 elif isinstance(value, int):
                     value_type = winreg.REG_DWORD
                     if value < 0 or value > 0xFFFFFFFF: raise ValueError("REG_DWORD out of range")
+                elif isinstance(value, float):
+                    value_type = winreg.REG_DWORD
+                    value = int(value)
+                    if value < 0 or value > 0xFFFFFFFF: raise ValueError("REG_DWORD out of range")
                 else:
                     value_type = winreg.REG_SZ
                     value = str(value)
@@ -159,9 +163,34 @@ class RegistryBackend(ConfigBackend):
         # Check Keyring
         try:
             import keyring
-            return keyring.get_password("SwitchCraft", value_name)
+            keyring_val = keyring.get_password("SwitchCraft", value_name)
+            if keyring_val:
+                return keyring_val
         except Exception:
-            return None
+            pass
+
+        # 3. Legacy Migration: Check Registry Preference (Plain text)
+        # If found, move to Keyring and delete from Registry
+        if sys.platform == 'win32':
+             try:
+                 import winreg
+                 val_legacy = self._read_registry(winreg.HKEY_CURRENT_USER, self.PREFERENCE_PATH, value_name)
+                 if val_legacy:
+                     logger.info(f"Migrating legacy secret '{value_name}' to Keyring...")
+                     try:
+                         import keyring
+                         keyring.set_password("SwitchCraft", value_name, str(val_legacy))
+                         # Delete from registry
+                         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.PREFERENCE_PATH, 0, winreg.KEY_WRITE) as key:
+                             winreg.DeleteValue(key, value_name)
+                         return str(val_legacy)
+                     except Exception as e:
+                         logger.error(f"Migration failed: {e}")
+                         return str(val_legacy) # Return it anyway so app works
+             except Exception:
+                 pass
+
+        return None
 
     def set_secure_value(self, value_name: str, value: str):
         try:
@@ -398,6 +427,7 @@ class SwitchCraftConfig:
     @classmethod
     def is_debug_mode(cls) -> bool:
         if '--debug' in sys.argv: return True
+        if os.environ.get("SWITCHCRAFT_DEBUG") == "1": return True
         return cls.get_value("DebugMode", 0) == 1
 
     @classmethod

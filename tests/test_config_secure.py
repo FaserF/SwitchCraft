@@ -7,7 +7,7 @@ import os
 # Ensure we load from local src, not installed site-packages
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.config import SwitchCraftConfig, RegistryBackend
 
 class TestSecureConfig(unittest.TestCase):
 
@@ -80,11 +80,11 @@ class TestSecureConfig(unittest.TestCase):
         # 3. Keyring -> None
         # 4. HKCU Pref -> "LegacySecret"
 
-        with patch.object(SwitchCraftConfig, '_read_registry') as mock_read:
+        with patch('switchcraft.utils.config.RegistryBackend._read_registry') as mock_read:
             def side_effect(root, path, name):
-                if path == SwitchCraftConfig.POLICY_PATH:
+                if path == RegistryBackend.POLICY_PATH:
                     return None
-                if path == SwitchCraftConfig.PREFERENCE_PATH and root == self.mock_winreg.HKEY_CURRENT_USER:
+                if path == RegistryBackend.PREFERENCE_PATH and root == self.mock_winreg.HKEY_CURRENT_USER:
                     return "LegacySecret"
                 return None
             mock_read.side_effect = side_effect

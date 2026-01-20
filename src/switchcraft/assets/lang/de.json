@@ -45,6 +45,7 @@
     "no_switches": "Keine automatischen Switches gefunden.",
     "brute_force_help": "Brute Force Hilfe",
     "search_online": "Online nach Switches suchen",
+    "lang_change_refresh": "Sprache geändert. Bitte App neu starten (Strg+R).",
     "view_winget": "Auf Winget GitHub ansehen",
     "settings_theme": "Design",
     "settings_lang": "Sprache",

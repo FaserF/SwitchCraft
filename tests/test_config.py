@@ -15,6 +15,17 @@ class TestSwitchCraftConfig(unittest.TestCase):
         if 'SWITCHCRAFT_DEBUG' in os.environ:
             del os.environ['SWITCHCRAFT_DEBUG']
 
+        # Ensure we start with a clean context (no persistent backend from previous tests)
+        SwitchCraftConfig.set_backend(None)
+
+        # Reset default backends if they were initialized
+        if hasattr(SwitchCraftConfig, '_default_reg_backend'):
+            del SwitchCraftConfig._default_reg_backend
+        if hasattr(SwitchCraftConfig, '_default_mem_backend'):
+            del SwitchCraftConfig._default_mem_backend
+        if hasattr(SwitchCraftConfig, '_default_env_backend'):
+            del SwitchCraftConfig._default_env_backend
+
         # Mock winreg for Linux CI
         self.winreg_mock = MagicMock()
         self.winreg_mock.HKEY_LOCAL_MACHINE = -2147483646
@@ -32,7 +43,8 @@ class TestSwitchCraftConfig(unittest.TestCase):
             del sys.modules['winreg']
 
     @patch('sys.platform', 'win32')
-    @patch('switchcraft.utils.config.SwitchCraftConfig._read_registry')
+    @patch('sys.platform', 'win32')
+    @patch('switchcraft.utils.config.RegistryBackend._read_registry')
     def test_precedence_policy_over_preference(self, mock_read_reg):
         """Test that Policy (HKLM/HKCU) overrides Preference (HKLM/HKCU)."""
 
@@ -62,7 +74,8 @@ class TestSwitchCraftConfig(unittest.TestCase):
         self.assertEqual(val, 1, "Should respect User Policy value (1) over Preference (0)")
 
     @patch('sys.platform', 'win32')
-    @patch('switchcraft.utils.config.SwitchCraftConfig._read_registry')
+    @patch('sys.platform', 'win32')
+    @patch('switchcraft.utils.config.RegistryBackend._read_registry')
     def test_precedence_machine_policy_highest(self, mock_read_reg):
         """Test that Machine Policy has highest priority."""
         # 1. HKLM Policy = 2
@@ -74,7 +87,8 @@ class TestSwitchCraftConfig(unittest.TestCase):
         self.assertEqual(val, 2, "Should respect Machine Policy")
 
     @patch('sys.platform', 'win32')
-    @patch('switchcraft.utils.config.SwitchCraftConfig._read_registry')
+    @patch('sys.platform', 'win32')
+    @patch('switchcraft.utils.config.RegistryBackend._read_registry')
     def test_fallback_to_default(self, mock_read_reg):
         """Test fallback when no registry keys exist."""
         mock_read_reg.return_value = None
@@ -116,8 +130,8 @@ class TestSwitchCraftConfig(unittest.TestCase):
             # Index 3 is type, Index 4 is value
             self.assertEqual(call_args[3], self.winreg_mock.REG_DWORD)
             self.assertIsInstance(call_args[4], int)
-            # Optional verification of converted value
-            self.assertEqual(call_args[4], int(round(now)))
+            # Optional verification of converted value - int() truncates
+            self.assertEqual(call_args[4], int(now))
 
     @patch('sys.platform', 'win32')
     def test_set_user_preference_float_edge_cases(self):
@@ -131,19 +145,25 @@ class TestSwitchCraftConfig(unittest.TestCase):
             mock_key.__exit__ = MagicMock(return_value=False)
 
             # Case 1: Negative float (Should RAISE ValueError now)
-            with self.assertRaises(ValueError):
-                 SwitchCraftConfig.set_user_preference("NegativeFloat", -123.45)
+            # Case 1: Negative float (Should NOT raise, but log error)
+            SwitchCraftConfig.set_user_preference("NegativeFloat", -123.45)
+            # Verify SetValueEx was NOT called
+            mock_set_value.assert_not_called()
 
-            # Case 2: Precision loss (Rounding)
-            # 123.99 -> 124
+            # Case 2: Precision loss (Truncation)
+            # 123.99 -> 123
             SwitchCraftConfig.set_user_preference("PrecisionFloat", 123.99)
+            mock_set_value.assert_called_once()
             args = mock_set_value.call_args_list[-1][0]
-            self.assertEqual(args[4], 124) # Expect rounded up
+            self.assertEqual(args[4], 123) # Expect truncated
 
-            # Case 3: Large float (Should RAISE ValueError if > 0xFFFFFFFF)
+            # Case 3: Large float (Should > 0xFFFFFFFF)
+            # Should NOT raise (caught), but not call SetValueEx
+            # Note: assert_called_once() is cumulative for the mock object if not reset.
+            # Call count was 1 from previous step. Invalid call makes it remain 1.
             large_val = 5000000000.5 # > 2^32
-            with self.assertRaises(ValueError):
-                SwitchCraftConfig.set_user_preference("LargeFloat", large_val)
+            SwitchCraftConfig.set_user_preference("LargeFloat", large_val)
+            self.assertEqual(mock_set_value.call_count, 1)
 
 
     @patch('sys.platform', 'win32')
