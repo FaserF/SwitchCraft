@@ -9,6 +9,16 @@ def main():
     """Main entry point for SwitchCraft."""
     has_args = len(sys.argv) > 1
 
+    # Check for internal splash flag first
+    if "--splash-internal" in sys.argv:
+        try:
+            from switchcraft.gui.splash import main as splash_main
+            splash_main()
+            sys.exit(0)
+        except Exception as e:
+            print(f"Splash internal error: {e}")
+            sys.exit(1)
+
     if has_args:
         if "--factory-reset" in sys.argv:
             try:
@@ -41,21 +51,31 @@ def main():
         try:
             import subprocess
             import os
-            # Launch splash.py as a separate process
-            # Resolve path to splash.py
-            base_dir = Path(__file__).resolve().parent
-            splash_script = base_dir / "gui" / "splash.py"
 
-            if splash_script.exists():
-                # Use subprocess.Popen to start it without blocking
-                env = os.environ.copy()
-                env["PYTHONPATH"] = str(base_dir.parent) # Ensure src is in path
+            # Determine how to launch splash based on environment (Source vs Frozen)
+            is_frozen = getattr(sys, 'frozen', False)
 
+            cmd = []
+            env = os.environ.copy()
+
+            if is_frozen:
+                # In frozen app, sys.executable is the exe itself.
+                # We call the exe again with a special flag to run only the splash code.
+                cmd = [sys.executable, "--splash-internal"]
+            else:
+                # Running from source
+                base_dir = Path(__file__).resolve().parent
+                splash_script = base_dir / "gui" / "splash.py"
+                if splash_script.exists():
+                    env["PYTHONPATH"] = str(base_dir.parent) # Ensure src is in path
+                    cmd = [sys.executable, str(splash_script)]
+
+            if cmd:
                 # Hide console window for the splash process if possible
                 creationflags = 0x08000000 if sys.platform == "win32" else 0 # CREATE_NO_WINDOW
 
                 splash_proc = subprocess.Popen(
-                    [sys.executable, str(splash_script)],
+                    cmd,
                     env=env,
                     creationflags=creationflags
                 )

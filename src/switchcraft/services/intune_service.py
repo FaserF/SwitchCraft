@@ -510,23 +510,40 @@ class IntuneService:
     def update_app(self, token, app_id, app_data):
         """
         Update an Intune mobile app using PATCH request.
-        
+
         Parameters:
             token (str): OAuth2 access token with Graph API permissions.
             app_id (str): The mobileApp resource identifier.
             app_data (dict): Dictionary containing fields to update (e.g., displayName, description, etc.)
-        
+
         Returns:
             dict: Updated app resource as returned by Microsoft Graph.
         """
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        }
         base_url = f"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{app_id}"
 
         try:
             resp = requests.patch(base_url, headers=headers, json=app_data, timeout=60)
             resp.raise_for_status()
             logger.info(f"Successfully updated app {app_id}")
-            return resp.json()
+
+            # Handle empty/no-content responses (204 No Content or empty body)
+            if resp.status_code == 204 or not resp.content:
+                # PATCH returned no content, fetch the updated resource
+                logger.debug(f"PATCH returned empty response for app {app_id}, fetching updated resource")
+                return self.get_app_details(token, app_id)
+
+            # Try to parse JSON response
+            try:
+                return resp.json()
+            except (ValueError, requests.exceptions.JSONDecodeError) as json_err:
+                # JSON parsing failed, fall back to fetching the resource
+                logger.warning(f"Failed to parse PATCH response JSON for app {app_id}: {json_err}, fetching updated resource")
+                return self.get_app_details(token, app_id)
         except requests.exceptions.Timeout as e:
             logger.error(f"Request timed out while updating app {app_id}")
             raise requests.exceptions.Timeout("Request timed out. The server took too long to respond.") from e
@@ -540,7 +557,7 @@ class IntuneService:
     def update_app_assignments(self, token, app_id, assignments):
         """
         Update app assignments by replacing all existing assignments.
-        
+
         Parameters:
             token (str): OAuth2 access token with Graph API permissions.
             app_id (str): The mobileApp resource identifier.
@@ -548,7 +565,7 @@ class IntuneService:
                 - target: dict with groupId or "@odata.type": "#microsoft.graph.allDevicesAssignmentTarget" / "#microsoft.graph.allLicensedUsersAssignmentTarget"
                 - intent: "required", "available", or "uninstall"
                 - settings: dict (optional)
-        
+
         Returns:
             bool: True if successful
         """

@@ -2,6 +2,7 @@ import flet as ft
 import logging
 import asyncio
 import inspect
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class ViewMixin:
             context: Optional context string describing where the error occurred
         """
         try:
-            import traceback as tb
+            import traceback
             from switchcraft.gui_modern.views.crash_view import CrashDumpView
 
             page = getattr(self, "app_page", None)
@@ -35,14 +36,20 @@ class ViewMixin:
                 logger.error(f"Cannot show error view: page is None")
                 return
 
-            # Get traceback
-            tb_str = tb.format_exc()
+            # Get traceback from the exception object
+            try:
+                tb_lines = traceback.TracebackException.from_exception(error).format()
+                tb_str = ''.join(tb_lines)
+            except Exception as tb_ex:
+                # Fallback if traceback extraction fails
+                tb_str = f"{type(error).__name__}: {error}\n(Unable to extract full traceback: {tb_ex})"
+
             if context:
                 tb_str = f"Context: {context}\n\n{tb_str}"
 
-            # Log the error
+            # Log the error with exception info
             error_msg = f"Runtime error in {context or 'event handler'}: {error}"
-            logger.error(error_msg, exc_info=True)
+            logger.error(error_msg, exc_info=error)
 
             # Create crash view
             crash_view = CrashDumpView(page, error=error, traceback_str=tb_str)

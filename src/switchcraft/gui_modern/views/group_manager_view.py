@@ -306,7 +306,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                             subtitle=ft.Column([
                                 ft.Text(g.get('description', '') or i18n.get("no_description") or "No description", size=12, color="GREY_600"),
                                 ft.Text(f"ID: {g.get('id', '')}", size=10, color="GREY_500"),
-                                ft.Text(f"Type: {', '.join(g.get('groupTypes', [])) or 'Security'}", size=10, color="GREY_500"),
+                                ft.Text(f"Type: {', '.join(g.get('groupTypes') or []) or 'Security'}", size=10, color="GREY_500"),
                             ], spacing=2, tight=True),
                             trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT, color="GREY_400") if is_selected else None,
                         ),
@@ -600,11 +600,13 @@ class GroupManagerView(ft.Column, ViewMixin):
             def _bg():
                 try:
                     self.intune_service.remove_group_member(self.token, group_id, user_id)
-                    self._show_snack(i18n.get("member_removed") or "Member removed", "GREEN")
-                    load_members() # Refresh
+                    # Marshal UI updates to main thread
+                    self._run_task_safe(lambda: self._show_snack(i18n.get("member_removed") or "Member removed", "GREEN"))
+                    self._run_task_safe(load_members) # Refresh
                 except Exception as ex:
                     logger.error(f"Failed to remove member {user_id} from group {group_id}: {ex}", exc_info=True)
-                    self._show_snack(f"Failed to remove member: {ex}", "RED")
+                    # Marshal error UI update to main thread
+                    self._run_task_safe(lambda: self._show_snack(f"Failed to remove member: {ex}", "RED"))
             threading.Thread(target=_bg, daemon=True).start()
 
         def load_members():
@@ -735,11 +737,13 @@ class GroupManagerView(ft.Column, ViewMixin):
                     try:
                         self.intune_service.add_group_member(self.token, group_id, user_id)
                         logger.info(f"Added user {user_id} to group {group_id}")
-                        self._show_snack(i18n.get("member_added") or "Member added successfully", "GREEN")
-                        load_members() # Refresh main list
+                        # Marshal UI updates to main thread
+                        self._run_task_safe(lambda: self._show_snack(i18n.get("member_added") or "Member added successfully", "GREEN"))
+                        self._run_task_safe(load_members) # Refresh main list
                     except Exception as ex:
                         logger.error(f"Failed to add member {user_id} to group {group_id}: {ex}", exc_info=True)
-                        self._show_snack(f"Failed to add member: {ex}", "RED")
+                        # Marshal error UI update to main thread
+                        self._run_task_safe(lambda: self._show_snack(f"Failed to add member: {ex}", "RED"))
                 threading.Thread(target=_bg, daemon=True).start()
 
             # Create dialog first so it can be referenced in nested functions

@@ -10,17 +10,20 @@ class TestParentChain(unittest.TestCase):
     def test_parent_chain(self):
         page = MagicMock(spec=ft.Page)
         # Verify instance check
-        print(f"Is instance Page: {isinstance(page, ft.Page)}")
+        self.assertIsInstance(page, ft.Page, "Mock page should be an instance of ft.Page")
 
-        # Helper to set parent (copying from conftest)
+        # Helper to set parent structure
+        # Note: This differs from conftest.py's set_structure_recursive which uses weakref.ref(parent).
+        # This test requires direct parent assignment (not weakref) to validate the parent chain.
         def set_structure_recursive(ctrl, parent):
+            import weakref
             try:
-                ctrl.parent = parent
+                # Parent property expects a weakref logic internally usually,
+                # but if we set _parent directly, it MUST be a weakref (callable)
+                # because the property getter calls it: return self._parent()
+                ctrl._parent = weakref.ref(parent)
             except AttributeError:
-                try:
-                    ctrl._parent = parent
-                except AttributeError:
-                    pass
+                pass
 
             try:
                 ctrl._page = page
@@ -43,18 +46,31 @@ class TestParentChain(unittest.TestCase):
 
         # Test traversal
         btn = container.content.controls[0].controls[0]
-        print(f"Button: {btn}")
-        print(f"Button Parent: {btn.parent}")
-        print(f"Column Parent: {btn.parent.parent}")
-        print(f"ListView Parent: {btn.parent.parent.parent}")
-        print(f"Container Parent: {btn.parent.parent.parent.parent}")
-        print(f"View Parent: {btn.parent.parent.parent.parent.parent}")
 
-        try:
-            p = btn.page
-            print(f"Button Page: {p}")
-        except Exception as e:
-            print(f"Button Page Error: {e}")
+        # Assert button exists
+        self.assertIsNotNone(btn, "Button should exist")
+        self.assertIsInstance(btn, ft.Button, "Button should be a Button instance")
+
+        # Assert parent chain exists and has correct types
+        self.assertIsNotNone(btn.parent, "Button should have a parent")
+        self.assertIsInstance(btn.parent, ft.Column, "Button parent should be a Column")
+
+        self.assertIsNotNone(btn.parent.parent, "Button parent.parent should exist")
+        self.assertIsInstance(btn.parent.parent, ft.ListView, "Button parent.parent should be a ListView")
+
+        self.assertIsNotNone(btn.parent.parent.parent, "Button parent.parent.parent should exist")
+        self.assertIsInstance(btn.parent.parent.parent, ft.Container, "Button parent.parent.parent should be a Container")
+
+        self.assertIsNotNone(btn.parent.parent.parent.parent, "Button parent.parent.parent.parent should exist")
+        self.assertIsInstance(btn.parent.parent.parent.parent, ft.Column, "Button parent.parent.parent.parent should be a Column (view)")
+
+        self.assertIsNotNone(btn.parent.parent.parent.parent.parent, "Button parent.parent.parent.parent.parent should exist")
+        self.assertEqual(btn.parent.parent.parent.parent.parent, page, "Button parent.parent.parent.parent.parent should be the page")
+
+        # Assert page resolution (let exceptions raise if there's an error)
+        p = btn.page
+        self.assertIsNotNone(p, "Button should have a page attribute")
+        self.assertEqual(p, page, "Button page should be the expected Page object")
 
 if __name__ == '__main__':
     unittest.main()

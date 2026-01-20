@@ -7,7 +7,7 @@ All SwitchCraft policies show error code **-2016281112** (Remediation Failed), w
 ## Quick Diagnosis
 
 If you see this error list:
-```
+```text
 SignScripts_Enf          → Error -2016281112
 UpdateChannel_Enf        → Error -2016281112
 EnableWinget_Enf         → Error -2016281112
@@ -20,7 +20,7 @@ GraphClientSecret_Enf    → Error -2016281112
 ```
 
 But:
-```
+```text
 SwitchCraftPolicy (ADMX Install) → Succeeded ✅
 ```
 

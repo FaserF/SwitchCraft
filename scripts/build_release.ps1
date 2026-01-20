@@ -169,8 +169,27 @@ function Extract-VersionInfo {
 
 $PyProjectFile = Join-Path $RepoRoot "pyproject.toml"
 # Fallback version if extraction fails (can be overridden via env variable)
-$FallbackVersion = if ($env:SWITCHCRAFT_VERSION) { $env:SWITCHCRAFT_VERSION } else { "2026.1.2" }
-$VersionInfo = Extract-VersionInfo -VersionString $FallbackVersion
+# Normalize and validate the fallback version
+$RawFallbackVersion = if ($env:SWITCHCRAFT_VERSION) { $env:SWITCHCRAFT_VERSION } else { "2026.1.2" }
+# Strip common prefixes like "v" and whitespace
+$CleanedFallbackVersion = $RawFallbackVersion.Trim() -replace '^v', ''
+# Extract version info from cleaned value
+$FallbackVersionInfo = Extract-VersionInfo -VersionString $CleanedFallbackVersion
+# Validate that the numeric component is non-empty and matches MAJOR.MINOR.PATCH pattern
+$IsValidFallback = -not [string]::IsNullOrWhiteSpace($FallbackVersionInfo.Numeric) -and
+                   $FallbackVersionInfo.Numeric -match '^\d+\.\d+\.\d+$'
+if (-not $IsValidFallback) {
+    Write-Warning "Fallback version from SWITCHCRAFT_VERSION is malformed (got: '$($FallbackVersionInfo.Numeric)'), expected MAJOR.MINOR.PATCH format. Using hardcoded default: 2026.1.2"
+    $FallbackVersion = "2026.1.2"
+    $VersionInfo = Extract-VersionInfo -VersionString $FallbackVersion
+} else {
+    $FallbackVersion = $CleanedFallbackVersion
+    $VersionInfo = $FallbackVersionInfo
+}
+# Ensure Info still appends a fourth component (Build number)
+if (-not $VersionInfo.Info -match '\.\d+$') {
+    $VersionInfo.Info = "$($VersionInfo.Numeric).0"
+}
 $AppVersion = $VersionInfo.Full
 $AppVersionNumeric = $VersionInfo.Numeric
 $AppVersionInfo = $VersionInfo.Info

@@ -738,6 +738,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
         if not self._open_dialog_safe(loading_dlg):
             logger.error("Failed to open loading dialog for GitHub login")
             self._show_snack("Failed to open login dialog", "RED")
+            # Restore button state on early failure
+            if hasattr(self, 'login_btn'):
+                if hasattr(self.login_btn, 'text'):
+                    self.login_btn.text = original_text
+                else:
+                    self.login_btn.content = original_text
+                self.login_btn.icon = original_icon
+                self.login_btn.update()
             return
 
         # Start device flow in background (network call)
@@ -746,10 +754,19 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 flow = AuthService.initiate_device_flow()
                 if not flow:
                     # Marshal UI updates to main thread
-                    def _handle_no_flow():
+                    # Capture original button state in closure using default parameter to avoid scope issues
+                    def _handle_no_flow(orig_text=original_text, orig_icon=original_icon):
                         loading_dlg.open = False
                         self.app_page.update()
                         self._show_snack("Login init failed", "RED")
+                        # Restore button state
+                        if hasattr(self, 'login_btn'):
+                            if hasattr(self.login_btn, 'text'):
+                                self.login_btn.text = orig_text
+                            else:
+                                self.login_btn.content = orig_text
+                            self.login_btn.icon = orig_icon
+                            self.login_btn.update()
                     self._run_task_with_fallback(_handle_no_flow, error_msg="Failed to initialize login flow")
                     return None
                 return flow

@@ -7,13 +7,14 @@ import tempfile
 
 # Setup debug logging for splash process
 log_file = os.path.join(tempfile.gettempdir(), "switchcraft_splash_debug.log")
-logging.basicConfig(
-    filename=log_file,
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logging.info(f"Splash process started. PID: {os.getpid()}")
-logging.info(f"Python: {sys.executable}")
+logger = logging.getLogger("switchcraft.splash")
+logger.setLevel(logging.DEBUG)
+file_handler = logging.FileHandler(log_file)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+logger.info(f"Splash process started. PID: {os.getpid()}")
+logger.info(f"Python: {sys.executable}")
 
 class LegacySplash:
     """
@@ -22,14 +23,14 @@ class LegacySplash:
     The main_root should be passed in (created once in main.py).
     """
     def __init__(self, main_root=None):
-        logging.info("Initializing LegacySplash...")
+        logger.info("Initializing LegacySplash...")
         # If no root passed, create one (standalone run)
         if main_root is None:
-            logging.info("Creating new Tk root")
+            logger.info("Creating new Tk root")
             self.root = tk.Tk()
             self._owns_root = True
         else:
-            logging.info("Using existing Tk root")
+            logger.info("Using existing Tk root")
             self.root = tk.Toplevel(main_root)
             self._owns_root = False
 
@@ -90,7 +91,6 @@ class LegacySplash:
 
         self.progress = ttk.Progressbar(main_frame, mode="indeterminate", length=300)
         self.progress.pack(pady=10)
-        self.progress.pack(pady=10)
         self.progress.start(10)
 
         # Safety Timeout: Close after 60 seconds automatically if app hangs
@@ -103,7 +103,7 @@ class LegacySplash:
         self.root.update()
 
     def _auto_close_timeout(self):
-        logging.warning("Splash screen timed out (safety timer). Force closing.")
+        logger.warning("Splash screen timed out (safety timer). Force closing.")
         self.close()
 
     def close(self):
@@ -114,7 +114,8 @@ class LegacySplash:
                 pass
         self.root.destroy()
 
-if __name__ == "__main__":
+
+def main():
     try:
         splash = LegacySplash()
         # Ensure it handles external termination signals if possible, or just runs until close()
@@ -123,3 +124,6 @@ if __name__ == "__main__":
         splash.root.mainloop()
     except KeyboardInterrupt:
         pass
+
+if __name__ == "__main__":
+    main()

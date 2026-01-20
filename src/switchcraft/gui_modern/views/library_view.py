@@ -280,7 +280,6 @@ class LibraryView(ft.Column, ViewMixin):
             # Add tiles for filtered files or show "no results" message
             if not filtered_files:
                 # Show empty state when search yields no results
-                from switchcraft.utils.i18n import i18n
                 no_results = ft.Container(
                     content=ft.Column([
                         ft.Icon(ft.Icons.SEARCH_OFF, size=48, color="GREY_500"),
@@ -301,9 +300,9 @@ class LibraryView(ft.Column, ViewMixin):
                 logger.debug(f"Grid not attached to page yet: {e}")
         except Exception as ex:
             logger.error(f"Error refreshing grid: {ex}", exc_info=True)
-            def show_error():
+            def show_error(err=ex):
                 try:
-                    self._show_snack(f"Failed to refresh grid: {ex}", "RED")
+                    self._show_snack(f"Failed to refresh grid: {err}", "RED")
                 except (RuntimeError, AttributeError):
                     pass
             self._run_task_safe(show_error)

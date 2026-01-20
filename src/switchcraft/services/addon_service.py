@@ -257,7 +257,7 @@ class AddonService:
                         with z.open(member, 'r') as source, open(file_path, 'wb') as dest:
                             shutil.copyfileobj(source, dest)
 
-                logger.info(f"Installed addon: {addon_id}")
+                logger.info(f"Installed addon: {addon_id}{manifest_location_msg}")
                 return True
         except Exception as e:
             logger.error(f"Install failed: {e}")

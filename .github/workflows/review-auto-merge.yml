@@ -78,13 +78,16 @@ jobs:
 
           # Get all review comments on code (inline comments with position/diff_hunk)
           # These are comments that reviewers leave on specific lines of code
-          INLINE_REVIEW_COMMENTS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --paginate --jq '[.[] | select(.position != null or .original_position != null) | select(.user.login != "github-actions[bot]")] | length')
+          # Aggregate all pages before filtering and counting to avoid multi-line output
+          INLINE_REVIEW_COMMENTS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --paginate --jq '[.[] | .[] | select(.position != null or .original_position != null) | select(.user.login != "github-actions[bot]")] | length')
 
           # Check for CodeRabbit review comments specifically (both inline and general)
-          CODERABBIT_INLINE=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --paginate --jq '[.[] | select(.user.login == "coderabbitai[bot]" and (.position != null or .original_position != null))] | length')
+          # Aggregate all pages before filtering and counting
+          CODERABBIT_INLINE=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --paginate --jq '[.[] | .[] | select(.user.login == "coderabbitai[bot]" and (.position != null or .original_position != null))] | length')
 
           # Also check for CodeRabbit review comments in PR comments (not just inline)
-          CODERABBIT_PR_COMMENTS=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq '[.[] | select(.user.login == "coderabbitai[bot]" and (.body | test("suggestion|review|feedback|issue|problem|error|warning"; "i")))] | length')
+          # Aggregate all pages before filtering and counting
+          CODERABBIT_PR_COMMENTS=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq '[.[] | .[] | select(.user.login == "coderabbitai[bot]" and (.body | test("suggestion|review|feedback|issue|problem|error|warning"; "i")))] | length')
 
           TOTAL_CODERABBIT_COMMENTS=$((CODERABBIT_INLINE + CODERABBIT_PR_COMMENTS))
 

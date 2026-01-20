@@ -407,9 +407,12 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 try:
                     token = self._get_token()
                     if not token:
-                        self.assignments_col.controls.clear()
-                        self.assignments_col.controls.append(ft.Text(i18n.get("intune_not_configured") or "Intune not configured.", italic=True, selectable=True))
-                        self.update()
+                        # Marshal UI updates to main thread via _run_task_safe
+                        def _show_no_token():
+                            self.assignments_col.controls.clear()
+                            self.assignments_col.controls.append(ft.Text(i18n.get("intune_not_configured") or "Intune not configured.", italic=True, selectable=True))
+                            self.update()
+                        self._run_task_safe(_show_no_token)
                         return
 
                     assignments = self.intune_service.list_app_assignments(token, app.get("id"))

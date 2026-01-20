@@ -6,20 +6,7 @@ import flet as ft
 from unittest.mock import MagicMock, patch
 
 
-@pytest.fixture
-def mock_page():
-    """Create a mock Flet page."""
-    page = MagicMock(spec=ft.Page)
-    page.update = MagicMock()
-    page.open = MagicMock()  # Add open method for dialogs
-    page.switchcraft_app = MagicMock()
-    page.switchcraft_app.goto_tab = MagicMock()
-    page.switchcraft_app._current_tab_index = 0
 
-    # Mock page property
-    type(page).page = property(lambda self: page)
-
-    return page
 
 
 def test_language_change_updates_config(mock_page):
@@ -31,8 +18,6 @@ def test_language_change_updates_config(mock_page):
 
         view = ModernSettingsView(mock_page)
         view.update = MagicMock()
-        # Ensure run_task is available for UI updates
-        mock_page.run_task = lambda func: func()
 
         # Change language
         view._on_lang_change("de")
@@ -58,8 +43,6 @@ def test_language_change_shows_restart_message(mock_page):
     view = ModernSettingsView(mock_page)
     view._show_snack = track_snack
     view.update = MagicMock()
-    # Ensure run_task is available for UI updates
-    mock_page.run_task = lambda func: func()
 
     with patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference'), \
          patch('switchcraft.utils.i18n.i18n.set_language'):

@@ -15,56 +15,7 @@ import time
 from conftest import poll_until
 
 
-@pytest.fixture
-def mock_page():
-    """Create a comprehensive mock Flet page."""
-    page = MagicMock(spec=ft.Page)
-    page.dialog = None
-    page.end_drawer = None
-    page.update = MagicMock()
-    page.snack_bar = MagicMock(spec=ft.SnackBar)
-    page.snack_bar.open = False
-    page.open = MagicMock()
-    page.close = MagicMock()
 
-    # Mock app reference
-    mock_app = MagicMock()
-    mock_app._current_tab_index = 0
-    mock_app._view_cache = {}
-    mock_app.goto_tab = MagicMock()
-    page.switchcraft_app = mock_app
-
-    # Mock run_task to execute immediately (handle both sync and async)
-    import inspect
-    import asyncio
-    def run_task(func):
-        try:
-            if inspect.iscoroutinefunction(func):
-                # For async functions, try to run in existing loop or create new one
-                try:
-                    loop = asyncio.get_running_loop()
-                    task = asyncio.create_task(func())
-                    return task
-                except RuntimeError:
-                    asyncio.run(func())
-            else:
-                func()
-        except Exception as e:
-            pass
-    page.run_task = run_task
-
-    # Mock page.open to set dialog/drawer
-    def mock_open(control):
-        if isinstance(control, ft.AlertDialog):
-            page.dialog = control
-            control.open = True
-        elif isinstance(control, ft.NavigationDrawer):
-            page.end_drawer = control
-            control.open = True
-        page.update()
-    page.open = mock_open
-
-    return page
 
 
 def test_library_view_folder_button(mock_page):
@@ -110,49 +61,45 @@ def test_library_view_refresh_button(mock_page):
     """Test that Library View refresh button loads data."""
     from switchcraft.gui_modern.views.library_view import LibraryView
 
-    view = LibraryView(mock_page)
+    with patch.object(LibraryView, '_load_data') as mock_load_data:
+        view = LibraryView(mock_page)
 
-    # Find refresh button
-    refresh_btn = None
-    def find_refresh_button(control):
-        if isinstance(control, ft.IconButton):
-            if hasattr(control, 'icon') and control.icon == ft.Icons.REFRESH:
-                return control
-        if hasattr(control, 'controls'):
-            for child in control.controls:
-                result = find_refresh_button(child)
+        # Find refresh button
+        refresh_btn = None
+        def find_refresh_button(control):
+            if isinstance(control, ft.IconButton):
+                if hasattr(control, 'icon') and control.icon == ft.Icons.REFRESH:
+                    return control
+            if hasattr(control, 'controls'):
+                for child in control.controls:
+                    result = find_refresh_button(child)
+                    if result:
+                        return result
+            if hasattr(control, 'content'):
+                result = find_refresh_button(control.content)
                 if result:
                     return result
-        if hasattr(control, 'content'):
-            result = find_refresh_button(control.content)
-            if result:
-                return result
-        return None
+            return None
 
-    refresh_btn = find_refresh_button(view)
+        refresh_btn = find_refresh_button(view)
 
-    assert refresh_btn is not None, "Refresh button should exist"
-    assert refresh_btn.on_click is not None, "Refresh button should have on_click handler"
+        assert refresh_btn is not None, "Refresh button should exist"
+        assert refresh_btn.on_click is not None, "Refresh button should have on_click handler"
 
-    # Mock _load_data to track if it was called
-    original_load_data = view._load_data
-    load_data_called = {'value': False}
+        # Reset mock causing by init/other calls if any
+        mock_load_data.reset_mock()
 
-    def mock_load_data():
-        load_data_called['value'] = True
-        original_load_data()
+        # Simulate click
+        mock_event = MagicMock()
+        refresh_btn.on_click(mock_event)
 
-    view._load_data = mock_load_data
+        # Wait a bit
+        time.sleep(0.1)
 
-    # Simulate click
-    mock_event = MagicMock()
-    refresh_btn.on_click(mock_event)
+        # Verify call
+        assert mock_load_data.called, "Refresh button should trigger _load_data method"
 
-    # Wait a bit for background thread to start
-    time.sleep(0.2)
 
-    # Verify that _load_data was triggered
-    assert load_data_called['value'], "Refresh button should trigger _load_data method"
 
 
 def test_group_manager_create_button(mock_page):

@@ -9,7 +9,7 @@ import time
 import os
 
 # Import shared fixtures and helpers from conftest
-from conftest import poll_until, mock_page
+from tests.utils import poll_until
 
 
 @pytest.fixture
