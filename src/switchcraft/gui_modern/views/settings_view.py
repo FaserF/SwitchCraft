@@ -748,7 +748,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 self.login_btn.update()
             return
 
+        # Force update to show loading dialog
+        self.app_page.update()
+
         # Start device flow in background (network call)
+
         def _init_flow():
             try:
                 flow = AuthService.initiate_device_flow()
@@ -1186,9 +1190,12 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
             # Use _run_task_safe to ensure UI updates happen on main thread
             self._run_task_safe(_reload_app)
+            # Force restart dialog if app reload failed or partial
+            self._run_task_safe(lambda: self._show_snack("Language changed. Restarting app is recommended.", "ORANGE"))
         except Exception as ex:
             logger.exception(f"Error in language change handler: {ex}")
             self._show_snack(f"Failed to change language: {ex}", "RED")
+
 
         # Show restart dialog if app reference not available (outside try-except)
         if not hasattr(self.app_page, 'switchcraft_app') or not self.app_page.switchcraft_app:

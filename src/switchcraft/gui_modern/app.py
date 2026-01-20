@@ -377,23 +377,14 @@ class ModernApp:
                 on_dismiss=self._on_drawer_dismiss
             )
 
-            # Set drawer on page FIRST
-            # Set drawer on page
+            # Open drawer logic - simplified and robust
             self.page.end_drawer = drawer
+            self.page.update() # Update page to attach drawer
 
-            # Open drawer
-            try:
-                if hasattr(self.page, 'open_end_drawer'):
-                     self.page.open_end_drawer()
-                elif hasattr(self.page, 'open'):
-                    self.page.open(drawer)
-                else:
-                    drawer.open = True
-                    self.page.update()
-            except Exception as ex:
-                logger.warning(f"Failed to open drawer via API, falling back to property: {ex}")
-                drawer.open = True
-                self.page.update()
+            # Use safest method to open
+            drawer.open = True
+            self.page.update()
+
 
             # Single update after all state changes to avoid flicker
             self.page.update()
@@ -416,11 +407,17 @@ class ModernApp:
     def _on_drawer_dismiss(self, e):
         """
         Refresh the notification UI state when a navigation drawer is dismissed.
+        And clears the end_drawer reference to prevent state desync.
 
         Parameters:
             e: The drawer-dismiss event object received from the UI callback. This function suppresses and logs any exceptions raised while updating notification state.
         """
         try:
+            logger.debug("Drawer dismissed, clearing end_drawer reference")
+            # Clear the drawer reference so next toggle knows it's closed
+            self.page.end_drawer = None
+            self.page.update()
+
             # Update notification button state when drawer is dismissed
             self._on_notification_update()
         except Exception as ex:
@@ -435,7 +432,8 @@ class ModernApp:
         """
         try:
             self.notification_service.mark_read(notification_id)
-            # Refresh drawer content
+            # Refresh drawer content by re-opening (re-rendering) it
+            # Since we modify the drawer in-place effectively
             self._open_notifications_drawer(None)
         except Exception as ex:
             logger.error(f"Failed to mark notification as read: {ex}")
@@ -450,11 +448,10 @@ class ModernApp:
             self.notification_service.clear_all()
             # Close drawer
             if hasattr(self.page, 'end_drawer') and self.page.end_drawer:
-                if hasattr(self.page, 'close'):
-                    self.page.close(self.page.end_drawer)
-                else:
-                    self.page.end_drawer.open = False
-            self.page.update()
+                self.page.end_drawer.open = False
+                self.page.update()
+                # We don't verify if it's closed here, _on_drawer_dismiss will handle cleanup
+
             # Show success message
             try:
                 self.page.snack_bar = ft.SnackBar(ft.Text(i18n.get("notifications_cleared") or "Notifications cleared"), bgcolor="GREEN")

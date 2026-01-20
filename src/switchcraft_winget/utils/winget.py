@@ -376,20 +376,15 @@ class WingetHelper:
             logger.error(f"Winget download exception: {e}")
             return None
 
-    def _search_via_cli(self, query: str) -> List[Dict[str, str]]:
-        """Fallback search using winget CLI with robust table parsing."""
-        try:
-             cmd = ["winget", "search", query, "--accept-source-agreements"]
-             kwargs = self._get_subprocess_kwargs()
-             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", **kwargs)
-             if proc.returncode != 0:
-                 return []
 
+    def _parse_search_results(self, stdout: str) -> List[Dict[str, str]]:
+        """Parse the standard output from winget search command."""
+        try:
              # Skip any leading empty lines/garbage
-             lines = [line for line in proc.stdout.splitlines() if line.strip()]
+             lines = [line for line in stdout.splitlines() if line.strip()]
              logger.debug(f"Winget CLI fallback lines: {len(lines)}")
              if len(lines) < 2:
-                 logger.debug(f"Winget CLI output too short: {proc.stdout}")
+                 logger.debug(f"Winget CLI output too short: {stdout[:100]}...")
                  return []
 
              # Find header line (must contain Name, Id, Version)
@@ -426,7 +421,7 @@ class WingetHelper:
              # Robust ID anchor
              match_id = re.search(r'\bID\b', header, re.IGNORECASE)
              # Robust Version anchor
-             match_ver = re.search(r'\bVersion\b', header, re.IGNORECASE)
+             match_ver = re.search(r'\bVersion\b|\bVers\b', header, re.IGNORECASE) # Allow partial 'Vers'
              # Robust Source anchor (optional)
              match_source = re.search(r'\bSource\b|\bQuelle\b', header, re.IGNORECASE)
 
@@ -488,8 +483,23 @@ class WingetHelper:
              return results
 
         except Exception as e:
-            logger.debug(f"Winget CLI fallback failed: {e}")
+            logger.debug(f"Winget CLI parsing failed: {e}")
             return []
+
+    def _search_via_cli(self, query: str) -> List[Dict[str, str]]:
+        """Fallback search using winget CLI with robust table parsing."""
+        try:
+             cmd = ["winget", "search", query, "--accept-source-agreements"]
+             kwargs = self._get_subprocess_kwargs()
+             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", **kwargs)
+             if proc.returncode != 0:
+                 return []
+
+             return self._parse_search_results(proc.stdout)
+        except Exception as e:
+             logger.debug(f"Winget CLI search failed: {e}")
+             return []
+
 
     def _ensure_winget_module(self) -> bool:
         """
@@ -674,9 +684,9 @@ class WingetHelper:
                 si = subprocess.STARTUPINFO()
                 si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
                 si.wShowWindow = subprocess.SW_HIDE  # Explicitly hide the window
-                # Also try CREATE_NO_WINDOW flag for subprocess.run
                 return si
         return None
+
 
     def _get_subprocess_kwargs(self):
         """
@@ -693,6 +703,5 @@ class WingetHelper:
         if sys.platform == "win32":
             if hasattr(subprocess, 'CREATE_NO_WINDOW'):
                 kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-            else:
                 kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW constant
         return kwargs

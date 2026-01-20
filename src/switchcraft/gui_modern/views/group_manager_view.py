@@ -216,6 +216,9 @@ class GroupManagerView(ft.Column, ViewMixin):
                         logger.debug(f"Control not added to page (RuntimeError/AttributeError): {e}")
                 self._run_task_safe(show_error)
             except Exception as e:
+                # Catch-all for any other errors to ensure UI releases loading state
+                logger.exception(f"Critical error in group loading thread: {e}")
+
                 error_str = str(e).lower()
                 # Detect permission issues from error message
                 if "403" in error_str or "forbidden" in error_str or "insufficient" in error_str:
@@ -223,51 +226,33 @@ class GroupManagerView(ft.Column, ViewMixin):
                 elif "401" in error_str or "unauthorized" in error_str:
                     error_msg = i18n.get("graph_auth_error") or "Authentication failed. Please check your credentials."
                 else:
-                    logger.error(f"Failed to load groups: {e}")
-                    error_msg = f"Error loading groups: {e}"
-                # Marshal UI update to main thread
-                def show_error():
+                    error_msg = f"Failed to load groups: {e}"
+
+                def show_critical_error():
                     try:
                         self._show_snack(error_msg, "RED")
-                        # Also update the list to show error
+                        self.list_container.disabled = False
                         if hasattr(self, 'groups_list'):
                             self.groups_list.controls.clear()
                             self.groups_list.controls.append(
                                 ft.Container(
                                     content=ft.Column([
                                         ft.Icon(ft.Icons.ERROR_OUTLINE, color="RED", size=48),
-                                        ft.Text(error_msg, color="RED", text_align=ft.TextAlign.CENTER)
+                                        ft.Text(error_msg, color="RED", text_align=ft.TextAlign.CENTER),
+                                        ft.Button("Retry", on_click=lambda _: self._load_data())
                                     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                                     alignment=ft.alignment.center,
                                     padding=20
                                 )
                             )
-                            self.groups_list.update()
-                        self.list_container.disabled = False
+                            try:
+                                self.groups_list.update()
+                            except Exception:
+                                pass
                         self.update()
-                    except (RuntimeError, AttributeError) as e:
-                        logger.debug(f"Control not added to page (RuntimeError/AttributeError): {e}")
-                self._run_task_safe(show_error)
-            except BaseException as be:
-                # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
-                logger.exception("Unexpected error in group loading background thread")
-                # Marshal UI update to main thread
-                def update_ui():
-                    try:
-                        self.list_container.disabled = False
-                        self.update()
-                    except (RuntimeError, AttributeError):
-                        pass
-                self._run_task_safe(update_ui)
-            else:
-                # Only update UI if no exception occurred - marshal to main thread
-                def update_ui():
-                    try:
-                        self.list_container.disabled = False
-                        self.update()
-                    except (RuntimeError, AttributeError):
-                        pass
-                self._run_task_safe(update_ui)
+                    except Exception as ui_ex:
+                        logger.error(f"Failed to update UI with error: {ui_ex}")
+                self._run_task_safe(show_critical_error)
 
         threading.Thread(target=_bg, daemon=True).start()
 

@@ -2,14 +2,19 @@
 Pytest configuration and shared fixtures.
 """
 import os
+import sys
 import time
 import asyncio
 import pytest
 from unittest.mock import MagicMock
 import flet as ft
 
+# Make local tests helper module importable when running in CI or from repo root
+TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if TESTS_DIR not in sys.path:
+    sys.path.insert(0, TESTS_DIR)
 
-from tests.utils import is_ci_environment, skip_if_ci, poll_until
+from utils import is_ci_environment, skip_if_ci, poll_until
 
 
 def _create_mock_page():

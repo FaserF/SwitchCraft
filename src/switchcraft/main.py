@@ -12,11 +12,24 @@ def main():
     # Check for internal splash flag first
     if "--splash-internal" in sys.argv:
         try:
-            from switchcraft.gui.splash import main as splash_main
-            splash_main()
-            sys.exit(0)
+            # Setup extremely early logging to catch import errors
+            import traceback
+            import tempfile
+            debug_log = Path(tempfile.gettempdir()) / "switchcraft_splash_startup.log"
+
+            with open(debug_log, "a") as f:
+                f.write(f"Splash internal started. Args: {sys.argv}\n")
+
+            try:
+                from switchcraft.gui.splash import main as splash_main
+                splash_main()
+                sys.exit(0)
+            except Exception as e:
+                with open(debug_log, "a") as f:
+                    f.write(f"Splash execution failed: {e}\n{traceback.format_exc()}\n")
+                sys.exit(1)
         except Exception as e:
-            print(f"Splash internal error: {e}")
+            # Fallback if logging fails
             sys.exit(1)
 
     if has_args:
@@ -58,10 +71,16 @@ def main():
             cmd = []
             env = os.environ.copy()
 
+            # Default to hiding window (for console processes)
+            creationflags = 0x08000000 if sys.platform == "win32" else 0 # CREATE_NO_WINDOW
+
             if is_frozen:
                 # In frozen app, sys.executable is the exe itself.
                 # We call the exe again with a special flag to run only the splash code.
                 cmd = [sys.executable, "--splash-internal"]
+                # For frozen GUI app, it has no console, so we don't need to suppress it.
+                # Suppressing it might suppress the GUI window itself depending on implementation.
+                creationflags = 0
             else:
                 # Running from source
                 base_dir = Path(__file__).resolve().parent
@@ -69,11 +88,11 @@ def main():
                 if splash_script.exists():
                     env["PYTHONPATH"] = str(base_dir.parent) # Ensure src is in path
                     cmd = [sys.executable, str(splash_script)]
+                    # Hide console window when running python script directly
+                    if sys.platform == "win32":
+                         creationflags = 0x08000000 # CREATE_NO_WINDOW
 
             if cmd:
-                # Hide console window for the splash process if possible
-                creationflags = 0x08000000 if sys.platform == "win32" else 0 # CREATE_NO_WINDOW
-
                 splash_proc = subprocess.Popen(
                     cmd,
                     env=env,

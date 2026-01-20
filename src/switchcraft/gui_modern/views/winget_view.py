@@ -399,63 +399,37 @@ class ModernWingetView(ft.Row, ViewMixin):
                 logger.debug(f"Raw package details received: {list(full.keys()) if full else 'empty'}")
                 logger.debug(f"Package details type: {type(full)}, length: {len(full) if isinstance(full, dict) else 'N/A'}")
 
-                # Validate that we got some data before merging
                 if full is None:
                     logger.warning(f"get_package_details returned None for {package_id}")
-                    full = {}  # Coerce to empty dict to avoid TypeError
+                    full = {}
                 elif not full:
-                    logger.warning(f"get_package_details returned empty dict for {package_id}")
-                    raise Exception(f"No details found for package: {package_id}")
+                    logger.warning(f"get_package_details returned empty dict for {package_id}. Using short info only.")
+                    full = {}
+                    # Don't raise exception, just use what we have
 
                 merged = {**short_info, **full}
                 self.current_pkg = merged
-                logger.info(f"Package details fetched, showing UI for: {merged.get('Name', 'Unknown')}")
-                logger.info(f"Merged package data keys: {list(merged.keys())}")
+                logger.info(f"Package details fetched (partial/full), showing UI for: {merged.get('Name', 'Unknown')}")
 
-                # Update UI using run_task to marshal back to main thread
+                 # Update UI using run_task to marshal back to main thread
                 def _show_ui():
                     try:
                         self._show_details_ui(merged)
                     except Exception as ex:
                         logger.exception(f"Error in _show_details_ui: {ex}")
-                        # Show error in UI
-                        error_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
-                        error_area.controls.append(
-                            ft.Container(
-                                content=ft.Column([
-                                    ft.Icon(ft.Icons.ERROR, color="RED", size=40),
-                                    ft.Text(f"Error displaying details: {ex}", color="red", size=14, selectable=True)
-                                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
-                                padding=20,
-                                alignment=ft.Alignment(0, 0)
-                            )
-                        )
-                        self.details_area = error_area
-                        self.right_pane.content = self.details_area
-                        self.right_pane.visible = True
-                        try:
-                            self.details_area.update()
-                            self.right_pane.update()
-                            self.update()
-                            if hasattr(self, 'app_page'):
-                                self.app_page.update()
-                        except Exception as e:
-                            logger.warning(f"Failed to update error UI: {e}", exc_info=True)
+                        self._show_error_view(ex, f"Show details UI for {package_id}")
 
-                # Use run_task as primary approach to marshal UI updates to main thread
                 self._run_ui_update(_show_ui)
+
             except Exception as ex:
                 package_id = short_info.get('Id', 'Unknown')
-                logger.exception(f"Error fetching package details for {package_id}: {ex}")
+                logger.exception(f"Critical error in _fetch loop for {package_id}: {ex}")
+                # Even in critical error, try to show at least the basic info if we can't show full details?
+                # But here we probably really failed.
+
                 error_msg = str(ex)
                 if "timeout" in error_msg.lower():
                     error_msg = "Request timed out. Please check your connection and try again."
-                    logger.warning(f"Timeout while fetching details for {package_id}")
-                elif "not found" in error_msg.lower() or "no package" in error_msg.lower():
-                    error_msg = f"Package not found: {package_id}"
-                    logger.warning(f"Package {package_id} not found")
-                else:
-                    logger.error(f"Unexpected error fetching details for {package_id}: {error_msg}")
 
                 # Update UI using run_task to marshal back to main thread
                 def _show_error_ui():
@@ -478,13 +452,11 @@ class ModernWingetView(ft.Row, ViewMixin):
                         self.details_area.update()
                         self.right_pane.update()
                         self.update()
-                        if hasattr(self, 'app_page'):
-                            self.app_page.update()
                     except Exception as e:
-                        logger.warning(f"Failed to update error UI after exception: {e}", exc_info=True)
+                        logger.warning(f"Failed to update error UI after exception: {e}")
 
-                # Use run_task as primary approach to marshal UI updates to main thread
                 self._run_ui_update(_show_error_ui)
+
 
         threading.Thread(target=_fetch, daemon=True).start()
 
