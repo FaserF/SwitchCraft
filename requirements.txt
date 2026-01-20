@@ -1,0 +1,8 @@
+requests
+pefile
+olefile
+PyYAML
+defusedxml
+PyJWT
+click
+rich

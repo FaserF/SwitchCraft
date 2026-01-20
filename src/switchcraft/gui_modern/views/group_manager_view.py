@@ -21,6 +21,7 @@ class GroupManagerView(ft.Column, ViewMixin):
 
         # State
         self.selected_group = None
+        self._ui_initialized = False # Track initialization state
 
         # Check for credentials first
         if not self._has_credentials():
@@ -53,6 +54,12 @@ class GroupManagerView(ft.Column, ViewMixin):
     def did_mount(self):
         """Called when the view is mounted to the page. Load initial data."""
         logger.info("GroupManagerView did_mount called")
+
+        # Guard against uninitialized UI (e.g. missing credentials)
+        if not getattr(self, '_ui_initialized', False):
+             logger.warning("GroupManagerView did_mount called but UI not initialized (likely missing credentials)")
+             return
+
         try:
             self._load_data()
         except Exception as ex:
@@ -148,6 +155,7 @@ class GroupManagerView(ft.Column, ViewMixin):
         # Ensure Column properties are set
         self.expand = True
         self.spacing = 0
+        self._ui_initialized = True
         logger.debug("GroupManagerView UI initialized successfully")
 
     def _load_data(self):
@@ -342,7 +350,7 @@ class GroupManagerView(ft.Column, ViewMixin):
             logger.debug(f"Total groups available: {len(self.groups) if self.groups else 0}")
 
             if not query:
-                self.filtered_groups = self.groups.copy() if self.groups else [].copy() if self.groups else []
+                self.filtered_groups = self.groups.copy() if self.groups else []
             else:
                 self.filtered_groups = [
                     g for g in self.groups

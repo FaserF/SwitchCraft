@@ -147,8 +147,14 @@ def _create_mock_page():
             self.update()
 
         def close(self, control):
-            if isinstance(control, ft.NavigationDrawer) and self.end_drawer == control:
-                self.end_drawer.open = False
+            if isinstance(control, ft.AlertDialog) and self.dialog == control:
+                control.open = False
+                self.dialog = None
+            elif isinstance(control, ft.NavigationDrawer) and self.end_drawer == control:
+                control.open = False
+                self.end_drawer = None
+            elif isinstance(control, ft.SnackBar) and self.snack_bar == control:
+                control.open = False
             self.update()
 
         def clean(self):

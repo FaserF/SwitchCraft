@@ -1,7 +1,6 @@
 import flet as ft
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
-from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.utils.i18n import i18n
 from switchcraft.gui_modern.utils.flet_compat import create_tabs
 import logging
@@ -86,6 +85,13 @@ class ScriptUploadView(ft.Column, ViewMixin):
 
     # --- Platform Script Tab ---
     def _build_platform_script_tab(self):
+        # Initialize File Picker
+        self.ps_picker = ft.FilePicker(on_result=self._on_ps_picked)
+        # Add to page overlay safely
+        if self.app_page:
+             self.app_page.overlay.append(self.ps_picker)
+             self.app_page.update()
+
         self.ps_name = ft.TextField(
             label=i18n.get("script_name") or "Script Name",
             border_radius=8
@@ -99,7 +105,7 @@ class ScriptUploadView(ft.Column, ViewMixin):
         self.ps_file_btn = ft.Button(
             i18n.get("select_script_file") or "Select Script (.ps1)...",
             icon=ft.Icons.FILE_OPEN,
-            on_click=self._pick_ps_file
+            on_click=lambda _: self.ps_picker.pick_files(allowed_extensions=["ps1"])
         )
         self.ps_file_label = ft.Text(
             i18n.get("no_file_selected") or "No file selected",
@@ -142,17 +148,25 @@ class ScriptUploadView(ft.Column, ViewMixin):
             padding=20
         )
 
-    def _pick_ps_file(self, e):
-        path = FilePickerHelper.pick_file(allowed_extensions=["ps1"])
-        if path:
+    def _on_ps_picked(self, e):
+        if e.files:
+            path = e.files[0].path
+            # Web compat: process name and store path (if available)
+            # Note: On Web, path might be None. Upload flow required for Web.
+            # Ideally we check SwitchCraftConfig.is_web?
+            # For now, just handle local path assumption
             self.script_path = path
-            self.ps_file_label.value = Path(path).name
+            self.ps_file_label.value = e.files[0].name
             if not self.ps_name.value:
-                self.ps_name.value = Path(path).stem
+                self.ps_name.value = Path(e.files[0].name).stem
             self.update()
 
     def _upload_ps_script(self, e):
-        if not self.script_path or not self.ps_name.value:
+        if not self.script_path:
+             self._show_snack("Script file not selected (or upload required on Web)", "RED")
+             return
+
+        if not self.ps_name.value:
             self._show_snack(
                 i18n.get("script_name_required") or "Name and Script File are required",
                 "RED"
@@ -179,6 +193,15 @@ class ScriptUploadView(ft.Column, ViewMixin):
         def _bg():
             try:
                 token = self.intune_service.authenticate(tenant, client, secret)
+
+                content = ""
+                # Handle Web vs Local read
+                # If script_path is None or we are Web, we might need to handle content differently
+                # But FilePicker usually gives path on Desktop.
+                # If Web, we need to upload first?
+                # Assuming Desktop/Docker-Local for now.
+                # If failing on web due to missing path, we need Full Upload implementation.
+
                 with open(self.script_path, "r", encoding="utf-8") as f:
                     content = f.read()
 
@@ -199,6 +222,13 @@ class ScriptUploadView(ft.Column, ViewMixin):
 
     # --- Remediation Tab ---
     def _build_remediation_tab(self):
+        # Initialize Pickers
+        self.det_picker = ft.FilePicker(on_result=self._on_det_picked)
+        self.rem_picker = ft.FilePicker(on_result=self._on_rem_picked)
+        if self.app_page:
+            self.app_page.overlay.extend([self.det_picker, self.rem_picker])
+            self.app_page.update()
+
         self.rem_name = ft.TextField(
             label=i18n.get("remediation_name") or "Remediation Name",
             border_radius=8
@@ -213,7 +243,7 @@ class ScriptUploadView(ft.Column, ViewMixin):
         self.det_file_btn = ft.Button(
             i18n.get("select_detection_script") or "Select Detection (.ps1)...",
             icon=ft.Icons.SEARCH,
-            on_click=self._pick_det_file
+            on_click=lambda _: self.det_picker.pick_files(allowed_extensions=["ps1"])
         )
         self.det_file_label = ft.Text(
             i18n.get("no_detection_script") or "No detection script",
@@ -224,7 +254,7 @@ class ScriptUploadView(ft.Column, ViewMixin):
         self.rem_file_btn = ft.Button(
             i18n.get("select_remediation_script") or "Select Remediation (.ps1)...",
             icon=ft.Icons.HEALING,
-            on_click=self._pick_rem_file
+            on_click=lambda _: self.rem_picker.pick_files(allowed_extensions=["ps1"])
         )
         self.rem_file_label = ft.Text(
             i18n.get("no_remediation_script") or "No remediation script",
@@ -269,20 +299,20 @@ class ScriptUploadView(ft.Column, ViewMixin):
             padding=20
         )
 
-    def _pick_det_file(self, e):
-        path = FilePickerHelper.pick_file(allowed_extensions=["ps1"])
-        if path:
+    def _on_det_picked(self, e):
+        if e.files:
+            path = e.files[0].path
             self.detect_path = path
-            self.det_file_label.value = Path(path).name
+            self.det_file_label.value = e.files[0].name
             if not self.rem_name.value:
-                self.rem_name.value = Path(path).stem
+                self.rem_name.value = Path(e.files[0].name).stem
             self.update()
 
-    def _pick_rem_file(self, e):
-        path = FilePickerHelper.pick_file(allowed_extensions=["ps1"])
-        if path:
+    def _on_rem_picked(self, e):
+        if e.files:
+            path = e.files[0].path
             self.remediate_path = path
-            self.rem_file_label.value = Path(path).name
+            self.rem_file_label.value = e.files[0].name
             self.update()
 
     def _upload_rem_script(self, e):

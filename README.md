@@ -213,7 +213,42 @@ Run the shell script:
 ```
 The binary will be placed in your `Downloads` folder.
 
+
+## Deployment & Web App
+
+### Docker (Recommended)
+The SwitchCraft Web App is designed to run as a containerized service. This ensures all dependencies (Python 3.14, Flet) are correctly managed.
+
+1. **Build the Image**:
+   ```powershell
+   .\build_web.ps1
+   ```
+
+2. **Run the Container**:
+   ```bash
+   docker run -d -p 8080:8080 --name switchcraft-web switchcraft-web
+   ```
+
+3. **Environment Variables**:
+   Customize the behavior using these variables:
+   - `SC_AUTH_PROVIDER`: `github` or `entra` (Default: None)
+   - `SC_GITHUB_CLIENT_ID` / `SC_GITHUB_CLIENT_SECRET`
+   - `SC_ENTRA_CLIENT_ID` / `SC_ENTRA_CLIENT_SECRET`
+   - `SC_SESSION_SECRET`: Random string for session encryption.
+
+### GitHub Pages (Static Hosting)
+**Note**: SwitchCraft relies on server-side Python logic for Winget operations, registry access, and authentication. Therefore, it **cannot** be deployed as a purely static site on GitHub Pages.
+
+To host SwitchCraft on the web, you must use a hosting provider that supports Docker containers (e.g., Azure App Service, AWS ECS, Google Cloud Run, or a VPS).
+
+If you wish to publish a *static* version (UI only, no backend logic), you can use:
+```bash
+flet publish src/switchcraft/modern_main.py --dest dist
+```
+However, most features will not function without the backend.
+
 ## 🤝 Contributing
+
 Open Source under the **MIT License**. PRs are welcome!
 
 1. Fork the repository

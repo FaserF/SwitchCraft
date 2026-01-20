@@ -1113,6 +1113,13 @@ class ModernSettingsView(ft.Column, ViewMixin):
             i18n.set_language(val)
             logger.debug(f"i18n language updated: {val}")
 
+            # Notify user to refresh
+            try:
+                msg = i18n.get("lang_change_refresh") or f"Language changed to {val}. Please refresh the page."
+                self._show_snack(msg, "GREEN")
+            except:
+                pass
+
             # Immediately refresh the current view to apply language change
             # Get current tab index and reload the view
             if hasattr(self.app_page, 'switchcraft_app'):
@@ -2051,20 +2058,27 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         # Copy to clipboard using the same pattern as other views
         success = False
-        try:
-            import pyperclip
-            pyperclip.copy(saved_thumb)
-            success = True
-        except ImportError:
-            # Fallback to Windows clip command
+
+        # 1. Try pyperclip
+        if not success:
+            try:
+                import pyperclip
+                pyperclip.copy(saved_thumb)
+                success = True
+            except Exception:
+                pass
+
+        # 2. Try Windows clip command
+        if not success:
             try:
                 import subprocess
                 subprocess.run(['clip'], input=saved_thumb.encode('utf-8'), check=True)
                 success = True
             except Exception:
                 pass
-        except Exception:
-            # Try Flet's clipboard as last resort
+
+        # 3. Try Flet's clipboard as last resort
+        if not success:
             try:
                 if hasattr(self.app_page, 'set_clipboard'):
                     self.app_page.set_clipboard(saved_thumb)

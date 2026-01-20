@@ -2,10 +2,10 @@ import flet as ft
 import threading
 import logging
 import webbrowser
+from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.services.addon_service import AddonService
 from switchcraft.utils.i18n import i18n
 from pathlib import Path
-from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
@@ -28,9 +28,15 @@ class ModernWingetView(ft.Row, ViewMixin):
         winget_mod = AddonService().import_addon_module("winget", "utils.winget")
         if winget_mod:
             try:
-                self.winget = winget_mod.WingetHelper()
-            except Exception:
-                pass
+                token = SwitchCraftConfig.get_secure_value("GitHubToken")
+                self.winget = winget_mod.WingetHelper(github_token=token)
+            except Exception as ex:
+                logger.warning(f"Failed to initialize WingetHelper with token: {ex}")
+                # Fallback to no-token init
+                try:
+                    self.winget = winget_mod.WingetHelper()
+                except Exception:
+                    pass
 
         self.current_pkg = None
 
@@ -348,13 +354,13 @@ class ModernWingetView(ft.Row, ViewMixin):
         self.update()
 
     def _load_details(self, short_info):
-        logger.info(f"Loading details for package: {short_info.get('Id', 'Unknown')}")
-
-        # Validate input
+        # Validate input first
         if not short_info or not short_info.get('Id'):
             logger.error("_load_details called with invalid short_info")
             self._show_error_view(Exception("Invalid package information"), "Load details")
             return
+
+        logger.info(f"Loading details for package: {short_info.get('Id', 'Unknown')}")
 
         # Create new loading area immediately - use _run_task_safe to ensure UI updates happen on main thread
         def _show_loading():
@@ -932,8 +938,15 @@ class ModernWingetView(ft.Row, ViewMixin):
 
         If no package is selected, the function does nothing. If the current process is not running with administrator rights, a confirmation dialog is shown offering to restart the application elevated; accepting will attempt to relaunch the application as administrator and exit the current process. If running as administrator, the function builds a winget install command for the selected package and launches it in a new command prompt window. User-facing status is reported via snack messages for start, success, and failure conditions.
         """
+        import sys
         if not self.current_pkg:
             return
+
+        # Check against Web/Linux
+        # self.app_page might be the Flet page
+        if getattr(self.app_page, 'web', False) or sys.platform != 'win32':
+             self._show_snack("Install Locally is only supported on Windows Desktop App.", "ORANGE")
+             return
 
         # Admin check
         is_admin = False
@@ -979,7 +992,10 @@ class ModernWingetView(ft.Row, ViewMixin):
                         params += " " + " ".join(f'"{a}"' for a in sys.argv[1:])
 
                     # 4. Launch as admin
-                    ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
+                    if sys.platform == 'win32':
+                        ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
+                    else:
+                        raise NotImplementedError("Elevation not supported on this platform")
 
                     # 5. Give the new process a moment to start
                     time.sleep(0.3)

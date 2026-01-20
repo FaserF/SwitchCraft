@@ -119,3 +119,4 @@ test_output.ps1
 /docs/.vitepress
 verification_output*.txt
 debug_output.txt
+debug_crash.txt

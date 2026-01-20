@@ -1,0 +1,422 @@
+[
+    {
+        "Name": "Google Chrome",
+        "Id": "Google.Chrome",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Google Drive",
+        "Id": "Google.Drive",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Google Earth Pro",
+        "Id": "Google.EarthPro",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Google Android Studio",
+        "Id": "Google.AndroidStudio",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Google Cloud SDK",
+        "Id": "Google.CloudSDK",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Google Drive",
+        "Id": "Google.Drive",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Google Earth Pro",
+        "Id": "Google.EarthPro",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Google Android Studio",
+        "Id": "Google.AndroidStudio",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Google Cloud SDK",
+        "Id": "Google.CloudSDK",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Mozilla Firefox",
+        "Id": "Mozilla.Firefox",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Microsoft Edge",
+        "Id": "Microsoft.Edge",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Brave Browser",
+        "Id": "Brave.Brave",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Opera",
+        "Id": "Opera.Opera",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Vivaldi",
+        "Id": "Vivaldi.Vivaldi",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "VLC Media Player",
+        "Id": "VideoLAN.VLC",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Spotify",
+        "Id": "Spotify.Spotify",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Discord",
+        "Id": "Discord.Discord",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Slack",
+        "Id": "SlackTechnologies.Slack",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Microsoft Teams",
+        "Id": "Microsoft.Teams.Classic",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Microsoft Teams (Work or School)",
+        "Id": "Microsoft.Teams",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Zoom",
+        "Id": "Zoom.Zoom",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Telegram Desktop",
+        "Id": "Telegram.TelegramDesktop",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "WhatsApp",
+        "Id": "WhatsApp.WhatsApp",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Signal",
+        "Id": "Signal.Signal",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Visual Studio Code",
+        "Id": "Microsoft.VisualStudioCode",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Notepad++",
+        "Id": "Notepad++.Notepad++",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Git",
+        "Id": "Git.Git",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Python 3.12",
+        "Id": "Python.Python.3.12",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Node.js LTS",
+        "Id": "OpenJS.NodeJS.LTS",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Docker Desktop",
+        "Id": "Docker.DockerDesktop",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "PuTTY",
+        "Id": "PuTTY.PuTTY",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "WinSCP",
+        "Id": "WinSCP.WinSCP",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "FileZilla",
+        "Id": "FileZilla.FileZilla",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Postman",
+        "Id": "Postman.Postman",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "PowerShell 7",
+        "Id": "Microsoft.PowerShell",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Windows Terminal",
+        "Id": "Microsoft.WindowsTerminal",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "7-Zip",
+        "Id": "7zip.7zip",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "WinRAR",
+        "Id": "RARLab.WinRAR",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "PeaZip",
+        "Id": "PeaZip.PeaZip",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "TeamViewer",
+        "Id": "TeamViewer.TeamViewer",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "AnyDesk",
+        "Id": "AnyDesk.AnyDesk",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Adobe Acrobat Reader DC",
+        "Id": "Adobe.Acrobat.Reader.64-bit",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Foxit PDF Reader",
+        "Id": "Foxit.FoxitReader",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "LibreOffice",
+        "Id": "TheDocumentFoundation.LibreOffice",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "OpenOffice",
+        "Id": "Apache.OpenOffice",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "GIMP",
+        "Id": "GIMP.GIMP",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Inkscape",
+        "Id": "Inkscape.Inkscape",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Paint.NET",
+        "Id": "dotPDN.PaintDotNet",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Blender",
+        "Id": "BlenderFoundation.Blender",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Audacity",
+        "Id": "Audacity.Audacity",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "OBS Studio",
+        "Id": "OBSProject.OBSStudio",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "HandBrake",
+        "Id": "HandBrake.HandBrake",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Steam",
+        "Id": "Valve.Steam",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Epic Games Launcher",
+        "Id": "EpicGames.EpicGamesLauncher",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Ubisoft Connect",
+        "Id": "Ubisoft.Connect",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Oracle Java 8",
+        "Id": "Oracle.JavaRuntimeEnvironment",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "OpenJDK 17",
+        "Id": "EclipseAdoptium.Temurin.17.JDK",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Go",
+        "Id": "GoLang.Go",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Rust",
+        "Id": "Rustlang.Rustup",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Ruby",
+        "Id": "RubyInstallerTeam.Ruby",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "PowerToys",
+        "Id": "Microsoft.PowerToys",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Sysinternals Suite",
+        "Id": "Microsoft.Sysinternals",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Wireshark",
+        "Id": "WiresharkFoundation.Wireshark",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Cinebench",
+        "Id": "Maxon.Cinebench",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "CrystalDiskMark",
+        "Id": "CrystalDewWorld.CrystalDiskMark",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "CPU-Z",
+        "Id": "CPUID.CPU-Z",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "HWMonitor",
+        "Id": "CPUID.HWMonitor",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Rufus",
+        "Id": "Rufus.Rufus",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "FastStone Image Viewer",
+        "Id": "FastStone.Viewer",
+        "Version": "Latest",
+        "Source": "winget"
+    },
+    {
+        "Name": "Greenshot",
+        "Id": "Greenshot.Greenshot",
+        "Version": "Latest",
+        "Source": "winget"
+    }
+]

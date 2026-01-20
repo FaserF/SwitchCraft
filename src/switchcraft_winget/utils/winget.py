@@ -9,18 +9,27 @@ import re
 
 logger = logging.getLogger(__name__)
 
-# API Configuration
-WINGET_API_BASE = "https://winget-pkg-api.onrender.com/api/v1"
-WINGET_API_TIMEOUT = 20  # seconds - increased for slow connections
+# API Configuration - using winget.run v2 API which is more reliable and comprehensive
+WINGET_API_BASE = "https://api.winget.run/v2"
+WINGET_API_TIMEOUT = 20  # seconds
 
 class WingetHelper:
     # Class-level cache for search results
     _search_cache: Dict[str, tuple] = {}  # {query: (timestamp, results)}
     _cache_ttl = 300  # 5 minutes
 
-    def __init__(self, auto_install_winget: bool = True):
+    def __init__(self, auto_install_winget: bool = True, github_token: str = None):
+        # Detect WASM environment
+        import sys
+        self.is_wasm = sys.platform == "emscripten" or sys.platform == "wasi"
+
         self.local_repo = None
-        self.auto_install_winget = auto_install_winget
+        # Disable auto-install if on WASM
+        self.auto_install_winget = auto_install_winget and not self.is_wasm
+        self.github_token = github_token
+
+        if self.is_wasm:
+            logger.info("WingetHelper running in WASM mode. Subprocess dependent features are disabled.")
 
     def search_by_name(self, product_name: str) -> Optional[str]:
         """Search for a product name using PowerShell module or CLI."""
@@ -47,13 +56,18 @@ class WingetHelper:
         """
         Search for Winget packages matching a query using multiple sources and cache results.
 
-        Performs searches in this order: PowerShell (Microsoft.WinGet.Client), then the online Winget API, and finally the local Winget CLI as a fallback. Results are cached for 5 minutes.
+        Performs searches in this order:
+        1. PowerShell (Microsoft.WinGet.Client) - Native, most reliable.
+        2. GitHub API (Official Repo) - If 'github_token' is provided (avoids rate limits).
+        3. Winget.run API (Official Mirror) - Fast, public, comprehensive V2 API.
+        4. CLI (winget search) - Native fallback.
+        5. Static Dataset - Offline fallback.
 
         Parameters:
             query (str): The search term to query for; ignored if empty.
 
         Returns:
-            results (List[Dict[str, str]]): A list of result dictionaries (keys include `Name`, `Id`, `Version`, `Source`); empty list if no matches or if `query` is falsy.
+            results (List[Dict[str, str]]): A list of result dictionaries.
         """
         if not query:
             return []
@@ -66,18 +80,28 @@ class WingetHelper:
                 logger.debug(f"Winget cache hit for '{query}'")
                 return cached_results
 
-        # Try PowerShell first (most reliable, uses Microsoft.WinGet.Client module)
+        # 1. Try PowerShell first (most reliable on Desktop)
         results = self._search_via_powershell(query)
 
-        # If PowerShell fails, try API (fast online API)
+        # 2. If PowerShell fails, try GitHub API (Official Source) IF token is available
+        if not results and self.github_token:
+            logger.info(f"PowerShell search failed. specific token provided. Using GitHub Official Source for '{query}'...")
+            results = self._search_via_github(query)
+
+        # 3. If GitHub unavailable/failed, try Winget.run API (Official Mirror)
         if not results:
-            logger.info(f"PowerShell search returned no results for '{query}', trying API...")
+            logger.info(f"Trying Winget.run API (Official Mirror) for '{query}'...")
             results = self._search_via_api(query)
 
-        # If API also fails, try CLI directly as last resort
+        # 4. If API also fails, try CLI directly as last resort
         if not results:
             logger.info(f"API returned no results for '{query}', trying CLI as fallback...")
             results = self._search_via_cli(query)
+
+        # 5. If CLI also fails, use static dataset (always available)
+        if not results:
+            logger.info(f"CLI returned no results for '{query}', using static dataset...")
+            results = self._search_via_static_dataset(query)
 
         # Cache results
         if results:
@@ -85,36 +109,145 @@ class WingetHelper:
 
         return results
 
-    def _search_via_api(self, query: str) -> List[Dict[str, str]]:
-        """Search using the winget-pkg-api (fast online API)."""
-        try:
-            url = f"{WINGET_API_BASE}/search"
-            params = {"q": query}
+    def _search_via_github(self, query: str) -> List[Dict[str, str]]:
+        """
+        Search the official microsoft/winget-pkgs repository via GitHub API.
+        Requires self.github_token to be set to avoid strict rate limits.
+        """
+        if not self.github_token:
+            return []
 
+        try:
+            url = "https://api.github.com/search/code"
+            # Search for manifests in the microsoft/winget-pkgs repo
+            # Using filename match for better relevance
+            q = f"{query} repo:microsoft/winget-pkgs path:manifests"
+            params = {"q": q, "per_page": 20}
+            headers = {
+                "Accept": "application/vnd.github.v3+json",
+                "Authorization": f"token {self.github_token}"
+            }
+
+            logger.debug(f"Querying GitHub API (Official Source): {q}")
+            response = requests.get(url, params=params, headers=headers, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                items = data.get("items", [])
+                results = []
+
+                for item in items:
+                    path = item.get("path", "")
+                    # Path format: manifests/p/Publisher/Package/Version/Package.yaml
+                    # Example: manifests/g/Google/Chrome/113.0.5672.93/Google.Chrome.installer.yaml
+                    parts = path.split("/")
+                    if len(parts) >= 5:
+                        publisher = parts[2]
+                        package = parts[3]
+                        version = parts[4]
+                        pkg_id = f"{publisher}.{package}"
+                        name = package # Fallback name
+
+                        results.append({
+                            "Name": name, # Ideally we fetch content to get real name, but path is fast
+                            "Id": pkg_id,
+                            "Version": version,
+                            "Source": "github"
+                        })
+                logger.info(f"GitHub API returned {len(results)} results")
+                return results
+            elif response.status_code == 403 or response.status_code == 429:
+                logger.warning("GitHub API rate limit exceeded.")
+            else:
+                logger.warning(f"GitHub API returned status {response.status_code}: {response.text[:100]}")
+
+        except Exception as ex:
+            logger.error(f"GitHub Search failed: {ex}")
+
+        return []
+
+    def _search_via_api(self, query: str) -> List[Dict[str, str]]:
+        """Search using winget.run v2 API for comprehensive Winget package data."""
+        try:
+            # winget.run search endpoint
+            url = f"{WINGET_API_BASE}/packages"
+            params = {"query": query} # v2 uses 'query' parameter
+
+            logger.debug(f"Querying Winget API: {url} with params {params}")
             response = requests.get(url, params=params, timeout=WINGET_API_TIMEOUT)
 
             if response.status_code == 200:
                 data = response.json()
-                # API returns a list of packages
-                if isinstance(data, list):
-                    results = []
-                    for pkg in data[:50]:  # Limit to 50 results
+                results = []
+
+                # winget.run v2 returns structure: {"Packages": [...], "Total": ...}
+                packages = data.get("Packages", [])
+
+                for pkg in packages[:100]:  # Return up to 100 results
+                    pkg_id = pkg.get("Id")
+                    latest = pkg.get("Latest", {})
+                    name = latest.get("Name")
+
+                    # Some packages might be missing Latest info, try top level or skip
+                    if not name: name = pkg_id
+
+                    versions = pkg.get("Versions", [])
+                    version = versions[0] if versions else "Latest"
+
+                    if name and pkg_id:
                         results.append({
-                            "Name": pkg.get("PackageName", pkg.get("name", "")),
-                            "Id": pkg.get("PackageIdentifier", pkg.get("id", "")),
-                            "Version": pkg.get("PackageVersion", pkg.get("version", "")),
+                            "Name": name,
+                            "Id": pkg_id,
+                            "Version": version,
                             "Source": "winget"
                         })
-                    logger.debug(f"API returned {len(results)} results for '{query}'")
-                    return results
+
+                logger.info(f"winget.run API returned {len(results)} results for '{query}'")
+                return results
             else:
-                logger.debug(f"API returned status {response.status_code}")
+                logger.debug(f"winget.run API returned status {response.status_code}")
 
         except requests.exceptions.Timeout:
-            logger.debug(f"API timeout for query '{query}'")
+            logger.debug(f"winget.run API timeout for query '{query}'")
         except Exception as ex:
-            logger.debug(f"API search failed: {ex}")
+            logger.debug(f"winget.run API search failed: {ex}")
 
+        # Fallback to static dataset if API fails completely
+        return self._search_via_static_dataset(query)
+
+    def _search_via_static_dataset(self, query: str) -> List[Dict[str, str]]:
+        """Search using a static dataset of popular packages as fallback.
+
+        The GitHub code search API requires authentication, and other APIs
+        are unreliable from Docker. This provides offline functionality.
+        """
+        try:
+            # Load static data from JSON file in the same directory
+            static_file = Path(__file__).parent / "static_data.json"
+            if not static_file.exists():
+                logger.warning(f"Static Winget dataset not found at {static_file}")
+                return []
+
+            import json
+            with open(static_file, "r", encoding="utf-8") as f:
+                popular_packages = json.load(f)
+
+            query_lower = query.lower()
+            results = []
+
+            for pkg in popular_packages:
+                name = pkg.get("Name", "").lower()
+                pid = pkg.get("Id", "").lower()
+
+                # Loose matching: check if query is in name or ID
+                if query_lower in name or query_lower in pid:
+                    results.append(pkg)
+
+            logger.info(f"Static dataset returned {len(results)} results for '{query}'")
+            return results
+
+        except Exception as ex:
+            logger.debug(f"Static fallback search failed: {ex}")
         return []
 
     def _search_via_powershell(self, query: str) -> List[Dict[str, str]]:
@@ -127,9 +260,19 @@ class WingetHelper:
         Returns:
             List[Dict[str, str]]: A list of result dictionaries with keys 'Name', 'Id', 'Version', and 'Source'. Returns an empty list when no results are found or on error.
         """
+        if self.is_wasm:
+            return []
+
         try:
-            # Ensure module is available (but don't fail if it's not - we have fallbacks)
-            self._ensure_winget_module()
+            # Note: On Linux/Docker, powershell might be missing.
+            # Catch FileNotFoundError explicitly.
+            try:
+                # Ensure module is available (but don't fail if it's not - we have fallbacks)
+                self._ensure_winget_module()
+            except Exception as e:
+                logger.debug(f"Winget module check failed: {e}")
+                # Don't return yet, try running command anyway? No, command needs module.
+                # Actually subprocess call handles it if command itself fails.
 
             # Use parameterized PowerShell to avoid command injection
             ps_script = """
@@ -139,7 +282,14 @@ class WingetHelper:
             """
             cmd = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_script, "-query", query]
             kwargs = self._get_subprocess_kwargs()
-            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=45, **kwargs)
+            try:
+                proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=45, **kwargs)
+            except FileNotFoundError:
+                logger.debug("PowerShell binary not found (Linux/Docker?)")
+                return []
+            except OSError as e:
+                logger.debug(f"PowerShell execution failed: {e}")
+                return []
 
             if proc.returncode != 0:
                 logger.debug(f"PowerShell search failed: {proc.stderr[:200] if proc.stderr else 'No error'}")
@@ -488,14 +638,20 @@ class WingetHelper:
 
     def _search_via_cli(self, query: str) -> List[Dict[str, str]]:
         """Fallback search using winget CLI with robust table parsing."""
+        if self.is_wasm:
+            return []
+
         try:
              cmd = ["winget", "search", query, "--accept-source-agreements"]
              kwargs = self._get_subprocess_kwargs()
-             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", **kwargs)
+             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=60, **kwargs)
              if proc.returncode != 0:
                  return []
 
              return self._parse_search_results(proc.stdout)
+        except subprocess.TimeoutExpired:
+             logger.warning(f"Winget CLI search timed out for query '{query}'")
+             return []
         except Exception as e:
              logger.debug(f"Winget CLI search failed: {e}")
              return []
@@ -701,7 +857,9 @@ class WingetHelper:
         if startupinfo:
             kwargs['startupinfo'] = startupinfo
         if sys.platform == "win32":
+            # Use the constant if available (Python 3.7+), otherwise use the hex literal
             if hasattr(subprocess, 'CREATE_NO_WINDOW'):
                 kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW constant
+            else:
+                kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW fallback
         return kwargs

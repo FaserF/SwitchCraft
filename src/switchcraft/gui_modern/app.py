@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import json
 import webbrowser
 import flet as ft
 from switchcraft import __version__
@@ -477,7 +478,8 @@ class ModernApp:
         self.page.update()
 
     def setup_page(self):
-        self.page.title = f"SwitchCraft v{__version__}"
+        self.page.title = "SwitchCraft"
+        # self.page.title = f"SwitchCraft v{__version__}"
         # Parse theme
         theme_pref = SwitchCraftConfig.get_value("Theme", "System")
         self.page.theme_mode = ft.ThemeMode.DARK if theme_pref == "Dark" else ft.ThemeMode.LIGHT if theme_pref == "Light" else ft.ThemeMode.SYSTEM
@@ -1690,8 +1692,8 @@ class ModernApp:
              except RuntimeError as re:
                  logger.debug(f"Notification update failed (control likely detached): {re}")
 
-             # 2. Windows Toast Logic
-             if notifs and WINOTIFY_AVAILABLE:
+             # 2. System/Browser Notification Logic
+             if notifs:
                  latest = notifs[0]
                  latest_id = latest["id"]
 
@@ -1702,44 +1704,76 @@ class ModernApp:
                  if should_notify_system and not latest["read"] and self._last_notif_id != latest_id:
                      self._last_notif_id = latest_id
 
-                     # Map type to winotify sound/icon?
-                     # Winotify doesn't support custom icons easily without path, use default app icon
+                     # A) Windows Toast
+                     if WINOTIFY_AVAILABLE:
+                         # Map type to winotify sound/icon?
+                         # Winotify doesn't support custom icons easily without path, use default app icon
 
-                     toast = Notification(
-                         app_id="SwitchCraft",
-                         title=latest["title"],
-                         msg=latest["message"],
-                         duration="short",
-                         icon=self._ico_path if hasattr(self, '_ico_path') and self._ico_path else ""
-                     )
+                         toast = Notification(
+                             app_id="SwitchCraft",
+                             title=latest["title"],
+                             msg=latest["message"],
+                             duration="short",
+                             icon=self._ico_path if hasattr(self, '_ico_path') and self._ico_path else ""
+                         )
 
-                     # Add action buttons
-                     notif_type = latest.get("type")
-                     n_data = latest.get("data", {})
+                         # Add action buttons
+                         notif_type = latest.get("type")
+                         n_data = latest.get("data", {})
 
-                     if notif_type == "update":
-                         # Button 1: Open Changelog
-                         changelog_url = n_data.get("url") or "https://github.com/FaserF/SwitchCraft/releases"
-                         toast.add_actions(label=i18n.get("notif_open_changelog") or "Open Changelog", launch=changelog_url)
+                         if notif_type == "update":
+                             # Button 1: Open Changelog
+                             changelog_url = n_data.get("url") or "https://github.com/FaserF/SwitchCraft/releases"
+                             toast.add_actions(label=i18n.get("notif_open_changelog") or "Open Changelog", launch=changelog_url)
 
-                         # Button 2: Open App
-                         toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
-                     else:
-                         # Regular notifications (error/info/warning)
-                         # Button 1: Open Logs Folder (if exists)
-                         logs_path = Path(os.getenv('APPDATA', '')) / "FaserF" / "SwitchCraft" / "Logs"
-                         if logs_path.exists():
-                             toast.add_actions(label=i18n.get("notif_open_logs") or "Open Logs", launch=f"file://{logs_path}")
+                             # Button 2: Open App
+                             toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
+                         else:
+                             # Regular notifications (error/info/warning)
+                             # Button 1: Open Logs Folder (if exists)
+                             logs_path = Path(os.getenv('APPDATA', '')) / "FaserF" / "SwitchCraft" / "Logs"
+                             if logs_path.exists():
+                                 toast.add_actions(label=i18n.get("notif_open_logs") or "Open Logs", launch=f"file://{{logs_path}}")
+
+                             if notif_type == "error":
+                                 toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
 
                          if notif_type == "error":
-                             toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
+                             toast.set_audio(audio.LoopingAlarm, loop=False)
+                         else:
+                             toast.set_audio(audio.Default, loop=False)
 
-                     if notif_type == "error":
-                         toast.set_audio(audio.LoopingAlarm, loop=False)
-                     else:
-                         toast.set_audio(audio.Default, loop=False)
+                         try:
+                             toast.show()
+                         except Exception as ex:
+                             logger.debug(f"Failed to show Windows toast: {{ex}}")
 
-                     toast.show()
+                     # B) Browser Notification
+                     if self.page.web:
+                         try:
+                             js_title = json.dumps(latest["title"])
+                             js_body = json.dumps(latest["message"])
+                             # Simple JS to trigger browser notification
+                             js_code = f"""
+                             (function() {{
+                                 var title = {{js_title}};
+                                 var options = {{ body: {{js_body}}, icon: "/switchcraft_logo.png" }};
+                                 if (!("Notification" in window)) return;
+                                 if (Notification.permission === "granted") {{
+                                     new Notification(title, options);
+                                 }} else if (Notification.permission !== "denied") {{
+                                     Notification.requestPermission().then(function (permission) {{
+                                         if (permission === "granted") {{
+                                             new Notification(title, options);
+                                         }}
+                                     }});
+                                 }}
+                             }})();
+                             """
+                             self.page.run_js(js_code)
+                             logger.debug("Sent browser notification JS")
+                         except Exception as js_ex:
+                             logger.error(f"Failed to trigger browser notification: {{js_ex}}")
 
         except Exception as e:
              logger.error(f"Error updating notification icon: {e}")
@@ -1767,21 +1801,7 @@ class ModernApp:
         time.sleep(2)
         self.page.window.destroy()
 
-    def _clear_all_notifications(self, drawer):
-        """
-        Close the notifications drawer and clear all stored notifications.
 
-        Parameters:
-            drawer: The navigation drawer control instance to close after clearing notifications.
-        """
-        self.notification_service.clear_all()
-        # Close Drawer
-        if hasattr(self.page, "close"):
-            self.page.close(drawer)
-        else:
-            drawer.open = False
-            self.page.update()
-        # Re-open empty? No, just close.
 
     def _check_first_run(self):
         """

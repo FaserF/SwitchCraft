@@ -1,3 +1,4 @@
 include LICENSE
 include README.md
 recursive-include src/switchcraft/assets *
+recursive-include src/switchcraft_winget *.json
