@@ -1,5 +1,19 @@
 import tkinter as tk
 from tkinter import ttk
+import os
+import sys
+import logging
+import tempfile
+
+# Setup debug logging for splash process
+log_file = os.path.join(tempfile.gettempdir(), "switchcraft_splash_debug.log")
+logging.basicConfig(
+    filename=log_file,
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logging.info(f"Splash process started. PID: {os.getpid()}")
+logging.info(f"Python: {sys.executable}")
 
 class LegacySplash:
     """
@@ -8,11 +22,14 @@ class LegacySplash:
     The main_root should be passed in (created once in main.py).
     """
     def __init__(self, main_root=None):
+        logging.info("Initializing LegacySplash...")
         # If no root passed, create one (standalone run)
         if main_root is None:
+            logging.info("Creating new Tk root")
             self.root = tk.Tk()
             self._owns_root = True
         else:
+            logging.info("Using existing Tk root")
             self.root = tk.Toplevel(main_root)
             self._owns_root = False
 
@@ -56,8 +73,8 @@ class LegacySplash:
 
         tk.Label(
             main_frame,
-            text="Universal Installer Analyzer",
-            font=self.sub_font,
+            text="Packaging Assistant for IT Professionals",
+            font=self.status_font, # Use smaller font for longer text
             bg="#2c3e50",
             fg="#bdc3c7"
         ).pack()
@@ -73,13 +90,21 @@ class LegacySplash:
 
         self.progress = ttk.Progressbar(main_frame, mode="indeterminate", length=300)
         self.progress.pack(pady=10)
+        self.progress.pack(pady=10)
         self.progress.start(10)
+
+        # Safety Timeout: Close after 60 seconds automatically if app hangs
+        self.root.after(60000, self._auto_close_timeout)
 
         self.root.update()
 
     def update_status(self, text):
         self.status_label.configure(text=text)
         self.root.update()
+
+    def _auto_close_timeout(self):
+        logging.warning("Splash screen timed out (safety timer). Force closing.")
+        self.close()
 
     def close(self):
         if hasattr(self, 'progress'):

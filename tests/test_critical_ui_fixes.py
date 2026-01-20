@@ -134,15 +134,25 @@ def test_library_view_refresh_button(mock_page):
     assert refresh_btn is not None, "Refresh button should exist"
     assert refresh_btn.on_click is not None, "Refresh button should have on_click handler"
 
+    # Mock _load_data to track if it was called
+    original_load_data = view._load_data
+    load_data_called = {'value': False}
+
+    def mock_load_data():
+        load_data_called['value'] = True
+        original_load_data()
+
+    view._load_data = mock_load_data
+
     # Simulate click
     mock_event = MagicMock()
     refresh_btn.on_click(mock_event)
 
     # Wait a bit for background thread to start
-    time.sleep(0.1)
+    time.sleep(0.2)
 
-    # Verify that _load_data was triggered (check if dir_info was updated or grid was refreshed)
-    assert True, "Refresh button should trigger data load"
+    # Verify that _load_data was triggered
+    assert load_data_called['value'], "Refresh button should trigger _load_data method"
 
 
 def test_group_manager_create_button(mock_page):

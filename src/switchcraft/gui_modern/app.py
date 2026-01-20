@@ -43,8 +43,8 @@ class ModernApp:
             import traceback as tb
             from switchcraft.gui_modern.views.crash_view import CrashDumpView
 
-            # Get traceback
-            tb_str = tb.format_exc()
+            # Get traceback from the passed exception object
+            tb_str = ''.join(tb.TracebackException.from_exception(error).format())
             if context:
                 tb_str = f"Context: {context}\n\n{tb_str}"
 
@@ -398,7 +398,7 @@ class ModernApp:
             # Single update after all state changes to avoid flicker
             self.page.update()
             logger.info("Notification drawer opened successfully")
-            logger.info(f"Notification drawer should now be visible. open={drawer.open}, page.end_drawer={self.page.end_drawer is not None}")
+            logger.info(f"Notification drawer should now be visible. open={getattr(drawer, 'open', 'Unknown')}, page.end_drawer={self.page.end_drawer is not None}")
 
             # Mark all as read after opening
             self.notification_service.mark_all_read()

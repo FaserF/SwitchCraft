@@ -6,74 +6,54 @@ import logging
 from pathlib import Path
 import sys
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
+# Setup logging to STDOUT
+logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
-# Mock AddonService basics to avoid full app dependency if possible,
-# or import if the environment allows.
-# Trying to import directly first.
+# Add src to path
+sys.path.append(str(Path(__file__).parent.parent / "src"))
 try:
-    # Adjust path to include src
-    sys.path.append(str(Path(__file__).parent.parent / "src"))
     from switchcraft.services.addon_service import AddonService
-except ImportError:
-    logger.error("Could not import AddonService. Please check path.")
+except ImportError as e:
+    print(f"CRITICAL ERROR: {e}")
     sys.exit(1)
 
 def test_nested_manifest_install():
-    print("Testing installation of addon with nested manifest.json...")
+    print("--- Testing Nested Manifest Install ---")
 
-    # Create valid manifest content
     manifest_content = '{"id": "test.addon", "name": "Test Addon", "version": "1.0.0"}'
 
-    # Create a temporary directory for the mock zip
     with tempfile.TemporaryDirectory() as temp_dir:
-        zip_path = Path(temp_dir) / "test_addon.zip"
+        zip_path = Path(temp_dir) / "test_nested.zip"
 
-        # Create a zip with manifest in a subdirectory (simulate GitHub release)
         with zipfile.ZipFile(zip_path, 'w') as z:
             z.writestr("Addon-Repo-Main/manifest.json", manifest_content)
             z.writestr("Addon-Repo-Main/script.py", "print('hello')")
 
-        print(f"Created mock zip at {zip_path}")
+        print(f"Created zip: {zip_path}")
 
-        # Initialize service
         service = AddonService()
 
-        # Override addons_dir to a temp dir to avoid polluting real install
         with tempfile.TemporaryDirectory() as temp_install_dir:
             service.addons_dir = Path(temp_install_dir)
-            print(f"Using temp install dir: {service.addons_dir}")
+            print(f"Install Dir: {service.addons_dir}")
 
             try:
-                # Attempt install
                 service.install_addon(str(zip_path))
 
-                # Verify installation
-                installed_path = service.addons_dir / "test.addon"
-                if installed_path.exists() and (installed_path / "manifest.json").exists():
-                    print("SUCCESS: Addon installed and manifest found.")
-                    # Check if script was extracted
-                    if (installed_path / "script.py").exists():
-                        print("SUCCESS: Subfiles extracted correctly.")
-                    else:
-                        print("FAILURE: script.py not found in installed folder.")
-                else:
-                    print("FAILURE: Addon folder or manifest not found after install.")
+                addon_path = service.addons_dir / "test.addon"
 
-            except Exception as e:
-                print(f"FAILURE: Install raised exception: {e}")
-                import traceback
-                traceback.print_exc()
+                assert addon_path.exists(), f"Addon path does not exist. Contents of install dir: {list(service.addons_dir.iterdir())}"
+                assert (addon_path / "manifest.json").exists(), f"manifest.json missing. Contents: {list(addon_path.rglob('*'))}"
+                assert (addon_path / "script.py").exists(), "script.py missing."
 
 def test_root_manifest_install():
-    print("\nTesting installation of addon with root manifest.json...")
+    print("\n--- Testing Root Manifest Install ---")
 
     manifest_content = '{"id": "test.addon.root", "name": "Test Addon Root", "version": "1.0.0"}'
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        zip_path = Path(temp_dir) / "test_addon_root.zip"
+        zip_path = Path(temp_dir) / "test_root.zip"
 
         with zipfile.ZipFile(zip_path, 'w') as z:
             z.writestr("manifest.json", manifest_content)
@@ -82,15 +62,10 @@ def test_root_manifest_install():
         with tempfile.TemporaryDirectory() as temp_install_dir:
             service.addons_dir = Path(temp_install_dir)
 
-            try:
-                service.install_addon(str(zip_path))
-                installed_path = service.addons_dir / "test.addon.root"
-                if installed_path.exists() and (installed_path / "manifest.json").exists():
-                    print("SUCCESS: Root addon installed.")
-                else:
-                    print("FAILURE: Root addon failed.")
-            except Exception as e:
-                print(f"FAILURE: Root install raised exception: {e}")
+            service.install_addon(str(zip_path))
+            addon_path = service.addons_dir / "test.addon.root"
+            assert addon_path.exists(), f"Root addon path does not exist. Contents: {list(service.addons_dir.rglob('*'))}"
+            assert (addon_path / "manifest.json").exists(), f"Root addon manifest.json missing. Contents: {list(service.addons_dir.rglob('*'))}"
 
 if __name__ == "__main__":
     test_nested_manifest_install()

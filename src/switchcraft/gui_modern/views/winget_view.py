@@ -361,7 +361,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             try:
                 loading_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
                 loading_area.controls.append(ft.ProgressBar())
-                loading_area.controls.append(ft.Text("Loading package details...", color="GREY_500", italic=True))
+                loading_area.controls.append(ft.Text(i18n.get("loading_package_details") or "Loading package details...", color="GREY_500", italic=True))
                 self.details_area = loading_area
 
                 # CRITICAL: Re-assign content to force container refresh
@@ -744,15 +744,7 @@ class ModernWingetView(ft.Row, ViewMixin):
         logger.debug(f"Right pane visible: {self.right_pane.visible}, content type: {type(self.right_pane.content)}")
 
         try:
-            # Update parent container first (adds children to page)
-            self.right_pane.update()
-            # self.details_area.update() # Redundant
-            logger.debug("right_pane.update() called successfully")
-        except Exception as ex:
-            logger.error(f"Error updating details_area: {ex}", exc_info=True)
-
-        try:
-            # Then update right pane container - CRITICAL for visibility
+            # Update right pane container - CRITICAL for visibility
             self.right_pane.update()
             logger.debug("right_pane.update() called successfully")
         except Exception as ex:

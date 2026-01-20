@@ -507,6 +507,79 @@ class IntuneService:
             logger.error(f"Failed to fetch app assignments for {app_id}: {e}")
             raise e
 
+    def update_app(self, token, app_id, app_data):
+        """
+        Update an Intune mobile app using PATCH request.
+        
+        Parameters:
+            token (str): OAuth2 access token with Graph API permissions.
+            app_id (str): The mobileApp resource identifier.
+            app_data (dict): Dictionary containing fields to update (e.g., displayName, description, etc.)
+        
+        Returns:
+            dict: Updated app resource as returned by Microsoft Graph.
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        base_url = f"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{app_id}"
+
+        try:
+            resp = requests.patch(base_url, headers=headers, json=app_data, timeout=60)
+            resp.raise_for_status()
+            logger.info(f"Successfully updated app {app_id}")
+            return resp.json()
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Request timed out while updating app {app_id}")
+            raise requests.exceptions.Timeout("Request timed out. The server took too long to respond.") from e
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error updating app {app_id}: {e}")
+            raise requests.exceptions.RequestException(f"Network error: {str(e)}") from e
+        except Exception as e:
+            logger.error(f"Failed to update app {app_id}: {e}")
+            raise e
+
+    def update_app_assignments(self, token, app_id, assignments):
+        """
+        Update app assignments by replacing all existing assignments.
+        
+        Parameters:
+            token (str): OAuth2 access token with Graph API permissions.
+            app_id (str): The mobileApp resource identifier.
+            assignments (list): List of assignment dictionaries, each with:
+                - target: dict with groupId or "@odata.type": "#microsoft.graph.allDevicesAssignmentTarget" / "#microsoft.graph.allLicensedUsersAssignmentTarget"
+                - intent: "required", "available", or "uninstall"
+                - settings: dict (optional)
+        
+        Returns:
+            bool: True if successful
+        """
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        base_url = f"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{app_id}/assignments"
+
+        # First, delete all existing assignments
+        try:
+            existing = self.list_app_assignments(token, app_id)
+            for assignment in existing:
+                assignment_id = assignment.get("id")
+                if assignment_id:
+                    delete_url = f"{base_url}/{assignment_id}"
+                    delete_resp = requests.delete(delete_url, headers=headers, timeout=30)
+                    delete_resp.raise_for_status()
+        except Exception as e:
+            logger.warning(f"Failed to delete existing assignments: {e}")
+            # Continue anyway - might be a permission issue
+
+        # Then, create new assignments
+        for assignment in assignments:
+            try:
+                resp = requests.post(base_url, headers=headers, json=assignment, timeout=60)
+                resp.raise_for_status()
+                logger.info(f"Created assignment for app {app_id}: {assignment.get('intent')}")
+            except Exception as e:
+                logger.error(f"Failed to create assignment: {e}")
+                raise e
+
+        return True
+
     def upload_powershell_script(self, token, name, description, script_content, run_as_account="system"):
         """
         Uploads a PowerShell script to Intune (Device Management Script).

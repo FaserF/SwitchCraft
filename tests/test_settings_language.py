@@ -24,7 +24,21 @@ class TestSettingsLanguage(unittest.TestCase):
         self.page.switchcraft_app.goto_tab = MagicMock()
         self.page.show_snack_bar = MagicMock()
         # Set run_task in setUp for consistency with other test files
-        self.page.run_task = lambda func: func()
+        # Set run_task in setUp for consistency with other test files
+        def run_task(func):
+            import inspect
+            import asyncio
+            if inspect.iscoroutinefunction(func):
+                try:
+                    # Try to get running loop
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(func())
+                except RuntimeError:
+                    # No loop, run directly
+                    asyncio.run(func())
+            else:
+                func()
+        self.page.run_task = run_task
 
     @patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference')
     @patch('switchcraft.utils.i18n.i18n.set_language')
@@ -33,6 +47,9 @@ class TestSettingsLanguage(unittest.TestCase):
         from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
         view = ModernSettingsView(self.page)
+        # Manually add view to page controls to satisfy Flet's requirement
+        self.page.controls = [view]
+        view._page = self.page
         # run_task is already set in setUp
 
         # Simulate language change

@@ -294,12 +294,16 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
 
     def _show_details(self, app):
         """
-        Render the detailed view for a given Intune app in the details pane.
+        Render the detailed view for a given Intune app in the details pane with editable fields.
 
-        Builds and displays the app's title, metadata, description, assignments (loaded asynchronously), available install/uninstall commands, and a Deploy / Package action. The view shows a loading indicator while content and assignments are fetched and forces a UI update on the enclosing page.
+        Builds and displays the app's title (editable), metadata, description (editable), assignments (editable),
+        available install/uninstall commands, and action buttons including "Open in Intune" and "Save Changes".
+        The view shows a loading indicator while content and assignments are fetched.
 
         Parameters:
-            app (dict): Intune app object (expected keys include `id`, `displayName`, `publisher`, `createdDateTime`, `owner`, `@odata.type`, `description`, `largeIcon`/`iconUrl`/`logoUrl`, `installCommandLine`, `uninstallCommandLine`) used to populate the details UI.
+            app (dict): Intune app object (expected keys include `id`, `displayName`, `publisher`, `createdDateTime`,
+                       `owner`, `@odata.type`, `description`, `largeIcon`/`iconUrl`/`logoUrl`, `installCommandLine`,
+                       `uninstallCommandLine`) used to populate the details UI.
         """
         try:
             logger.info(f"_show_details called for app: {app.get('displayName', 'Unknown')}")
@@ -350,7 +354,15 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
 
                 threading.Thread(target=_load_image_async, daemon=True).start()
 
-            # Metadata
+            # Editable Title Field
+            self.title_field = ft.TextField(
+                label=i18n.get("field_display_name") or "Display Name",
+                value=app.get("displayName", ""),
+                expand=True
+            )
+            detail_controls.append(self.title_field)
+
+            # Metadata (read-only)
             meta_rows = [
                 (i18n.get("field_id", default="ID"), app.get("id")),
                 (i18n.get("field_publisher", default="Publisher"), app.get("publisher")),
@@ -365,29 +377,32 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
 
             detail_controls.append(ft.Divider())
 
-            # Description
-            desc = app.get("description") or i18n.get("no_description") or "No description."
-            detail_controls.append(ft.Text(i18n.get("field_description") or "Description:", weight="bold", selectable=True))
-            detail_controls.append(ft.Text(desc, selectable=True))
+            # Editable Description Field
+            desc = app.get("description") or ""
+            self.description_field = ft.TextField(
+                label=i18n.get("field_description") or "Description",
+                value=desc,
+                multiline=True,
+                min_lines=3,
+                max_lines=10,
+                expand=True
+            )
+            detail_controls.append(self.description_field)
 
             detail_controls.append(ft.Divider())
 
-            # Assignments (Async Loading)
+            # Editable Assignments (Async Loading)
             self.assignments_col = ft.Column([ft.ProgressBar(width=200)])
             detail_controls.append(ft.Text(i18n.get("group_assignments") or "Group Assignments:", weight="bold", selectable=True))
             detail_controls.append(self.assignments_col)
-            detail_controls.append(ft.Divider())
+
+            # Store assignments data for editing
+            self.current_assignments = []
 
             def _load_assignments():
                 """
                 Load and display assignment information for the currently selected app into the view's assignments column.
-
-                This function fetches app assignments from Intune using the configured token and the current app's id, then clears and populates self.assignments_col.controls with:
-                - A centered configuration prompt if Graph credentials are missing.
-                - "Not assigned." text when no assignments are returned.
-                - Grouped sections for each assignment intent ("Required", "Available", "Uninstall") listing target group identifiers.
-
-                On failure, the function logs the exception and displays an error message in the assignments column. The view is updated at the end of the operation.
+                Makes assignments editable.
                 """
                 try:
                     token = self._get_token()
@@ -398,40 +413,91 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                         return
 
                     assignments = self.intune_service.list_app_assignments(token, app.get("id"))
-                    self.assignments_col.controls.clear()
-                    if not assignments:
-                        self.assignments_col.controls.append(ft.Text(i18n.get("not_assigned") or "Not assigned.", italic=True, selectable=True))
-                    else:
-                        # Filter for Required, Available, Uninstall
-                        types = ["required", "available", "uninstall"]
-                        for t in types:
-                            typed_assignments = [asgn for asgn in assignments if asgn.get("intent") == t]
-                            if typed_assignments:
-                                self.assignments_col.controls.append(ft.Text(f"{t.capitalize()}:", weight="bold", size=12, selectable=True))
-                                for ta in typed_assignments:
-                                    target = ta.get("target", {})
-                                    group_id = target.get("groupId") or i18n.get("all_users_devices") or "All Users/Devices"
-                                    self.assignments_col.controls.append(ft.Text(f" • {group_id}", size=12, selectable=True))
+                    self.current_assignments = assignments if assignments else []
+
+                    def _update_assignments_ui():
+                        self.assignments_col.controls.clear()
+                        if not self.current_assignments:
+                            self.assignments_col.controls.append(ft.Text(i18n.get("not_assigned") or "Not assigned.", italic=True, selectable=True))
+                            # Add button to add assignment
+                            self.assignments_col.controls.append(
+                                ft.Button(
+                                    i18n.get("btn_add_assignment") or "Add Assignment",
+                                    icon=ft.Icons.ADD,
+                                    on_click=lambda e: self._add_assignment_row()
+                                )
+                            )
+                        else:
+                            # Display editable assignment rows
+                            for idx, assignment in enumerate(self.current_assignments):
+                                self.assignments_col.controls.append(self._create_assignment_row(assignment, idx))
+
+                            # Add button to add more assignments
+                            self.assignments_col.controls.append(
+                                ft.Button(
+                                    i18n.get("btn_add_assignment") or "Add Assignment",
+                                    icon=ft.Icons.ADD,
+                                    on_click=lambda e: self._add_assignment_row()
+                                )
+                            )
+                        self.update()
+
+                    self._run_task_safe(_update_assignments_ui)
                 except Exception as ex:
                     logger.exception("Failed to load assignments")
-                    self.assignments_col.controls.clear()
-                    self.assignments_col.controls.append(ft.Text(f"{i18n.get('error') or 'Error'}: {ex}", color="red", selectable=True))
-                finally:
-                    self.update()
+                    def _show_error():
+                        self.assignments_col.controls.clear()
+                        self.assignments_col.controls.append(ft.Text(f"{i18n.get('error') or 'Error'}: {ex}", color="red", selectable=True))
+                        self.update()
+                    self._run_task_safe(_show_error)
 
             threading.Thread(target=_load_assignments, daemon=True).start()
 
-            # Install Info
+            # Install Info (editable if available)
             if "installCommandLine" in app or "uninstallCommandLine" in app:
                  detail_controls.append(ft.Text(i18n.get("commands") or "Commands:", weight="bold", selectable=True))
                  if app.get("installCommandLine"):
-                     detail_controls.append(ft.Text(f"{i18n.get('field_install', default='Install')}: `{app.get('installCommandLine')}`", font_family="Consolas", selectable=True))
+                     self.install_cmd_field = ft.TextField(
+                         label=i18n.get("field_install", default="Install Command"),
+                         value=app.get("installCommandLine", ""),
+                         expand=True
+                     )
+                     detail_controls.append(self.install_cmd_field)
                  if app.get("uninstallCommandLine"):
-                     detail_controls.append(ft.Text(f"{i18n.get('field_uninstall', default='Uninstall')}: `{app.get('uninstallCommandLine')}`", font_family="Consolas", selectable=True))
+                     self.uninstall_cmd_field = ft.TextField(
+                         label=i18n.get("field_uninstall", default="Uninstall Command"),
+                         value=app.get("uninstallCommandLine", ""),
+                         expand=True
+                     )
+                     detail_controls.append(self.uninstall_cmd_field)
 
-            detail_controls.append(ft.Container(height=20))
+            detail_controls.append(ft.Divider())
+
+            # Status and Progress Bar (initially hidden)
+            self.save_status_text = ft.Text("", size=12, color="GREY")
+            self.save_progress = ft.ProgressBar(width=None, visible=False)
+            detail_controls.append(self.save_status_text)
+            detail_controls.append(self.save_progress)
+
+            detail_controls.append(ft.Container(height=10))
+
+            # Action Buttons
             detail_controls.append(
                 ft.Row([
+                    ft.Button(
+                        i18n.get("btn_open_in_intune") or "Open in Intune",
+                        icon=ft.Icons.OPEN_IN_NEW,
+                        bgcolor="BLUE_700",
+                        color="WHITE",
+                        on_click=lambda e, a=app: self._open_in_intune(a)
+                    ),
+                    ft.Button(
+                        i18n.get("btn_save_changes") or "Save Changes",
+                        icon=ft.Icons.SAVE,
+                        bgcolor="GREEN",
+                        color="WHITE",
+                        on_click=lambda e, a=app: self._save_changes(a)
+                    ),
                     ft.Button(
                         i18n.get("btn_deploy_assignment") or "Deploy / Assign...",
                         icon=ft.Icons.CLOUD_UPLOAD,
@@ -439,7 +505,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                         color="WHITE",
                         on_click=lambda e, a=app: self._show_deployment_dialog(a)
                     )
-                ])
+                ], wrap=True)
             )
 
             # Update controls in place

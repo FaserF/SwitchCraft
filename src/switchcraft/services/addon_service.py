@@ -189,7 +189,7 @@ class AddonService:
                     root_files = [f for f in files if '/' not in f.replace('\\', '/') or f.replace('\\', '/').count('/') == 0]
                     raise Exception(
                         f"Invalid addon: manifest.json not found in ZIP archive.\n"
-                        f"The addon ZIP must contain a manifest.json file at the root level.\n"
+                        f"The addon ZIP must contain a manifest.json file at the root level or in a subdirectory.\n"
                         f"Root files found: {', '.join(root_files[:10]) if root_files else 'none'}"
                     )
 
@@ -209,18 +209,35 @@ class AddonService:
                 if target.exists():
                     shutil.rmtree(target) # Overwrite
                 target.mkdir()
-
-                # target.mkdir() was already called above
-
-                # Secure extraction
-                # If manifest was in a subdirectory, we need to handle path normalization
                 target_resolved = target.resolve()
+
+                # Compute manifest directory to rebase extraction
+                # If manifest is "A/B/manifest.json", manifest_dir is "A/B"
+                manifest_path_normalized = manifest_path.replace('\\', '/')
+                manifest_dir = os.path.dirname(manifest_path_normalized) if '/' in manifest_path_normalized else ""
+
+                # Update error message to indicate if manifest was found in subdirectory
+                manifest_location_msg = f" (found in subdirectory: {manifest_dir})" if manifest_dir else ""
+
+                logger.debug(f"Addon extract manifest_dir: '{manifest_dir}'")
+
                 for member in z.infolist():
                     # Normalize path separators for cross-platform compatibility
                     normalized_name = member.filename.replace('\\', '/')
 
+                    # If manifest was in a subdirectory, strip that prefix from all files
+                    if manifest_dir:
+                        if not normalized_name.startswith(manifest_dir + '/'):
+                            continue # Skip files outside the manifest directory
+                        # Strip manifest_dir prefix
+                        target_name = normalized_name[len(manifest_dir) + 1:]  # +1 for the '/'
+                        if not target_name: # Was the directory itself
+                            continue
+                    else:
+                        target_name = normalized_name
+
                     # Resolve the target path for this member
-                    file_path = (target / normalized_name).resolve()
+                    file_path = (target / target_name).resolve()
 
                     # Ensure the resolved path is within the target directory (prevent Zip Slip)
                     # Use Path.relative_to() which is safer than string prefix checks
@@ -236,7 +253,7 @@ class AddonService:
                     file_path.parent.mkdir(parents=True, exist_ok=True)
 
                     # Extract file
-                    if not member.is_dir():
+                    if not member.is_dir() and not target_name.endswith('/'):
                         with z.open(member, 'r') as source, open(file_path, 'wb') as dest:
                             shutil.copyfileobj(source, dest)
 

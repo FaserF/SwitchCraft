@@ -357,7 +357,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
             color="GREEN" if (saved_thumb or saved_cert_path) else "GREY",
             selectable=True  # Make thumbprint selectable for copying
         )
-        
+
         # Create copy button for thumbprint (only visible if thumbprint exists)
         self.cert_copy_btn = ft.IconButton(
             ft.Icons.COPY,
@@ -445,7 +445,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.Text(i18n.get("settings_hdr_signing") or "Code Signing", size=18, color="BLUE"),
                 sign_sw,
                 ft.Row([
-                    ft.Text(i18n.get("lbl_active_cert") or "Active Certificate:"), 
+                    ft.Text(i18n.get("lbl_active_cert") or "Active Certificate:"),
                     self.cert_status_text,
                     self.cert_copy_btn  # Copy button for thumbprint
                 ], wrap=False),
@@ -711,9 +711,18 @@ class ModernSettingsView(ft.Column, ViewMixin):
         """
         logger.info("GitHub login button clicked, starting device flow...")
 
-        # Immediate visual feedback
+        # Store original button state for restoration
+        original_text = None
+        original_icon = None
         if hasattr(self, 'login_btn'):
-            self.login_btn.text = "Starting..."
+            if hasattr(self.login_btn, 'text'):
+                original_text = self.login_btn.text
+                self.login_btn.text = "Starting..."
+            else:
+                original_text = self.login_btn.content
+                self.login_btn.content = "Starting..."
+
+            original_icon = self.login_btn.icon
             self.login_btn.icon = ft.Icons.HOURGLASS_EMPTY
             self.login_btn.update()
 
@@ -748,11 +757,19 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 logger.exception(f"Error initiating device flow: {ex}")
                 # Marshal UI updates to main thread
                 error_msg = f"Failed to initiate login flow: {ex}"
-                # Capture error_msg in closure using default parameter to avoid scope issues
-                def _handle_error(msg=error_msg):
+                # Capture error_msg and original button state in closure using default parameter to avoid scope issues
+                def _handle_error(msg=error_msg, orig_text=original_text, orig_icon=original_icon):
                     loading_dlg.open = False
                     self.app_page.update()
                     self._show_snack(f"Login error: {msg}", "RED")
+                    # Restore button state
+                    if hasattr(self, 'login_btn'):
+                        if hasattr(self.login_btn, 'text'):
+                            self.login_btn.text = orig_text
+                        else:
+                            self.login_btn.content = orig_text
+                        self.login_btn.icon = orig_icon
+                        self.login_btn.update()
                 self._run_task_with_fallback(_handle_error, error_msg=error_msg)
                 return None
 
@@ -818,6 +835,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     async def _close_and_result():
                         dlg.open = False
                         self.app_page.update()
+                        # Restore button state
+                        if hasattr(self, 'login_btn'):
+                            self.login_btn.text = original_text
+                            self.login_btn.icon = original_icon
+                            self.login_btn.update()
                         if token:
                             AuthService.save_token(token)
                             self._update_sync_ui()
@@ -1055,7 +1077,6 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         Parameters:
             val (str): Language code or identifier to set (e.g., "en", "fr", etc.).
-        """
         """
         logger.info(f"Language change requested: {val}")
         logger.debug(f"Current app_page: {getattr(self, 'app_page', 'Not Set')}, type: {type(getattr(self, 'app_page', None))}")
@@ -1991,8 +2012,46 @@ class ModernSettingsView(ft.Column, ViewMixin):
         SwitchCraftConfig.set_user_preference("CodeSigningCertPath", "")
         self.cert_status_text.value = i18n.get("cert_not_configured") or "Not Configured"
         self.cert_status_text.color = "GREY"
+        # Hide copy button when cert is reset
+        if hasattr(self, 'cert_copy_btn'):
+            self.cert_copy_btn.visible = False
         self.update()
         self._show_snack(i18n.get("cert_reset") or "Certificate configuration reset.", "GREY")
+
+    def _copy_cert_thumbprint(self, e):
+        """Copy the full certificate thumbprint to clipboard."""
+        saved_thumb = SwitchCraftConfig.get_value("CodeSigningCertThumbprint", "")
+        if not saved_thumb:
+            self._show_snack(i18n.get("cert_not_configured") or "No certificate configured", "ORANGE")
+            return
+
+        # Copy to clipboard using the same pattern as other views
+        success = False
+        try:
+            import pyperclip
+            pyperclip.copy(saved_thumb)
+            success = True
+        except ImportError:
+            # Fallback to Windows clip command
+            try:
+                import subprocess
+                subprocess.run(['clip'], input=saved_thumb.encode('utf-8'), check=True)
+                success = True
+            except Exception:
+                pass
+        except Exception:
+            # Try Flet's clipboard as last resort
+            try:
+                if hasattr(self.app_page, 'set_clipboard'):
+                    self.app_page.set_clipboard(saved_thumb)
+                    success = True
+            except Exception:
+                pass
+
+        if success:
+            self._show_snack(i18n.get("thumbprint_copied") or f"Thumbprint copied: {saved_thumb[:8]}...", "GREEN")
+        else:
+            self._show_snack(i18n.get("copy_failed") or "Failed to copy thumbprint", "RED")
 
     # --- Template Helpers ---
 

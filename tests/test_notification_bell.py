@@ -8,22 +8,6 @@ import time
 import os
 
 
-@pytest.fixture
-def mock_page():
-    """Create a mock Flet page."""
-    page = MagicMock(spec=ft.Page)
-    page.end_drawer = None
-    page.update = MagicMock()
-    page.open = MagicMock()
-    page.close = MagicMock()
-    page.snack_bar = None
-
-    # Mock page property
-    type(page).page = property(lambda self: page)
-
-    return page
-
-
 def test_notification_bell_opens_drawer(mock_page):
     """Test that clicking notification bell opens the drawer."""
     from switchcraft.gui_modern.app import ModernApp

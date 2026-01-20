@@ -42,20 +42,20 @@ try:
 except Exception as e:
     print(f"WARNING: Failed to collect view submodules: {e}")
 
-# Collect everything from gui_modern explicitly to ensure app.py is included
-try:
-    gui_modern_submodules = collect_submodules('switchcraft.gui_modern')
-    hidden_imports += gui_modern_submodules
-except Exception as e:
-    print(f"WARNING: Failed to collect gui_modern submodules: {e}")
-
 # Collect all other submodules but exclude addon modules that are not part of core
 all_submodules = collect_submodules('switchcraft')
 # Filter out modules that were moved to addons or don't exist
 excluded_modules = ['switchcraft.utils.winget', 'switchcraft.gui.views.ai_view', 'switchcraft_winget', 'switchcraft_ai', 'switchcraft_advanced', 'switchcraft.utils.updater']
+# Filter gui_modern submodules with the same exclusion rules
+try:
+    gui_modern_submodules = collect_submodules('switchcraft.gui_modern')
+    filtered_gui_modern = [m for m in gui_modern_submodules if not any(m.startswith(ex) for ex in excluded_modules)]
+    hidden_imports += filtered_gui_modern
+except Exception as e:
+    print(f"WARNING: Failed to collect gui_modern submodules: {e}")
+
 # Ensure app.py is explicitly included (it might be filtered out otherwise)
 filtered_submodules = [m for m in all_submodules if not any(m.startswith(ex) for ex in excluded_modules)]
-# Explicitly add app.py if it's not already in the list
 if 'switchcraft.gui_modern.app' not in filtered_submodules:
     filtered_submodules.append('switchcraft.gui_modern.app')
 hidden_imports += filtered_submodules

@@ -173,7 +173,16 @@ class ViewMixin:
                 except (RuntimeError, AttributeError):
                     # No page available, try direct call as fallback
                     try:
-                        func()
+                        # Check if func is async and handle accordingly
+                        if inspect.iscoroutinefunction(func):
+                            try:
+                                loop = asyncio.get_running_loop()
+                                asyncio.create_task(func())
+                            except RuntimeError:
+                                # No running loop, use asyncio.run
+                                asyncio.run(func())
+                        else:
+                            func()
                         return True
                     except Exception as e:
                         logger.warning(f"Failed to execute function directly (no page): {e}", exc_info=True)
@@ -181,7 +190,16 @@ class ViewMixin:
             if not page:
                 # No page available, try direct call as fallback
                 try:
-                    func()
+                    # Check if func is async and handle accordingly
+                    if inspect.iscoroutinefunction(func):
+                        try:
+                            loop = asyncio.get_running_loop()
+                            asyncio.create_task(func())
+                        except RuntimeError:
+                            # No running loop, use asyncio.run
+                            asyncio.run(func())
+                    else:
+                        func()
                     return True
                 except Exception as e:
                     logger.warning(f"Failed to execute function directly (page None): {e}", exc_info=True)
@@ -356,6 +374,10 @@ class ViewMixin:
         Returns:
             bool: True if task was executed successfully, False otherwise
         """
+        # Assign fallback_func before page check so it can be used in fallback path
+        if fallback_func is None:
+            fallback_func = task_func
+
         # Try app_page first (commonly used in views)
         page = getattr(self, "app_page", None)
         # If not available, try page property (but catch RuntimeError if control not added to page)
@@ -367,11 +389,32 @@ class ViewMixin:
                 # Control not added to page yet (common in tests)
                 page = None
         if not page:
-            logger.warning("No page available for run_task")
-            return False
-
-        if fallback_func is None:
-            fallback_func = task_func
+            logger.warning("No page available for run_task, using fallback")
+            # Execute fallback even without page
+            try:
+                is_fallback_coroutine = inspect.iscoroutinefunction(fallback_func) if fallback_func else False
+                if is_fallback_coroutine:
+                    try:
+                        loop = asyncio.get_running_loop()
+                        task = asyncio.create_task(fallback_func())
+                        def handle_task_exception(task):
+                            try:
+                                task.result()
+                            except Exception as task_ex:
+                                logger.exception(f"Exception in async fallback task (no page): {task_ex}")
+                                if error_msg:
+                                    self._show_snack(error_msg, "RED")
+                        task.add_done_callback(handle_task_exception)
+                    except RuntimeError:
+                        asyncio.run(fallback_func())
+                else:
+                    fallback_func()
+                return True
+            except Exception as ex:
+                logger.exception(f"Error in fallback execution (no page): {ex}")
+                if error_msg:
+                    self._show_snack(error_msg, "RED")
+                return False
 
         # Check if task_func is a coroutine function
         is_coroutine = inspect.iscoroutinefunction(task_func)
@@ -417,7 +460,23 @@ class ViewMixin:
                 logger.exception(f"Error in task_func for sync function: {ex}")
                 # Fallback to fallback_func as recovery path
                 try:
-                    fallback_func()
+                    # Check if fallback_func is async and handle accordingly
+                    if is_fallback_coroutine:
+                        try:
+                            loop = asyncio.get_running_loop()
+                            task = asyncio.create_task(fallback_func())
+                            def handle_task_exception(task):
+                                try:
+                                    task.result()
+                                except Exception as task_ex:
+                                    logger.exception(f"Exception in async fallback task (sync path): {task_ex}")
+                                    if error_msg:
+                                        self._show_snack(error_msg, "RED")
+                            task.add_done_callback(handle_task_exception)
+                        except RuntimeError:
+                            asyncio.run(fallback_func())
+                    else:
+                        fallback_func()
                     return True
                 except Exception as ex2:
                     logger.exception(f"Error in fallback execution of sync function: {ex2}")

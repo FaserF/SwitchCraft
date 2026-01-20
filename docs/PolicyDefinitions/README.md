@@ -3,7 +3,9 @@
 Administrative templates for managing SwitchCraft settings via Group Policy (GPO) or Microsoft Intune.
 
 > [!TIP]
-> **Having issues?** If you see error code **-2016281112** (Remediation Failed) in Intune, see the [GPO Troubleshooting Guide](../GPO_TROUBLESHOOTING.md) for detailed solutions.
+> **Having issues?** If you see error code **-2016281112** (Remediation Failed) in Intune:
+> - **Multiple policies failed?** → See [Detailed Troubleshooting Guide](../INTUNE_ERROR_FIX.md)
+> - **General issues?** → See [GPO Troubleshooting Guide](../GPO_TROUBLESHOOTING.md)
 
 ## Available Policies
 

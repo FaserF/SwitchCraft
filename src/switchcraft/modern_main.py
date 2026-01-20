@@ -24,7 +24,9 @@ def start_splash():
             env = os.environ.copy()
             env["PYTHONPATH"] = str(base_dir.parent)
 
-            creationflags = 0x08000000 if sys.platform == "win32" else 0
+            # Use DETACHED_PROCESS (0x00000008) instead of CREATE_NO_WINDOW (0x08000000)
+            # This ensures the process runs independently and GUI is not suppressed
+            creationflags = 0x00000008 if sys.platform == "win32" else 0
 
             splash_proc = subprocess.Popen(
                 [sys.executable, str(splash_script)],

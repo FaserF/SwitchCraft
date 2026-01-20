@@ -1,5 +1,8 @@
 # GPO/Intune Troubleshooting Guide
 
+> [!TIP]
+> **Quick Help**: If you see a list of failed policies (like `SignScripts_Enf`, `UpdateChannel_Enf`, etc. all with error -2016281112), read the [detailed troubleshooting guide](./INTUNE_ERROR_FIX.md) first.
+
 ## Error Code -2016281112 (Remediation Failed)
 
 If you see error code **-2016281112** for your SwitchCraft policies in Intune, this means "Remediation failed" - the policy could not be applied to the device.

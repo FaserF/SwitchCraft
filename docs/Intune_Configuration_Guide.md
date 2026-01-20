@@ -2,6 +2,9 @@
 
 This guide describes how to correctly configure SwitchCraft policies using Microsoft Intune Custom Profiles (OMA-URI).
 
+> [!IMPORTANT]
+> **Troubleshooting**: If you see multiple policies with error -2016281112, read the [detailed troubleshooting guide](./INTUNE_ERROR_FIX.md) first for a step-by-step solution.
+
 ## Common Error: -2016281112 (Remediation Failed)
 
 If you see error `-2016281112` in Intune for your OMA-URI settings, it is likely because the **Data Type** was set incorrectly.

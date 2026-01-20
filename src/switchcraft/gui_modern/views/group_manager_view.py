@@ -197,6 +197,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                 def show_error():
                     try:
                         self._show_snack(error_msg, "RED")
+                        self.list_container.disabled = False
+                        self.update()
                     except (RuntimeError, AttributeError) as e:
                         logger.debug(f"Control not added to page (RuntimeError/AttributeError): {e}")
                 self._run_task_safe(show_error)
@@ -208,6 +210,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                 def show_error():
                     try:
                         self._show_snack(error_msg, "RED")
+                        self.list_container.disabled = False
+                        self.update()
                     except (RuntimeError, AttributeError) as e:
                         logger.debug(f"Control not added to page (RuntimeError/AttributeError): {e}")
                 self._run_task_safe(show_error)
@@ -239,6 +243,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                                 )
                             )
                             self.groups_list.update()
+                        self.list_container.disabled = False
+                        self.update()
                     except (RuntimeError, AttributeError) as e:
                         logger.debug(f"Control not added to page (RuntimeError/AttributeError): {e}")
                 self._run_task_safe(show_error)

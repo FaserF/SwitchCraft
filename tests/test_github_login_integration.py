@@ -22,6 +22,29 @@ except ImportError:
     def skip_if_ci(reason="Test not suitable for CI environment"):
         if is_ci_environment():
             pytest.skip(reason)
+    def poll_until(predicate, timeout=10.0, interval=0.1):
+        """
+        Poll a predicate function until it returns True or timeout elapses.
+
+        Parameters:
+            predicate: Callable that returns True when condition is met
+            timeout: Maximum time to wait in seconds (default: 10.0)
+            interval: Time between polls in seconds (default: 0.1)
+
+        Returns:
+            True if predicate returned True, False on timeout
+
+        Raises:
+            TimeoutError: If timeout elapses without predicate returning True
+        """
+        import time
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if predicate():
+                return True
+            time.sleep(interval)
+        raise TimeoutError(f"Predicate did not return True within {timeout} seconds")
+
     @pytest.fixture
     def mock_page():
         page = MagicMock(spec=ft.Page)

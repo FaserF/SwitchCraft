@@ -130,13 +130,13 @@ def mock_page():
             def mock_open(control):
                 if isinstance(control, ft.AlertDialog):
                     self.dialog = control
-                    control.open = True
+                    setattr(control, 'open', True)
                 elif isinstance(control, ft.NavigationDrawer):
                     self.end_drawer = control
-                    control.open = True
+                    setattr(control, 'open', True)
                 elif isinstance(control, ft.SnackBar):
                     self.snack_bar = control
-                    control.open = True
+                    setattr(control, 'open', True)
                 self.update()
             self.open = mock_open
 
@@ -144,12 +144,37 @@ def mock_page():
             def mock_close(control):
                 if isinstance(control, ft.NavigationDrawer):
                     if self.end_drawer == control:
-                        self.end_drawer.open = False
+                        setattr(self.end_drawer, 'open', False)
                 self.update()
             self.close = mock_close
 
             # Mock page.add to add controls to the page
+            # Mock page.add to add controls to the page
             def mock_add(*controls):
+                import weakref
+                def set_structure_recursive(ctrl, parent):
+                    try:
+                        # Try public setter first if available? No, Flet usually internal.
+                        # But let's try direct setting if no property setter.
+                         ctrl._parent = weakref.ref(parent)
+                    except Exception:
+                        # If simple assignment fails (unlikely for _parent), just proceed
+                        pass
+
+                    try:
+                        ctrl._page = self
+                    except AttributeError:
+                        pass
+
+                    # Recurse for children
+                    if hasattr(ctrl, 'controls') and ctrl.controls:
+                        for child in ctrl.controls:
+                            set_structure_recursive(child, ctrl)
+                    if hasattr(ctrl, 'content') and ctrl.content:
+                        set_structure_recursive(ctrl.content, ctrl)
+
+                for control in controls:
+                    set_structure_recursive(control, self)
                 self.controls.extend(controls)
                 self.update()
             self.add = mock_add

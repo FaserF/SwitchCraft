@@ -200,12 +200,12 @@ class WingetView(ctk.CTkFrame):
         # Show basic info from search results
         basic_frame = ctk.CTkFrame(self.details_content, fg_color="transparent")
         basic_frame.pack(fill="x", pady=10, padx=10)
-        ctk.CTkLabel(basic_frame, text="Package ID:", font=ctk.CTkFont(weight="bold"), width=100, anchor="w").pack(side="left")
-        ctk.CTkLabel(basic_frame, text=app_info.get("Id", "Unknown"), anchor="w").pack(side="left", fill="x", expand=True)
+        ctk.CTkLabel(basic_frame, text=i18n.get("winget_filter_id") or "Package ID:", font=ctk.CTkFont(weight="bold"), width=100, anchor="w").pack(side="left")
+        ctk.CTkLabel(basic_frame, text=app_info.get("Id", i18n.get("unknown") or "Unknown"), anchor="w").pack(side="left", fill="x", expand=True)
         basic_frame2 = ctk.CTkFrame(self.details_content, fg_color="transparent")
         basic_frame2.pack(fill="x", pady=2, padx=10)
-        ctk.CTkLabel(basic_frame2, text="Version:", font=ctk.CTkFont(weight="bold"), width=100, anchor="w").pack(side="left")
-        ctk.CTkLabel(basic_frame2, text=app_info.get("Version", "Unknown"), anchor="w").pack(side="left", fill="x", expand=True)
+        ctk.CTkLabel(basic_frame2, text=i18n.get("field_version") or "Version:", font=ctk.CTkFont(weight="bold"), width=100, anchor="w").pack(side="left")
+        ctk.CTkLabel(basic_frame2, text=app_info.get("Version", i18n.get("unknown") or "Unknown"), anchor="w").pack(side="left", fill="x", expand=True)
 
     def _show_full_details(self, info):
         for w in self.details_content.winfo_children():

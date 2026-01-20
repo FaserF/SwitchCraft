@@ -180,9 +180,11 @@ if (Test-Path $PyProjectFile) {
         $VersionLine = Get-Content -Path $PyProjectFile | Select-String "version = " | Select-Object -First 1
         if ($VersionLine -match 'version = "(.*)"') {
             $VersionInfo = Extract-VersionInfo -VersionString $Matches[1]
-            # Validate that the parsed version is non-empty and well-formed
-            if ([string]::IsNullOrWhiteSpace($VersionInfo.Numeric)) {
-                Write-Warning "Parsed version from pyproject.toml has empty numeric component, using fallback: $FallbackVersion"
+            # Validate that the parsed version is non-empty and well-formed (MAJOR.MINOR.PATCH format)
+            $IsValidVersion = -not [string]::IsNullOrWhiteSpace($VersionInfo.Numeric) -and
+                              $VersionInfo.Numeric -match '^\d+\.\d+\.\d+$'
+            if (-not $IsValidVersion) {
+                Write-Warning "Parsed version from pyproject.toml is malformed (got: '$($VersionInfo.Numeric)'), expected MAJOR.MINOR.PATCH format. Using fallback: $FallbackVersion"
                 $VersionInfo = Extract-VersionInfo -VersionString $FallbackVersion
             }
             $AppVersion = $VersionInfo.Full

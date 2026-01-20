@@ -277,9 +277,22 @@ class LibraryView(ft.Column, ViewMixin):
                 if not self.search_val or self.search_val in name:
                     filtered_files.append(item)
 
-            # Add tiles for filtered files
-            for item in filtered_files:
-                self.grid.controls.append(self._create_tile(item))
+            # Add tiles for filtered files or show "no results" message
+            if not filtered_files:
+                # Show empty state when search yields no results
+                from switchcraft.utils.i18n import i18n
+                no_results = ft.Container(
+                    content=ft.Column([
+                        ft.Icon(ft.Icons.SEARCH_OFF, size=48, color="GREY_500"),
+                        ft.Text(i18n.get("no_results_found") or "No results found", size=16, color="GREY_500")
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                    alignment=ft.alignment.center,
+                    padding=40
+                )
+                self.grid.controls.append(no_results)
+            else:
+                for item in filtered_files:
+                    self.grid.controls.append(self._create_tile(item))
 
             try:
                 self.grid.update()

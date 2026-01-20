@@ -5,6 +5,9 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 
+# Module-level logger
+logger = logging.getLogger(__name__)
+
 # Constants
 MAX_LOG_FILES = 7
 MAX_LOG_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -120,7 +123,6 @@ class SessionLogHandler(logging.Handler):
         for handler in root_logger.handlers:
             if hasattr(handler, 'setLevel'):
                 handler.setLevel(level)
-        root_logger = logging.getLogger()
         if enabled:
             root_logger.info("Debug mode enabled - all log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL) will be captured")
         else:
