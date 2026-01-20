@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class GroupManagerView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
-        super().__init__(expand=True)
+        super().__init__(expand=True, spacing=0)
         self.app_page = page
         self.intune_service = IntuneService()
         self.groups = []
@@ -46,10 +46,18 @@ class GroupManagerView(ft.Column, ViewMixin):
         # UI Components
         self._init_ui()
 
-        # self._load_data() moved to did_mount
+        # Ensure filtered_groups is initialized
+        if not hasattr(self, 'filtered_groups') or self.filtered_groups is None:
+            self.filtered_groups = []
 
     def did_mount(self):
-        self._load_data()
+        """Called when the view is mounted to the page. Load initial data."""
+        logger.info("GroupManagerView did_mount called")
+        try:
+            self._load_data()
+        except Exception as ex:
+            logger.exception(f"Error in did_mount: {ex}")
+            self._show_error_view(ex, "GroupManagerView initialization")
 
     def _init_ui(self):
         # Header
@@ -57,20 +65,28 @@ class GroupManagerView(ft.Column, ViewMixin):
             label=i18n.get("search_groups") or "Search Groups",
             width=300,
             prefix_icon=ft.Icons.SEARCH,
-            on_change=self._on_search
+            on_change=self._safe_event_handler(self._on_search, "Search field")
         )
 
-        self.refresh_btn = ft.IconButton(ft.Icons.REFRESH, on_click=lambda _: self._load_data())
-        self.create_btn = ft.Button(i18n.get("btn_create_group") or "Create Group", icon=ft.Icons.ADD, on_click=self._show_create_dialog)
+        self.refresh_btn = ft.IconButton(ft.Icons.REFRESH, on_click=self._safe_event_handler(lambda _: self._load_data(), "Refresh button"))
+        self.create_btn = ft.Button(
+            i18n.get("btn_create_group") or "Create Group",
+            icon=ft.Icons.ADD,
+            on_click=self._safe_event_handler(self._show_create_dialog, "Create group button")
+        )
 
-        self.delete_toggle = ft.Switch(label=i18n.get("enable_delete_mode") or "Enable Deletion (Danger Zone)", value=False, on_change=self._toggle_delete_mode)
+        self.delete_toggle = ft.Switch(
+            label=i18n.get("enable_delete_mode") or "Enable Deletion (Danger Zone)",
+            value=False,
+            on_change=self._safe_event_handler(self._toggle_delete_mode, "Delete toggle")
+        )
         self.delete_btn = ft.Button(
             i18n.get("btn_delete_selected") or "Delete Selected",
             icon=ft.Icons.DELETE_FOREVER,
             bgcolor="RED",
             color="WHITE",
             disabled=True,
-            on_click=self._confirm_delete
+            on_click=self._safe_event_handler(self._confirm_delete, "Delete selected button")
         )
 
         self.members_btn = ft.Button(
@@ -80,37 +96,59 @@ class GroupManagerView(ft.Column, ViewMixin):
             on_click=self._safe_event_handler(self._show_members_dialog, "Manage Members button")
         )
 
-        header = ft.Row([
-            self.search_field,
-            self.refresh_btn,
-            ft.VerticalDivider(),
-            self.create_btn,
-            ft.Container(expand=True),
-            self.members_btn,
-            self.delete_toggle,
-            self.delete_btn
-        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+        # Split header into two rows to prevent buttons from going out of view
+        header = ft.Column([
+            ft.Row([
+                self.search_field,
+                self.refresh_btn,
+                ft.VerticalDivider(),
+                self.create_btn,
+                ft.Container(expand=True),
+                self.members_btn
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, wrap=True),
+            ft.Row([
+                ft.Container(expand=True),
+                self.delete_toggle,
+                self.delete_btn
+            ], alignment=ft.MainAxisAlignment.END, wrap=True)
+        ], spacing=10)
 
         # Groups List (replacing DataTable with clickable ListView)
         self.groups_list = ft.ListView(expand=True, spacing=5)
 
+        # Initialize with empty state message
+        self.groups_list.controls.append(
+            ft.Container(
+                content=ft.Text(i18n.get("loading_groups") or "Loading groups...", italic=True, color="GREY_500"),
+                padding=20,
+                alignment=ft.Alignment(0, 0)
+            )
+        )
+
         self.list_container = ft.Column([self.groups_list], scroll=ft.ScrollMode.AUTO, expand=True)
 
-        # Main Layout
-        self.controls = [
-            ft.Container(
-                content=ft.Column([
-                    ft.Text(i18n.get("entra_group_manager_title") or "Entra Group Manager", size=28, weight=ft.FontWeight.BOLD),
-                    ft.Text(i18n.get("entra_group_manager_desc") or "Manage your Microsoft Entra ID (Azure AD) groups.", color="GREY"),
-                    ft.Divider(),
-                    header,
-                    ft.Divider(),
-                    self.list_container
-                ], expand=True, spacing=10),
-                padding=20,
-                expand=True
-            )
-        ]
+        # Main Layout - ensure proper structure
+        main_column = ft.Column([
+            ft.Text(i18n.get("entra_group_manager_title") or "Entra Group Manager", size=28, weight=ft.FontWeight.BOLD),
+            ft.Text(i18n.get("entra_group_manager_desc") or "Manage your Microsoft Entra ID (Azure AD) groups.", color="GREY"),
+            ft.Divider(),
+            header,
+            ft.Divider(),
+            self.list_container
+        ], expand=True, spacing=10)
+
+        main_container = ft.Container(
+            content=main_column,
+            padding=20,
+            expand=True # Ensure container expands
+        )
+
+        self.controls = [main_container]
+
+        # Ensure Column properties are set
+        self.expand = True
+        self.spacing = 0
+        logger.debug("GroupManagerView UI initialized successfully")
 
     def _load_data(self):
         tenant = SwitchCraftConfig.get_value("IntuneTenantID")
@@ -126,16 +164,26 @@ class GroupManagerView(ft.Column, ViewMixin):
 
         def _bg():
             try:
+                logger.info("Authenticating with Intune...")
                 self.token = self.intune_service.authenticate(tenant, client, secret)
+                logger.info("Authentication successful, fetching groups...")
                 self.groups = self.intune_service.list_groups(self.token)
-                self.filtered_groups = self.groups
+                logger.info(f"Fetched {len(self.groups)} groups")
+                self.filtered_groups = self.groups.copy() if self.groups else []
+                logger.info(f"Filtered groups set to {len(self.filtered_groups)}")
+
                 # Marshal UI update to main thread
                 def update_table():
                     try:
+                        logger.debug("Updating table UI...")
                         self._update_table()
-                    except (RuntimeError, AttributeError):
+                        logger.debug("Table UI updated successfully")
+                    except (RuntimeError, AttributeError) as e:
                         # Control not added to page yet (common in tests)
-                        logger.debug("Cannot update table: control not added to page")
+                        logger.debug(f"Cannot update table: control not added to page: {e}")
+                    except Exception as ex:
+                        logger.exception(f"Error updating table: {ex}")
+                        self._show_error_view(ex, "Update table")
                 self._run_task_safe(update_table)
             except requests.exceptions.HTTPError as e:
                 # Handle specific permission error (403)
@@ -177,6 +225,20 @@ class GroupManagerView(ft.Column, ViewMixin):
                 def show_error():
                     try:
                         self._show_snack(error_msg, "RED")
+                        # Also update the list to show error
+                        if hasattr(self, 'groups_list'):
+                            self.groups_list.controls.clear()
+                            self.groups_list.controls.append(
+                                ft.Container(
+                                    content=ft.Column([
+                                        ft.Icon(ft.Icons.ERROR_OUTLINE, color="RED", size=48),
+                                        ft.Text(error_msg, color="RED", text_align=ft.TextAlign.CENTER)
+                                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                                    alignment=ft.alignment.center,
+                                    padding=20
+                                )
+                            )
+                            self.groups_list.update()
                     except (RuntimeError, AttributeError) as e:
                         logger.debug(f"Control not added to page (RuntimeError/AttributeError): {e}")
                 self._run_task_safe(show_error)
@@ -204,10 +266,17 @@ class GroupManagerView(ft.Column, ViewMixin):
         threading.Thread(target=_bg, daemon=True).start()
 
     def _update_table(self):
+        """Update the groups list UI. Must be called on UI thread."""
+        logger.info(f"_update_table called with {len(self.filtered_groups) if hasattr(self, 'filtered_groups') and self.filtered_groups else 0} filtered groups")
+
+        # This method is already expected to be called on the UI thread (via _run_task_safe)
+        # So we can directly update the UI without another wrapper
         try:
+            logger.debug("Clearing groups list...")
             self.groups_list.controls.clear()
 
             if not self.filtered_groups:
+                logger.info("No filtered groups, showing empty state")
                 self.groups_list.controls.append(
                     ft.Container(
                         content=ft.Text(i18n.get("no_groups_found") or "No groups found.", italic=True, color="GREY"),
@@ -216,6 +285,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                     )
                 )
             else:
+                logger.info(f"Adding {len(self.filtered_groups)} groups to list...")
                 for g in self.filtered_groups:
                     is_selected = self.selected_group == g or (self.selected_group and self.selected_group.get('id') == g.get('id'))
 
@@ -238,125 +308,232 @@ class GroupManagerView(ft.Column, ViewMixin):
                         border=ft.Border.all(2, "BLUE" if is_selected else "GREY_300"),
                         border_radius=5,
                         padding=5,
-                        on_click=lambda e, grp=g: self._on_group_click(grp),
+                        on_click=self._safe_event_handler(lambda e, grp=g: self._on_group_click(grp), f"Group click {g.get('displayName', 'Unknown')}"),
                         data=g  # Store group data in container
                     )
                     self.groups_list.controls.append(tile)
 
-            self.update()
+                logger.info(f"Added {len(self.groups_list.controls)} tiles to groups list")
+
+            logger.debug("Updating groups_list and view...")
+            try:
+                self.groups_list.update()
+                logger.debug("groups_list.update() called successfully")
+            except Exception as ex:
+                logger.error(f"Error updating groups_list: {ex}", exc_info=True)
+
+            try:
+                self.update()
+                logger.debug("self.update() called successfully")
+            except Exception as ex:
+                logger.error(f"Error updating view: {ex}", exc_info=True)
+
+            # Also update app_page if available
+            if hasattr(self, 'app_page') and self.app_page:
+                try:
+                    self.app_page.update()
+                    logger.debug("app_page.update() called successfully")
+                except Exception as ex:
+                    logger.error(f"Error updating app_page: {ex}", exc_info=True)
+
+            logger.info("Table UI update complete")
         except (RuntimeError, AttributeError) as e:
             # Control not added to page yet (common in tests)
             logger.debug(f"Cannot update groups list: control not added to page: {e}")
+        except Exception as ex:
+            logger.exception(f"Unexpected error in _update_table: {ex}")
+            self._show_error_view(ex, "Update table")
 
     def _on_search(self, e):
-        query = self.search_field.value.lower()
-        if not query:
-            self.filtered_groups = self.groups
-        else:
-            self.filtered_groups = [
-                g for g in self.groups
-                if query in (g.get('displayName') or '').lower() or query in (g.get('description') or '').lower()
-            ]
-        self._update_table()
+        try:
+            query = self.search_field.value.lower() if self.search_field.value else ""
+            logger.info(f"Search query: {query}")
+            logger.debug(f"Total groups available: {len(self.groups) if self.groups else 0}")
+
+            if not query:
+                self.filtered_groups = self.groups.copy() if self.groups else [].copy() if self.groups else []
+            else:
+                self.filtered_groups = [
+                    g for g in self.groups
+                    if query in (g.get('displayName') or '').lower() or query in (g.get('description') or '').lower()
+                ]
+            logger.info(f"Filtered groups: {len(self.filtered_groups)}")
+
+            # Update UI on main thread
+            self._update_table()
+        except Exception as ex:
+            logger.error(f"Error in search: {ex}", exc_info=True)
+            self._show_error_view(ex, "Search")
 
     def _on_group_click(self, group):
         """Handle click on a group tile to select/deselect it."""
-        # Toggle selection: if same group clicked, deselect; otherwise select new group
-        if self.selected_group and self.selected_group.get('id') == group.get('id'):
-            self.selected_group = None
-        else:
-            self.selected_group = group
+        try:
+            # Toggle selection: if same group clicked, deselect; otherwise select new group
+            if self.selected_group and self.selected_group.get('id') == group.get('id'):
+                self.selected_group = None
+            else:
+                self.selected_group = group
 
-        # Update UI to reflect selection
-        self._update_table()
+            # Update UI to reflect selection
+            self._update_table()
 
-        # Enable delete only if toggle on and item selected
-        self.delete_btn.disabled = not (self.delete_toggle.value and self.selected_group)
-        self.members_btn.disabled = not self.selected_group
+            # Enable delete only if toggle on and item selected
+            is_delete_enabled = self.delete_toggle.value and self.selected_group is not None
+            self.delete_btn.disabled = not is_delete_enabled
+            self.members_btn.disabled = not self.selected_group
 
-        # Show feedback
-        if self.selected_group:
-            self._show_snack(f"Selected: {self.selected_group.get('displayName', '')}", "BLUE")
-        else:
-            self._show_snack(i18n.get("group_deselected") or "Group deselected", "GREY")
+            # Force UI update
+            self._run_task_safe(lambda: self.update())
+
+            # Show feedback
+            if self.selected_group:
+                self._show_snack(f"Selected: {self.selected_group.get('displayName', '')}", "BLUE")
+            else:
+                self._show_snack(i18n.get("group_deselected") or "Group deselected", "GREY")
+        except Exception as ex:
+            logger.exception(f"Error handling group click: {ex}")
+            self._show_error_view(ex, "Group click handler")
 
     def _toggle_delete_mode(self, e):
-        self.delete_btn.disabled = not (self.delete_toggle.value and self.selected_group)
-        self.update()
+        """Toggle delete mode and update delete button state."""
+        try:
+            is_enabled = self.delete_toggle.value and self.selected_group is not None
+            self.delete_btn.disabled = not is_enabled
+            logger.debug(f"Delete mode toggled: {self.delete_toggle.value}, selected_group: {self.selected_group is not None}, delete_btn disabled: {not is_enabled}")
+            self._run_task_safe(lambda: self.update())
+        except Exception as ex:
+            logger.exception(f"Error toggling delete mode: {ex}")
+            self._show_error_view(ex, "Toggle delete mode")
 
     def _show_create_dialog(self, e):
-        def close_dlg(e):
-            self._close_dialog(dlg)
+        """Show dialog to create a new group."""
+        try:
+            def close_dlg(e):
+                self._close_dialog(dlg)
 
-        name_field = ft.TextField(label=i18n.get("group_name") or "Group Name", autofocus=True)
-        desc_field = ft.TextField(label=i18n.get("group_desc") or "Description")
+            name_field = ft.TextField(label=i18n.get("group_name") or "Group Name", autofocus=True)
+            desc_field = ft.TextField(label=i18n.get("group_desc") or "Description", multiline=True)
 
-        def create(e):
-            if not name_field.value:
-                return
-            if not self.token:
-                self._show_snack(i18n.get("not_connected_intune") or "Not connected to Intune", "RED")
-                return
-
-            def _bg():
-                try:
-                    self.intune_service.create_group(self.token, name_field.value, desc_field.value)
-                    self._show_snack(f"Group '{name_field.value}' created!", "GREEN")
+            def create(e):
+                if not name_field.value or not name_field.value.strip():
+                    self._show_snack(i18n.get("group_name_required") or "Group name is required", "RED")
+                    return
+                if not self.token:
+                    self._show_snack(i18n.get("not_connected_intune") or "Not connected to Intune", "RED")
                     self._close_dialog(dlg)
-                    self._load_data()
-                except Exception as ex:
-                    self._show_snack(f"Creation failed: {ex}", "RED")
-                except BaseException:
-                    # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
-                    logger.exception("Unexpected error in group creation background thread")
+                    return
 
-            threading.Thread(target=_bg, daemon=True).start()
+                def _bg():
+                    try:
+                        self.intune_service.create_group(self.token, name_field.value.strip(), desc_field.value or "")
+                        def update_ui():
+                            try:
+                                self._show_snack(f"Group '{name_field.value}' created!", "GREEN")
+                                self._close_dialog(dlg)
+                                self._load_data()
+                            except Exception as ex:
+                                logger.error(f"Error updating UI after group creation: {ex}", exc_info=True)
+                        self._run_task_safe(update_ui)
+                    except Exception as ex:
+                        logger.error(f"Failed to create group: {ex}", exc_info=True)
+                        def show_error():
+                            try:
+                                self._show_snack(f"Creation failed: {ex}", "RED")
+                            except Exception:
+                                pass
+                        self._run_task_safe(show_error)
+                    except BaseException:
+                        # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
+                        logger.exception("Unexpected error in group creation background thread")
 
-        dlg = ft.AlertDialog(
-            title=ft.Text(i18n.get("create_new_group") or "Create New Group"),
-            content=ft.Column([name_field, desc_field], height=150),
-            actions=[
-                ft.TextButton(i18n.get("cancel") or "Cancel", on_click=close_dlg),
-                ft.Button(i18n.get("create") or "Create", on_click=create, bgcolor="BLUE", color="WHITE")
-            ],
-        )
-        self.app_page.open(dlg)
-        self.app_page.update()
+                threading.Thread(target=_bg, daemon=True).start()
+
+            dlg = ft.AlertDialog(
+                title=ft.Text(i18n.get("create_new_group") or "Create New Group"),
+                content=ft.Column([name_field, desc_field], height=150, width=400),
+                actions=[
+                    ft.TextButton(i18n.get("cancel") or "Cancel", on_click=close_dlg),
+                    ft.Button(i18n.get("create") or "Create", on_click=self._safe_event_handler(create, "Create group button"), bgcolor="BLUE", color="WHITE")
+                ],
+            )
+            if not self._open_dialog_safe(dlg):
+                self._show_snack("Failed to open create group dialog", "RED")
+        except Exception as ex:
+            logger.exception(f"Error showing create dialog: {ex}")
+            self._show_snack(f"Failed to open create dialog: {ex}", "RED")
 
     def _confirm_delete(self, e):
+        """Show confirmation dialog and delete selected group."""
         if not self.selected_group:
+            self._show_snack(i18n.get("no_group_selected") or "No group selected", "ORANGE")
             return
 
-        def close_dlg(e):
-            self._close_dialog(dlg)
+        if not self.delete_toggle.value:
+            self._show_snack(i18n.get("delete_mode_not_enabled") or "Delete mode is not enabled", "ORANGE")
+            return
 
-        def delete(e):
-            grp_id = self.selected_group['id']
-            if not self.token:
-                self._show_snack("Not connected to Intune", "RED")
-                return
-            def _bg():
-                try:
-                    self.intune_service.delete_group(self.token, grp_id)
-                    self._show_snack("Group deleted.", "GREEN")
+        try:
+            def close_dlg(e):
+                self._close_dialog(dlg)
+
+            def delete(e):
+                grp_id = self.selected_group.get('id')
+                if not grp_id:
+                    self._show_snack("Error: Selected group has no ID", "RED")
                     self._close_dialog(dlg)
-                    self.selected_group = None
-                    self._load_data()
-                except Exception as ex:
-                    self._show_snack(f"Deletion failed: {ex}", "RED")
-            threading.Thread(target=_bg, daemon=True).start()
+                    return
+                if not self.token:
+                    self._show_snack("Not connected to Intune", "RED")
+                    self._close_dialog(dlg)
+                    return
 
-        dlg = ft.AlertDialog(
-            title=ft.Text("Confirm Deletion"),
-            content=ft.Text(f"Are you sure you want to delete '{self.selected_group.get('displayName')}'? This cannot be undone."),
-            actions=[
-                ft.TextButton("Cancel", on_click=close_dlg),
-                ft.Button("Delete", on_click=delete, bgcolor="RED", color="WHITE")
-            ],
-            actions_alignment=ft.MainAxisAlignment.END,
-        )
-        self.app_page.open(dlg)
-        self.app_page.update()
+                def _bg():
+                    try:
+                        self.intune_service.delete_group(self.token, grp_id)
+                        def update_ui():
+                            try:
+                                self._show_snack("Group deleted.", "GREEN")
+                                self._close_dialog(dlg)
+                                self.selected_group = None
+                                self.delete_btn.disabled = True
+                                self.members_btn.disabled = True
+                                self._load_data()
+                            except Exception as ex:
+                                logger.error(f"Error updating UI after deletion: {ex}", exc_info=True)
+                        self._run_task_safe(update_ui)
+                    except Exception as ex:
+                        logger.error(f"Failed to delete group: {ex}", exc_info=True)
+                        def show_error():
+                            try:
+                                self._show_snack(f"Deletion failed: {ex}", "RED")
+                            except Exception:
+                                pass
+                        self._run_task_safe(show_error)
+                threading.Thread(target=_bg, daemon=True).start()
+
+            group_name = self.selected_group.get('displayName', 'Unknown')
+            dlg = ft.AlertDialog(
+                title=ft.Text(i18n.get("confirm_deletion") or "Confirm Deletion"),
+                content=ft.Text(
+                    i18n.get("confirm_delete_group") or f"Are you sure you want to delete '{group_name}'? This cannot be undone.",
+                    selectable=True
+                ),
+                actions=[
+                    ft.TextButton(i18n.get("cancel") or "Cancel", on_click=close_dlg),
+                    ft.Button(
+                        i18n.get("delete") or "Delete",
+                        on_click=self._safe_event_handler(delete, "Delete group button"),
+                        bgcolor="RED",
+                        color="WHITE"
+                    )
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            if not self._open_dialog_safe(dlg):
+                self._show_snack("Failed to open delete confirmation dialog", "RED")
+        except Exception as ex:
+            logger.exception(f"Error showing delete confirmation: {ex}")
+            self._show_snack(f"Failed to show delete confirmation: {ex}", "RED")
 
 
 
@@ -385,16 +562,28 @@ class GroupManagerView(ft.Column, ViewMixin):
         self._show_snack("Please navigate to Settings tab manually", "ORANGE")
 
     def _show_members_dialog(self, e):
-        if not self.selected_group or not self.token:
-            logger.warning("Cannot show members dialog: no group selected or no token")
-            return
+        """Show dialog to manage group members."""
+        try:
+            if not self.selected_group:
+                logger.warning("Cannot show members dialog: no group selected")
+                self._show_snack(i18n.get("select_group_first") or "Please select a group first.", "ORANGE")
+                return
 
-        group_name = self.selected_group.get('displayName')
-        group_id = self.selected_group.get('id')
+            if not self.token:
+                logger.warning("Cannot show members dialog: no token")
+                self._show_snack(i18n.get("not_connected_intune") or "Not connected to Intune. Please refresh.", "RED")
+                return
 
-        if not group_id:
-            logger.error(f"Cannot show members dialog: group has no ID. Group: {self.selected_group}")
-            self._show_snack("Error: Selected group has no ID", "RED")
+            group_name = self.selected_group.get('displayName', 'Unknown')
+            group_id = self.selected_group.get('id')
+
+            if not group_id:
+                logger.error(f"Cannot show members dialog: group has no ID. Group: {self.selected_group}")
+                self._show_snack("Error: Selected group has no ID", "RED")
+                return
+        except Exception as ex:
+            logger.exception(f"Error in _show_members_dialog setup: {ex}")
+            self._show_snack(f"Failed to open members dialog: {ex}", "RED")
             return
 
         # Dialog controls

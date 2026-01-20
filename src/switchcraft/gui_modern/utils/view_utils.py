@@ -2,7 +2,6 @@ import flet as ft
 import logging
 import asyncio
 import inspect
-import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -197,27 +196,38 @@ class ViewMixin:
                         return True
                     except Exception as e:
                         logger.warning(f"Failed to run async task: {e}", exc_info=True)
-                        # Fallback: try direct call
+                        # Fallback: try to execute coroutine properly
                         try:
-                            func()
-                            return True
+                            import asyncio
+                            try:
+                                # Check if event loop is running
+                                loop = asyncio.get_running_loop()
+                                # If loop is running, schedule the coroutine
+                                asyncio.create_task(func())
+                                return True
+                            except RuntimeError:
+                                # No running loop, use asyncio.run
+                                asyncio.run(func())
+                                return True
                         except Exception as e2:
                             logger.error(f"Failed to execute async function directly: {e2}", exc_info=True)
                             return False
                 else:
-                    # Wrap sync function in async wrapper
-                    async def async_wrapper():
-                        try:
-                            func()
-                        except Exception as e:
-                            logger.error(f"Error in async wrapper for sync function: {e}", exc_info=True)
-                            raise
+                    # For sync functions, wrap in async wrapper only if run_task is available
+                    # Otherwise, call directly to avoid creating unawaited coroutines
                     try:
+                        # Wrap sync function in async wrapper
+                        async def async_wrapper():
+                            try:
+                                func()
+                            except Exception as e:
+                                logger.error(f"Error in async wrapper for sync function: {e}", exc_info=True)
+                                raise
                         page.run_task(async_wrapper)
                         return True
                     except Exception as e:
                         logger.warning(f"Failed to run task (sync wrapped): {e}", exc_info=True)
-                        # Fallback: try direct call
+                        # Fallback: try direct call for sync functions
                         try:
                             func()
                             return True

@@ -170,14 +170,19 @@ class AddonService:
                     for file_path in files:
                         # Normalize path separators
                         normalized = file_path.replace('\\', '/')
-                        # Check if it's manifest.json at any level (but prefer root)
-                        if normalized.endswith('/manifest.json') or normalized == 'manifest.json':
-                            # Prefer root-level, but accept subdirectory if root not found
-                            if manifest_path is None or normalized == 'manifest.json':
+                        # Check if it's manifest.json in a subdirectory (root already checked above)
+                        if normalized.endswith('/manifest.json'):
+                            # Accept subdirectory manifest if root not found
+                            if manifest_path is None:
                                 manifest_path = file_path
-                                # If we found root-level, stop searching
-                                if normalized == 'manifest.json':
-                                    break
+
+                if not manifest_path:
+                    # Fallback: Recursive search (max depth 2)
+                    for file_in_zip in files:
+                        parts = file_in_zip.replace('\\', '/').split('/')
+                        if len(parts) <= 3 and parts[-1].lower() == 'manifest.json':
+                             manifest_path = file_in_zip
+                             break
 
                 if not manifest_path:
                     # Provide helpful error message
@@ -209,6 +214,7 @@ class AddonService:
 
                 # Secure extraction
                 # If manifest was in a subdirectory, we need to handle path normalization
+                target_resolved = target.resolve()
                 for member in z.infolist():
                     # Normalize path separators for cross-platform compatibility
                     normalized_name = member.filename.replace('\\', '/')
@@ -216,9 +222,14 @@ class AddonService:
                     # Resolve the target path for this member
                     file_path = (target / normalized_name).resolve()
 
-                    # Ensure the resolved path starts with the target directory (prevent Zip Slip)
-                    if not str(file_path).startswith(str(target.resolve())):
-                        logger.error(f"Security Alert: Attempted Zip Slip with {member.filename}")
+                    # Ensure the resolved path is within the target directory (prevent Zip Slip)
+                    # Use Path.relative_to() which is safer than string prefix checks
+                    # It properly handles sibling directories and path traversal attacks
+                    try:
+                        file_path.relative_to(target_resolved)
+                    except ValueError:
+                        # Path is outside target directory - Zip Slip attack detected
+                        logger.error(f"Security Alert: Attempted Zip Slip with {member.filename} -> {file_path}")
                         continue
 
                     # Create parent directories

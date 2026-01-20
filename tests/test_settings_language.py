@@ -18,6 +18,7 @@ class TestSettingsLanguage(unittest.TestCase):
         run_task is set here for consistency with other test files.
         """
         self.page = MagicMock(spec=ft.Page)
+        self.page.open = MagicMock()  # Add open method for dialogs
         self.page.switchcraft_app = MagicMock()
         self.page.switchcraft_app._current_tab_index = 0
         self.page.switchcraft_app.goto_tab = MagicMock()

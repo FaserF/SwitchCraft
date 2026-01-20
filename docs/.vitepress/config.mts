@@ -39,7 +39,7 @@ export default defineConfig({
                 items: [
                     { text: 'Intune Integration', link: '/INTUNE' },
                     { text: 'Intune Setup Guide', link: '/INTUNE_SETUP' },
-                    { text: 'OMA-URI Reference', link: '/IntuneConfig' },
+                    { text: 'OMA-URI Reference', link: '/Intune_Configuration_Guide' },
                     { text: 'GPO / ADMX Policies', link: '/PolicyDefinitions/README' },
                     { text: 'Registry Settings', link: '/Registry' },
                     { text: 'Security Guide', link: '/SECURITY' }
@@ -80,7 +80,7 @@ export default defineConfig({
                     items: [
                         { text: 'Intune Integration', link: '/INTUNE' },
                         { text: 'Intune Setup Guide', link: '/INTUNE_SETUP' },
-                        { text: 'OMA-URI Reference', link: '/IntuneConfig' },
+                        { text: 'OMA-URI Reference', link: '/Intune_Configuration_Guide' },
                         { text: 'GPO / ADMX Policies', link: '/PolicyDefinitions/README' },
                         { text: 'Registry Settings', link: '/Registry' },
                         { text: 'Security Guide', link: '/SECURITY' }

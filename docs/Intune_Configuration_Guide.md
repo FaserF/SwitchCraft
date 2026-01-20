@@ -17,14 +17,17 @@ If you see error `-2016281112` in Intune for your OMA-URI settings, it is likely
 ## ADMX Ingestion (Prerequisite)
 
 Ensure you have ingested the ADMX file first.
-- **OMA-URI**: `./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/SwitchCraft/Policy/SwitchCraftPolicy`
+- **OMA-URI**: `./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/switchcraft/Policy/SwitchCraftPolicy`
 - **Data Type**: String
 - **Value**: [Content of SwitchCraft.admx]
+
+> [!IMPORTANT]
+> **Correct OMA-URI Path**: The path is built from the ADMX file's `target prefix` (`switchcraft`) and `namespace` (`FaserF.SwitchCraft`). The namespace dot (`.`) is replaced with a tilde (`~`), resulting in `switchcraft~Policy~FaserF~SwitchCraft~Enforced`.
 
 ## OMA-URI Settings
 
 All settings below use the base path:
-`./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced~[Category]/[PolicyName]`
+`./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~[Category]/[PolicyName]`
 
 ### General Settings
 **Category**: `General_Enf`
@@ -194,7 +197,7 @@ All settings below use the base path:
 ### Top-Level Settings
 
 #### 1. Debug Mode (`DebugMode_Enf`)
-- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~SwitchCraft~Enforced/DebugMode_Enf`
+- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced/DebugMode_Enf`
 - **Intune Selection**: String
 - **XML Value**:
   ```xml

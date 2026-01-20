@@ -32,7 +32,7 @@ class DashboardView(ft.Column):
             bgcolor="SURFACE_VARIANT",
             border_radius=10,
             padding=20,
-            expand=True
+            expand=1
         )
         self.recent_container = ft.Container(
             content=ft.Column([
@@ -43,27 +43,26 @@ class DashboardView(ft.Column):
             bgcolor="SURFACE_VARIANT",
             border_radius=10,
             padding=20,
-            width=350,
-            expand=True
+            width=350
         )
 
-        # Build initial content
-        main_content = ft.Container(
-            content=ft.Column([
-                ft.Text(i18n.get("dashboard_overview_title") or "Overview", size=28, weight=ft.FontWeight.BOLD),
-                ft.Divider(),
-                self.stats_row,
-                ft.Container(height=20),
-                ft.Row([
-                    self.chart_container,
-                    self.recent_container
-                ], spacing=20, wrap=True, expand=True)
-            ], spacing=15, expand=True),
-            padding=20,
-            expand=True
-        )
-
-        self.controls = [main_content]
+        # Build initial content - simplified layout
+        self.controls = [
+            ft.Container(
+                content=ft.Column([
+                    ft.Text(i18n.get("dashboard_overview_title") or "Overview", size=28, weight=ft.FontWeight.BOLD),
+                    ft.Divider(),
+                    self.stats_row,
+                    ft.Container(height=20),
+                    ft.Row([
+                        self.chart_container,
+                        self.recent_container
+                    ], spacing=20, wrap=False, expand=True)
+                ], spacing=15, expand=True),
+                padding=20,
+                expand=True
+            )
+        ]
 
         # Load data immediately instead of waiting for did_mount
         self._load_data()
@@ -152,19 +151,13 @@ class DashboardView(ft.Column):
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=4)
             )
 
-        # Get the existing chart container's content Column
-        chart_col = self.chart_container.content
-        if isinstance(chart_col, ft.Column) and len(chart_col.controls) >= 3:
-            # Update the bars row (index 2)
-            chart_col.controls[2] = ft.Row(bars, alignment=ft.MainAxisAlignment.SPACE_EVENLY, vertical_alignment=ft.CrossAxisAlignment.END)
-        else:
-            # Rebuild entire chart content if structure is wrong
-            chart_content = ft.Column([
-                ft.Text(i18n.get("chart_activity_title") or "Activity (Last 5 Days)", weight=ft.FontWeight.BOLD, size=18),
-                ft.Container(height=20),
-                ft.Row(bars, alignment=ft.MainAxisAlignment.SPACE_EVENLY, vertical_alignment=ft.CrossAxisAlignment.END),
-            ])
-            self.chart_container.content = chart_content
+        # Update chart container content - always rebuild to ensure proper rendering
+        chart_content = ft.Column([
+            ft.Text(i18n.get("chart_activity_title") or "Activity (Last 5 Days)", weight=ft.FontWeight.BOLD, size=18),
+            ft.Container(height=20),
+            ft.Row(bars, alignment=ft.MainAxisAlignment.SPACE_EVENLY, vertical_alignment=ft.CrossAxisAlignment.END, height=200),
+        ], expand=True)
+        self.chart_container.content = chart_content
 
         # Recent
         recent_list = []
@@ -198,19 +191,13 @@ class DashboardView(ft.Column):
                     )
                 )
 
-        # Get the existing recent container's content Column
-        recent_col = self.recent_container.content
-        if isinstance(recent_col, ft.Column) and len(recent_col.controls) >= 3:
-            # Update the list column (index 2)
-            recent_col.controls[2] = ft.Column(recent_list, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
-        else:
-            # Rebuild entire recent content if structure is wrong
-            recent_content = ft.Column([
-                 ft.Text(i18n.get("recent_actions") or "Recent Actions", weight=ft.FontWeight.BOLD, size=18),
-                 ft.Container(height=10),
-                 ft.Column(recent_list, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
-            ], expand=True)
-            self.recent_container.content = recent_content
+        # Update recent container content
+        recent_content = ft.Column([
+            ft.Text(i18n.get("recent_actions") or "Recent Actions", weight=ft.FontWeight.BOLD, size=18),
+            ft.Container(height=10),
+            ft.Column(recent_list, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True, height=200)
+        ], expand=True)
+        self.recent_container.content = recent_content
 
         # Force update of all containers
         try:

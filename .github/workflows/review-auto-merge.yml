@@ -89,19 +89,31 @@ jobs:
           TOTAL_CODERABBIT_COMMENTS=$((CODERABBIT_INLINE + CODERABBIT_PR_COMMENTS))
 
           # If there are any inline review comments (from any reviewer, especially CodeRabbit), skip auto-merge
-          if [[ "$INLINE_REVIEW_COMMENTS" -gt 0 ]] || [[ "$TOTAL_CODERABBIT_COMMENTS" -gt 0 ]]; then
-             echo "::notice::Review comments found ($INLINE_REVIEW_COMMENTS inline, $TOTAL_CODERABBIT_COMMENTS from CodeRabbit). Auto-merge skipped."
+          if [[ "$INLINE_REVIEW_COMMENTS" -gt 0 ]] || [[ "$CODERABBIT_PR_COMMENTS" -gt 0 ]]; then
+             echo "::notice::Review comments found ($INLINE_REVIEW_COMMENTS inline, $CODERABBIT_INLINE from CodeRabbit inline, $CODERABBIT_PR_COMMENTS from CodeRabbit PR comments). Auto-merge skipped."
 
              # Check if comment already exists to avoid duplicates
              COMMENT_EXISTS=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --jq '.[] | select(.body | contains("Auto-Merge Skipped") and contains("review comments")) | .id' | head -n 1)
              if [[ -z "$COMMENT_EXISTS" ]]; then
                # Post a comment explaining why auto-merge was skipped
                BODY=$'🚫 **Auto-Merge Skipped**\n\nAuto-merge was not executed because review comments were found in the code.\n\n'
-               if [[ "$TOTAL_CODERABBIT_COMMENTS" -gt 0 ]]; then
-                 BODY+="CodeRabbit has left $TOTAL_CODERABBIT_COMMENTS review comment(s) that need to be addressed.\n\n"
+               if [[ "$CODERABBIT_INLINE" -gt 0 ]] || [[ "$CODERABBIT_PR_COMMENTS" -gt 0 ]]; then
+                 BODY+="CodeRabbit has left "
+                 if [[ "$CODERABBIT_INLINE" -gt 0 ]] && [[ "$CODERABBIT_PR_COMMENTS" -gt 0 ]]; then
+                   BODY+="$CODERABBIT_INLINE inline comment(s) and $CODERABBIT_PR_COMMENTS PR comment(s)"
+                 elif [[ "$CODERABBIT_INLINE" -gt 0 ]]; then
+                   BODY+="$CODERABBIT_INLINE inline comment(s)"
+                 else
+                   BODY+="$CODERABBIT_PR_COMMENTS PR comment(s)"
+                 fi
+                 BODY+=" that need to be addressed.\n\n"
                fi
                if [[ "$INLINE_REVIEW_COMMENTS" -gt 0 ]]; then
-                 BODY+="There are $INLINE_REVIEW_COMMENTS inline review comment(s) in the code that need attention.\n\n"
+                 BODY+="There are $INLINE_REVIEW_COMMENTS inline review comment(s) in the code that need attention"
+                 if [[ "$CODERABBIT_INLINE" -gt 0 ]]; then
+                   BODY+=" ($CODERABBIT_INLINE from CodeRabbit)"
+                 fi
+                 BODY+=".\n\n"
                fi
                BODY+="Please review and address the feedback before merging.\n\n"
                BODY+="Once all review comments are resolved and CI workflows pass, auto-merge will proceed."

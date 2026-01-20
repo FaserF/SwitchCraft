@@ -337,16 +337,7 @@ class WingetHelper:
             "--accept-source-agreements"
         ]
         try:
-            startupinfo = self._get_startup_info()
-            kwargs = {}
-            if startupinfo:
-                kwargs['startupinfo'] = startupinfo
-            import sys
-            if sys.platform == "win32":
-                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
-                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                else:
-                    kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW constant
+            kwargs = self._get_subprocess_kwargs()
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300, **kwargs)
             if proc.returncode != 0:
                 logger.error(f"Winget install failed: {proc.stderr}")
@@ -665,16 +656,7 @@ class WingetHelper:
             }
             """
             cmd = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_script, "-id", package_id]
-            startupinfo = self._get_startup_info()
-            kwargs = {}
-            if startupinfo:
-                kwargs['startupinfo'] = startupinfo
-            import sys
-            if sys.platform == "win32":
-                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
-                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                else:
-                    kwargs['creationflags'] = 0x08000000
+            kwargs = self._get_subprocess_kwargs()
             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=30, **kwargs)
 
             if proc.returncode == 0 and "EXISTS" in proc.stdout:

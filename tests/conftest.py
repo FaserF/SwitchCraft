@@ -114,11 +114,15 @@ def mock_page():
                         # Use get_running_loop() instead of deprecated get_event_loop()
                         loop = asyncio.get_running_loop()
                         # If loop is running, schedule the coroutine
-                        asyncio.create_task(func())
+                        task = asyncio.create_task(func())
+                        # In test environment, we can't await, so just create the task
+                        # The warning is expected in test environment
+                        return task
                     except RuntimeError:
-                        # No event loop, create one
+                        # No event loop, create one and run
                         asyncio.run(func())
                 else:
+                    # For sync functions, call directly
                     func()
             self.run_task = run_task
 

@@ -95,13 +95,11 @@ def test_group_manager_members_dialog(page):
         mock_intune_instance = MagicMock()
         mock_intune.return_value = mock_intune_instance
 
-        # Mock credentials check
-        def mock_has_credentials():
-            return True
-        GroupManagerView._has_credentials = mock_has_credentials
-
-        # Create view
-        view = GroupManagerView(page)
+        # Mock credentials check using patch.object for proper scoping
+        from unittest.mock import patch
+        with patch.object(GroupManagerView, '_has_credentials', return_value=True):
+            # Create view inside patch scope
+            view = GroupManagerView(page)
 
         # Setup required state
         view.selected_group = {

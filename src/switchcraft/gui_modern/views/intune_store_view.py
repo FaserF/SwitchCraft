@@ -212,7 +212,6 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
 
             # Use run_task_safe to marshal UI updates to the page event loop
             self._run_task_safe(_update_ui)
-                    logger.exception(f"Failed to update UI: {ex}")
 
         threading.Thread(target=_bg, daemon=True).start()
 

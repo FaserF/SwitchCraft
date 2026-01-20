@@ -120,10 +120,11 @@ class SessionLogHandler(logging.Handler):
         for handler in root_logger.handlers:
             if hasattr(handler, 'setLevel'):
                 handler.setLevel(level)
+        root_logger = logging.getLogger()
         if enabled:
-            logger.info("Debug mode enabled - all log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL) will be captured")
+            root_logger.info("Debug mode enabled - all log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL) will be captured")
         else:
-            logger.info("Debug mode disabled - only INFO and above will be captured")
+            root_logger.info("Debug mode disabled - only INFO and above will be captured")
 
     def get_github_issue_link(self):
         """

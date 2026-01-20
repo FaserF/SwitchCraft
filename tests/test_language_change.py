@@ -11,6 +11,7 @@ def mock_page():
     """Create a mock Flet page."""
     page = MagicMock(spec=ft.Page)
     page.update = MagicMock()
+    page.open = MagicMock()  # Add open method for dialogs
     page.switchcraft_app = MagicMock()
     page.switchcraft_app.goto_tab = MagicMock()
     page.switchcraft_app._current_tab_index = 0

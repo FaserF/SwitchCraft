@@ -1,5 +1,6 @@
 import flet as ft
 import datetime
+import random
 from switchcraft.gui_modern.nav_constants import NavIndex
 from switchcraft.utils.i18n import i18n
 
@@ -34,7 +35,6 @@ class ModernHomeView(ft.Container):
 
     def _build_content(self):
         # Dynamic Greetings based on time of day with variations
-        import random
         hour = datetime.datetime.now().hour
 
         # Determine time period and get all variations
@@ -96,9 +96,10 @@ class ModernHomeView(ft.Container):
             default_greetings = ["Good Night", "Evening!", "Late evening!", "Night!"]
 
         # Randomly select a variation
+        # greeting_keys and default_greetings are always the same length (defined together above)
         selected_index = random.randint(0, len(greeting_keys) - 1)
         greeting_key = greeting_keys[selected_index]
-        default_greeting = default_greetings[selected_index] if selected_index < len(default_greetings) else default_greetings[0]
+        default_greeting = default_greetings[selected_index]
 
         greeting = i18n.get(greeting_key) or default_greeting
 

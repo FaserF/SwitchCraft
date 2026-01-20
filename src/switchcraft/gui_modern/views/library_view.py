@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 import os
 import sys
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -135,71 +136,103 @@ class LibraryView(ft.Column, ViewMixin):
 
     def _load_data(self, e):
         """Load .intunewin files from scan directories."""
+        logger.info("_load_data called - starting scan")
         try:
-            logger.info("Loading library data...")
-            self.all_files = []
-
-            # Update dir_info to show loading state
-            self.dir_info.value = f"{i18n.get('scanning') or 'Scanning'}..."
-            self.dir_info.update()
-
-            for scan_dir in self.scan_dirs:
+            # Update dir_info to show loading state - use _run_task_safe to avoid RuntimeError
+            def update_loading():
                 try:
-                    path = Path(scan_dir)
-                    if not path.exists():
-                        logger.debug(f"Scan directory does not exist: {scan_dir}")
-                        continue
+                    self.dir_info.value = f"{i18n.get('scanning') or 'Scanning'}..."
+                    self.dir_info.update()
+                except (RuntimeError, AttributeError):
+                    logger.debug("dir_info not attached to page yet, skipping update")
+            self._run_task_safe(update_loading)
 
-                    # Non-recursive scan of the directory
-                    for file in path.glob("*.intunewin"):
-                        if file.is_file():
-                            stat = file.stat()
-                            self.all_files.append({
-                                'path': str(file),
-                                'filename': file.name,
-                                'size': stat.st_size,
-                                'modified': datetime.fromtimestamp(stat.st_mtime),
-                                'directory': scan_dir
-                            })
+            # Run scanning in background thread to avoid blocking UI
+            def scan_files():
+                try:
+                    logger.info("Scanning directories for .intunewin files...")
+                    all_files = []
 
-                    # Also check one level down (common structure), limit to first 20 subdirs
-                    try:
-                        subdirs = [x for x in path.iterdir() if x.is_dir()]
-                        for subdir in subdirs[:20]: # Limit subdirectory scan
-                            for file in subdir.glob("*.intunewin"):
+                    for scan_dir in self.scan_dirs:
+                        try:
+                            path = Path(scan_dir)
+                            if not path.exists():
+                                logger.debug(f"Scan directory does not exist: {scan_dir}")
+                                continue
+
+                            # Non-recursive scan of the directory
+                            for file in path.glob("*.intunewin"):
                                 if file.is_file():
                                     stat = file.stat()
-                                    self.all_files.append({
+                                    all_files.append({
                                         'path': str(file),
                                         'filename': file.name,
                                         'size': stat.st_size,
                                         'modified': datetime.fromtimestamp(stat.st_mtime),
-                                        'directory': str(subdir)
+                                        'directory': scan_dir
                                     })
-                    except Exception as ex:
-                        logger.debug(f"Error scanning subdirectories in {scan_dir}: {ex}")
+
+                            # Also check one level down (common structure), limit to first 20 subdirs
+                            try:
+                                subdirs = [x for x in path.iterdir() if x.is_dir()]
+                                for subdir in subdirs[:20]: # Limit subdirectory scan
+                                    for file in subdir.glob("*.intunewin"):
+                                        if file.is_file():
+                                            stat = file.stat()
+                                            all_files.append({
+                                                'path': str(file),
+                                                'filename': file.name,
+                                                'size': stat.st_size,
+                                                'modified': datetime.fromtimestamp(stat.st_mtime),
+                                                'directory': str(subdir)
+                                            })
+                            except Exception as ex:
+                                logger.debug(f"Error scanning subdirectories in {scan_dir}: {ex}")
+                        except Exception as ex:
+                            if isinstance(ex, PermissionError):
+                                logger.debug(f"Permission denied scanning {scan_dir}")
+                            else:
+                                logger.warning(f"Failed to scan {scan_dir}: {ex}", exc_info=True)
+
+                    # Sort by modification time (newest first)
+                    all_files.sort(key=lambda x: x['modified'], reverse=True)
+
+                    # Limit to 50 most recent files
+                    all_files = all_files[:50]
+                    logger.info(f"Found {len(all_files)} .intunewin files")
+
+                    # Update UI on main thread
+                    def update_ui():
+                        try:
+                            self.all_files = all_files
+                            self.dir_info.value = f"{i18n.get('scanning') or 'Scanning'}: {len(self.scan_dirs)} {i18n.get('directories') or 'directories'} - {len(self.all_files)} {i18n.get('files_found') or 'files found'}"
+                            self.dir_info.update()
+                            self._refresh_grid()
+                        except (RuntimeError, AttributeError) as e:
+                            logger.debug(f"UI not ready for update: {e}")
+                            # Try to refresh grid anyway
+                            try:
+                                self.all_files = all_files
+                                self._refresh_grid()
+                            except Exception:
+                                pass
+                    self._run_task_safe(update_ui)
                 except Exception as ex:
-                    if isinstance(ex, PermissionError):
-                        logger.debug(f"Permission denied scanning {scan_dir}")
-                    else:
-                        logger.warning(f"Failed to scan {scan_dir}: {ex}", exc_info=True)
+                    logger.error(f"Error scanning library data: {ex}", exc_info=True)
+                    def show_error():
+                        try:
+                            self._show_snack(f"Failed to load library: {ex}", "RED")
+                            self.dir_info.value = f"{i18n.get('error') or 'Error'}: {str(ex)[:50]}"
+                            self.dir_info.update()
+                        except (RuntimeError, AttributeError):
+                            logger.debug("Cannot update error UI: control not attached")
+                    self._run_task_safe(show_error)
 
-            # Sort by modification time (newest first)
-            self.all_files.sort(key=lambda x: x['modified'], reverse=True)
-
-            # Limit to 50 most recent files
-            self.all_files = self.all_files[:50]
-            logger.info(f"Found {len(self.all_files)} .intunewin files")
-
-            # Update dir_info with results
-            self.dir_info.value = f"{i18n.get('scanning') or 'Scanning'}: {len(self.scan_dirs)} {i18n.get('directories') or 'directories'} - {len(self.all_files)} {i18n.get('files_found') or 'files found'}"
-
-            self._refresh_grid()
+            # Start scanning in background thread
+            threading.Thread(target=scan_files, daemon=True).start()
         except Exception as ex:
-            logger.error(f"Error loading library data: {ex}", exc_info=True)
-            self._show_snack(f"Failed to load library: {ex}", "RED")
-            self.dir_info.value = f"{i18n.get('error') or 'Error'}: {str(ex)[:50]}"
-            self.dir_info.update()
+            logger.error(f"Error starting library scan: {ex}", exc_info=True)
+            self._show_snack(f"Failed to start library scan: {ex}", "RED")
 
     def _on_search_change(self, e):
         self.search_val = e.control.value.lower()
@@ -230,8 +263,11 @@ class LibraryView(ft.Column, ViewMixin):
                         expand=True
                     )
                 )
-                self.grid.update()
-                self.update()
+                try:
+                    self.grid.update()
+                    self.update()
+                except (RuntimeError, AttributeError):
+                    logger.debug("Grid not attached to page yet, skipping update")
                 return
 
             # Filter files based on search
@@ -245,11 +281,19 @@ class LibraryView(ft.Column, ViewMixin):
             for item in filtered_files:
                 self.grid.controls.append(self._create_tile(item))
 
-            self.grid.update()
-            self.update()
+            try:
+                self.grid.update()
+                self.update()
+            except (RuntimeError, AttributeError) as e:
+                logger.debug(f"Grid not attached to page yet: {e}")
         except Exception as ex:
             logger.error(f"Error refreshing grid: {ex}", exc_info=True)
-            self._show_snack(f"Failed to refresh grid: {ex}", "RED")
+            def show_error():
+                try:
+                    self._show_snack(f"Failed to refresh grid: {ex}", "RED")
+                except (RuntimeError, AttributeError):
+                    pass
+            self._run_task_safe(show_error)
 
     def _create_tile(self, item):
         filename = item.get('filename', 'Unknown')

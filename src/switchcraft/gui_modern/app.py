@@ -124,11 +124,32 @@ class ModernApp:
         )
 
         # Notification button
+        def notification_click_handler(e):
+            """Handler for notification button click - ensures it's always called."""
+            logger.info("Notification button clicked - handler called")
+            try:
+                logger.debug("Calling _toggle_notification_drawer")
+                self._toggle_notification_drawer(e)
+                logger.info("_toggle_notification_drawer completed")
+            except Exception as ex:
+                logger.exception(f"Error in notification button click handler: {ex}")
+                # Show error to user
+                try:
+                    self.page.snack_bar = ft.SnackBar(
+                        content=ft.Text(f"Failed to open notifications: {ex}"),
+                        bgcolor="RED"
+                    )
+                    self.page.snack_bar.open = True
+                    self.page.update()
+                except Exception:
+                    pass
+
         self.notif_btn = ft.IconButton(
             icon=ft.Icons.NOTIFICATIONS,
             tooltip="Notifications",
-            on_click=lambda e: self._toggle_notification_drawer(e)
+            on_click=notification_click_handler
         )
+        logger.debug(f"Notification button created with handler: {self.notif_btn.on_click is not None}")
 
         # Now add listener
         self.notification_service.add_listener(self._on_notification_update)
@@ -223,65 +244,68 @@ class ModernApp:
             e: UI event or payload passed from the caller; forwarded to the drawer-opening handler.
         """
         try:
-            logger.debug("_toggle_notification_drawer called")
+            logger.info("_toggle_notification_drawer called")
             # Check if drawer is currently open
             is_open = False
             if hasattr(self.page, 'end_drawer') and self.page.end_drawer is not None:
                 try:
-                    is_open = getattr(self.page.end_drawer, 'open', False)
-                    logger.debug(f"Drawer open state: {is_open}")
+                    drawer_ref = self.page.end_drawer
+                    is_open = getattr(drawer_ref, 'open', False)
+                    logger.info(f"Drawer open state: {is_open}")
                 except Exception as ex:
                     logger.debug(f"Could not get drawer open state: {ex}")
                     is_open = False
 
             if is_open:
                 # Close drawer
-                logger.debug("Closing notification drawer")
+                logger.info("Closing notification drawer")
                 try:
-                    drawer_ref = self.page.end_drawer  # Save reference before clearing
-                    # Method 1: Set open to False first
-                    if drawer_ref and hasattr(drawer_ref, 'open'):
-                        drawer_ref.open = False
-                    # Method 2: Use page.close if available
-                    if hasattr(self.page, 'close') and drawer_ref:
-                        try:
-                            self.page.close(drawer_ref)
-                        except Exception:
-                            pass
-                    # Method 3: Remove drawer entirely
-                    if hasattr(self.page, 'end_drawer'):
-                        self.page.end_drawer = None
-                    self.page.update()
-                    logger.debug("Notification drawer closed successfully")
+                    # Method 1: Use page.close if available (newer Flet)
+                    if hasattr(self.page, 'close_end_drawer'):
+                        self.page.close_end_drawer()
+                    elif hasattr(self.page, 'close') and self.page.end_drawer:
+                        self.page.close(self.page.end_drawer)
+                    else:
+                        # Fallback for older Flet
+                        if self.page.end_drawer:
+                            self.page.end_drawer.open = False
+                            self.page.update()
+                    logger.info("Notification drawer closed successfully")
                 except Exception as ex:
-                    logger.error(f"Failed to close drawer: {ex}")
-                    # Force close by removing drawer
+                    logger.error(f"Failed to close drawer: {ex}", exc_info=True)
+                    # Force close
                     self.page.end_drawer = None
                     self.page.update()
             else:
                 # Open drawer
-                logger.debug("Opening notification drawer")
+                logger.info("Opening notification drawer")
                 try:
                     self._open_notifications_drawer(e)
                     # Force update to ensure drawer is visible
                     self.page.update()
+                    logger.info("Notification drawer opened and page updated")
                 except Exception as ex:
                     logger.exception(f"Error opening notification drawer: {ex}")
                     from switchcraft.utils.i18n import i18n
                     error_msg = i18n.get("error_opening_notifications") or "Failed to open notifications"
-                    self.page.snack_bar = ft.SnackBar(
-                        content=ft.Text(error_msg),
-                        bgcolor="RED"
-                    )
-                    self.page.snack_bar.open = True
-                    self.page.update()
+                    try:
+                        self.page.snack_bar = ft.SnackBar(
+                            content=ft.Text(error_msg),
+                            bgcolor="RED"
+                        )
+                        self.page.snack_bar.open = True
+                        self.page.update()
+                    except Exception as ex2:
+                        logger.error(f"Failed to show error snackbar: {ex2}", exc_info=True)
         except Exception as ex:
             logger.exception(f"Error toggling notification drawer: {ex}")
             # Try to open anyway
             try:
+                logger.info("Attempting to open drawer after error")
                 self._open_notifications_drawer(e)
+                self.page.update()
             except Exception as ex2:
-                logger.error(f"Failed to open drawer after error: {ex2}")
+                logger.error(f"Failed to open drawer after error: {ex2}", exc_info=True)
                 # Show error to user
                 try:
                     self.page.snack_bar = ft.SnackBar(
@@ -354,34 +378,26 @@ class ModernApp:
             )
 
             # Set drawer on page FIRST
+            # Set drawer on page
             self.page.end_drawer = drawer
 
-            # Now set open (Flet needs this order)
-            drawer.open = True
-
-            # Try additional methods if drawer didn't open
+            # Open drawer
             try:
-                if hasattr(self.page, 'open'):
+                if hasattr(self.page, 'open_end_drawer'):
+                     self.page.open_end_drawer()
+                elif hasattr(self.page, 'open'):
                     self.page.open(drawer)
+                else:
+                    drawer.open = True
+                    self.page.update()
             except Exception as ex:
-                logger.debug(f"page.open() not available or failed: {ex}, using direct assignment")
-
-            # Final verification - ensure drawer is open
-            if not drawer.open:
-                logger.warning("Drawer open flag is False, forcing it to True")
+                logger.warning(f"Failed to open drawer via API, falling back to property: {ex}")
                 drawer.open = True
-                # Re-assign to page to ensure it's registered
-                self.page.end_drawer = drawer
+                self.page.update()
 
             # Single update after all state changes to avoid flicker
             self.page.update()
-
-            # Force another update to ensure drawer is visible
-            try:
-                self.page.update()
-            except Exception as ex:
-                logger.debug(f"Second update failed: {ex}")
-
+            logger.info("Notification drawer opened successfully")
             logger.info(f"Notification drawer should now be visible. open={drawer.open}, page.end_drawer={self.page.end_drawer is not None}")
 
             # Mark all as read after opening

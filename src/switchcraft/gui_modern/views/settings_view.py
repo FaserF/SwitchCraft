@@ -121,8 +121,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
             ],
             expand=True,
         )
-        # Set on_change handler - wrap in safe handler to catch errors
-        def _handle_lang_change(e):
+        # Set on_change handler - consolidated error handling
+        def safe_lang_handler(e):
             try:
                 if e.control.value:
                     logger.info(f"Language dropdown changed to: {e.control.value}")
@@ -130,16 +130,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 else:
                     logger.warning("Language dropdown changed but value is None/empty")
             except Exception as ex:
-                logger.exception(f"Error handling language change: {ex}")
-                self._show_snack(f"Failed to change language: {ex}", "RED")
-
-        # Wrap handler to catch exceptions and show in error view
-        def safe_lang_handler(e):
-            try:
-                _handle_lang_change(e)
-            except Exception as ex:
                 logger.exception(f"Error in language change handler: {ex}")
+                # Show error in crash view for better debugging
                 self._show_error_view(ex, "Language dropdown change")
+                # Also show snackbar for user feedback
+                try:
+                    self._show_snack(f"Failed to change language: {ex}", "RED")
+                except Exception:
+                    pass  # If snackbar fails, error view already shown
 
         lang_dd.on_change = safe_lang_handler
 
@@ -186,7 +184,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _build_cloud_sync_section(self):
         self.sync_status_text = ft.Text(i18n.get("sync_checking_status") or "Checking status...", color="GREY")
         self.sync_actions = ft.Row(visible=False)
-        self.login_btn = ft.Button(i18n.get("btn_login_github") or "Login with GitHub", icon=ft.Icons.LOGIN, on_click=self._start_github_login)
+        self.login_btn = ft.Button(
+            i18n.get("btn_login_github") or "Login with GitHub",
+            icon=ft.Icons.LOGIN,
+            on_click=self._safe_event_handler(self._start_github_login, "GitHub login button")
+        )
         self.logout_btn = ft.Button(i18n.get("btn_logout") or "Logout", icon=ft.Icons.LOGOUT, on_click=self._logout_github, color="RED")
 
         self._update_sync_ui(update=False)
@@ -350,7 +352,20 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         cert_display = saved_thumb if saved_thumb else (saved_cert_path if saved_cert_path else (i18n.get("cert_not_configured") or "Not Configured"))
 
-        self.cert_status_text = ft.Text(cert_display, color="GREEN" if (saved_thumb or saved_cert_path) else "GREY")
+        self.cert_status_text = ft.Text(
+            cert_display,
+            color="GREEN" if (saved_thumb or saved_cert_path) else "GREY",
+            selectable=True  # Make thumbprint selectable for copying
+        )
+        
+        # Create copy button for thumbprint (only visible if thumbprint exists)
+        self.cert_copy_btn = ft.IconButton(
+            ft.Icons.COPY,
+            tooltip=i18n.get("btn_copy_thumbprint") or "Copy Thumbprint",
+            on_click=self._copy_cert_thumbprint,
+            visible=bool(saved_thumb),  # Only visible if thumbprint exists
+            icon_size=18
+        )
 
         cert_auto_btn = ft.Button(
             i18n.get("btn_auto_detect_cert") or "Auto-Detect",
@@ -429,7 +444,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 # Code Signing
                 ft.Text(i18n.get("settings_hdr_signing") or "Code Signing", size=18, color="BLUE"),
                 sign_sw,
-                ft.Row([ft.Text(i18n.get("lbl_active_cert") or "Active Certificate:"), self.cert_status_text]),
+                ft.Row([
+                    ft.Text(i18n.get("lbl_active_cert") or "Active Certificate:"), 
+                    self.cert_status_text,
+                    self.cert_copy_btn  # Copy button for thumbprint
+                ], wrap=False),
                 ft.Row([cert_auto_btn, cert_browse_btn, cert_reset_btn]),
                 ft.Divider(),
                 # Paths
@@ -692,7 +711,13 @@ class ModernSettingsView(ft.Column, ViewMixin):
         """
         logger.info("GitHub login button clicked, starting device flow...")
 
-        # Show loading dialog immediately on main thread
+        # Immediate visual feedback
+        if hasattr(self, 'login_btn'):
+            self.login_btn.text = "Starting..."
+            self.login_btn.icon = ft.Icons.HOURGLASS_EMPTY
+            self.login_btn.update()
+
+        # Show loading dialog immediately on main thread using safe dialog opening
         loading_dlg = ft.AlertDialog(
             title=ft.Text("Initializing..."),
             content=ft.Column([
@@ -700,9 +725,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.Text("Connecting to GitHub...")
             ], tight=True)
         )
-        self.app_page.dialog = loading_dlg
-        loading_dlg.open = True
-        self.app_page.update()
+        # Use _open_dialog_safe for consistent dialog handling
+        if not self._open_dialog_safe(loading_dlg):
+            logger.error("Failed to open loading dialog for GitHub login")
+            self._show_snack("Failed to open login dialog", "RED")
+            return
 
         # Start device flow in background (network call)
         def _init_flow():
@@ -771,32 +798,16 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
             # Show dialog on main thread
             logger.info("Showing GitHub login dialog...")
-            try:
-                if hasattr(self.app_page, 'open') and callable(getattr(self.app_page, 'open')):
-                    self.app_page.open(dlg)
-                    logger.info("Dialog opened via page.open()")
-                else:
-                    self.app_page.dialog = dlg
-                    dlg.open = True
-                    self.app_page.update()
-                    logger.info("Dialog opened via manual assignment")
-            except Exception as ex:
-                logger.exception(f"Error showing dialog: {ex}")
-                try:
-                    self.app_page.dialog = dlg
-                    dlg.open = True
-                    self.app_page.update()
-                    logger.info("Dialog opened via fallback")
-                except Exception as ex2:
-                    logger.exception(f"Fallback dialog show also failed: {ex2}")
-                    self._show_snack(f"Failed to show login dialog: {ex2}", "RED")
-                    return
+            # Use _open_dialog_safe for consistent dialog handling
+            if not self._open_dialog_safe(dlg):
+                logger.error("Failed to open GitHub login dialog")
+                self._show_snack("Failed to show login dialog", "RED")
+                return
+            logger.info(f"Dialog opened successfully. open={dlg.open}, page.dialog={self.app_page.dialog is not None}")
 
             # Verify dialog state (if not open after attempts, log warning but don't force)
             if not dlg.open:
                 logger.warning("Dialog open flag is False after all attempts. This may indicate a race condition or dialog opening issue.")
-
-            logger.info(f"Dialog opened successfully. open={dlg.open}, page.dialog={self.app_page.dialog is not None}")
 
             # Poll for token in background thread
             def _poll_token():
@@ -1045,7 +1056,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
         Parameters:
             val (str): Language code or identifier to set (e.g., "en", "fr", etc.).
         """
+        """
         logger.info(f"Language change requested: {val}")
+        logger.debug(f"Current app_page: {getattr(self, 'app_page', 'Not Set')}, type: {type(getattr(self, 'app_page', None))}")
         try:
             from switchcraft.utils.config import SwitchCraftConfig
             from switchcraft.utils.i18n import i18n
@@ -1061,11 +1074,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
             # Immediately refresh the current view to apply language change
             # Get current tab index and reload the view
             if hasattr(self.app_page, 'switchcraft_app'):
-            app = self.app_page.switchcraft_app
-            current_idx = getattr(app, '_current_tab_index', 0)
+                app = self.app_page.switchcraft_app
+                current_idx = getattr(app, '_current_tab_index', 0)
+            else:
+                app = None
+                current_idx = 0
 
             # Clear ALL view cache to force rebuild with new language
-            if hasattr(app, '_view_cache'):
+            if app and hasattr(app, '_view_cache'):
                 app._view_cache.clear()
 
             # Rebuild the Settings View itself (since we're in it)
@@ -1130,16 +1146,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         "GREEN"
                     )
 
-            # Use shared helper for run_task with fallback
-            self._run_task_with_fallback(
-                _reload_app,
-                error_msg=i18n.get("language_changed") or "Language changed. Please restart to see all changes."
-            )
+            # Use _run_task_safe to ensure UI updates happen on main thread
+            self._run_task_safe(_reload_app)
         except Exception as ex:
             logger.exception(f"Error in language change handler: {ex}")
             self._show_snack(f"Failed to change language: {ex}", "RED")
-        else:
-            # Fallback: Show restart dialog if app reference not available
+
+        # Show restart dialog if app reference not available (outside try-except)
+        if not hasattr(self.app_page, 'switchcraft_app') or not self.app_page.switchcraft_app:
             def do_restart(e):
                 """
                 Restart the application by launching a new process and exiting the current process.
@@ -1224,7 +1238,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     ),
                 ]
             )
-            self.app_page.open(dlg)
+            # Use _open_dialog_safe for consistent dialog handling
+            if not self._open_dialog_safe(dlg):
+                logger.warning("Failed to open restart dialog")
 
     def _test_graph_connection(self, e):
         """
@@ -1351,9 +1367,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
             # Set to DEBUG to capture all levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
             handler.setLevel(logging.DEBUG)
             handler.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(name)s | %(message)s'))
-            # Only add handler if not already added
+            # Only add handler if not already added (check by type to avoid duplicate instances)
             root_logger = logging.getLogger()
-            if handler not in root_logger.handlers:
+            # FletLogHandler is defined in this file (line 1304), no need to import
+            if not any(isinstance(h, FletLogHandler) for h in root_logger.handlers):
                 root_logger.addHandler(handler)
                 logger.info("Debug log handler attached to root logger - all log levels will be captured")
 
@@ -1799,8 +1816,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         Checks in order:
         1. GPO/Policy configured certificate (CodeSigningCertThumbprint from Policy)
-        2. CurrentUser\My certificate store (user certificates)
-        3. LocalMachine\My certificate store (GPO-deployed certificates)
+        2. CurrentUser\\My certificate store (user certificates)
+        3. LocalMachine\\My certificate store (GPO-deployed certificates)
         """
         import subprocess
         import json
@@ -1835,6 +1852,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         # Don't overwrite Policy settings, just display them
                         self.cert_status_text.value = f"GPO: {gpo_thumb[:8]}..."
                         self.cert_status_text.color = "GREEN"
+                        # Show copy button for GPO thumbprint
+                        if hasattr(self, 'cert_copy_btn'):
+                            self.cert_copy_btn.visible = True
                         self.update()
                         self._show_snack(i18n.get("cert_gpo_detected") or "GPO-configured certificate detected.", "GREEN")
                         return
@@ -1849,17 +1869,35 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     return
             except Exception as ex:
                 logger.debug(f"GPO cert verification failed: {ex}")
-                # If GPO cert is managed but verification fails, still honor GPO and don't auto-detect
+                # If GPO cert is managed but verification fails, validate that we have usable values
                 if is_gpo_thumb or is_gpo_path:
-                    display_value = f"{gpo_thumb[:8]}..." if (is_gpo_thumb and gpo_thumb) else (gpo_cert_path if is_gpo_path else "Policy Set")
-                    self.cert_status_text.value = f"GPO: {display_value}"
-                    self.cert_status_text.color = "GREEN"
-                    self.update()
-                    self._show_snack(i18n.get("cert_gpo_detected") or "GPO-configured certificate detected.", "GREEN")
-                    return
+                    # Validate that we have actual values, not just policy flags
+                    has_usable_value = False
+                    if is_gpo_thumb and gpo_thumb and len(gpo_thumb.strip()) > 0:
+                        has_usable_value = True
+                        display_value = f"{gpo_thumb[:8]}..."
+                    elif is_gpo_path and gpo_cert_path and len(gpo_cert_path.strip()) > 0:
+                        has_usable_value = True
+                        display_value = gpo_cert_path
+
+                    if has_usable_value:
+                        # GPO has configured a value, honor it even if verification failed
+                        self.cert_status_text.value = f"GPO: {display_value}"
+                        self.cert_status_text.color = "ORANGE"  # Orange to indicate verification failed
+                        self.update()
+                        self._show_snack(i18n.get("cert_gpo_detected") or "GPO-configured certificate detected (verification failed).", "ORANGE")
+                        return
+                    else:
+                        # GPO policy is set but no usable value - warn user
+                        logger.warning("GPO policy manages certificate but no usable value found")
+                        self.cert_status_text.value = i18n.get("cert_gpo_no_value") or "GPO: Policy set but no value"
+                        self.cert_status_text.color = "ORANGE"
+                        self.update()
+                        self._show_snack(i18n.get("cert_gpo_no_value") or "GPO policy set but certificate value is missing.", "ORANGE")
+                        return
 
         try:
-            # Search in order: CurrentUser\My, then LocalMachine\My (for GPO-deployed certs)
+            # Search in order: CurrentUser\\My, then LocalMachine\\My (for GPO-deployed certs)
             cmd = [
                 "powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
                 "$certs = @(); "
@@ -1903,6 +1941,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     SwitchCraftConfig.set_user_preference("CodeSigningCertPath", "")
                 self.cert_status_text.value = f"{subj} ({thumb[:8]}...)"
                 self.cert_status_text.color = "GREEN"
+                # Show copy button when thumbprint is set
+                if hasattr(self, 'cert_copy_btn'):
+                    self.cert_copy_btn.visible = True
                 self.update()
                 self._show_snack(f"{i18n.get('cert_auto_detected') or 'Certificate auto-detected'}: {subj}", "GREEN")
             else:
@@ -1916,6 +1957,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", thumb)
                 self.cert_status_text.value = f"{subj} ({thumb[:8]}...)"
                 self.cert_status_text.color = "GREEN"
+                # Show copy button when thumbprint is set
+                if hasattr(self, 'cert_copy_btn'):
+                    self.cert_copy_btn.visible = True
                 self.update()
                 self._show_snack(f"{i18n.get('cert_auto_detected_multi') or 'Multiple certs found, using first'}: {subj}", "BLUE")
 
@@ -1935,6 +1979,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
             SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", "")
             self.cert_status_text.value = path
             self.cert_status_text.color = "GREEN"
+            # Hide copy button when using cert path (not thumbprint)
+            if hasattr(self, 'cert_copy_btn'):
+                self.cert_copy_btn.visible = False
             self.update()
             self._show_snack(i18n.get("cert_file_selected") or "Certificate file selected.", "GREEN")
 

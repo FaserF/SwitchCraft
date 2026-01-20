@@ -131,11 +131,13 @@ class ModernWingetView(ft.Row, ViewMixin):
         )
 
         # Right Pane - store as instance variable so we can update it
+        # Start with visible=False to show instruction, will be set to True when details are loaded
         self.right_pane = ft.Container(
             content=self.details_area,
             expand=True,
             padding=20,
-            margin=ft.Margin.only(right=20, top=20, bottom=20, left=10)
+            margin=ft.Margin.only(right=20, top=20, bottom=20, left=10),
+            visible=False  # Initially hidden until details are loaded
         )
 
         # Initial instruction
@@ -330,49 +332,70 @@ class ModernWingetView(ft.Row, ViewMixin):
                     title=ft.Text(item.get('Name', i18n.get("unknown") or "Unknown")),
                     subtitle=ft.Text(f"{item.get('Id', '')} - {item.get('Version', '')}"),
                 )
-                # Capture item in lambda default arg
-                tile.on_click = lambda e, i=item: self._load_details(i)
+                # Capture item in lambda default arg and wrap with safe handler
+                # Note: _safe_event_handler expects a handler that takes an event, so we create a wrapper
+                def make_click_handler(pkg_item):
+                    def handler(e):
+                        try:
+                            logger.debug(f"Tile clicked for package: {pkg_item.get('Id', 'Unknown')}")
+                            self._load_details(pkg_item)
+                        except Exception as ex:
+                            logger.exception(f"Error in tile click handler for {pkg_item.get('Id', 'Unknown')}: {ex}")
+                            self._show_error_view(ex, f"Load details for {pkg_item.get('Id', 'Unknown')}")
+                    return handler
+                tile.on_click = self._safe_event_handler(make_click_handler(item), f"Load details for {item.get('Id', 'Unknown')}")
                 self.search_results.controls.append(tile)
         self.update()
 
     def _load_details(self, short_info):
         logger.info(f"Loading details for package: {short_info.get('Id', 'Unknown')}")
 
-        # Create new loading area immediately
-        loading_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
-        loading_area.controls.append(ft.ProgressBar())
-        loading_area.controls.append(ft.Text("Loading package details...", color="GREY_500", italic=True))
-        self.details_area = loading_area
+        # Validate input
+        if not short_info or not short_info.get('Id'):
+            logger.error("_load_details called with invalid short_info")
+            self._show_error_view(Exception("Invalid package information"), "Load details")
+            return
 
-        # CRITICAL: Re-assign content to force container refresh
-        self.right_pane.content = self.details_area
-        self.right_pane.visible = True
-
-        # Force update of details area, row, and page
-        try:
-            self.details_area.update()
-        except Exception as ex:
-            logger.debug(f"Error updating details_area: {ex}")
-        try:
-            self.right_pane.update()
-        except Exception as ex:
-            logger.debug(f"Error updating right_pane: {ex}")
-        try:
-            self.update()
-        except Exception as ex:
-            logger.debug(f"Error updating row: {ex}")
-        if hasattr(self, 'app_page'):
+        # Create new loading area immediately - use _run_task_safe to ensure UI updates happen on main thread
+        def _show_loading():
             try:
-                self.app_page.update()
+                loading_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+                loading_area.controls.append(ft.ProgressBar())
+                loading_area.controls.append(ft.Text("Loading package details...", color="GREY_500", italic=True))
+                self.details_area = loading_area
+
+                # CRITICAL: Re-assign content to force container refresh
+                self.right_pane.content = self.details_area
+                self.right_pane.visible = True
+
+                # Update UI - CORRECT ORDER: Parent first
+                self.right_pane.update()
+                # self.details_area.update() # Not needed if parent updated with new content
+                self.update()
+                if hasattr(self, 'app_page'):
+                    self.app_page.update()
+                logger.debug("Loading UI displayed successfully")
             except Exception as ex:
-                logger.debug(f"Error updating app_page: {ex}")
+                logger.error(f"Error showing loading UI: {ex}", exc_info=True)
+
+        self._run_task_safe(_show_loading)
 
         def _fetch():
             try:
                 package_id = short_info.get('Id', 'Unknown')
                 logger.info(f"Fetching package details for: {package_id}")
                 logger.debug(f"Starting get_package_details call for {package_id}")
-                full = self.winget.get_package_details(package_id)
+
+                # Check if winget is available
+                if not self.winget:
+                    raise Exception("Winget helper is not available. Please install the Winget addon.")
+
+                try:
+                    full = self.winget.get_package_details(package_id)
+                except Exception as get_ex:
+                    logger.error(f"get_package_details raised exception for {package_id}: {get_ex}", exc_info=True)
+                    raise  # Re-raise to be caught by outer except
+
                 logger.debug(f"Raw package details received: {list(full.keys()) if full else 'empty'}")
                 logger.debug(f"Package details type: {type(full)}, length: {len(full) if isinstance(full, dict) else 'N/A'}")
 
@@ -716,32 +739,41 @@ class ModernWingetView(ft.Row, ViewMixin):
         self.right_pane.visible = True
 
         # Force update of all UI components - MUST update in correct order
-        logger.debug("Updating UI components for package details")
-        try:
-            # Update details area first
-            self.details_area.update()
-        except Exception as ex:
-            logger.debug(f"Error updating details_area: {ex}")
+        logger.info(f"Updating UI components for package details: {info.get('Name', 'Unknown')}")
+        logger.debug(f"Details area has {len(self.details_area.controls)} controls")
+        logger.debug(f"Right pane visible: {self.right_pane.visible}, content type: {type(self.right_pane.content)}")
 
         try:
-            # Then update right pane container
+            # Update parent container first (adds children to page)
             self.right_pane.update()
+            # self.details_area.update() # Redundant
+            logger.debug("right_pane.update() called successfully")
         except Exception as ex:
-            logger.debug(f"Error updating right_pane: {ex}")
+            logger.error(f"Error updating details_area: {ex}", exc_info=True)
+
+        try:
+            # Then update right pane container - CRITICAL for visibility
+            self.right_pane.update()
+            logger.debug("right_pane.update() called successfully")
+        except Exception as ex:
+            logger.error(f"Error updating right_pane: {ex}", exc_info=True)
 
         try:
             # Then update the row (this view)
             self.update()
+            logger.debug("self.update() called successfully")
         except Exception as ex:
-            logger.debug(f"Error updating row: {ex}")
+            logger.error(f"Error updating view: {ex}", exc_info=True)
 
-        # Finally update the page
-        if hasattr(self, 'app_page'):
+        # Finally update the page - this is often needed for Flet to recognize changes
+        if hasattr(self, 'app_page') and self.app_page:
             try:
                 self.app_page.update()
-                logger.debug("Successfully updated app_page")
+                logger.debug("app_page.update() called successfully")
             except Exception as ex:
-                logger.debug(f"Error updating app_page: {ex}")
+                logger.error(f"Error updating app_page: {ex}", exc_info=True)
+
+        logger.info(f"Package details UI update complete for: {info.get('Name', 'Unknown')}")
 
         logger.info(f"Package details UI updated for: {info.get('Name', 'Unknown')}")
 
