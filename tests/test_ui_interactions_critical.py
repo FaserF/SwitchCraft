@@ -13,7 +13,14 @@ import os
 
 # Import shared fixtures and helpers from conftest
 # Import shared fixtures and helpers
-from tests.utils import poll_until
+try:
+    from .utils import poll_until
+except ImportError:
+    # Fallback if run as script
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from tests.utils import poll_until
 
 
 @pytest.fixture
