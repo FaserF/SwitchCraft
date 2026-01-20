@@ -91,8 +91,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         try:
             self.update()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to update settings view after tab switch: {e}", exc_info=True)
 
     def _build_general_tab(self):
         # Company Name
@@ -121,11 +121,27 @@ class ModernSettingsView(ft.Column, ViewMixin):
             ],
             expand=True,
         )
-        # Set on_change handler - use a proper function reference, not lambda
+        # Set on_change handler - wrap in safe handler to catch errors
         def _handle_lang_change(e):
-            if e.control.value:
-                self._on_lang_change(e.control.value)
-        lang_dd.on_change = _handle_lang_change
+            try:
+                if e.control.value:
+                    logger.info(f"Language dropdown changed to: {e.control.value}")
+                    self._on_lang_change(e.control.value)
+                else:
+                    logger.warning("Language dropdown changed but value is None/empty")
+            except Exception as ex:
+                logger.exception(f"Error handling language change: {ex}")
+                self._show_snack(f"Failed to change language: {ex}", "RED")
+
+        # Wrap handler to catch exceptions and show in error view
+        def safe_lang_handler(e):
+            try:
+                _handle_lang_change(e)
+            except Exception as ex:
+                logger.exception(f"Error in language change handler: {ex}")
+                self._show_error_view(ex, "Language dropdown change")
+
+        lang_dd.on_change = safe_lang_handler
 
         # Winget Toggle
         winget_sw = ft.Switch(
@@ -726,8 +742,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 try:
                     import pyperclip
                     pyperclip.copy(flow.get("user_code"))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to copy user code to clipboard: {e}")
                 import webbrowser
                 webbrowser.open(flow.get("verification_uri"))
 
@@ -807,7 +823,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         try:
                             # In a background thread, there's no running loop, so go directly to asyncio.run
                             asyncio.run(_close_and_result())
-                        except Exception:
+                        except Exception as e:
+                            logger.warning(f"Failed to run async close_and_result: {e}", exc_info=True)
                             # Last resort: try to execute the logic directly
                             dlg.open = False
                             self.app_page.update()
@@ -817,9 +834,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
                                 self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
                             else:
                                 self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
-                except Exception:
+                except Exception as e:
                     # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
-                    logger.exception("Unexpected error in token polling background thread")
+                    logger.exception(f"Unexpected error in token polling background thread: {e}")
 
             threading.Thread(target=_poll_token, daemon=True).start()
 
@@ -1029,20 +1046,21 @@ class ModernSettingsView(ft.Column, ViewMixin):
             val (str): Language code or identifier to set (e.g., "en", "fr", etc.).
         """
         logger.info(f"Language change requested: {val}")
-        from switchcraft.utils.config import SwitchCraftConfig
-        from switchcraft.utils.i18n import i18n
+        try:
+            from switchcraft.utils.config import SwitchCraftConfig
+            from switchcraft.utils.i18n import i18n
 
-        # Save preference
-        SwitchCraftConfig.set_user_preference("Language", val)
-        logger.debug(f"Language preference saved: {val}")
+            # Save preference
+            SwitchCraftConfig.set_user_preference("Language", val)
+            logger.debug(f"Language preference saved: {val}")
 
-        # Actually update the i18n singleton
-        i18n.set_language(val)
-        logger.debug(f"i18n language updated: {val}")
+            # Actually update the i18n singleton
+            i18n.set_language(val)
+            logger.debug(f"i18n language updated: {val}")
 
-        # Immediately refresh the current view to apply language change
-        # Get current tab index and reload the view
-        if hasattr(self.app_page, 'switchcraft_app'):
+            # Immediately refresh the current view to apply language change
+            # Get current tab index and reload the view
+            if hasattr(self.app_page, 'switchcraft_app'):
             app = self.app_page.switchcraft_app
             current_idx = getattr(app, '_current_tab_index', 0)
 
@@ -1082,9 +1100,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
             try:
                 if hasattr(self, 'page') and self.page:
                     self.update()
-            except RuntimeError:
+            except RuntimeError as e:
                 # Control not attached to page yet, skip update
-                pass
+                logger.debug(f"Control not attached to page yet (RuntimeError): {e}")
 
             # Reload the main app view to update sidebar labels
             # Use run_task to ensure UI updates happen on main thread
@@ -1117,6 +1135,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 _reload_app,
                 error_msg=i18n.get("language_changed") or "Language changed. Please restart to see all changes."
             )
+        except Exception as ex:
+            logger.exception(f"Error in language change handler: {ex}")
+            self._show_snack(f"Failed to change language: {ex}", "RED")
         else:
             # Fallback: Show restart dialog if app reference not available
             def do_restart(e):
@@ -1147,8 +1168,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     # 1. Close all file handles and release resources
                     try:
                         logging.shutdown()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Error during logging shutdown: {e}")
 
                     # 2. Force garbage collection
                     gc.collect()
@@ -1299,8 +1320,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         self.flush_buffer()
                         self.last_update = current_time
 
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Use print to avoid recursion if logging fails
+                    print(f"FletLogHandler.emit error: {e}")
 
             def flush_buffer(self):
                 if not self.buffer:
@@ -1319,15 +1341,21 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
                     if self.page:
                         self.page.update()
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Use print to avoid recursion if logging fails
+                    print(f"FletLogHandler.flush_buffer error: {e}")
 
         if hasattr(self, "debug_log_text"):
             handler = FletLogHandler(self.debug_log_text, self.app_page)
             # Ensure we flush on exit? No easy way, but this is good enough.
+            # Set to DEBUG to capture all levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
             handler.setLevel(logging.DEBUG)
-            handler.setFormatter(logging.Formatter('%(levelname)s | %(name)s | %(message)s'))
-            logging.getLogger().addHandler(handler)
+            handler.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(name)s | %(message)s'))
+            # Only add handler if not already added
+            root_logger = logging.getLogger()
+            if handler not in root_logger.handlers:
+                root_logger.addHandler(handler)
+                logger.info("Debug log handler attached to root logger - all log levels will be captured")
 
     def _build_addon_manager_section(self):
         """
@@ -1462,6 +1490,24 @@ class ModernSettingsView(ft.Column, ViewMixin):
             except Exception as e:
                 logger.exception(f"Addon install error: {e}")
                 error_msg = str(e)
+                # Improve error message for common issues
+                if "manifest.json" in error_msg.lower():
+                    if "missing" in error_msg.lower() or "not found" in error_msg.lower():
+                        error_msg = (
+                            f"Invalid addon package: manifest.json not found.\n\n"
+                            f"The addon ZIP file must contain a manifest.json file at the root level.\n"
+                            f"Please ensure the addon is packaged correctly.\n\n"
+                            f"Original error: {str(e)}"
+                        )
+                    else:
+                        error_msg = f"Addon validation failed: {str(e)}"
+                elif "not found in latest release" in error_msg.lower():
+                    error_msg = (
+                        f"Addon not available: {addon_id}\n\n"
+                        f"The addon was not found in the latest GitHub release.\n"
+                        f"Please check if the addon name is correct or if it's available in a different release.\n\n"
+                        f"Original error: {str(e)}"
+                    )
 
             # UI Update needs to be safe - must be async for run_task
             async def _ui_update():
@@ -1476,7 +1522,13 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 else:
                     controls["status"].value = i18n.get("status_failed") or "Failed"
                     controls["status"].color = "RED"
-                    self._show_snack(f"{i18n.get('addon_install_failed') or 'Failed'}: {error_msg or 'Unknown Error'}", "RED")
+                    # Show error message - truncate if too long for snackbar
+                    display_error = error_msg or 'Unknown Error'
+                    if len(display_error) > 200:
+                        display_error = display_error[:197] + "..."
+                    self._show_snack(f"{i18n.get('addon_install_failed') or 'Failed'}: {display_error}", "RED")
+                    # Also log the full error for debugging
+                    logger.error(f"Full addon install error: {error_msg}")
 
                 self.update()
 
@@ -1497,27 +1549,30 @@ class ModernSettingsView(ft.Column, ViewMixin):
                             except Exception as task_ex:
                                 logger.exception(f"Exception in async UI update task: {task_ex}")
                         task.add_done_callback(handle_task_exception)
-                    except RuntimeError:
+                    except RuntimeError as e:
+                        logger.debug(f"No running event loop, using asyncio.run: {e}")
                         asyncio.run(_ui_update())
             except Exception as e:
                 logger.error(f"UI update failed: {e}")
 
         threading.Thread(target=_run, daemon=True).start()
 
-    def _download_and_install_github(self, addon_id):
-        """Helper to download/install without UI code mixed in."""
-        import requests
-        import tempfile
-        from switchcraft.services.addon_service import AddonService
+    def _select_addon_asset(self, assets, addon_id):
+        """
+        Select an addon asset from a list of GitHub release assets.
 
-        repo = "FaserF/SwitchCraft"
-        api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+        Searches for assets matching naming conventions:
+        - switchcraft_{addon_id}.zip
+        - {addon_id}.zip
+        - Prefix-based matches
 
-        resp = requests.get(api_url, timeout=10)
-        resp.raise_for_status()
+        Parameters:
+            assets: List of asset dictionaries from GitHub API
+            addon_id: The addon identifier to search for
 
-        assets = resp.json().get("assets", [])
-
+        Returns:
+            Asset dictionary if found, None otherwise
+        """
         # Naming convention: switchcraft_{addon_id}.zip OR {addon_id}.zip
         # Try both naming patterns (matching AddonService.install_from_github logic)
         candidates = [f"switchcraft_{addon_id}.zip", f"{addon_id}.zip"]
@@ -1542,9 +1597,27 @@ class ModernSettingsView(ft.Column, ViewMixin):
         if not asset:
             asset = next((a for a in assets if a["name"].startswith(addon_id) and a["name"].endswith(".zip")), None)
 
+        return asset
+
+    def _download_and_install_github(self, addon_id):
+        """Helper to download/install without UI code mixed in."""
+        import requests
+        import tempfile
+        from switchcraft.services.addon_service import AddonService
+
+        repo = "FaserF/SwitchCraft"
+        api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+
+        resp = requests.get(api_url, timeout=10)
+        resp.raise_for_status()
+
+        assets = resp.json().get("assets", [])
+        asset = self._select_addon_asset(assets, addon_id)
+
         if not asset:
             # List available assets for debugging
             available_assets = [a["name"] for a in assets]
+            candidates = [f"switchcraft_{addon_id}.zip", f"{addon_id}.zip"]
             logger.warning(f"Addon {addon_id} not found in latest release. Searched for: {candidates}. Available assets: {available_assets}")
             raise Exception(f"Addon {addon_id} not found in latest release. Searched for: {', '.join(candidates)}. Available: {', '.join(available_assets[:10])}")
 
@@ -1563,8 +1636,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
         finally:
             try:
                 os.unlink(tmp_path)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to cleanup temp file {tmp_path}: {e}")
 
     def _download_addon_from_github(self, addon_id):
         """
@@ -1589,31 +1662,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
             if response.status_code == 200:
                 release = response.json()
                 assets = release.get("assets", [])
-
-                # Look for the addon ZIP in assets
-                # Naming convention: switchcraft_{addon_id}.zip OR {addon_id}.zip
-                # Try both naming patterns (matching AddonService.install_from_github logic)
-                candidates = [f"switchcraft_{addon_id}.zip", f"{addon_id}.zip"]
-
-                asset = None
-                for candidate in candidates:
-                    # Try exact match first
-                    asset = next((a for a in assets if a["name"] == candidate), None)
-                    if asset:
-                        break
-
-                    # Fallback: try case-insensitive match
-                    asset = next((a for a in assets if a["name"].lower() == candidate.lower()), None)
-                    if asset:
-                        break
-
-                # Fallback: try prefix-based match (e.g., "ai" matches "switchcraft_ai.zip")
-                if not asset:
-                    asset = next((a for a in assets if a["name"].startswith(f"switchcraft_{addon_id}") and a["name"].endswith(".zip")), None)
-
-                # Last fallback: try any match with addon_id prefix
-                if not asset:
-                    asset = next((a for a in assets if a["name"].startswith(addon_id) and a["name"].endswith(".zip")), None)
+                asset = self._select_addon_asset(assets, addon_id)
 
                 if asset:
                     download_url = asset["browser_download_url"]
@@ -1637,8 +1686,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     # Cleanup
                     try:
                         os.unlink(tmp_path)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Failed to cleanup temp file {tmp_path}: {e}")
                     return
 
             # If not found in latest release, show error
@@ -1703,8 +1752,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     # Cleanup
                     try:
                         os.remove(tmp_path)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Failed to cleanup temp file {tmp_path}: {e}")
 
                 except Exception as ex:
                     logger.error(f"Failed to download addon from URL: {ex}")
@@ -1761,11 +1810,16 @@ class ModernSettingsView(ft.Column, ViewMixin):
         gpo_thumb = SwitchCraftConfig.get_value("CodeSigningCertThumbprint", "")
         gpo_cert_path = SwitchCraftConfig.get_value("CodeSigningCertPath", "")
 
-        # If GPO has configured a certificate, verify it exists and use it
-        if gpo_thumb or gpo_cert_path:
-            # Verify the certificate exists in the store
+        # Check if either value is managed by GPO/Policy
+        is_gpo_thumb = SwitchCraftConfig.is_managed("CodeSigningCertThumbprint")
+        is_gpo_path = SwitchCraftConfig.is_managed("CodeSigningCertPath")
+
+        # If GPO has configured a certificate (either thumbprint or path), honor it and skip auto-detection
+        # Check is_managed() first - if policy manages either setting, skip auto-detection entirely
+        if is_gpo_thumb or is_gpo_path:
+            # Verify the certificate exists in the store if we have a thumbprint
             try:
-                if gpo_thumb:
+                if is_gpo_thumb and gpo_thumb:
                     # Check if thumbprint exists in certificate stores
                     verify_cmd = [
                         "powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
@@ -1779,14 +1833,30 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     if verify_proc.returncode == 0 and "FOUND" in verify_proc.stdout:
                         # GPO certificate exists, use it
                         # Don't overwrite Policy settings, just display them
-                        self.cert_status_text.value = f"GPO: {gpo_thumb[:8]}..." if gpo_thumb else f"GPO: {gpo_cert_path}"
+                        self.cert_status_text.value = f"GPO: {gpo_thumb[:8]}..."
                         self.cert_status_text.color = "GREEN"
                         self.update()
                         self._show_snack(i18n.get("cert_gpo_detected") or "GPO-configured certificate detected.", "GREEN")
                         return
+                elif is_gpo_path:
+                    # GPO has configured a cert path (with or without value), honor it
+                    # Don't proceed with auto-detection - policy takes precedence
+                    display_path = gpo_cert_path if gpo_cert_path else "(Policy Set)"
+                    self.cert_status_text.value = f"GPO: {display_path}"
+                    self.cert_status_text.color = "GREEN"
+                    self.update()
+                    self._show_snack(i18n.get("cert_gpo_detected") or "GPO-configured certificate detected.", "GREEN")
+                    return
             except Exception as ex:
                 logger.debug(f"GPO cert verification failed: {ex}")
-                # Continue with auto-detection if verification fails
+                # If GPO cert is managed but verification fails, still honor GPO and don't auto-detect
+                if is_gpo_thumb or is_gpo_path:
+                    display_value = f"{gpo_thumb[:8]}..." if (is_gpo_thumb and gpo_thumb) else (gpo_cert_path if is_gpo_path else "Policy Set")
+                    self.cert_status_text.value = f"GPO: {display_value}"
+                    self.cert_status_text.color = "GREEN"
+                    self.update()
+                    self._show_snack(i18n.get("cert_gpo_detected") or "GPO-configured certificate detected.", "GREEN")
+                    return
 
         try:
             # Search in order: CurrentUser\My, then LocalMachine\My (for GPO-deployed certs)
@@ -1828,7 +1898,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 thumb = cert.get("Thumbprint", "")
                 subj = cert.get("Subject", "").split(",")[0]
                 # Only save to user preferences if not set by GPO
-                if not gpo_thumb:
+                if not is_gpo_thumb and not is_gpo_path:
                     SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", thumb)
                     SwitchCraftConfig.set_user_preference("CodeSigningCertPath", "")
                 self.cert_status_text.value = f"{subj} ({thumb[:8]}...)"
@@ -1842,7 +1912,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 thumb = cert.get("Thumbprint", "")
                 subj = cert.get("Subject", "").split(",")[0]
                 # Only save to user preferences if not set by GPO
-                if not gpo_thumb:
+                if not is_gpo_thumb and not is_gpo_path:
                     SwitchCraftConfig.set_user_preference("CodeSigningCertThumbprint", thumb)
                 self.cert_status_text.value = f"{subj} ({thumb[:8]}...)"
                 self.cert_status_text.color = "GREEN"

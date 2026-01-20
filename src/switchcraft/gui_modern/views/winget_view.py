@@ -369,18 +369,25 @@ class ModernWingetView(ft.Row, ViewMixin):
 
         def _fetch():
             try:
-                logger.info(f"Fetching package details for: {short_info['Id']}")
-                full = self.winget.get_package_details(short_info['Id'])
+                package_id = short_info.get('Id', 'Unknown')
+                logger.info(f"Fetching package details for: {package_id}")
+                logger.debug(f"Starting get_package_details call for {package_id}")
+                full = self.winget.get_package_details(package_id)
                 logger.debug(f"Raw package details received: {list(full.keys()) if full else 'empty'}")
+                logger.debug(f"Package details type: {type(full)}, length: {len(full) if isinstance(full, dict) else 'N/A'}")
+
+                # Validate that we got some data before merging
+                if full is None:
+                    logger.warning(f"get_package_details returned None for {package_id}")
+                    full = {}  # Coerce to empty dict to avoid TypeError
+                elif not full:
+                    logger.warning(f"get_package_details returned empty dict for {package_id}")
+                    raise Exception(f"No details found for package: {package_id}")
+
                 merged = {**short_info, **full}
                 self.current_pkg = merged
                 logger.info(f"Package details fetched, showing UI for: {merged.get('Name', 'Unknown')}")
                 logger.info(f"Merged package data keys: {list(merged.keys())}")
-
-                # Validate that we got some data
-                if not full:
-                    logger.warning(f"get_package_details returned empty dict for {short_info['Id']}")
-                    raise Exception(f"No details found for package: {short_info['Id']}")
 
                 # Update UI using run_task to marshal back to main thread
                 def _show_ui():
@@ -409,18 +416,23 @@ class ModernWingetView(ft.Row, ViewMixin):
                             self.update()
                             if hasattr(self, 'app_page'):
                                 self.app_page.update()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"Failed to update error UI: {e}", exc_info=True)
 
                 # Use run_task as primary approach to marshal UI updates to main thread
                 self._run_ui_update(_show_ui)
             except Exception as ex:
-                logger.exception(f"Error fetching package details: {ex}")
+                package_id = short_info.get('Id', 'Unknown')
+                logger.exception(f"Error fetching package details for {package_id}: {ex}")
                 error_msg = str(ex)
                 if "timeout" in error_msg.lower():
                     error_msg = "Request timed out. Please check your connection and try again."
+                    logger.warning(f"Timeout while fetching details for {package_id}")
                 elif "not found" in error_msg.lower() or "no package" in error_msg.lower():
-                    error_msg = f"Package not found: {short_info.get('Id', 'Unknown')}"
+                    error_msg = f"Package not found: {package_id}"
+                    logger.warning(f"Package {package_id} not found")
+                else:
+                    logger.error(f"Unexpected error fetching details for {package_id}: {error_msg}")
 
                 # Update UI using run_task to marshal back to main thread
                 def _show_error_ui():
@@ -445,8 +457,8 @@ class ModernWingetView(ft.Row, ViewMixin):
                         self.update()
                         if hasattr(self, 'app_page'):
                             self.app_page.update()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Failed to update error UI after exception: {e}", exc_info=True)
 
                 # Use run_task as primary approach to marshal UI updates to main thread
                 self._run_ui_update(_show_error_ui)
@@ -457,42 +469,12 @@ class ModernWingetView(ft.Row, ViewMixin):
         """
         Helper method to marshal UI updates to the main thread using run_task.
 
+        Delegates to ViewMixin._run_task_safe for consistency.
+
         Parameters:
             ui_func (callable): Function that performs UI updates. Must be callable with no arguments.
         """
-        import inspect
-        import asyncio
-
-        # Check if function is async
-        is_async = inspect.iscoroutinefunction(ui_func)
-
-        if hasattr(self, 'app_page') and hasattr(self.app_page, 'run_task'):
-            try:
-                if is_async:
-                    # Function is already async, can use run_task directly
-                    self.app_page.run_task(ui_func)
-                    logger.debug("UI update scheduled via run_task (async)")
-                else:
-                    # Wrap sync function in async wrapper for run_task
-                    async def async_wrapper():
-                        ui_func()
-                    self.app_page.run_task(async_wrapper)
-                    logger.debug("UI update scheduled via run_task (sync wrapped)")
-            except Exception as ex:
-                logger.exception(f"Failed to run UI update via run_task: {ex}")
-                # Fallback: try direct call (not recommended but better than nothing)
-                try:
-                    ui_func()
-                    logger.debug("UI update executed directly (fallback)")
-                except Exception as ex2:
-                    logger.exception(f"Failed to run UI update directly: {ex2}")
-        else:
-            # Fallback if run_task is not available
-            try:
-                ui_func()
-                logger.debug("UI update executed directly (no run_task available)")
-            except Exception as ex:
-                logger.exception(f"Failed to run UI update: {ex}")
+        self._run_task_safe(ui_func)
 
     def _show_details_ui(self, info):
         """

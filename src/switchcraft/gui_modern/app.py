@@ -24,6 +24,64 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 class ModernApp:
+    """Main application class with global error handling."""
+
+    @staticmethod
+    def _show_runtime_error(page: ft.Page, error: Exception, context: str = None):
+        """
+        Show a CrashDumpView for runtime errors that occur outside of view loading.
+
+        This is a static method that can be called from anywhere to show
+        a runtime error in the CrashDumpView.
+
+        Parameters:
+            page: The Flet page to show the error on
+            error: The Exception that occurred
+            context: Optional context string describing where the error occurred
+        """
+        try:
+            import traceback as tb
+            from switchcraft.gui_modern.views.crash_view import CrashDumpView
+
+            # Get traceback
+            tb_str = tb.format_exc()
+            if context:
+                tb_str = f"Context: {context}\n\n{tb_str}"
+
+            # Log the error
+            error_msg = f"Runtime error in {context or 'application'}: {error}"
+            logger.error(error_msg, exc_info=True)
+
+            # Create crash view
+            crash_view = CrashDumpView(page, error=error, traceback_str=tb_str)
+
+            # Try to replace current content with crash view
+            try:
+                # Get the main content area (usually the first view in the page)
+                if hasattr(page, 'views') and page.views:
+                    # Replace the current view
+                    page.views[-1].controls = [crash_view]
+                    page.update()
+                elif hasattr(page, 'controls') and page.controls:
+                    # Direct controls
+                    page.controls = [crash_view]
+                    page.update()
+                else:
+                    # Fallback: clean and add
+                    page.clean()
+                    page.add(crash_view)
+                    page.update()
+            except Exception as e:
+                logger.error(f"Failed to show error view in UI: {e}", exc_info=True)
+                # Last resort: try to add directly to page
+                try:
+                    page.clean()
+                    page.add(crash_view)
+                    page.update()
+                except Exception as e2:
+                    logger.error(f"Failed to add error view to page: {e2}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Critical error in _show_runtime_error: {e}", exc_info=True)
     def __init__(self, page: ft.Page, splash_proc=None):
         """
         Initialize the ModernApp instance, attach it to the provided page, prepare services and UI, and preserve the startup splash until the UI is ready.
@@ -69,7 +127,7 @@ class ModernApp:
         self.notif_btn = ft.IconButton(
             icon=ft.Icons.NOTIFICATIONS,
             tooltip="Notifications",
-            on_click=self._toggle_notification_drawer
+            on_click=lambda e: self._toggle_notification_drawer(e)
         )
 
         # Now add listener
@@ -308,13 +366,21 @@ class ModernApp:
             except Exception as ex:
                 logger.debug(f"page.open() not available or failed: {ex}, using direct assignment")
 
-            # Final verification
+            # Final verification - ensure drawer is open
             if not drawer.open:
                 logger.warning("Drawer open flag is False, forcing it to True")
                 drawer.open = True
+                # Re-assign to page to ensure it's registered
+                self.page.end_drawer = drawer
 
             # Single update after all state changes to avoid flicker
             self.page.update()
+
+            # Force another update to ensure drawer is visible
+            try:
+                self.page.update()
+            except Exception as ex:
+                logger.debug(f"Second update failed: {ex}")
 
             logger.info(f"Notification drawer should now be visible. open={drawer.open}, page.end_drawer={self.page.end_drawer is not None}")
 
@@ -1380,11 +1446,19 @@ class ModernApp:
         # Helper to safely load views
         def load_view(factory_func):
             try:
-                new_controls.append(factory_func())
+                view = factory_func()
+                if view is None:
+                    logger.warning(f"View factory returned None: {factory_func.__name__ if hasattr(factory_func, '__name__') else 'unknown'}")
+                    new_controls.append(ft.Text(f"Error: View factory returned None", color="red"))
+                else:
+                    new_controls.append(view)
             except Exception as ex:
                 import traceback
-                print(f"DEBUG: Exception loading view: {ex}") # Keep print for immediate debug console visibility
-                logger.error(f"Exception loading view: {ex}", exc_info=True)
+                view_name = factory_func.__name__ if hasattr(factory_func, '__name__') else 'unknown'
+                error_msg = f"Exception loading view '{view_name}': {ex}"
+                print(f"DEBUG: {error_msg}") # Keep print for immediate debug console visibility
+                logger.error(error_msg, exc_info=True)
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 from switchcraft.gui_modern.views.crash_view import CrashDumpView
                 new_controls.append(CrashDumpView(self.page, error=ex, traceback_str=traceback.format_exc()))
 
@@ -1403,7 +1477,8 @@ class ModernApp:
                     cat_name = cat_data[1]
                     cat_view = CategoryView(self.page, category_name=cat_name, items=cat_data[2], app_destinations=self.destinations, on_navigate=self.goto_tab)
                     new_controls.append(cat_view)
-                except Exception:
+                except Exception as e:
+                    logger.error(f"Failed to load category view: {e}", exc_info=True)
                     new_controls.append(ft.Text(i18n.get("unknown_category") or "Unknown Category", color="red"))
             else:
                 new_controls.append(ft.Text("Unknown Category", color="red"))

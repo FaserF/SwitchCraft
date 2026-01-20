@@ -80,12 +80,12 @@ jobs:
             # Beta/Stable: remove commit ID if present (e.g., "2026.1.2b1" or "2026.1.2")
             APP_VERSION=$(echo "$VERSION" | sed -E 's/\+[a-zA-Z0-9.-]+$//')
           fi
-          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$APP_VERSION\"/" switchcraft_modern.iss
-          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_modern.iss
-          sed -i "s/#define MyAppVersionInfo \".*\"/#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_modern.iss
-          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$APP_VERSION\"/" switchcraft_legacy.iss
-          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
-          sed -i "s/#define MyAppVersionInfo \".*\"/#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_legacy.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$APP_VERSION\"/" switchcraft_modern.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_modern.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_modern.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$APP_VERSION\"/" switchcraft_legacy.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_legacy.iss
 
       - name: Generate Changelog
         id: changelog
@@ -192,12 +192,12 @@ jobs:
           VERSION_INFO="${BASE_VERSION}.0"
           # For dev releases: MyAppVersion should include commit ID (full DEV_VERSION)
           # MyAppVersionNumeric should be numeric only (BASE_VERSION)
-          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$DEV_VERSION\"/" switchcraft_modern.iss
-          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_modern.iss
-          sed -i "s/#define MyAppVersionInfo \".*\"/#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_modern.iss
-          sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"$DEV_VERSION\"/" switchcraft_legacy.iss
-          sed -i "s/#define MyAppVersionNumeric \".*\"/#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
-          sed -i "s/#define MyAppVersionInfo \".*\"/#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_legacy.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$DEV_VERSION\"/" switchcraft_modern.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_modern.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_modern.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$DEV_VERSION\"/" switchcraft_legacy.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_legacy.iss
 
           # Update fallback versions in build scripts and version generator
           # Update build_release.ps1 fallback

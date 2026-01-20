@@ -77,7 +77,7 @@ class GroupManagerView(ft.Column, ViewMixin):
             i18n.get("btn_manage_members") or "Manage Members",
             icon=ft.Icons.PEOPLE,
             disabled=True,
-            on_click=self._show_members_dialog
+            on_click=self._safe_event_handler(self._show_members_dialog, "Manage Members button")
         )
 
         header = ft.Row([
@@ -149,8 +149,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                 def show_error():
                     try:
                         self._show_snack(error_msg, "RED")
-                    except (RuntimeError, AttributeError):
-                        pass  # Control not added to page (common in tests)
+                    except (RuntimeError, AttributeError) as e:
+                        logger.debug(f"Control not added to page (RuntimeError/AttributeError): {e}")
                 self._run_task_safe(show_error)
             except requests.exceptions.ConnectionError as e:
                 # Handle authentication failure
@@ -160,8 +160,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                 def show_error():
                     try:
                         self._show_snack(error_msg, "RED")
-                    except (RuntimeError, AttributeError):
-                        pass  # Control not added to page (common in tests)
+                    except (RuntimeError, AttributeError) as e:
+                        logger.debug(f"Control not added to page (RuntimeError/AttributeError): {e}")
                 self._run_task_safe(show_error)
             except Exception as e:
                 error_str = str(e).lower()
@@ -177,8 +177,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                 def show_error():
                     try:
                         self._show_snack(error_msg, "RED")
-                    except (RuntimeError, AttributeError):
-                        pass  # Control not added to page (common in tests)
+                    except (RuntimeError, AttributeError) as e:
+                        logger.debug(f"Control not added to page (RuntimeError/AttributeError): {e}")
                 self._run_task_safe(show_error)
             except BaseException as be:
                 # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
@@ -244,9 +244,9 @@ class GroupManagerView(ft.Column, ViewMixin):
                     self.groups_list.controls.append(tile)
 
             self.update()
-        except (RuntimeError, AttributeError):
+        except (RuntimeError, AttributeError) as e:
             # Control not added to page yet (common in tests)
-            logger.debug("Cannot update groups list: control not added to page")
+            logger.debug(f"Cannot update groups list: control not added to page: {e}")
 
     def _on_search(self, e):
         query = self.search_field.value.lower()
@@ -386,50 +386,20 @@ class GroupManagerView(ft.Column, ViewMixin):
 
     def _show_members_dialog(self, e):
         if not self.selected_group or not self.token:
+            logger.warning("Cannot show members dialog: no group selected or no token")
             return
 
         group_name = self.selected_group.get('displayName')
         group_id = self.selected_group.get('id')
 
+        if not group_id:
+            logger.error(f"Cannot show members dialog: group has no ID. Group: {self.selected_group}")
+            self._show_snack("Error: Selected group has no ID", "RED")
+            return
+
         # Dialog controls
         members_list = ft.ListView(expand=True, spacing=10, height=300)
         loading = ft.ProgressBar(width=None)
-
-        def load_members():
-            members_list.controls.clear()
-            members_list.controls.append(loading)
-            dlg.update()
-
-            def _bg():
-                try:
-                    members = self.intune_service.list_group_members(self.token, group_id)
-                    members_list.controls.clear()
-
-                    if not members:
-                        members_list.controls.append(ft.Text(i18n.get("no_members") or "No members found.", italic=True))
-                    else:
-                        for m in members:
-                            members_list.controls.append(
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.PERSON),
-                                    title=ft.Text(m.get('displayName') or "Unknown"),
-                                    subtitle=ft.Text(m.get('userPrincipalName') or m.get('mail') or "No Email"),
-                                    trailing=ft.IconButton(
-                                        ft.Icons.REMOVE_CIRCLE_OUTLINE,
-                                        icon_color="RED",
-                                        tooltip=i18n.get("remove_member") or "Remove Member",
-                                        on_click=lambda e, uid=m.get('id'): remove_member(uid)
-                                    )
-                                )
-                            )
-                except Exception as ex:
-                    members_list.controls.clear()
-                    error_tmpl = i18n.get("error_loading_members") or "Error loading members: {error}"
-                    members_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
-
-                dlg.update()
-
-            threading.Thread(target=_bg, daemon=True).start()
 
         def remove_member(user_id):
             def _bg():
@@ -438,10 +408,67 @@ class GroupManagerView(ft.Column, ViewMixin):
                     self._show_snack(i18n.get("member_removed") or "Member removed", "GREEN")
                     load_members() # Refresh
                 except Exception as ex:
+                    logger.error(f"Failed to remove member {user_id} from group {group_id}: {ex}", exc_info=True)
                     self._show_snack(f"Failed to remove member: {ex}", "RED")
             threading.Thread(target=_bg, daemon=True).start()
 
+        def load_members():
+            """Load members list - must be called after dialog is created and opened."""
+            try:
+                members_list.controls.clear()
+                members_list.controls.append(loading)
+                # Use _run_task_safe to ensure dialog is on page before updating
+                self._run_task_safe(lambda: dlg.update())
+            except Exception as ex:
+                logger.error(f"Error initializing members list: {ex}", exc_info=True)
+
+            def _bg():
+                try:
+                    members = self.intune_service.list_group_members(self.token, group_id)
+                    logger.debug(f"Loaded {len(members)} members for group {group_id}")
+
+                    def update_ui():
+                        try:
+                            members_list.controls.clear()
+
+                            if not members:
+                                members_list.controls.append(ft.Text(i18n.get("no_members") or "No members found.", italic=True))
+                            else:
+                                for m in members:
+                                    members_list.controls.append(
+                                        ft.ListTile(
+                                            leading=ft.Icon(ft.Icons.PERSON),
+                                            title=ft.Text(m.get('displayName') or "Unknown"),
+                                            subtitle=ft.Text(m.get('userPrincipalName') or m.get('mail') or "No Email"),
+                                            trailing=ft.IconButton(
+                                                ft.Icons.REMOVE_CIRCLE_OUTLINE,
+                                                icon_color="RED",
+                                                tooltip=i18n.get("remove_member") or "Remove Member",
+                                                on_click=lambda e, uid=m.get('id'): remove_member(uid)
+                                            )
+                                        )
+                                    )
+                            dlg.update()
+                        except Exception as ex:
+                            logger.error(f"Error updating members list UI: {ex}", exc_info=True)
+
+                    self._run_task_safe(update_ui)
+                except Exception as ex:
+                    logger.error(f"Error loading group members: {ex}", exc_info=True)
+                    def show_error():
+                        try:
+                            members_list.controls.clear()
+                            error_tmpl = i18n.get("error_loading_members") or "Error loading members: {error}"
+                            members_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
+                            dlg.update()
+                        except Exception as ex2:
+                            logger.error(f"Error showing error message in members dialog: {ex2}", exc_info=True)
+                    self._run_task_safe(show_error)
+
+            threading.Thread(target=_bg, daemon=True).start()
+
         def show_add_dialog(e):
+            """Show nested dialog for adding members."""
             # Nested dialog for searching users
             search_box = ft.TextField(
                 label=i18n.get("search_user_hint") or "Search User (Name or Email)",
@@ -450,6 +477,76 @@ class GroupManagerView(ft.Column, ViewMixin):
             )
             results_list = ft.ListView(expand=True, height=200)
 
+            def search_users(e):
+                query = search_box.value
+                if not query or not query.strip():
+                    return
+
+                try:
+                    results_list.controls.clear()
+                    results_list.controls.append(ft.ProgressBar())
+                    add_dlg.update()
+                except Exception as ex:
+                    logger.error(f"Error updating search UI: {ex}", exc_info=True)
+                    return
+
+                def _bg():
+                    try:
+                        bg_users = self.intune_service.search_users(self.token, query)
+                        logger.debug(f"Found {len(bg_users)} users for query: {query}")
+
+                        def update_results():
+                            try:
+                                results_list.controls.clear()
+                                if not bg_users:
+                                    results_list.controls.append(ft.Text(i18n.get("no_users_found") or "No users found.", italic=True))
+                                else:
+                                    for u in bg_users:
+                                        results_list.controls.append(
+                                            ft.ListTile(
+                                                leading=ft.Icon(ft.Icons.PERSON_ADD),
+                                                title=ft.Text(u.get('displayName')),
+                                                subtitle=ft.Text(u.get('userPrincipalName') or u.get('mail')),
+                                                on_click=lambda e, uid=u.get('id'): add_user(uid)
+                                            )
+                                        )
+                                add_dlg.update()
+                            except Exception as ex:
+                                logger.error(f"Error updating search results UI: {ex}", exc_info=True)
+
+                        self._run_task_safe(update_results)
+                    except Exception as ex:
+                        logger.error(f"Error searching users: {ex}", exc_info=True)
+                        def show_error():
+                            try:
+                                results_list.controls.clear()
+                                error_tmpl = i18n.get("error_search_failed") or "Search failed: {error}"
+                                results_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
+                                add_dlg.update()
+                            except Exception as ex2:
+                                logger.error(f"Error showing search error: {ex2}", exc_info=True)
+                        self._run_task_safe(show_error)
+
+                threading.Thread(target=_bg, daemon=True).start()
+
+            def add_user(user_id):
+                """Add a user to the group."""
+                try:
+                    self._close_dialog(add_dlg) # Close add dialog
+                except Exception as ex:
+                    logger.warning(f"Error closing add dialog: {ex}", exc_info=True)
+
+                def _bg():
+                    try:
+                        self.intune_service.add_group_member(self.token, group_id, user_id)
+                        logger.info(f"Added user {user_id} to group {group_id}")
+                        self._show_snack(i18n.get("member_added") or "Member added successfully", "GREEN")
+                        load_members() # Refresh main list
+                    except Exception as ex:
+                        logger.error(f"Failed to add member {user_id} to group {group_id}: {ex}", exc_info=True)
+                        self._show_snack(f"Failed to add member: {ex}", "RED")
+                threading.Thread(target=_bg, daemon=True).start()
+
             # Create dialog first so it can be referenced in nested functions
             add_dlg = ft.AlertDialog(
                 title=ft.Text(i18n.get("dlg_add_member") or "Add Member"),
@@ -457,57 +554,10 @@ class GroupManagerView(ft.Column, ViewMixin):
                 actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(add_dlg))]
             )
 
-            def search_users(e):
-                query = search_box.value
-                if not query or not query.strip(): return
+            if not self._open_dialog_safe(add_dlg):
+                self._show_snack("Failed to open add member dialog", "RED")
 
-                results_list.controls.clear()
-                results_list.controls.append(ft.ProgressBar())
-                add_dlg.update()
-
-                def _bg():
-                    try:
-                        bg_users = self.intune_service.search_users(self.token, query)
-                        results_list.controls.clear()
-                        if not bg_users:
-                            results_list.controls.append(ft.Text(i18n.get("no_users_found") or "No users found.", italic=True))
-                        else:
-                            for u in bg_users:
-                                results_list.controls.append(
-                                    ft.ListTile(
-                                        leading=ft.Icon(ft.Icons.PERSON_ADD),
-                                        title=ft.Text(u.get('displayName')),
-                                        subtitle=ft.Text(u.get('userPrincipalName') or u.get('mail')),
-                                        on_click=lambda e, uid=u.get('id'): add_user(uid)
-                                    )
-                                )
-                    except Exception as ex:
-                        results_list.controls.clear()
-                        error_tmpl = i18n.get("error_search_failed") or "Search failed: {error}"
-                        results_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
-                    # Marshal UI update to main thread
-                    if hasattr(self.app_page, 'run_task'):
-                        self._run_task_safe(add_dlg.update)
-                    else:
-                        add_dlg.update()
-
-                threading.Thread(target=_bg, daemon=True).start()
-
-            def add_user(user_id):
-                self._close_dialog(add_dlg) # Close add dialog
-
-                def _bg():
-                    try:
-                        self.intune_service.add_group_member(self.token, group_id, user_id)
-                        self._show_snack(i18n.get("member_added") or "Member added successfully", "GREEN")
-                        load_members() # Refresh main list
-                    except Exception as ex:
-                        self._show_snack(f"Failed to add member: {ex}", "RED")
-                threading.Thread(target=_bg, daemon=True).start()
-
-            self.app_page.open(add_dlg)
-            self.app_page.update()
-
+        # Create main dialog FIRST before defining load_members (which references dlg)
         title_tmpl = i18n.get("members_title") or "Members: {group}"
         dlg = ft.AlertDialog(
             title=ft.Text(title_tmpl.format(group=group_name)),
@@ -523,6 +573,8 @@ class GroupManagerView(ft.Column, ViewMixin):
             actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_dialog(dlg))],
         )
 
-        self.app_page.open(dlg)
-        self.app_page.update()
+        if not self._open_dialog_safe(dlg):
+            self._show_snack("Failed to open members dialog", "RED")
+            return
+        # Now load members after dialog is opened
         load_members()

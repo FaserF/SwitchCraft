@@ -158,22 +158,46 @@ class AddonService:
         try:
             with zipfile.ZipFile(zip_path, 'r') as z:
                 # Validate manifest
-                valid = False
                 files = z.namelist()
-                # Simple check for manifest.json at root
+                manifest_path = None
+
+                # Check for manifest.json at root first
                 if "manifest.json" in files:
-                     valid = True
+                    manifest_path = "manifest.json"
+                else:
+                    # Check for manifest.json in common subdirectories
+                    # Some ZIPs might have it in a subfolder
+                    for file_path in files:
+                        # Normalize path separators
+                        normalized = file_path.replace('\\', '/')
+                        # Check if it's manifest.json at any level (but prefer root)
+                        if normalized.endswith('/manifest.json') or normalized == 'manifest.json':
+                            # Prefer root-level, but accept subdirectory if root not found
+                            if manifest_path is None or normalized == 'manifest.json':
+                                manifest_path = file_path
+                                # If we found root-level, stop searching
+                                if normalized == 'manifest.json':
+                                    break
 
-                # TODO: Support nested, but let's strict for now
-                if not valid:
-                    raise Exception("Invalid addon: manifest.json missing from root")
+                if not manifest_path:
+                    # Provide helpful error message
+                    root_files = [f for f in files if '/' not in f.replace('\\', '/') or f.replace('\\', '/').count('/') == 0]
+                    raise Exception(
+                        f"Invalid addon: manifest.json not found in ZIP archive.\n"
+                        f"The addon ZIP must contain a manifest.json file at the root level.\n"
+                        f"Root files found: {', '.join(root_files[:10]) if root_files else 'none'}"
+                    )
 
-                # Check ID from manifest
-                with z.open("manifest.json") as f:
-                    data = json.load(f)
+                # Check ID from manifest (use found path, not hardcoded)
+                with z.open(manifest_path) as f:
+                    try:
+                        data = json.load(f)
+                    except json.JSONDecodeError as e:
+                        raise Exception(f"Invalid manifest.json: JSON parse error - {e}")
+
                     addon_id = data.get("id")
                     if not addon_id:
-                        raise Exception("Invalid manifest: missing id")
+                        raise Exception("Invalid manifest.json: missing required field 'id'")
 
                 # Extract
                 target = self.addons_dir / addon_id
@@ -184,9 +208,13 @@ class AddonService:
                 # target.mkdir() was already called above
 
                 # Secure extraction
+                # If manifest was in a subdirectory, we need to handle path normalization
                 for member in z.infolist():
+                    # Normalize path separators for cross-platform compatibility
+                    normalized_name = member.filename.replace('\\', '/')
+
                     # Resolve the target path for this member
-                    file_path = (target / member.filename).resolve()
+                    file_path = (target / normalized_name).resolve()
 
                     # Ensure the resolved path starts with the target directory (prevent Zip Slip)
                     if not str(file_path).startswith(str(target.resolve())):

@@ -210,32 +210,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     logger.exception(f"Error in _update_ui: {ex}")
                     self._show_error(f"Error updating UI: {ex}")
 
-            # Use run_task as primary method to marshal UI updates to the page event loop
-            # run_task requires async functions, so wrap sync function if needed
-            import inspect
-            is_async = inspect.iscoroutinefunction(_update_ui)
-
-            if hasattr(self.app_page, 'run_task'):
-                try:
-                    if is_async:
-                        self.app_page.run_task(_update_ui)
-                    else:
-                        # Wrap sync function in async wrapper
-                        async def async_wrapper():
-                            _update_ui()
-                        self.app_page.run_task(async_wrapper)
-                except Exception as ex:
-                    logger.exception(f"Error in run_task for UI update: {ex}")
-                    # Fallback to direct call if run_task fails
-                    try:
-                        _update_ui()
-                    except Exception as ex2:
-                        logger.exception(f"Failed to update UI directly: {ex2}")
-            else:
-                # Fallback to direct call if run_task is not available
-                try:
-                    _update_ui()
-                except Exception as ex:
+            # Use run_task_safe to marshal UI updates to the page event loop
+            self._run_task_safe(_update_ui)
                     logger.exception(f"Failed to update UI: {ex}")
 
         threading.Thread(target=_bg, daemon=True).start()
@@ -311,19 +287,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         """
         try:
             logger.info(f"App clicked: {app.get('displayName', 'Unknown')}")
-            # Use run_task to ensure UI updates happen on the correct thread
-            # run_task requires async functions, so wrap sync function if needed
-            if hasattr(self.app_page, 'run_task'):
-                try:
-                    # Create async wrapper for sync function
-                    async def async_show_details():
-                        self._show_details(app)
-                    self.app_page.run_task(async_show_details)
-                except Exception:
-                    # Fallback if run_task fails
-                    self._show_details(app)
-            else:
-                self._show_details(app)
+            # Use run_task_safe to ensure UI updates happen on the correct thread
+            self._run_task_safe(lambda: self._show_details(app))
         except Exception as ex:
             logger.exception(f"Error handling app click: {ex}")
             self._show_error(f"Failed to show details: {ex}")
@@ -380,13 +345,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     try:
                         img = ft.Image(src=logo_url, width=64, height=64, fit=ft.ImageFit.CONTAIN, error_content=ft.Icon(ft.Icons.APPS, size=64))
                         # Replace icon with image in title row
-                        if hasattr(self, 'app_page') and hasattr(self.app_page, 'run_task'):
-                            # Create async wrapper for sync function
-                            async def async_replace_icon():
-                                self._replace_title_icon(title_row_container, img)
-                            self.app_page.run_task(async_replace_icon)
-                        else:
-                            self._replace_title_icon(title_row_container, img)
+                        self._run_task_safe(lambda: self._replace_title_icon(title_row_container, img))
                     except Exception as ex:
                         logger.debug(f"Failed to load logo: {ex}")
 
@@ -602,14 +561,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     self.intune_service.assign_to_group(token, app['id'], group_id, intent)
                     self._show_snack(f"Successfully assigned as {intent}!", "GREEN")
                     # Refresh details
-                    # Use run_task if available to ensure thread safety when calling show_details
-                    if hasattr(self.app_page, 'run_task'):
-                        # Create async wrapper for sync function
-                        async def async_show_details():
-                            self._show_details(app)
-                        self.app_page.run_task(async_show_details)
-                    else:
-                        self._show_details(app)
+                    # Use run_task_safe to ensure thread safety when calling show_details
+                    self._run_task_safe(lambda: self._show_details(app))
                 except Exception as ex:
                     self._show_snack(f"Assignment failed: {ex}", "RED")
 

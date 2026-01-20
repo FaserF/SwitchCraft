@@ -31,7 +31,8 @@ class DashboardView(ft.Column):
             ]),
             bgcolor="SURFACE_VARIANT",
             border_radius=10,
-            padding=20
+            padding=20,
+            expand=True
         )
         self.recent_container = ft.Container(
             content=ft.Column([
@@ -42,33 +43,27 @@ class DashboardView(ft.Column):
             bgcolor="SURFACE_VARIANT",
             border_radius=10,
             padding=20,
-            width=350
+            width=350,
+            expand=True
         )
 
-        self.controls = [
-            ft.Container(
-                content=ft.Column([
-                    ft.Text(i18n.get("dashboard_overview_title") or "Overview", size=28, weight=ft.FontWeight.BOLD),
-                    ft.Divider(),
-                    self.stats_row,
-                    ft.Container(height=20),
-                    ft.Row([
-                        ft.Container(
-                            content=self.chart_container,
-                            expand=2,
-                            height=280
-                        ),
-                        ft.Container(
-                            content=self.recent_container,
-                            expand=1,
-                            height=280
-                        )
-                    ], spacing=20, wrap=True)
-                ], spacing=15, expand=True),
-                padding=20,  # Consistent padding with other views
-                expand=True
-            )
-        ]
+        # Build initial content
+        main_content = ft.Container(
+            content=ft.Column([
+                ft.Text(i18n.get("dashboard_overview_title") or "Overview", size=28, weight=ft.FontWeight.BOLD),
+                ft.Divider(),
+                self.stats_row,
+                ft.Container(height=20),
+                ft.Row([
+                    self.chart_container,
+                    self.recent_container
+                ], spacing=20, wrap=True, expand=True)
+            ], spacing=15, expand=True),
+            padding=20,
+            expand=True
+        )
+
+        self.controls = [main_content]
 
         # Load data immediately instead of waiting for did_mount
         self._load_data()
@@ -218,34 +213,14 @@ class DashboardView(ft.Column):
             self.recent_container.content = recent_content
 
         # Force update of all containers
-        # Use run_task to ensure updates happen on UI thread
-        if hasattr(self, 'app_page') and hasattr(self.app_page, 'run_task'):
-            def update_ui():
-                try:
-                    self.chart_container.update()
-                    self.recent_container.update()
-                    self.update()
-                except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).warning(f"Failed to update dashboard UI: {e}")
-
-            # Wrap in async if needed
-            import inspect
-            if inspect.iscoroutinefunction(update_ui):
-                self.app_page.run_task(update_ui)
-            else:
-                async def async_update():
-                    update_ui()
-                self.app_page.run_task(async_update)
-        else:
-            # Fallback: direct update
-            try:
-                self.chart_container.update()
-                self.recent_container.update()
-                self.update()
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning(f"Failed to update dashboard UI: {e}")
+        try:
+            self.stats_row.update()
+            self.chart_container.update()
+            self.recent_container.update()
+            self.update()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to update dashboard UI: {e}", exc_info=True)
 
 
     def _stat_card(self, label, value, icon, color):
