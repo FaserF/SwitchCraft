@@ -1,7 +1,6 @@
 # Dockerfile for SwitchCraft Web App Verification
 FROM python:3.14-rc-slim
 
-
 WORKDIR /app
 
 # Install system dependencies
