@@ -26,8 +26,8 @@
   "timezone": "Europe/Berlin",
   "rangeStrategy": "bump",
   "pep621": {
-    "fileMatch": [
-      "pyproject\\.toml$"
+    "managerFilePatterns": [
+      "/pyproject\\.toml$/"
     ]
   },
   "packageRules": [
