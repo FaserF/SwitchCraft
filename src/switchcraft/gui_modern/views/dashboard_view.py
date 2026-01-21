@@ -1,4 +1,5 @@
 import flet as ft
+from flet_charts import BarChart, BarChartGroup, BarChartRod, ChartAxisLabel
 from switchcraft.services.history_service import HistoryService
 from switchcraft.utils.i18n import i18n
 from collections import defaultdict
@@ -54,20 +55,15 @@ class DashboardView(ft.Column):
             content=ft.Column([
                 ft.Row([
                     ft.Text("Exchange Online Mail Flow", weight=ft.FontWeight.BOLD, size=18),
-                    ft.ElevatedButton("Start Mail Flow", icon=ft.Icons.SEND, on_click=self._start_mail_flow)
+                    ft.Button("Start Mail Flow", icon=ft.Icons.SEND, on_click=self._start_mail_flow)
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 ft.Container(height=20),
-                ft.BarChart(
-                   bar_groups=[],
-                   border=ft.border.all(1, ft.colors.GREY_400),
-                   left_axis=ft.ChartAxis(labels_size=40, title=ft.Text("Items")),
-                   bottom_axis=ft.ChartAxis(labels=[ft.ChartAxisLabel(value=0, label=ft.Text("Day"))]),
-                   horizontal_grid_lines=ft.ChartGridLines(color=ft.colors.GREY_300, width=1, dash_pattern=[3, 3]),
-                   tooltip_bgcolor=ft.colors.with_opacity(0.8, ft.colors.GREY_900),
-                   max_y=600,
-                   interactive=True,
-                   expand=True,
-                   height=250
+                ft.Container(
+                    content=ft.Text("Mail Flow Chart (Coming Soon)", color="grey"),
+                    alignment=ft.alignment.center,
+                    height=250,
+                    border=ft.border.all(1, ft.colors.GREY_400),
+                    border_radius=5
                 )
             ]),
             bgcolor="SURFACE_VARIANT",
@@ -246,10 +242,10 @@ class DashboardView(ft.Column):
             for i, data_point in enumerate(self.mail_flow_data):
                 # data_point keys: sent, received, date
                 bar_groups.append(
-                    ft.BarChartGroup(
+                    BarChartGroup(
                         x=i,
                         bar_rods=[
-                            ft.BarChartRod(
+                            BarChartRod(
                                 from_y=0,
                                 to_y=data_point.get("sent", 0),
                                 width=15,
@@ -257,7 +253,7 @@ class DashboardView(ft.Column):
                                 tooltip=f"Sent: {data_point.get('sent', 0)}",
                                 border_radius=0
                             ),
-                            ft.BarChartRod(
+                            BarChartRod(
                                 from_y=0,
                                 to_y=data_point.get("received", 0),
                                 width=15,
@@ -282,7 +278,7 @@ class DashboardView(ft.Column):
                      d_str = datetime.strptime(data_point["date"], "%Y-%m-%d").strftime("%d.%m")
                 except:
                      d_str = data_point["date"]
-                labels.append(ft.ChartAxisLabel(value=i, label=ft.Text(d_str, size=10, weight=ft.FontWeight.BOLD)))
+                labels.append(ChartAxisLabel(value=i, label=ft.Text(d_str, size=10, weight=ft.FontWeight.BOLD)))
 
             chart_control.bottom_axis.labels = labels
 
