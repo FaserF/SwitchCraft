@@ -24,6 +24,12 @@
     "before 4am on monday"
   ],
   "timezone": "Europe/Berlin",
+  "rangeStrategy": "bump",
+  "pep621": {
+    "fileMatch": [
+      "pyproject\\.toml$"
+    ]
+  },
   "packageRules": [
     {
       "matchManagers": [
