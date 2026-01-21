@@ -14,7 +14,8 @@ class TestLoadingScreen(unittest.TestCase):
 
         with patch("switchcraft.main.ModernApp"), \
              patch("switchcraft.main.start_splash"), \
-             patch("switchcraft.utils.config.SwitchCraftConfig"):
+             patch("switchcraft.utils.config.SwitchCraftConfig"), \
+             patch("sys.argv", ["main.py"]):
 
             from switchcraft.main import main
 

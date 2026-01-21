@@ -6,9 +6,9 @@ from pathlib import Path
 
 def get_hidden_imports_from_spec():
     """Parses switchcraft_modern.spec to extract the hidden_imports list."""
-    spec_path = Path("switchcraft_modern.spec")
+    spec_path = Path("switchcraft.spec")
     if not spec_path.exists():
-        pytest.fail("switchcraft_modern.spec not found")
+        pytest.fail("switchcraft.spec not found")
 
     with open(spec_path, 'r', encoding='utf-8') as f:
         tree = ast.parse(f.read())

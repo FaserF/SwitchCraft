@@ -37,8 +37,6 @@ jobs:
 
       - name: Build Web Demo
         run: |
-          # Copy src/switchcraft to root so Flet/Pyodide can find it easily
-          # This works around path issues in the web worker environment
           cp -r src/switchcraft .
 
           # Publish using main.py
@@ -46,7 +44,7 @@ jobs:
 
           # Move build to docs public folder
           mkdir -p docs/public/demo
-          cp -r dist/* docs/public/demo/
+          cp -r switchcraft/dist/* docs/public/demo/
           # Clean up dist and the temporary copy
           rm -rf dist
           rm -rf switchcraft

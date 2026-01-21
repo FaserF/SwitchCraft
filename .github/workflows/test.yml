@@ -41,6 +41,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: ${{ matrix.python-version == '3.15' }}
 
+      - name: Install Build Dependencies (Windows)
+        if: runner.os == 'Windows' && matrix.python-version == '3.15'
+        run: |
+          choco install zlib --no-progress
+          # Try to set typical paths (this is heuristic)
+          echo "LIB=$env:ChocolateyInstall\lib\zlib\lib;$env:LIB" >> $env:GITHUB_ENV
+          echo "INCLUDE=$env:ChocolateyInstall\lib\zlib\include;$env:INCLUDE" >> $env:GITHUB_ENV
+        shell: pwsh
+
       - name: Install dependencies
         if: steps.should_run.outputs.should_run == 'true'
         run: |
