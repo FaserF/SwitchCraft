@@ -66,3 +66,8 @@ python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
 addopts = "--ignore=test_out.txt --ignore=test_output.txt --ignore=test_addons_result.txt"
+
+# Flet Web Publishing Configuration
+[tool.flet.app]
+path = "src/switchcraft"
+module = "modern_main.py"
