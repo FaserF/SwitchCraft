@@ -365,7 +365,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             # Metadata (read-only)
             meta_rows = [
                 (i18n.get("field_id", default="ID"), app.get("id")),
-                (i18n.get("field_publisher", default="Publisher"), app.get("publisher")),
+                # Publisher moved to editable field below
                 (i18n.get("field_created", default="Created"), app.get("createdDateTime")),
                 (i18n.get("field_owner", default="Owner"), app.get("owner")),
                 (i18n.get("field_app_type", default="App Type"), app.get("@odata.type", "").replace("#microsoft.graph.", ""))
@@ -374,6 +374,14 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             for k, v in meta_rows:
                 if v:
                     detail_controls.append(ft.Text(f"{k}: {v}", selectable=True))
+
+            # Editable Publisher Field
+            self.publisher_field = ft.TextField(
+                label=i18n.get("field_publisher") or "Publisher",
+                value=app.get("publisher", ""),
+                expand=True
+            )
+            detail_controls.append(self.publisher_field)
 
             detail_controls.append(ft.Divider())
 
@@ -535,6 +543,68 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     self.app_page.update()
         except Exception as ex:
             logger.debug(f"Failed to replace title icon: {ex}")
+
+    def _save_changes(self, app):
+        """
+        Save changes made to the app details (Display Name, Publisher, Description, Commands).
+        """
+        token = self._get_token()
+        if not token:
+            self._show_snack(i18n.get("intune_not_configured") or "Intune not configured.", "RED")
+            return
+
+        # Gather data
+        try:
+            app_id = app.get("id")
+            if not app_id:
+                raise ValueError("Valid App ID not found.")
+
+            update_data = {}
+
+            # Check fields
+            if hasattr(self, 'title_field') and self.title_field.value != app.get('displayName'):
+                update_data['displayName'] = self.title_field.value
+
+            if hasattr(self, 'description_field') and self.description_field.value != app.get('description'):
+                update_data['description'] = self.description_field.value
+
+            if hasattr(self, 'publisher_field') and self.publisher_field.value != app.get('publisher'):
+                update_data['publisher'] = self.publisher_field.value
+
+            if hasattr(self, 'install_cmd_field') and self.install_cmd_field.value != app.get('installCommandLine'):
+                update_data['installCommandLine'] = self.install_cmd_field.value
+
+            if hasattr(self, 'uninstall_cmd_field') and self.uninstall_cmd_field.value != app.get('uninstallCommandLine'):
+                update_data['uninstallCommandLine'] = self.uninstall_cmd_field.value
+
+            if not update_data:
+                self._show_snack(i18n.get("no_changes_detected") or "No changes detected.", "BLUE")
+                return
+
+            self._show_snack(i18n.get("saving_changes") or "Saving changes...", "BLUE")
+
+            # Run in background
+            def _bg_save():
+                try:
+                    logger.info(f"Updating app {app_id} with data: {update_data.keys()}")
+                    self.intune_service.update_app(token, app_id, update_data)
+
+                    # Update local specific object to reflect changes without full reload if possible,
+                    # or just reload details.
+                    app.update(update_data)
+
+                    self._run_task_safe(lambda: self._show_snack(i18n.get("save_success") or "Changes saved successfully!", "GREEN"))
+                    # Reload details to ensure consistency
+                    self._run_task_safe(lambda: self._show_details(app))
+                except Exception as ex:
+                    logger.error(f"Failed to save changes: {ex}")
+                    self._run_task_safe(lambda: self._show_snack(f"Failed to save: {ex}", "RED"))
+
+            threading.Thread(target=_bg_save, daemon=True).start()
+
+        except Exception as ex:
+            logger.error(f"Error preparing save: {ex}")
+            self._show_snack(f"Error: {ex}", "RED")
 
     def _show_deployment_dialog(self, app):
         """

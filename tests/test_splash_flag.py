@@ -10,8 +10,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 from switchcraft import main as app_main
 try:
     import switchcraft.gui.app
-except ImportError:
-    pass
+except (ImportError, OSError):
+    # Mock the module if it fails to load (e.g. headless CI missing tkinter)
+    m = MagicMock()
+    sys.modules['switchcraft.gui.app'] = m
+    import switchcraft.gui
+    switchcraft.gui.app = m
 
 class TestSplashFlag(unittest.TestCase):
 

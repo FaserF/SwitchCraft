@@ -131,13 +131,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     logger.warning("Language dropdown changed but value is None/empty")
             except Exception as ex:
                 logger.exception(f"Error in language change handler: {ex}")
-                # Show error in crash view for better debugging
                 self._show_error_view(ex, "Language dropdown change")
-                # Also show snackbar for user feedback
-                try:
-                    self._show_snack(f"Failed to change language: {ex}", "RED")
-                except Exception:
-                    pass  # If snackbar fails, error view already shown
 
         lang_dd.on_change = safe_lang_handler
 
@@ -1092,207 +1086,38 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     def _on_lang_change(self, val):
         """
-        Handle a change to the UI language and apply it across the application.
-
-        Saves the selected language to user preferences, updates the i18n singleton, rebuilds the settings view (and main app navigation) to reflect the new language, and shows a confirmation snack. If the app page reference is unavailable, prompts the user to restart the application and performs a restart when confirmed.
-
-        Parameters:
-            val (str): Language code or identifier to set (e.g., "en", "fr", etc.).
+        Handle a change to the UI language by saving the preference and prompting for a restart.
+        Detailed UI rebuilding is fragile; a restart is the most robust way to apply language changes.
         """
         logger.info(f"Language change requested: {val}")
-        logger.debug(f"Current app_page: {getattr(self, 'app_page', 'Not Set')}, type: {type(getattr(self, 'app_page', None))}")
         try:
             from switchcraft.utils.config import SwitchCraftConfig
-            from switchcraft.utils.i18n import i18n
 
             # Save preference
             SwitchCraftConfig.set_user_preference("Language", val)
             logger.debug(f"Language preference saved: {val}")
 
-            # Actually update the i18n singleton
-            i18n.set_language(val)
-            logger.debug(f"i18n language updated: {val}")
-
-            # Notify user to refresh
-            try:
-                msg = i18n.get("lang_change_refresh") or f"Language changed to {val}. Please refresh the page."
-                self._show_snack(msg, "GREEN")
-            except:
-                pass
-
-            # Immediately refresh the current view to apply language change
-            # Get current tab index and reload the view
-            if hasattr(self.app_page, 'switchcraft_app'):
-                app = self.app_page.switchcraft_app
-                current_idx = getattr(app, '_current_tab_index', 0)
-            else:
-                app = None
-                current_idx = 0
-
-            # Clear ALL view cache to force rebuild with new language
-            if app and hasattr(app, '_view_cache'):
-                app._view_cache.clear()
-
-            # Rebuild the Settings View itself (since we're in it)
-            # Get current tab index within settings
-            current_settings_tab = self.initial_tab_index
-
-            # Rebuild tab definitions with new language
-            self.tab_defs = [
-                (i18n.get("settings_general") or "General", ft.Icons.SETTINGS, self._build_general_tab),
-                (i18n.get("settings_hdr_update") or "Updates", ft.Icons.UPDATE, self._build_updates_tab),
-                (i18n.get("deployment_title") or "Global Graph API", ft.Icons.CLOUD_UPLOAD, self._build_deployment_tab),
-                (i18n.get("help_title") or "Help", ft.Icons.HELP, self._build_help_tab)
-            ]
-
-            # Rebuild tab navigation buttons with new language
-            self.nav_row.controls.clear()
-            for i, (name, icon, func) in enumerate(self.tab_defs):
-                btn = ft.Button(
-                    content=ft.Row([ft.Icon(icon), ft.Text(name)]),
-                    on_click=lambda e, f=func: self._switch_tab(f),
-                    style=ft.ButtonStyle(
-                        shape=ft.RoundedRectangleBorder(radius=5),
-                        bgcolor="PRIMARY_CONTAINER" if i == current_settings_tab else None
-                    )
-                )
-                self.nav_row.controls.append(btn)
-
-            # Rebuild current tab content
-            self._switch_tab(self.tab_defs[current_settings_tab][2])
-
-            # Update the nav_row to reflect changes (only if page is attached)
-            try:
-                if hasattr(self, 'page') and self.page:
-                    self.update()
-            except RuntimeError as e:
-                # Control not attached to page yet, skip update
-                logger.debug(f"Control not attached to page yet (RuntimeError): {e}")
-
-            # Reload the main app view to update sidebar labels
-            # Use run_task to ensure UI updates happen on main thread
-            def _reload_app():
-                try:
-                    # Get app reference from page
-                    if hasattr(self.app_page, 'switchcraft_app'):
-                        app = self.app_page.switchcraft_app
-                        app.goto_tab(current_idx)
-                        self._show_snack(
-                            i18n.get("language_changed") or "Language changed. UI updated.",
-                            "GREEN"
-                        )
-                    else:
-                        # Fallback: just show message
-                        self._show_snack(
-                            i18n.get("language_changed") or "Language changed. Please restart to see all changes.",
-                            "GREEN"
-                        )
-                except Exception as ex:
-                    logger.exception(f"Error reloading app view: {ex}")
-                    # Fallback: just show message
-                    self._show_snack(
-                        i18n.get("language_changed") or "Language changed. Please restart to see all changes.",
-                        "GREEN"
-                    )
-
-            # Use _run_task_safe to ensure UI updates happen on main thread
-            self._run_task_safe(_reload_app)
-            # Force restart dialog if app reload failed or partial
-            self._run_task_safe(lambda: self._show_snack("Language changed. Restarting app is recommended.", "ORANGE"))
-        except Exception as ex:
-            logger.exception(f"Error in language change handler: {ex}")
-            self._show_snack(f"Failed to change language: {ex}", "RED")
-
-
-        # Show restart dialog if app reference not available (outside try-except)
-        if not hasattr(self.app_page, 'switchcraft_app') or not self.app_page.switchcraft_app:
-            def do_restart(e):
-                """
-                Restart the application by launching a new process and exiting the current process.
-
-                This function attempts a clean restart by shutting down logging, forcing garbage collection, removing PyInstaller-related environment variables (e.g., `_MEI*`), and spawning a new process with the same executable and arguments. On Windows the new process is started detached and in a new process group. Standard input/output/error are suppressed for the spawned process. If the restart fails, an error snack is shown via self._show_snack.
-                """
-                dlg.open = False
-                self.app_page.update()
-                import sys
-                import os
-                import subprocess
-                import time
-                import gc
-                import logging
-
-                try:
-                    if getattr(sys, 'frozen', False):
-                        executable = sys.executable
-                        args = sys.argv[1:]
-                        cwd = os.path.dirname(executable)
-                    else:
-                        executable = sys.executable
-                        args = sys.argv
-                        cwd = os.getcwd()
-
-                    # 1. Close all file handles and release resources
-                    try:
-                        logging.shutdown()
-                    except Exception as e:
-                        logger.debug(f"Error during logging shutdown: {e}")
-
-                    # 2. Force garbage collection
-                    gc.collect()
-
-                    # 3. Small delay to allow file handles to be released
-                    time.sleep(0.2)
-
-                    # 4. Prepare environment: remove PyInstaller's _MEIPASS
-                    env = os.environ.copy()
-                    for key in list(env.keys()):
-                        if key.startswith('_MEI'):
-                            env.pop(key)
-                    env.pop('LD_LIBRARY_PATH', None)
-
-                    # 5. Launch new process
-                    creationflags = 0
-                    if sys.platform == 'win32':
-                        creationflags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
-
-                    subprocess.Popen(
-                        [executable] + args,
-                        cwd=cwd,
-                        env=env,
-                        close_fds=True,
-                        creationflags=creationflags,
-                        stdin=subprocess.DEVNULL,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
-                    )
-
-                    # 6. Give the new process a moment to start
-                    time.sleep(0.3)
-
-                    # 7. Exit
-                    os._exit(0)
-                except Exception as ex:
-                    self._show_snack(f"Restart failed: {ex}", "RED")
+            # Show Restart Dialog
+            def restart_app(e):
+                self.app_page.window.destroy()
 
             dlg = ft.AlertDialog(
-                title=ft.Text(i18n.get("language_changed") or "Language Changed"),
-                content=ft.Text(
-                    i18n.get("restart_to_apply") or
-                    "The application needs to restart to apply the new language. Restart now?"
-                ),
+                title=ft.Text(i18n.get("restart_required") or "Restart Required", color=ft.colors.ERROR),
+                content=ft.Text(i18n.get("restart_for_lang") or "Please restart the application to apply the language change."),
                 actions=[
-                    ft.TextButton(i18n.get("btn_later") or "Later", on_click=lambda e: setattr(dlg, "open", False) or self.app_page.update()),
-                    ft.Button(
-                        i18n.get("btn_restart_now") or "Restart Now",
-                        on_click=do_restart,
-                        bgcolor="BLUE_700",
-                        color="WHITE"
-                    ),
-                ]
+                    ft.TextButton(i18n.get("btn_restart") or "Close App", on_click=restart_app),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
             )
-            # Use _open_dialog_safe for consistent dialog handling
-            if not self._open_dialog_safe(dlg):
-                logger.warning("Failed to open restart dialog")
+            self.app_page.dialog = dlg
+            dlg.open = True
+            self.app_page.update()
+
+        except Exception as ex:
+            logger.exception(f"Error handling language change: {ex}")
+            self._show_snack(f"Error: {ex}", "RED")
+            self._run_task_safe(lambda: self._show_snack("Language changed. Restarting app is recommended.", "ORANGE"))
+
 
     def _test_graph_connection(self, e):
         """

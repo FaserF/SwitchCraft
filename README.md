@@ -37,14 +37,14 @@
 
 SwitchCraft is primarily designed for **Windows** environments. While the application UI is built with cross-platform frameworks (Python/Flet), many core features rely on Windows-specific APIs (Registry, Explorer, Intune Packaging Tool).
 
-| Feature | Windows | macOS / Linux | Reason / Limitation |
-| :--- | :---: | :---: | :--- |
-| **Modern UI** | ✅ | ✅ | Runs natively via Flet (Flutter). |
-| **Intune Packaging** | ✅ | ❌ | Requires `IntuneWinAppUtil.exe` (Windows binary). |
-| **Configuration** | ✅ | ⚠️ | Full support via Registry (GPO/Intune). No local config file support yet. |
-| **Winget Store** | ✅ | ❌ | Requires `winget` CLI (Windows native). |
-| **System Integration** | ✅ | ⚠️ | Explorer integration, Notifications, and PowerShell features are Windows-only. |
-| **Analyze Installer** | ✅ | ✅ | Basic file analysis works, but advanced PE analysis is Windows-native. |
+| Feature | Windows | macOS / Linux | Web (WASM) | Reason / Limitation |
+| :--- | :---: | :---: | :---: | :--- |
+| **Modern UI** | ✅ | ✅ | ✅ | Runs natively via Flet (Flutter). |
+| **Intune Packaging** | ✅ | ❌ | ❌ | Requires `IntuneWinAppUtil.exe` (Windows binary). |
+| **Configuration** | ✅ | ⚠️ | ⚠️ | Registry (Windows) vs Browser Storage (Web). |
+| **Winget Store** | ✅ | ❌ | ⚠️ | Windows uses CLI. Web uses API-only search (No Install). |
+| **System Integration** | ✅ | ⚠️ | ❌ | Explorer/Notifications are OS-specific. |
+| **Analyze Installer** | ✅ | ✅ | ✅ | Basic file analysis works everywhere. |
 
 > [!WARNING]
 > **macOS and Linux users:** You can run the application to view the interface or analyze simple files, but you **cannot** create Intune packages or use Store features. These builds are essentially "Viewers" and are not actively supported.
@@ -114,6 +114,7 @@ SwitchCraft provides multiple editions to suit different environments.
 | Edition | UI Technology | Status | Best For |
 | :--- | :--- | :--- | :--- |
 | **Modern** | **Flet (Flutter)** | ✅ Active | **Most Users** - Latest features, modern UI. |
+| **Web / Docker** | **Flet (WASM)** | ✅ Active | **Zero-Install** - Demo or Self-Hosted. |
 | **Legacy** | **Tkinter** | ⚠️ Maintenance | **Old Hardware** - Lightweight, classic stability. |
 | **CLI** | **Terminal** | ✅ Active | **Automation** - Headless, scriptable, JSON output. |
 

@@ -53,7 +53,9 @@ def patch_flet():
     # 1. Colors & Alignment
     try:
         if not hasattr(ft, "colors"):
-            ft.colors = ft.Colors
+            # ft.colors = ft.Colors # This fallback might be the issue if Colors is broken
+            pass
+
     except Exception:
         # Flet version likely compatible or different structure
         pass
@@ -556,15 +558,15 @@ def main(page: ft.Page):
         # Open Folder (Desktop Only)
         if not is_web:
             actions.append(
-                ft.ElevatedButton(
+                ft.Button(
                     "Open Logs",
                     icon=ft.Icons.FOLDER_OPEN,
                     on_click=open_dump_folder,
-                    style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_700, color=ft.Colors.WHITE)
+                    style=ft.ButtonStyle(bgcolor=ft.colors.BLUE_700, color=ft.colors.WHITE)
                 )
             )
             actions.append(
-                 ft.ElevatedButton(
+                 ft.Button(
                     "View File",
                     icon=ft.Icons.DESCRIPTION,
                     on_click=open_dump_file
@@ -586,16 +588,16 @@ def main(page: ft.Page):
         # Close/Reload (Contextual)
         if not is_web:
             actions.append(
-                ft.ElevatedButton(
+                ft.Button(
                     "Exit",
                     icon=ft.Icons.CLOSE,
                     on_click=close_app,
-                    style=ft.ButtonStyle(bgcolor=ft.Colors.RED_700, color=ft.Colors.WHITE)
+                    style=ft.ButtonStyle(bgcolor=ft.colors.RED_700, color=ft.colors.WHITE)
                 )
             )
         else:
              actions.append(
-                ft.ElevatedButton(
+                ft.Button(
                     "Reload App",
                     icon=ft.Icons.REFRESH,
                     on_click=lambda e: page.launch_url(page.route or "/"),
@@ -611,34 +613,34 @@ def main(page: ft.Page):
                                 padding=40,
                                 content=ft.Column(
                                     [
-                                        ft.Icon(ft.Icons.GPP_MAYBE_ROUNDED, color=ft.Colors.RED_400, size=64),
-                                        ft.Text("Something went wrong", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE),
-                                        ft.Text("SwitchCraft encountered a critical error during initialization.", size=16, color=ft.Colors.ON_SURFACE_VARIANT),
+                                        ft.Icon(ft.Icons.GPP_MAYBE_ROUNDED, color=ft.colors.RED_400, size=64),
+                                        ft.Text("Something went wrong", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE),
+                                        ft.Text("SwitchCraft encountered a critical error during initialization.", size=16, color=ft.colors.ON_SURFACE_VARIANT),
 
-                                        ft.Divider(height=20, color=ft.Colors.TRANSPARENT),
+                                        ft.Divider(height=20, color=ft.colors.TRANSPARENT),
 
                                         ft.Container(
                                             content=ft.Column([
-                                                ft.Text("Error Details:", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_500),
+                                                ft.Text("Error Details:", size=12, weight=ft.FontWeight.BOLD, color=ft.colors.GREY_500),
                                                 ft.Container(
                                                     content=ft.Text(
                                                         f"{sys.exc_info()[1]}",
                                                         font_family="Consolas, monospace",
-                                                        color=ft.Colors.RED_300,
+                                                        color=ft.colors.RED_300,
                                                         size=13,
                                                         selectable=True
                                                     ),
-                                                    bgcolor=ft.Colors.GREY_900,
+                                                    bgcolor=ft.colors.GREY_900,
                                                     padding=15,
                                                     border_radius=8,
                                                     width=600
                                                 ),
-                                                 ft.Text(f"Log ID: {dump_file.name}", size=11, italic=True, color=ft.Colors.GREY_600),
+                                                 ft.Text(f"Log ID: {dump_file.name}", size=11, italic=True, color=ft.colors.GREY_600),
                                             ]),
                                             alignment=ft.alignment.center
                                         ),
 
-                                        ft.Divider(height=30, color=ft.Colors.TRANSPARENT),
+                                        ft.Divider(height=30, color=ft.colors.TRANSPARENT),
 
                                         ft.Row(
                                             controls=actions,
@@ -654,17 +656,17 @@ def main(page: ft.Page):
                             elevation=10,
                         ),
                         ft.Container(height=20),
-                        ft.Text("Please report this issue on GitHub if it persists.", size=12, color=ft.Colors.GREY_500)
+                        ft.Text("Please report this issue on GitHub if it persists.", size=12, color=ft.colors.GREY_500)
                     ],
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     alignment=ft.MainAxisAlignment.CENTER
                 ),
                 alignment=ft.alignment.center,
                 expand=True,
-                bgcolor=ft.Colors.BACKGROUND,
+                bgcolor=ft.colors.BACKGROUND,
             )
         )
         page.update()
 
 if __name__ == "__main__":
-    ft.app(target=main, assets_dir="assets")
+    ft.run(target=main, assets_dir="assets")

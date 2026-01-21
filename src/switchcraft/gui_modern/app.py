@@ -83,6 +83,11 @@ class ModernApp:
                     logger.error(f"Failed to add error view to page: {e2}", exc_info=True)
         except Exception as e:
             logger.error(f"Critical error in _show_runtime_error: {e}", exc_info=True)
+    def _on_notification_click(self, e):
+        """Handler for notification button click."""
+        logger.info("Notification button clicked")
+        self._toggle_notification_drawer(e)
+
     def __init__(self, page: ft.Page, splash_proc=None):
         """
         Initialize the ModernApp instance, attach it to the provided page, prepare services and UI, and preserve the startup splash until the UI is ready.
@@ -106,6 +111,11 @@ class ModernApp:
         # Don't clean page here - we want to keep the loading screen from modern_main.py
         # The loading screen will be replaced in build_ui()
 
+        # Update Page Properties
+        self.page.title = "SwitchCraft"
+        self.page.favicon = "assets/switchcraft_logo.ico"  # Fix: Use SwitchCraft favicon
+        self.page.theme_mode = ft.ThemeMode.SYSTEM
+
         # Initialize Services EARLY
         self.notification_service = NotificationService()
         self._last_notif_id = None
@@ -124,31 +134,10 @@ class ModernApp:
             tooltip=i18n.get("toggle_theme")
         )
 
-        # Notification button
-        def notification_click_handler(e):
-            """Handler for notification button click - ensures it's always called."""
-            logger.info("Notification button clicked - handler called")
-            try:
-                logger.debug("Calling _toggle_notification_drawer")
-                self._toggle_notification_drawer(e)
-                logger.info("_toggle_notification_drawer completed")
-            except Exception as ex:
-                logger.exception(f"Error in notification button click handler: {ex}")
-                # Show error to user
-                try:
-                    self.page.snack_bar = ft.SnackBar(
-                        content=ft.Text(f"Failed to open notifications: {ex}"),
-                        bgcolor="RED"
-                    )
-                    self.page.snack_bar.open = True
-                    self.page.update()
-                except Exception:
-                    pass
-
         self.notif_btn = ft.IconButton(
             icon=ft.Icons.NOTIFICATIONS,
             tooltip="Notifications",
-            on_click=notification_click_handler
+            on_click=self._on_notification_click
         )
         logger.debug(f"Notification button created with handler: {self.notif_btn.on_click is not None}")
 

@@ -343,8 +343,9 @@ class ModernWingetView(ft.Row, ViewMixin):
                 def make_click_handler(pkg_item):
                     def handler(e):
                         try:
-                            logger.debug(f"Tile clicked for package: {pkg_item.get('Id', 'Unknown')}")
-                            self._load_details(pkg_item)
+                            logger.info(f"Tile clicked for package: {pkg_item.get('Id', 'Unknown')}")
+                            # Force run on UI thread via task safe wrapper
+                            self._run_task_safe(lambda: self._load_details(pkg_item))
                         except Exception as ex:
                             logger.exception(f"Error in tile click handler for {pkg_item.get('Id', 'Unknown')}: {ex}")
                             self._show_error_view(ex, f"Load details for {pkg_item.get('Id', 'Unknown')}")
