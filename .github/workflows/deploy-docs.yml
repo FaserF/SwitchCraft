@@ -38,13 +38,13 @@ jobs:
       - name: Build Web Demo
         run: |
           # Publish to 'docs/public/demo' folder so VitePress includes it
-          flet publish src/switchcraft/modern_main.py --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/"
+          flet publish src/switchcraft/modern_main.py --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist
 
           # Move build to docs public folder
           mkdir -p docs/public/demo
-          cp -r src/switchcraft/dist/* docs/public/demo/
+          cp -r dist/* docs/public/demo/
           # Clean up dist
-          rm -rf src/switchcraft/dist
+          rm -rf dist
         shell: bash
 
       - name: Setup Node
