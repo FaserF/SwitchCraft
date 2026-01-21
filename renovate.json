@@ -32,7 +32,8 @@
       ],
       "matchPackageNames": [
         "flet",
-        "flet-desktop"
+        "flet-desktop",
+        "flet-charts"
       ],
       "groupName": "flet packages",
       "description": "Group flet and flet-desktop updates together to keep them in sync"

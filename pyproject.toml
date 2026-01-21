@@ -38,11 +38,11 @@ gui = [
     "pillow",
     "plyer"
 ]
-modern = ["flet>=0.80.1", "flet-desktop>=0.80.1", "flet-charts>=0.80.1"]
+modern = ["flet>=0.80.2", "flet-desktop>=0.80.2", "flet-charts>=0.80.2"]
 test = [
     "pytest>=7.0",
-    "flet>=0.80.1",
-    "flet-charts>=0.80.1"
+    "flet>=0.80.2",
+    "flet-charts>=0.80.2"
 ]
 build = [
     "pyinstaller==6.18.0"
