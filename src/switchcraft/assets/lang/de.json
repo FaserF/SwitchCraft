@@ -57,6 +57,7 @@
     "about_version": "Version",
     "winget_found": "Winget Treffer gefunden!",
     "winget_no_match": "Winget: Kein Treffer gefunden",
+    "generate_intune_script": "Intune Skript generieren",
     "manual_select": "Datei auswählen",
     "ready": "Bereit",
     "toggle_theme": "Design wechseln",

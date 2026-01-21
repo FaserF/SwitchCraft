@@ -8,6 +8,10 @@ from pathlib import Path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
 from switchcraft import main as app_main
+try:
+    import switchcraft.gui.app
+except ImportError:
+    pass
 
 class TestSplashFlag(unittest.TestCase):
 

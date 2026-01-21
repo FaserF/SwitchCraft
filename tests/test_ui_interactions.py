@@ -227,7 +227,8 @@ def test_analyzer_view_buttons(mock_page):
     with patch("switchcraft.gui_modern.views.analyzer_view.HAS_DROPZONE", True), \
          patch("switchcraft.services.history_service.HistoryService"), \
          patch("switchcraft.gui_modern.views.analyzer_view.webbrowser"), \
-         patch("switchcraft.gui_modern.utils.file_picker_helper.FilePickerHelper.save_file", return_value="mock_script.ps1"):
+         patch("switchcraft.gui_modern.utils.file_picker_helper.FilePickerHelper.save_file", return_value="mock_script.ps1"), \
+         patch("switchcraft.gui_modern.views.analyzer_view.SigningService.sign_script", return_value=True):
 
         log("\nInstantiating AnalyzerView")
 

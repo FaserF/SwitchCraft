@@ -42,9 +42,9 @@ jobs:
 
           # Move build to docs public folder
           mkdir -p docs/public/demo
-          cp -r dist/* docs/public/demo/
+          cp -r src/switchcraft/dist/* docs/public/demo/
           # Clean up dist
-          rm -rf dist
+          rm -rf src/switchcraft/dist
         shell: bash
 
       - name: Setup Node

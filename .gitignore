@@ -125,3 +125,4 @@ final_pass*.txt
 final_output*.txt
 refactor_results.txt
 refactor_v2.txt
+pytest_ci_fixes.txt

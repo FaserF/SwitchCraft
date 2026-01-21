@@ -536,7 +536,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         # 7. Deployment Actions (Intune, IntuneWin)
         self.results_column.controls.append(
             ft.Row([
-                ft.Button(i18n.get("btn_gen_intune_script") or "Generate Intune Script", icon=ft.Icons.CODE, on_click=self._on_click_create_script),
+                ft.Button(i18n.get("generate_intune_script") or "Generate Intune Script", icon=ft.Icons.CODE, on_click=self._on_click_create_script),
                 ft.Button(i18n.get("btn_create_intunewin") or "Create .intunewin", icon=ft.Icons.INVENTORY, on_click=self._on_click_create_intunewin),
                 ft.Button(i18n.get("btn_manual_cmds") or "Manual Commands", icon=ft.Icons.TERMINAL, on_click=self._show_manual_cmds),
             ], wrap=True)
@@ -602,7 +602,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                     content=ft.Row([
                         ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN"),
                         ft.Text("Matches Winget Package!", weight=ft.FontWeight.BOLD, expand=True),
-                        ft.TextButton("View on Web", on_click=lambda _: webbrowser.open(result.winget_url))
+                        ft.TextButton(i18n.get("view_winget") or "View on Web", on_click=lambda _: webbrowser.open(result.winget_url))
                     ]),
                     padding=10, bgcolor="GREEN_900", border_radius=5
                 )
