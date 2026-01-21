@@ -37,9 +37,8 @@ jobs:
 
       - name: Build Web Demo
         run: |
-          # Publish to 'docs/public/demo' folder so VitePress includes it
-          # Uses [tool.flet.app] from pyproject.toml for path and module
-          flet publish --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist
+          # Use root main.py which sets up sys.path correctly
+          flet publish main.py --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist --assets src/switchcraft/assets
 
           # Move build to docs public folder
           mkdir -p docs/public/demo

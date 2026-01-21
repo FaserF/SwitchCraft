@@ -316,7 +316,9 @@ def test_view_buttons_work(view_name, view_file):
                         # This ensures exceptions are properly raised and caught by the test
                         asyncio.run(handler(mock_event))
                     else:
-                        handler(mock_event)
+                        res = handler(mock_event)
+                        if inspect.isawaitable(res):
+                             asyncio.run(res)
                     successes += 1
 
                 except Exception as e:

@@ -76,3 +76,49 @@ def test_notification_drawer_cleanup(mock_page):
 
     # 3. Verify reference is cleared
     assert mock_page.end_drawer is None, "end_drawer should be None after dismiss"
+
+
+def test_notification_bell_with_items(mock_page):
+    """Test that notification bell opens drawer with items."""
+    from switchcraft.gui_modern.app import ModernApp
+
+    # Try local poll_until or rely on time.sleep if conftest import is tricky in this context
+    # But conftest should be available in tests root.
+    try:
+        from conftest import poll_until
+    except ImportError:
+        import time
+        def poll_until(condition, timeout=2.0):
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                if condition():
+                    return True
+                time.sleep(0.05)
+            return False
+
+    app = ModernApp(mock_page)
+
+    # Mock notification service with items
+    with patch.object(app, 'notification_service') as mock_notif:
+        mock_notif.get_notifications.return_value = [
+            {
+                "id": "test1",
+                "title": "Test Notification",
+                "message": "This is a test",
+                "type": "info",
+                "read": False,
+                "timestamp": None
+            }
+        ]
+
+        # Simulate button click
+        mock_event = MagicMock()
+        app._toggle_notification_drawer(mock_event)
+
+        # Wait for drawer to open
+        def drawer_opened():
+            return (mock_page.end_drawer is not None and
+                    isinstance(mock_page.end_drawer, ft.NavigationDrawer) and
+                    mock_page.end_drawer.open is True)
+
+        assert poll_until(drawer_opened, timeout=2.0), "Drawer should be opened"

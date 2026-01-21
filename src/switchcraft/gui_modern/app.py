@@ -113,11 +113,10 @@ class ModernApp:
 
         # Update Page Properties
         self.page.title = "SwitchCraft"
-        if not self.page.favicon:
-            if self.page.web:
-                self.page.favicon = "/switchcraft_logo.png"
-            else:
-                self.page.favicon = "assets/switchcraft_logo.ico"
+        if self.page.web:
+            self.page.favicon = "/switchcraft_logo.png"
+        elif not self.page.favicon:
+            self.page.favicon = "assets/switchcraft_logo.ico"
         self.page.theme_mode = ft.ThemeMode.SYSTEM
 
         # Initialize Services EARLY
@@ -974,6 +973,9 @@ class ModernApp:
                 ft.NavigationRailDestination(
                     icon=ft.Icons.TERMINAL, selected_icon=ft.Icons.TERMINAL, label=i18n.get("nav_winget_create")
                 ),  # 19 Winget Create
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.EMAIL_OUTLINED, selected_icon=ft.Icons.EMAIL, label=i18n.get("exchange_title") or "Exchange"
+                ),  # 20 Exchange
             ]
 
 
@@ -1601,6 +1603,12 @@ class ModernApp:
                 from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
                 return GroupManagerView(self.page)
             load_view(_f)
+        elif idx == NavIndex.EXCHANGE:
+            # Exchange
+            def _f():
+                from switchcraft.gui_modern.views.exchange_view import ExchangeView
+                return ExchangeView(self.page)
+            load_view(_f)
 
         elif idx == NavIndex.WINGET_CREATE:
             # WingetCreate Manager
@@ -1616,8 +1624,8 @@ class ModernApp:
                 dynamic_idx = idx - self.first_dynamic_index
             else:
                 # Fallback if somehow not set (should not happen if build_ui called)
-                # This fallback assumes WINGET_CREATE is last static
-                dynamic_idx = idx - (NavIndex.WINGET_CREATE + 1)
+                # This fallback assumes EXCHANGE is last static
+                dynamic_idx = idx - (NavIndex.EXCHANGE + 1)
 
             if 0 <= dynamic_idx < len(self.dynamic_addons):
                 addon = self.dynamic_addons[dynamic_idx]

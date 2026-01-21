@@ -46,31 +46,10 @@ class DashboardView(ft.Column):
             ], expand=True),
             bgcolor="SURFACE_VARIANT",
             border_radius=10,
-            padding=20,
             width=350
         )
 
-        # New Exchange Mail Flow Container
-        self.mail_flow_container = ft.Container(
-            content=ft.Column([
-                ft.Row([
-                    ft.Text("Exchange Online Mail Flow", weight=ft.FontWeight.BOLD, size=18),
-                    ft.Button("Start Mail Flow", icon=ft.Icons.SEND, on_click=self._start_mail_flow)
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                ft.Container(height=20),
-                ft.Container(
-                    content=ft.Text("Mail Flow Chart (Coming Soon)", color="grey"),
-                    alignment=ft.alignment.center,
-                    height=250,
-                    border=ft.border.all(1, ft.colors.GREY_400),
-                    border_radius=5
-                )
-            ]),
-            bgcolor="SURFACE_VARIANT",
-            border_radius=10,
-            padding=20,
-            expand=1
-        )
+        # Build initial content - simplified layout
 
         # Build initial content - simplified layout
         self.controls = [
@@ -82,7 +61,6 @@ class DashboardView(ft.Column):
                     ft.Container(height=20),
                     ft.Row([
                         self.chart_container,
-                        self.mail_flow_container
                     ], spacing=20, wrap=False, expand=True),
                     ft.Container(height=20),
                     ft.Row([
@@ -236,58 +214,14 @@ class DashboardView(ft.Column):
         ], expand=True)
         self.recent_container.content = recent_content
 
-        # Update Mail Flow Chart
-        if self.mail_flow_data:
-            bar_groups = []
-            for i, data_point in enumerate(self.mail_flow_data):
-                # data_point keys: sent, received, date
-                bar_groups.append(
-                    BarChartGroup(
-                        x=i,
-                        bar_rods=[
-                            BarChartRod(
-                                from_y=0,
-                                to_y=data_point.get("sent", 0),
-                                width=15,
-                                color=ft.colors.BLUE,
-                                tooltip=f"Sent: {data_point.get('sent', 0)}",
-                                border_radius=0
-                            ),
-                            BarChartRod(
-                                from_y=0,
-                                to_y=data_point.get("received", 0),
-                                width=15,
-                                color=ft.colors.GREEN,
-                                tooltip=f"Received: {data_point.get('received', 0)}",
-                                border_radius=0
-                            ),
-                        ]
-                    )
-                )
 
-            # Update the chart control inside mail_flow_container
-            # Structure: Column -> [Row (Header), Spacer, BarChart]
-            chart_control = self.mail_flow_container.content.controls[2]
-            chart_control.bar_groups = bar_groups
-
-            # Update bottom axis labels
-            labels = []
-            for i, data_point in enumerate(self.mail_flow_data):
-                # Show simplified date (e.g. "Mon" or "10-01")
-                try:
-                     d_str = datetime.strptime(data_point["date"], "%Y-%m-%d").strftime("%d.%m")
-                except:
-                     d_str = data_point["date"]
-                labels.append(ChartAxisLabel(value=i, label=ft.Text(d_str, size=10, weight=ft.FontWeight.BOLD)))
-
-            chart_control.bottom_axis.labels = labels
 
         # Force update of all containers
         try:
             self.stats_row.update()
             self.chart_container.update()
             self.recent_container.update()
-            self.mail_flow_container.update()
+            self.recent_container.update()
             self.update()
         except Exception as e:
             import logging

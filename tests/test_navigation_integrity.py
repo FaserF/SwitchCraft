@@ -18,6 +18,7 @@ class TestNavigationIntegrity(unittest.TestCase):
         self.mock_page.add = MagicMock()
         self.mock_page.update = MagicMock()
         self.mock_page.open = MagicMock()
+        self.mock_page.favicon = None
 
         # Patch internal method that fails with mock page
         self.patcher = patch('switchcraft.gui_modern.app.ModernApp._on_notification_update')
@@ -79,10 +80,10 @@ class TestNavigationIntegrity(unittest.TestCase):
         # Dynamic index calculation based on static constants
         from switchcraft.gui_modern.nav_constants import NavIndex
 
-        # In app.py: dynamic_idx = idx - (NavIndex.WINGET_CREATE + 1)
-        # So idx = dynamic_idx + (NavIndex.WINGET_CREATE + 1)
+        # In app.py: dynamic_idx = idx - (NavIndex.EXCHANGE + 1)
+        # So idx = dynamic_idx + (NavIndex.EXCHANGE + 1)
         # We want dynamic_idx=0 (first addon)
-        target_idx = 0 + (NavIndex.WINGET_CREATE + 1)
+        target_idx = 0 + (NavIndex.EXCHANGE + 1)
 
         app._switch_to_tab(target_idx)
 

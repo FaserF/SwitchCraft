@@ -640,6 +640,7 @@
     "btn_delete_selected": "Auswahl löschen",
     "group_manager_title": "Entra Gruppen-Manager",
     "group_manager_subtitle": "Verwalte deine Microsoft Entra ID (Azure AD) Gruppen.",
+    "entra_search_hint": "Suche um Gruppen zu finden...",
     "search_intune_apps": "Intune Apps suchen...",
     "intune_store_title": "Intune Store",
     "field_id": "ID",
@@ -1027,5 +1028,18 @@
     "btn_restart": "App Neustarten",
     "save_success": "Erfolgreich gespeichert",
     "restart_for_lang": "Bitte starte die Anwendung neu, um die Sprache zu ändern.",
-    "no_changes_detected": "Keine Änderungen erkannt."
+    "no_changes_detected": "Keine Änderungen erkannt.",
+    "exchange_title": "Exchange Online",
+    "exchange_subtitle": "Überwache den E-Mail-Verkehr und verwalte Exchange Online Einstellungen.",
+    "date_range": "Datumsbereich",
+    "mail_flow_chart": "E-Mail-Verkehr",
+    "start_mail_flow": "Mail-Flow Test starten",
+    "mail_flow_started": "Mail-Flow Test gestartet!",
+    "exchange_connect_hint": "Verbinde dich mit Exchange Online, um Echtzeit-Statistiken zu sehen.",
+    "recent_messages": "Letzte Nachrichten",
+    "no_data": "Keine Daten verfügbar",
+    "sent": "Gesendet",
+    "received": "Empfangen",
+    "blocked": "Blockiert",
+    "mail_flow_stats": "E-Mail-Statistiken"
 }

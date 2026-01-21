@@ -36,6 +36,7 @@ def app_instance(monkeypatch):
     # Configure page attributes that strictly exist
     page.theme_mode = ft.ThemeMode.DARK
     page.padding = 10
+    page.favicon = None
 
     app = ModernApp(page)
     # Disable actual file system/network calls

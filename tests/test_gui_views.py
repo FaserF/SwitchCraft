@@ -12,7 +12,9 @@ mock_page.window_width = 800
 mock_page.window_height = 600
 mock_page.pubsub = MagicMock()
 mock_page.overlay = []
+mock_page.overlay = []
 mock_page.views = []
+mock_page.favicon = None
 
 @pytest.fixture
 def page():
@@ -171,3 +173,22 @@ def test_instantiate_stack_manager_view(page):
     from switchcraft.gui_modern.views.stack_manager_view import StackManagerView
     view = StackManagerView(page)
     assert isinstance(view, ft.Column)
+
+
+def test_dashboard_view_renders(page):
+    """Test that Dashboard View renders correctly without gray rectangle."""
+    from switchcraft.gui_modern.views.dashboard_view import DashboardView
+
+    view = DashboardView(page)
+
+    # Check that controls are properly set up
+    assert len(view.controls) > 0, "Dashboard should have controls"
+
+    # Check that chart_container and recent_container exist
+    assert hasattr(view, 'chart_container'), "Dashboard should have chart_container"
+    assert hasattr(view, 'recent_container'), "Dashboard should have recent_container"
+    assert hasattr(view, 'stats_row'), "Dashboard should have stats_row"
+
+    # Check that containers are properly configured
+    assert view.chart_container.expand in [True, 1], "Chart container should expand"
+    assert view.recent_container.width is not None or view.recent_container.expand in [True, 1], "Recent container should have size"

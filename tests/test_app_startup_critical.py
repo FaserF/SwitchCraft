@@ -41,7 +41,9 @@ class TestAppStartupCritical(unittest.TestCase):
             page.set_clipboard = MagicMock()
             page.show_snack_bar = MagicMock()
             page.open = MagicMock()
+            page.open = MagicMock()
             page.close = MagicMock()
+            page.favicon = None
 
             from switchcraft.gui_modern.app import ModernApp
 
@@ -105,7 +107,9 @@ class TestAppStartupCritical(unittest.TestCase):
             page.show_snack_bar = MagicMock()
             page.open = MagicMock()
             page.close = MagicMock()
+            page.close = MagicMock()
             page.window = MagicMock()
+            page.favicon = None
             page.window.prevent_close = False
 
             # Mock all the functions that main() might call

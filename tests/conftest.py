@@ -45,6 +45,7 @@ def _create_mock_page():
             self._appbar = None
             self._overlay = []
             self._theme_mode = ft.ThemeMode.LIGHT
+            self.favicon = None
 
             # Mock update
             self.update = MagicMock()

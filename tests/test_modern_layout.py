@@ -8,7 +8,9 @@ class TestModernLayout:
         """Verify HoverSidebar is initialized correctly."""
         page = MagicMock(spec=ft.Page)
         page.theme_mode = "System"
+        page.theme_mode = "System"
         page.open = MagicMock()
+        page.favicon = None
         app = ModernApp(page)
 
         # Check sidebar existence
@@ -24,6 +26,7 @@ class TestModernLayout:
         """Verify the main content column enables scrolling."""
         page = MagicMock(spec=ft.Page)
         page.open = MagicMock()
+        page.favicon = None
         app = ModernApp(page)
 
         assert app.content.scroll == ft.ScrollMode.AUTO, "Main content column must have scroll enabled"
@@ -33,6 +36,7 @@ class TestModernLayout:
         """Verify AppBar has correct actions and leading control."""
         page = MagicMock(spec=ft.Page)
         page.open = MagicMock()
+        page.favicon = None
         app = ModernApp(page)
 
         # App sets page.appbar
@@ -58,6 +62,7 @@ class TestModernLayout:
         """Verify buttons have on_click handlers."""
         page = MagicMock(spec=ft.Page)
         page.open = MagicMock()
+        page.favicon = None
         app = ModernApp(page)
 
         assert app.back_btn.on_click is not None

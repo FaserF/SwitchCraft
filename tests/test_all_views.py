@@ -12,6 +12,8 @@ class TestAllViews:
         page = MagicMock(spec=ft.Page)
         page.theme_mode = "System"
         page.client_storage = MagicMock()
+        page.client_storage = MagicMock()
+        page.favicon = None
         return page
 
     def test_view_instantiation_home(self, page):

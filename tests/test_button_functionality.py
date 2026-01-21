@@ -5,6 +5,8 @@ Tests that buttons actually work when clicked.
 import pytest
 import flet as ft
 from unittest.mock import MagicMock, patch
+import asyncio
+import inspect
 
 
 @pytest.fixture
@@ -21,7 +23,25 @@ def mock_page():
     page.snack_bar = None
     page.open = MagicMock()
     page.close = MagicMock()
-    page.run_task = lambda func: func()  # Execute immediately for testing
+    page.close = MagicMock()
+
+    def mock_run_task(func):
+        if inspect.iscoroutinefunction(func):
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(func())
+            except RuntimeError:
+                asyncio.run(func())
+        else:
+            res = func()
+            if inspect.isawaitable(res):
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(res)
+                except RuntimeError:
+                    asyncio.run(res)
+
+    page.run_task = mock_run_task
     type(page).page = property(lambda self: page)
     return page
 

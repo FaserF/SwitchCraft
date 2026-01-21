@@ -68,5 +68,58 @@ class TestSettingsLanguage(unittest.TestCase):
         self.assertGreater(len(build_date), 0)
 
 
+    def test_language_switch_functionality(self):
+        """Test that language switch actually changes language (Interaction Test)."""
+        from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+        from switchcraft.utils.i18n import i18n
+        import flet as ft
+        import time
+        from unittest.mock import MagicMock
+
+        view = ModernSettingsView(self.page)
+        # Manually add view to page controls to satisfy Flet's requirement
+        self.page.controls = [view]
+        view._page = self.page
+
+        # Find language dropdown
+        general_tab = view._build_general_tab()
+        lang_dd = None
+
+        def find_dropdown(control):
+            if isinstance(control, ft.Dropdown):
+                if hasattr(control, 'options') and control.options:
+                    option_values = [opt.key if hasattr(opt, 'key') else str(opt) for opt in control.options]
+                    if 'en' in option_values and 'de' in option_values:
+                        return control
+            if hasattr(control, 'controls'):
+                for child in control.controls:
+                    result = find_dropdown(child)
+                    if result:
+                        return result
+            if hasattr(control, 'content'):
+                result = find_dropdown(control.content)
+                if result:
+                    return result
+            return None
+
+        lang_dd = find_dropdown(general_tab)
+
+        assert lang_dd is not None, "Language dropdown should exist"
+        assert lang_dd.on_change is not None, "Language dropdown should have on_change handler"
+
+        # Simulate language change
+        mock_event = MagicMock()
+        mock_event.control = lang_dd
+        lang_dd.value = "de"
+
+        # Call handler
+        lang_dd.on_change(mock_event)
+
+        # Verify language was changed or UI was reloaded
+        # Wait a bit for async operations
+        time.sleep(0.2)
+        assert self.page.switchcraft_app.goto_tab.called or self.page.dialog.open, "Language change should trigger UI reload or dialog"
+
+
 if __name__ == '__main__':
     unittest.main()

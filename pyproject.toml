@@ -38,16 +38,15 @@ gui = [
     "pillow",
     "plyer"
 ]
-modern = ["flet>=0.80.2", "flet-desktop>=0.80.2", "flet-charts>=0.80.2"]
+modern = ["flet==0.80.2", "flet-desktop==0.80.2", "flet-charts==0.80.2"]
 test = [
-    "pytest>=7.0",
-    "flet>=0.80.2",
-    "flet-charts>=0.80.2"
+    "pytest==9.0.2",
+    "flet==0.80.2",
+    "flet-charts==0.80.2"
 ]
 build = [
     "pyinstaller==6.18.0"
 ]
-
 
 [project.scripts]
 switchcraft = "switchcraft.main:main"
@@ -69,5 +68,5 @@ addopts = "--ignore=test_out.txt --ignore=test_output.txt --ignore=test_addons_r
 
 # Flet Web Publishing Configuration
 [tool.flet.app]
-path = "src/switchcraft"
-module = "modern_main.py"
+path = "."
+module = "main.py"

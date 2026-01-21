@@ -14,6 +14,7 @@ class TestUIRegressions:
         # Mock window object
         page.window = MagicMock()
         page.window.icon = None # Start as None
+        page.favicon = None
 
         _ = ModernApp(page)
 
@@ -47,6 +48,7 @@ class TestUIRegressions:
         page.window = MagicMock()
         page.window.min_width = 1200
         page.window.min_height = 800
+        page.favicon = None
 
         _ = ModernApp(page)
 
@@ -57,6 +59,7 @@ class TestUIRegressions:
         """Regression Test: Sidebar buttons should be compact (no text labels in main column)."""
         page = MagicMock(spec=ft.Page)
         page.open = MagicMock()
+        page.favicon = None
         app = ModernApp(page)
 
         sidebar = app.sidebar
@@ -73,6 +76,7 @@ class TestUIRegressions:
         """Regression Test: Sidebar should rely on click navigation (no flyouts)."""
         page = MagicMock(spec=ft.Page)
         page.open = MagicMock()
+        page.favicon = None
         app = ModernApp(page)
 
         sidebar = app.sidebar
@@ -92,6 +96,7 @@ class TestUIRegressions:
 
         page = MagicMock(spec=ft.Page)
         page.open = MagicMock()
+        page.favicon = None
         destinations = [MagicMock(icon="icon", label="label")] * 20
         on_navigate = MagicMock()
 

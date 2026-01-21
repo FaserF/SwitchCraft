@@ -46,6 +46,7 @@ class NavIndex:
     LIBRARY = 17              # Library View
     GROUP_MANAGER = 18        # Group Manager
     WINGET_CREATE = 19        # WingetCreate Manager
+    EXCHANGE = 20             # Exchange Online View
 
 
 # Mapping from NavIndex to sidebar category for reference
@@ -53,7 +54,7 @@ NAV_CATEGORIES = {
     "Dashboard": [NavIndex.HOME, NavIndex.DASHBOARD],
     "Apps & Devices": [
         NavIndex.INTUNE, NavIndex.INTUNE_STORE, NavIndex.WINGET,
-        NavIndex.LIBRARY, NavIndex.GROUP_MANAGER, NavIndex.STACK_MANAGER
+        NavIndex.LIBRARY, NavIndex.GROUP_MANAGER, NavIndex.EXCHANGE, NavIndex.STACK_MANAGER
     ],
     "Tools": [
         NavIndex.ANALYZER, NavIndex.HELPER, NavIndex.SCRIPTS,

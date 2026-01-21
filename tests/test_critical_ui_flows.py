@@ -22,6 +22,7 @@ def mock_page():
     page.update = MagicMock()
     page.snack_bar = MagicMock(spec=ft.SnackBar)
     page.snack_bar.open = False
+    page.favicon = None
 
     # Mock app reference
     mock_app = MagicMock()

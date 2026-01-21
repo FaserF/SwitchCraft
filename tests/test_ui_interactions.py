@@ -21,7 +21,9 @@ def mock_page():
     # Mock window object
     page.window = MagicMock()
     page.theme_mode = ft.ThemeMode.DARK
+    page.theme_mode = ft.ThemeMode.DARK
     page.padding = 10
+    page.favicon = None
 
     # Mock open for dialogs (newer Flet API)
     page.open = MagicMock()
