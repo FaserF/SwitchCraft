@@ -106,7 +106,7 @@ def test_addon_detection(mock_open_key):
 def test_entry_points_import():
     """Ensure entry points can at least check dependencies without crashing."""
     try:
-        import switchcraft.modern_main
+        import switchcraft.main
     except ImportError:
         # Flet might be missing in test env, which is 'valid' but we catch it
         pytest.skip("Flet not installed")
