@@ -1,45 +1,86 @@
-import os
-import customtkinter
-import tkinterdnd2
+# -*- mode: python ; coding: utf-8 -*-
 import sys
-from PyInstaller.utils.hooks import collect_submodules, collect_all
+import os
+from pathlib import Path
+from PyInstaller.utils.hooks import collect_submodules
+
+block_cipher = None
+
+# MANUAL COLLECTION for Modern
+# We need switchcraft.* and flet
+hidden_imports = [
+    'flet', 'flet_desktop', 'defusedxml', 'winotify', 'requests',
+    'xml.parsers.expat', 'pyexpat',
+    'switchcraft.utils', 'switchcraft.utils.config', 'switchcraft.utils.app_updater',
+    'switchcraft.gui', 'switchcraft.gui_modern',
+    'switchcraft.controllers', 'switchcraft.services', 'switchcraft.gui_modern.utils',
+    'switchcraft.gui_modern.app',
+    # Explicitly include all views for PyInstaller to find them
+    'switchcraft.gui_modern.views.crash_view',
+    'switchcraft.gui_modern.views.packaging_wizard_view',
+    'switchcraft.gui_modern.views.analyzer_view',
+    'switchcraft.gui_modern.views.winget_view',
+    'switchcraft.gui_modern.views.home_view',
+    'switchcraft.gui_modern.views.intune_view',
+    'switchcraft.gui_modern.views.settings_view',
+    'switchcraft.gui_modern.views.history_view',
+    'switchcraft.gui_modern.views.script_upload_view',
+    'switchcraft.gui_modern.views.helper_view',
+    'switchcraft.gui_modern.views.macos_wizard_view',
+    'switchcraft.gui_modern.views.group_manager_view',
+    'switchcraft.gui_modern.views.stack_manager_view',
+    'switchcraft.gui_modern.views.detection_tester_view',
+    'switchcraft.gui_modern.views.intune_store_view',
+    'switchcraft.gui_modern.views.library_view',
+    'switchcraft.gui_modern.views.dashboard_view',
+]
+
+# Collect everything from gui_modern.views explicitly to be safe
+try:
+    views_submodules = collect_submodules('switchcraft.gui_modern.views')
+    hidden_imports += views_submodules
+except Exception as e:
+    print(f"WARNING: Failed to collect view submodules: {e}")
+
+# Collect all other submodules but exclude addon modules that are not part of core
+all_submodules = collect_submodules('switchcraft')
+# Filter out modules that were moved to addons or don't exist
+excluded_modules = ['switchcraft.utils.winget', 'switchcraft.gui.views.ai_view', 'switchcraft_winget', 'switchcraft_ai', 'switchcraft_advanced', 'switchcraft.utils.updater']
+# Filter gui_modern submodules with the same exclusion rules
+try:
+    gui_modern_submodules = collect_submodules('switchcraft.gui_modern')
+    filtered_gui_modern = [m for m in gui_modern_submodules if not any(m.startswith(ex) for ex in excluded_modules)]
+    hidden_imports += filtered_gui_modern
+except Exception as e:
+    print(f"WARNING: Failed to collect gui_modern submodules: {e}")
+
+# Ensure app.py is explicitly included (it might be filtered out otherwise)
+filtered_submodules = [m for m in all_submodules if not any(m.startswith(ex) for ex in excluded_modules)]
+if 'switchcraft.gui_modern.app' not in filtered_submodules:
+    filtered_submodules.append('switchcraft.gui_modern.app')
+hidden_imports += filtered_submodules
+
+# Deduplicate
+hidden_imports = list(set(hidden_imports))
 
 src_root = os.path.abspath('src')
 if src_root not in sys.path:
     sys.path.insert(0, src_root)
 
-block_cipher = None
-
-# Collect all submodules, binaries and data files from dependencies
-sc_datas, sc_binaries, sc_hidden_imports = collect_all('switchcraft')
-ctk_datas, ctk_binaries, ctk_hidden_imports = collect_all('customtkinter')
-tkdnd_datas, tkdnd_binaries, tkdnd_hidden_imports = collect_all('tkinterdnd2')
-
-# MANUAL COLLECTION for extra robustness
-hidden_imports = list(set(
-    sc_hidden_imports + ctk_hidden_imports + tkdnd_hidden_imports + [
-        'PIL._tkinter_finder', 'plyer.platforms.win.notification',
-        'defusedxml', 'winotify', 'switchcraft.services.addon_service',
-        'py7zr', 'py7zr.archiveinfo', 'py7zr.compressor', 'py7zr.helpers',
-    ]
-))
-
-datas = sc_datas + ctk_datas + tkdnd_datas + [
+datas = [
     ('src/switchcraft/assets', 'assets'),
 ]
 
-binaries = sc_binaries + ctk_binaries + tkdnd_binaries
-
-a = Analysis(  # noqa: F821
-    ['src/entry.py'],
+# Analysis for Modern (Flet)
+a = Analysis(
+    ['src/switchcraft/main.py'],
     pathex=[os.path.abspath('src')],
-    binaries=binaries,
+    binaries=[],
     datas=datas,
     hiddenimports=hidden_imports,
-    hookspath=[os.path.abspath('hooks')],
+    hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    # Excludes - empty for now (py7zr needed by addons at runtime)
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -47,28 +88,27 @@ a = Analysis(  # noqa: F821
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)  # noqa: F821
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-exe = EXE(  # noqa: F821
+exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
     a.zipfiles,
     a.datas,
     [],
-    name='SwitchCraft-Legacy',
+    name='SwitchCraft', # Modern (Flet) is now the main 'SwitchCraft'
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    # Console: Conditional based on environment variable for debugging.
-    console=os.environ.get('SWITCHCRAFT_DEBUG_CONSOLE', '0') == '1',
+    console=False, # Windowed app
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='src/switchcraft/assets/switchcraft_logo.png',  # Assuming we convert png to ico or pyinstaller handles it (it prefers ico)
+    icon='src/switchcraft/assets/switchcraft_logo.ico',
     version='file_version_info.txt'
 )

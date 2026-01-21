@@ -61,6 +61,17 @@
       ],
       "automerge": false,
       "description": "Require manual review for Python dependency updates"
+    },
+    {
+      "matchManagers": [
+        "pep621",
+        "pip_requirements"
+      ],
+      "matchPackageNames": [
+        "anyio"
+      ],
+      "description": "Keep async libraries updated",
+      "automerge": true
     }
   ],
   "lockFileMaintenance": {

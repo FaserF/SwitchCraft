@@ -161,36 +161,31 @@ class AddonService:
                 files = z.namelist()
                 manifest_path = None
 
-                # Check for manifest.json at root first
-                if "manifest.json" in files:
-                    manifest_path = "manifest.json"
-                else:
-                    # Check for manifest.json in common subdirectories
-                    # Some ZIPs might have it in a subfolder
-                    for file_path in files:
-                        # Normalize path separators
-                        normalized = file_path.replace('\\', '/')
-                        # Check if it's manifest.json in a subdirectory (root already checked above)
-                        if normalized.endswith('/manifest.json'):
-                            # Accept subdirectory manifest if root not found
-                            if manifest_path is None:
-                                manifest_path = file_path
+                # Unified Manifest Search (Recursive & Case-Insensitive)
+                # This replaces the brittle "root-first then check-subdir" logic
+                for file_in_zip in files:
+                    # Normalize path separators
+                    normalized = file_in_zip.replace('\\', '/')
+                    parts = normalized.split('/')
 
-                if not manifest_path:
-                    # Fallback: Recursive search (max depth 2)
-                    for file_in_zip in files:
-                        parts = file_in_zip.replace('\\', '/').split('/')
-                        if len(parts) <= 3 and parts[-1].lower() == 'manifest.json':
+                    # Check if filename is manifest.json (case-insensitive)
+                    if parts[-1].lower() == 'manifest.json':
+                        # Limit depth to avoid deep nesting if necessary (e.g., max depth 3)
+                         if len(parts) <= 4:
                              manifest_path = file_in_zip
                              break
 
                 if not manifest_path:
-                    # Provide helpful error message
-                    root_files = [f for f in files if '/' not in f.replace('\\', '/') or f.replace('\\', '/').count('/') == 0]
+                    # Provide helpful error message listing contents
+                    all_files_list = [f for f in files]
+                    truncated_list = all_files_list[:10]
+                    if len(all_files_list) > 10:
+                        truncated_list.append(f"... ({len(all_files_list) - 10} more)")
+
                     raise Exception(
                         f"Invalid addon: manifest.json not found in ZIP archive.\n"
-                        f"The addon ZIP must contain a manifest.json file at the root level or in a subdirectory.\n"
-                        f"Root files found: {', '.join(root_files[:10]) if root_files else 'none'}"
+                        f"The addon ZIP must contain a manifest.json file.\n"
+                        f"Files found in ZIP: {', '.join(truncated_list) if truncated_list else 'none'}"
                     )
 
                 # Check ID from manifest (use found path, not hardcoded)

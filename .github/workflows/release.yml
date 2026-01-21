@@ -80,9 +80,9 @@ jobs:
             # Beta/Stable: remove commit ID if present (e.g., "2026.1.2b1" or "2026.1.2")
             APP_VERSION=$(echo "$VERSION" | sed -E 's/\+[a-zA-Z0-9.-]+$//')
           fi
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$APP_VERSION\"/" switchcraft_modern.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_modern.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_modern.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$APP_VERSION\"/" switchcraft.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft.iss
           sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$APP_VERSION\"/" switchcraft_legacy.iss
           sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
           sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_legacy.iss
@@ -119,7 +119,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft_modern.iss switchcraft_legacy.iss
+          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft.iss switchcraft_legacy.iss
 
           # Only commit if there are changes
           if ! git diff --cached --quiet; then
@@ -192,9 +192,9 @@ jobs:
           VERSION_INFO="${BASE_VERSION}.0"
           # For dev releases: MyAppVersion should include commit ID (full DEV_VERSION)
           # MyAppVersionNumeric should be numeric only (BASE_VERSION)
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$DEV_VERSION\"/" switchcraft_modern.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_modern.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_modern.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$DEV_VERSION\"/" switchcraft.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft.iss
+          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft.iss
           sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$DEV_VERSION\"/" switchcraft_legacy.iss
           sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
           sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_legacy.iss
@@ -208,7 +208,7 @@ jobs:
           sed -i "s/FALLBACK_VERSION = \".*\"/FALLBACK_VERSION = \"$FALLBACK_VERSION\"/" .github/scripts/generate_release_version.py
 
           # Commit
-          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft_modern.iss switchcraft_legacy.iss scripts/build_release.ps1 .github/scripts/generate_release_version.py
+          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft.iss switchcraft_legacy.iss scripts/build_release.ps1 .github/scripts/generate_release_version.py
           git commit -m "chore: bump version to $DEV_VERSION and update fallback versions to $FALLBACK_VERSION [skip ci]"
           git push origin main
 

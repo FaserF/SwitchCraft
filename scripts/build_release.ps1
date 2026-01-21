@@ -333,7 +333,7 @@ else {
 
 # --- 1. BUILD MODERN (Flet) ---
 if ($Modern) {
-    $Spec = "switchcraft_modern.spec"
+    $Spec = "switchcraft.spec"
     Run-PyInstaller -SpecFile $Spec -Name "Modern App"
 
     # Rename Artifact based on OS to match naming in README
@@ -409,9 +409,9 @@ if ($Installer -and $IsWinBuild) {
             Copy-Item $RenamedModern $ModernExe -Force
         }
 
-        if (Test-Path "switchcraft_modern.iss") {
+        if (Test-Path "switchcraft.iss") {
             Write-Host "Compiling Modern Installer..."
-            & $IsccPath "/DMyAppVersion=$AppVersion" "/DMyAppVersionNumeric=$AppVersionNumeric" "/DMyAppVersionInfo=$AppVersionInfo" "switchcraft_modern.iss" | Out-Null
+            & $IsccPath "/DMyAppVersion=$AppVersion" "/DMyAppVersionNumeric=$AppVersionNumeric" "/DMyAppVersionInfo=$AppVersionInfo" "switchcraft.iss" | Out-Null
 
             # Cleanup temporary SwitchCraft.exe used for bundling
             if (Test-Path $ModernExe) { Remove-Item $ModernExe -Force }

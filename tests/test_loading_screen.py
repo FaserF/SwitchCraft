@@ -1,62 +1,46 @@
-"""
-Tests for loading screen display.
-"""
-import pytest
-import flet as ft
+import unittest
 from unittest.mock import MagicMock, patch
-import time
+import sys
+from pathlib import Path
 
+# Add src to path
+sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-def test_loading_screen_is_displayed():
-    """Test that loading screen is displayed in main function."""
-    from switchcraft.modern_main import main
+class TestLoadingScreen(unittest.TestCase):
 
-    # Create a mock page
-    mock_page = MagicMock(spec=ft.Page)
-    mock_page.add = MagicMock()
-    mock_page.update = MagicMock()
-    mock_page.clean = MagicMock()
-    mock_page.theme_mode = ft.ThemeMode.DARK
-    mock_page.platform = ft.PagePlatform.WINDOWS
-    mock_page.window = MagicMock()
-    mock_page.window.width = 1200
-    mock_page.window.height = 800
+    def test_loading_screen_is_displayed(self):
+        """Test that loading screen is displayed in main function."""
+        import flet as ft
 
-    # Mock imports to avoid actual initialization
-    with patch('switchcraft.modern_main.ModernApp') as mock_app_class:
-        mock_app = MagicMock()
-        mock_app_class.return_value = mock_app
+        with patch("switchcraft.main.ModernApp"), \
+             patch("switchcraft.main.start_splash"), \
+             patch("switchcraft.utils.config.SwitchCraftConfig"):
 
-        # Call main
-        # main() may call sys.exit(0) early (e.g., for --version flag), which raises SystemExit
-        # Only catch SystemExit around the call to main(mock_page) - let any other exceptions
-        # propagate and fail the test so real regressions aren't hidden
-        try:
+            from switchcraft.main import main
+
+            mock_page = MagicMock(spec=ft.Page)
+            mock_page.web = False
+            mock_page.controls = []
+
+            # Mock add to capture controls
+            def mock_add(*args):
+                mock_page.controls.extend(args)
+            mock_page.add.side_effect = mock_add
+
             main(mock_page)
-        except SystemExit:
-            # Expected behavior - main() calls sys.exit(0) for version/help flags
-            # In this case, we can't verify add/update were called since main exits early
-            pass
-        # Note: Any other exceptions (not SystemExit) will propagate and fail the test,
-        # ensuring unexpected initialization errors surface rather than being swallowed
 
-        # Check that loading screen was added (only if main didn't exit early)
-        # Note: If main() exits early (e.g., --version), add may not be called
-        # The test verifies that main() doesn't crash, not that it always calls add
-        if mock_page.add.called:
-            assert mock_page.add.called
-            assert mock_page.update.called
+            # Check if any added control looks like a loading screen
+            found_loading = False
+            for control in mock_page.controls:
+                # Look for ProgressRing or typical loading text
+                if isinstance(control, ft.Container) and isinstance(control.content, ft.Column):
+                    col = control.content
+                    for child in col.controls:
+                        if isinstance(child, ft.ProgressRing):
+                            found_loading = True
+                            break
 
+            self.assertTrue(found_loading, "Loading screen with ProgressRing should be added to page")
 
-def test_loading_screen_contains_expected_elements():
-    """Test that loading screen contains expected UI elements."""
-    # Read the modern_main.py file to check loading screen implementation
-    import os
-    main_file = os.path.join(os.path.dirname(__file__), '..', 'src', 'switchcraft', 'modern_main.py')
-
-    with open(main_file, 'r', encoding='utf-8') as f:
-        content = f.read()
-
-        # Check for loading screen elements
-        assert 'loading' in content.lower() or 'splash' in content.lower()
-        assert 'ProgressBar' in content or 'progress' in content.lower()
+if __name__ == "__main__":
+    unittest.main()

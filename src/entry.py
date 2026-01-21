@@ -16,7 +16,7 @@ if getattr(sys, 'frozen', False):
 if not getattr(sys, 'frozen', False):
     sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from switchcraft.main import main
+from switchcraft.main_legacy import main
 
 
 if __name__ == '__main__':

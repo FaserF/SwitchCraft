@@ -128,3 +128,4 @@ mock_script.ps1
 test_output.ps1
 /docs/node_modules
 /docs/.vitepress
+full_run_output.txt

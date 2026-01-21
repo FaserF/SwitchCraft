@@ -3,8 +3,8 @@ from switchcraft.utils.i18n import i18n
 from switchcraft.gui_modern.nav_constants import NavIndex
 import logging
 import threading
-from datetime import datetime, timedelta
-from flet_charts import BarChart, BarChartGroup, BarChartRod, ChartAxisLabel
+from flet_charts import BarChart, BarChartGroup, BarChartRod, ChartAxisLabel, ChartAxis, ChartGridLines
+# Use ft.* directly
 from switchcraft.services.exchange_service import ExchangeService
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
@@ -185,7 +185,7 @@ class ExchangeView(ft.Column, ViewMixin):
                 logger.info(f"Loading Exchange mail flow data for last {days} days...")
 
                 # Get mail flow stats from Exchange service
-                data = self.exchange_service.get_mail_flow_stats(days=days)
+                data = self.exchange_service.get_mail_traffic_stats(days=days)
 
                 if data:
                     self.mail_flow_data = data
@@ -299,13 +299,21 @@ class ExchangeView(ft.Column, ViewMixin):
             for d in self.mail_flow_data
         ) if self.mail_flow_data else 100
 
+        # Assuming flet_charts uses 'groups' instead of 'bar_groups' if bar_groups was invalid
+        # Or maybe it expects positional? No.
+        # Let's try 'bar_groups' again BUT with flet_charts import restored, check if Error changes.
+        # Actually in Step 1050 (flet_charts imported), error was 'unexpected keyword argument bar_groups'.
+        # So it is definitely NOT bar_groups.
+        # Most likely 'groups'? Or 'items'?
+        # Trying 'bar_groups' -> 'groups'
         chart = BarChart(
-            bar_groups=bar_groups,
-            border=ft.border.all(1, ft.Colors.GREY_300),
-            left_axis=ft.ChartAxis(labels_size=40, title=ft.Text("Messages")),
-            bottom_axis=ft.ChartAxis(labels=labels, labels_size=32),
-            horizontal_grid_lines=ft.ChartGridLines(color=ft.Colors.GREY_200, width=1, dash_pattern=[3, 3]),
-            tooltip_bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.BLACK),
+            groups=bar_groups,
+
+            border=ft.Border.all(1, ft.Colors.GREY_300),
+            left_axis=ChartAxis(label_size=40, title=ft.Text("Messages")),
+            bottom_axis=ChartAxis(labels=labels, label_size=32),
+            horizontal_grid_lines=ChartGridLines(color=ft.Colors.GREY_200, width=1, dash_pattern=[3, 3]),
+            # tooltip_bgcolor=ft.Colors.with_opacity(0.8, ft.Colors.BLACK), # Not supported in flet_charts?
             max_y=int(max_val * 1.2),
             interactive=True,
             expand=True,

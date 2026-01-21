@@ -27,7 +27,8 @@ dependencies = [
     "google-generativeai",
     "defusedxml",
     "PyJWT",
-    "winotify"
+    "winotify",
+    "anyio>=4.12.1"
 ]
 requires-python = ">=3.9"
 

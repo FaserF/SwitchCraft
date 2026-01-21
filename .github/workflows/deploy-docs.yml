@@ -37,14 +37,19 @@ jobs:
 
       - name: Build Web Demo
         run: |
-          # Use root main.py which sets up sys.path correctly
-          flet publish main.py --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist --assets src/switchcraft/assets
+          # Copy src/switchcraft to root so Flet/Pyodide can find it easily
+          # This works around path issues in the web worker environment
+          cp -r src/switchcraft .
+
+          # Publish using main.py
+          flet publish switchcraft/main.py --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist --assets switchcraft/assets
 
           # Move build to docs public folder
           mkdir -p docs/public/demo
           cp -r dist/* docs/public/demo/
-          # Clean up dist
+          # Clean up dist and the temporary copy
           rm -rf dist
+          rm -rf switchcraft
         shell: bash
 
       - name: Setup Node

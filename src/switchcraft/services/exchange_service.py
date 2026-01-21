@@ -78,7 +78,7 @@ class ExchangeService:
             logger.error(f"Failed to send email: {e}")
             raise e
 
-    def get_mail_traffic_stats(self, token: str, period: str = "D7") -> List[Dict[str, Any]]:
+    def get_mail_traffic_stats(self, days: int = 7) -> List[Dict[str, Any]]:
         """
         Fetches simplified mail traffic stats.
         Since Graph Reporting API is async and CSV based mostly, we might simulate this

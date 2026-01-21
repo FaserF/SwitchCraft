@@ -612,6 +612,7 @@ class GroupManagerView(ft.Column, ViewMixin):
     def _show_members_dialog(self, e):
         """Show dialog to manage group members."""
         try:
+            logger.info("Opening 'Manage Members' dialog...")
             if not self.selected_group:
                 logger.warning("Cannot show members dialog: no group selected")
                 self._show_snack(i18n.get("select_group_first") or "Please select a group first.", "ORANGE")
@@ -624,6 +625,7 @@ class GroupManagerView(ft.Column, ViewMixin):
 
             group_name = self.selected_group.get('displayName', 'Unknown')
             group_id = self.selected_group.get('id')
+            logger.debug(f"Managing members for group: {group_name} ({group_id})")
 
             if not group_id:
                 logger.error(f"Cannot show members dialog: group has no ID. Group: {self.selected_group}")
@@ -687,7 +689,9 @@ class GroupManagerView(ft.Column, ViewMixin):
                                             )
                                         )
                                     )
-                            dlg.update()
+                            # Use page update to ensure everything renders correctly without "not added" errors
+                            if self.app_page:
+                                self.app_page.update()
                         except Exception as ex:
                             logger.error(f"Error updating members list UI: {ex}", exc_info=True)
 
@@ -699,7 +703,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                             members_list.controls.clear()
                             error_tmpl = i18n.get("error_loading_members") or "Error loading members: {error}"
                             members_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
-                            dlg.update()
+                            if self.app_page:
+                                self.app_page.update()
                         except Exception as ex2:
                             logger.error(f"Error showing error message in members dialog: {ex2}", exc_info=True)
                     self._run_task_safe(show_error)

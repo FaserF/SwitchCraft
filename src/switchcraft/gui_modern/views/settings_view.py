@@ -728,18 +728,25 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.Text("Connecting to GitHub...")
             ], tight=True)
         )
-        # Use _open_dialog_safe for consistent dialog handling
-        if not self._open_dialog_safe(loading_dlg):
-            logger.error("Failed to open loading dialog for GitHub login")
-            self._show_snack("Failed to open login dialog", "RED")
-            # Restore button state on early failure
-            if hasattr(self, 'login_btn'):
-                if hasattr(self.login_btn, 'text'):
-                    self.login_btn.text = original_text
-                else:
-                    self.login_btn.content = original_text
-                self.login_btn.icon = original_icon
-                self.login_btn.update()
+
+        try:
+            # Use _open_dialog_safe for consistent dialog handling
+            logger.info("Opening loading dialog for GitHub login...")
+            if not self._open_dialog_safe(loading_dlg):
+                logger.error("Failed to open loading dialog for GitHub login")
+                self._show_snack("Failed to open login dialog", "RED")
+                # Restore button state on early failure
+                if hasattr(self, 'login_btn'):
+                    if hasattr(self.login_btn, 'text'):
+                        self.login_btn.text = original_text
+                    else:
+                        self.login_btn.content = original_text
+                    self.login_btn.icon = original_icon
+                    self.login_btn.update()
+                return
+        except Exception as ex:
+            logger.exception(f"Error opening loading dialog: {ex}")
+            self._show_snack(f"Error opening dialog: {ex}", "RED")
             return
 
         # Force update to show loading dialog
@@ -915,19 +922,29 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         def _bg_wrapper():
             try:
+                logger.debug("Starting GitHub login background task...")
                 _flow_complete()
             except Exception as e:
                  logger.exception(f"CRITICAL ERROR in GitHub Login background thread: {e}")
                  # Ensure UI is restored even on critical thread crash
                  def restore_ui():
-                     if hasattr(self, 'login_btn'):
-                        self.login_btn.text = original_text
-                        self.login_btn.icon = original_icon
-                        self.login_btn.update()
+                     try:
+                        if hasattr(self, 'login_btn'):
+                            if hasattr(self.login_btn, 'text'):
+                                self.login_btn.text = original_text
+                            else:
+                                self.login_btn.content = original_text
+                            self.login_btn.icon = original_icon
+                            self.login_btn.update()
+                     except Exception as ex:
+                         logger.error(f"Failed to restore button state: {ex}")
+
                      try:
                         loading_dlg.open = False
                         self.app_page.update()
-                     except: pass
+                     except Exception as ex:
+                        logger.error(f"Failed to close loading dialog: {ex}")
+
                      self._show_snack(f"Critical Login Error: {e}", "RED")
                  self._run_task_safe(restore_ui)
 
