@@ -1022,5 +1022,9 @@
     "no_results_found": "No results found",
     "desc_automation": "Automate your deployment tasks and schedules.",
     "desc_help": "Documentation, tutorials, and support resources.",
-    "desc_addons": "Extend SwitchCraft with powerful add-ons."
+    "desc_addons": "Extend SwitchCraft with powerful add-ons.",
+    "btn_restart": "Restart App",
+    "save_success": "Saved successfully",
+    "restart_for_lang": "Please restart the application to apply language changes.",
+    "no_changes_detected": "No changes detected."
 }

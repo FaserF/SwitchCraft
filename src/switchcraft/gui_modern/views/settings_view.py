@@ -46,7 +46,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
             self.nav_row.controls.append(btn)
 
         self.controls = [
-            ft.Container(content=self.nav_row, height=60, padding=5, bgcolor="GREY_800"),
+            ft.Container(content=self.nav_row, height=60, padding=5, bgcolor="SURFACE_CONTAINER"),
             ft.Divider(height=1, thickness=1),
             self.current_content
         ]
@@ -86,7 +86,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
             self.current_content.content = ft.Column([
                 ft.Icon(ft.Icons.ERROR, color="RED", size=40),
                 ft.Text(f"Error loading tab: {e}", color="RED"),
-                ft.Text(i18n.get("error_check_logs") or "Check logs for details.", size=12, color="GREY")
+                ft.Text(i18n.get("error_check_logs") or "Check logs for details.", size=12, color="ON_SURFACE_VARIANT")
             ])
 
         try:
@@ -176,7 +176,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         )
 
     def _build_cloud_sync_section(self):
-        self.sync_status_text = ft.Text(i18n.get("sync_checking_status") or "Checking status...", color="GREY")
+        self.sync_status_text = ft.Text(i18n.get("sync_checking_status") or "Checking status...", color="ON_SURFACE_VARIANT")
         self.sync_actions = ft.Row(visible=False)
         self.login_btn = ft.Button(
             i18n.get("btn_login_github") or "Login with GitHub",
@@ -387,7 +387,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         # Template Section
         template_display = SwitchCraftConfig.get_value("CustomTemplatePath", "") or (i18n.get("template_default") or "(Default)")
-        self.template_status_text = ft.Text(template_display, color="GREY" if "(Default)" in template_display else "GREEN")
+        self.template_status_text = ft.Text(template_display, color="ON_SURFACE_VARIANT" if "(Default)" in template_display else "GREEN")
 
         template_browse_btn = ft.Button(
             i18n.get("btn_browse") or "Browse",
@@ -425,7 +425,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         return ft.ListView(
             controls=[
                 ft.Text(i18n.get("deployment_title") or "Global Graph API", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text(i18n.get("configure_graph_connection") or "Configure your connection to Microsoft Graph. Required for Intune, Entra ID, and Autopilot features.", size=12, color="GREY"),
+                ft.Text(i18n.get("configure_graph_connection") or "Configure your connection to Microsoft Graph. Required for Intune, Entra ID, and Autopilot features.", size=12, color="ON_SURFACE_VARIANT"),
 
                 # Intune/Graph
                 ft.Text(i18n.get("entra_app_reg_config") or "Entra Enterprise App Registration Config", size=18, color="BLUE"),
@@ -453,7 +453,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.Text(i18n.get("settings_hdr_template") or "PowerShell Template", size=18, color="BLUE"),
                 ft.Row([ft.Text(i18n.get("lbl_custom_template") or "Active Template:"), self.template_status_text]),
                 ft.Row([template_browse_btn, template_reset_btn]),
-                ft.Text(i18n.get("template_help") or "Select a custom .ps1 template. Leave empty for default.", size=11, color="GREY"),
+                ft.Text(i18n.get("template_help") or "Select a custom .ps1 template. Leave empty for default.", size=11, color="ON_SURFACE_VARIANT"),
             ],
             padding=20,
             spacing=15
@@ -573,7 +573,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         danger_zone = ft.Container(
             content=ft.Column([
                 ft.Text(i18n.get("help_danger_zone") or "Danger Zone", color="RED", weight=ft.FontWeight.BOLD),
-                ft.Text(i18n.get("help_danger_zone_desc") or "Irreversible actions. Proceed with caution.", color="GREY", size=12),
+                ft.Text(i18n.get("help_danger_zone_desc") or "Irreversible actions. Proceed with caution.", color="ON_SURFACE_VARIANT", size=12),
                 ft.Button(
                     i18n.get("help_factory_reset") or "Factory Reset (Delete All Data)",
                     icon=ft.Icons.DELETE_FOREVER,
@@ -607,9 +607,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 self.debug_log_text,
                 danger_zone,
                 ft.Divider(),
-                ft.Text(f"{i18n.get('about_version') or 'Version'}: {__version__} ({self._get_build_date()})", color="GREY", text_align=ft.TextAlign.CENTER),
-                ft.Text(i18n.get("brought_by") or "Brought to you by Fabian Seitz (FaserF)", color="GREY", size=11, text_align=ft.TextAlign.CENTER, italic=True),
-                ft.Text(i18n.get("created_with_ai") or "(erstellt mit Hilfe von KI)", color="GREY", size=10, text_align=ft.TextAlign.CENTER, italic=True)
+                ft.Text(f"{i18n.get('about_version') or 'Version'}: {__version__} ({self._get_build_date()})", color="ON_SURFACE_VARIANT", text_align=ft.TextAlign.CENTER),
+                ft.Text(i18n.get("brought_by") or "Brought to you by Fabian Seitz (FaserF)", color="ON_SURFACE_VARIANT", size=11, text_align=ft.TextAlign.CENTER, italic=True),
+                ft.Text(i18n.get("created_with_ai") or "(erstellt mit Hilfe von KI)", color="ON_SURFACE_VARIANT", size=10, text_align=ft.TextAlign.CENTER, italic=True)
             ],
             padding=20,
             spacing=15
@@ -711,10 +711,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
         if hasattr(self, 'login_btn'):
             if hasattr(self.login_btn, 'text'):
                 original_text = self.login_btn.text
-                self.login_btn.text = "Starting..."
+                self.login_btn.text = i18n.get("starting") or "Starting..."
             else:
                 original_text = self.login_btn.content
-                self.login_btn.content = "Starting..."
+                self.login_btn.content = i18n.get("starting") or "Starting..."
 
             original_icon = self.login_btn.icon
             self.login_btn.icon = ft.Icons.HOURGLASS_EMPTY
@@ -913,7 +913,25 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     error_msg="Failed to show login dialog"
                 )
 
-        threading.Thread(target=_flow_complete, daemon=True).start()
+        def _bg_wrapper():
+            try:
+                _flow_complete()
+            except Exception as e:
+                 logger.exception(f"CRITICAL ERROR in GitHub Login background thread: {e}")
+                 # Ensure UI is restored even on critical thread crash
+                 def restore_ui():
+                     if hasattr(self, 'login_btn'):
+                        self.login_btn.text = original_text
+                        self.login_btn.icon = original_icon
+                        self.login_btn.update()
+                     try:
+                        loading_dlg.open = False
+                        self.app_page.update()
+                     except: pass
+                     self._show_snack(f"Critical Login Error: {e}", "RED")
+                 self._run_task_safe(restore_ui)
+
+        threading.Thread(target=_bg_wrapper, daemon=True).start()
 
     def _logout_github(self, e):
         """
@@ -1102,16 +1120,15 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 self.app_page.window.destroy()
 
             dlg = ft.AlertDialog(
-                title=ft.Text(i18n.get("restart_required") or "Restart Required", color=ft.colors.ERROR),
+                title=ft.Text(i18n.get("restart_required") or "Restart Required", color="RED"),
                 content=ft.Text(i18n.get("restart_for_lang") or "Please restart the application to apply the language change."),
                 actions=[
                     ft.TextButton(i18n.get("btn_restart") or "Close App", on_click=restart_app),
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,
             )
-            self.app_page.dialog = dlg
-            dlg.open = True
-            self.app_page.update()
+            # Use safe opener
+            self._open_dialog_safe(dlg)
 
         except Exception as ex:
             logger.exception(f"Error handling language change: {ex}")

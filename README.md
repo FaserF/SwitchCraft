@@ -54,6 +54,7 @@ SwitchCraft is primarily designed for **Windows** environments. While the applic
 ### 🔍 Analysis & Packaging
 - **Smart Installer Analysis**: Deep inspection of MSI, EXE (Inno Setup, NSIS, InstallShield), and custom wrappers.
 - **Intune Integration**: Automated creation of `.intunewin` packages and direct publication to Microsoft Intune.
+- **Exchange Online Mail Flow**: Visualize and test your Exchange Online mail flow directly from the dashboard. Track sent/received items and verify service health.
 - **Intune Store Browser**: Browse and manage your Intune applications with logo display and detailed metadata.
 - **Advanced Wrapper Support**: Identification of nested installers and extraction of silent switches.
 - **Batch Processing**: Drag & Drop multiple files to analyze them sequentially.

@@ -83,7 +83,8 @@ def test_language_change_updates_ui(mock_page):
     view._on_lang_change("de")
 
     # Check that app was reloaded
-    assert mock_app.goto_tab.called, "goto_tab should be called to reload UI"
+    # Check that restart dialog opened
+    assert mock_page.dialog is not None and mock_page.dialog.open is True, "Restart dialog should be open"
 
 
 def test_notification_bell_opens_drawer(mock_page):

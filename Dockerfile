@@ -36,9 +36,12 @@ EXPOSE 8080
 
 # Environment variables
 ENV FLET_SERVER_PORT=8080
-ENV FLET_FORCE_WEB_SERVER=1
 # Disable Winget auto install attempts / reduce noise
 ENV SC_DISABLE_WINGET_INSTALL=1
+
+# Command to run the application in web mode
+# Create symlink for assets so Flet can find them at /app/assets
+RUN ln -s /app/src/switchcraft/assets /app/assets
 
 # Command to run the application in web mode
 CMD ["flet", "run", "--web", "--port", "8080", "--host", "0.0.0.0", "src/switchcraft/modern_main.py"]

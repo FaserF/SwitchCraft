@@ -485,7 +485,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             detail_controls.append(ft.Divider())
 
             # Status and Progress Bar (initially hidden)
-            self.save_status_text = ft.Text("", size=12, color="GREY")
+            self.save_status_text = ft.Text("", size=12, color="ON_SURFACE_VARIANT")
             self.save_progress = ft.ProgressBar(width=None, visible=False)
             detail_controls.append(self.save_status_text)
             detail_controls.append(self.save_progress)

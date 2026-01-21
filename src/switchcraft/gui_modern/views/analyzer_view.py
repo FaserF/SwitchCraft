@@ -46,7 +46,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         # UI Components
         self.drop_text = ft.Text(i18n.get("drag_drop") or "Drag & Drop Installer Here", size=20, weight=ft.FontWeight.BOLD)
-        self.status_text = ft.Text(i18n.get("ready") or "Ready", size=16, color="GREY")
+        self.status_text = ft.Text(i18n.get("ready") or "Ready", size=16, color="ON_SURFACE_VARIANT")
         self.progress_bar = ft.ProgressBar(width=400, visible=False)
         self.addon_warning = ft.Container(visible=False)
 

@@ -460,6 +460,7 @@
     "history_empty": "Kein Verlauf vorhanden.",
     "btn_load": "Laden",
     "loading": "Lade",
+    "starting": "Starte...",
     "loading_switchcraft": "SwitchCraft wird geladen...",
     "loading_view": "Lade...",
     "error_loading": "Fehler beim Laden der Ansicht",
@@ -1022,5 +1023,9 @@
     "no_results_found": "Keine Ergebnisse gefunden",
     "desc_automation": "Automatisiere deine Verteilungsaufgaben und Zeitpläne.",
     "desc_help": "Dokumentation, Tutorials und Support-Ressourcen.",
-    "desc_addons": "Erweitere SwitchCraft mit leistungsstarken Add-ons."
+    "desc_addons": "Erweitere SwitchCraft mit leistungsstarken Add-ons.",
+    "btn_restart": "App Neustarten",
+    "save_success": "Erfolgreich gespeichert",
+    "restart_for_lang": "Bitte starte die Anwendung neu, um die Sprache zu ändern.",
+    "no_changes_detected": "Keine Änderungen erkannt."
 }

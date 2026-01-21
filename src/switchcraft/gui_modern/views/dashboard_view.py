@@ -3,12 +3,14 @@ from switchcraft.services.history_service import HistoryService
 from switchcraft.utils.i18n import i18n
 from collections import defaultdict
 from datetime import datetime, timedelta
+from switchcraft.services.exchange_service import ExchangeService
 
 class DashboardView(ft.Column):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True, scroll=ft.ScrollMode.AUTO, spacing=15)
         self.app_page = page
         self.history_service = HistoryService()
+        self.exchange_service = ExchangeService()
 
         # Initial State (Empty)
         self.stats = {
@@ -18,6 +20,7 @@ class DashboardView(ft.Column):
             "errors": 0
         }
         self.chart_data = []
+        self.mail_flow_data = [] # New data for mail flow
         self.recent_items = []
 
         # Containers for dynamic updates
@@ -46,6 +49,33 @@ class DashboardView(ft.Column):
             width=350
         )
 
+        # New Exchange Mail Flow Container
+        self.mail_flow_container = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text("Exchange Online Mail Flow", weight=ft.FontWeight.BOLD, size=18),
+                    ft.ElevatedButton("Start Mail Flow", icon=ft.Icons.SEND, on_click=self._start_mail_flow)
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                ft.Container(height=20),
+                ft.BarChart(
+                   bar_groups=[],
+                   border=ft.border.all(1, ft.colors.GREY_400),
+                   left_axis=ft.ChartAxis(labels_size=40, title=ft.Text("Items")),
+                   bottom_axis=ft.ChartAxis(labels=[ft.ChartAxisLabel(value=0, label=ft.Text("Day"))]),
+                   horizontal_grid_lines=ft.ChartGridLines(color=ft.colors.GREY_300, width=1, dash_pattern=[3, 3]),
+                   tooltip_bgcolor=ft.colors.with_opacity(0.8, ft.colors.GREY_900),
+                   max_y=600,
+                   interactive=True,
+                   expand=True,
+                   height=250
+                )
+            ]),
+            bgcolor="SURFACE_VARIANT",
+            border_radius=10,
+            padding=20,
+            expand=1
+        )
+
         # Build initial content - simplified layout
         self.controls = [
             ft.Container(
@@ -56,6 +86,10 @@ class DashboardView(ft.Column):
                     ft.Container(height=20),
                     ft.Row([
                         self.chart_container,
+                        self.mail_flow_container
+                    ], spacing=20, wrap=False, expand=True),
+                    ft.Container(height=20),
+                    ft.Row([
                         self.recent_container
                     ], spacing=20, wrap=False, expand=True)
                 ], spacing=15, expand=True),
@@ -103,6 +137,13 @@ class DashboardView(ft.Column):
             d = today - timedelta(days=i)
             self.chart_data.append((d.strftime("%a"), date_counts[d]))
 
+        # Load Mail Flow Data (Mock for now or from service)
+        # Using a valid token is required for real data. Passing None for mock return.
+        try:
+            self.mail_flow_data = self.exchange_service.get_mail_traffic_stats(token=None)
+        except Exception:
+             self.mail_flow_data = []
+
         self._refresh_ui()
 
     def _refresh_ui(self):
@@ -147,7 +188,7 @@ class DashboardView(ft.Column):
                         border_radius=ft.BorderRadius.only(top_left=4, top_right=4),
                         tooltip=f"{day}: {val}"
                     ),
-                    ft.Text(day, size=10, color="GREY")
+                    ft.Text(day, size=10, color="ON_SURFACE_VARIANT")
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=4)
             )
 
@@ -162,7 +203,7 @@ class DashboardView(ft.Column):
         # Recent
         recent_list = []
         if not self.recent_items:
-            recent_list.append(ft.Text(i18n.get("no_recent_activity") or "No recent activity.", color="GREY", italic=True))
+            recent_list.append(ft.Text(i18n.get("no_recent_activity") or "No recent activity.", color="ON_SURFACE_VARIANT", italic=True))
         else:
             for item in self.recent_items:
                 # Format time
@@ -187,7 +228,7 @@ class DashboardView(ft.Column):
                     ft.ListTile(
                         leading=ft.Icon(icon, size=20),
                         title=ft.Text(title, size=14, weight=ft.FontWeight.BOLD, no_wrap=True),
-                        subtitle=ft.Text(f"{status} • {time_str}", size=11, color="GREY")
+                        subtitle=ft.Text(f"{status} • {time_str}", size=11, color="ON_SURFACE_VARIANT")
                     )
                 )
 
@@ -199,11 +240,58 @@ class DashboardView(ft.Column):
         ], expand=True)
         self.recent_container.content = recent_content
 
+        # Update Mail Flow Chart
+        if self.mail_flow_data:
+            bar_groups = []
+            for i, data_point in enumerate(self.mail_flow_data):
+                # data_point keys: sent, received, date
+                bar_groups.append(
+                    ft.BarChartGroup(
+                        x=i,
+                        bar_rods=[
+                            ft.BarChartRod(
+                                from_y=0,
+                                to_y=data_point.get("sent", 0),
+                                width=15,
+                                color=ft.colors.BLUE,
+                                tooltip=f"Sent: {data_point.get('sent', 0)}",
+                                border_radius=0
+                            ),
+                            ft.BarChartRod(
+                                from_y=0,
+                                to_y=data_point.get("received", 0),
+                                width=15,
+                                color=ft.colors.GREEN,
+                                tooltip=f"Received: {data_point.get('received', 0)}",
+                                border_radius=0
+                            ),
+                        ]
+                    )
+                )
+
+            # Update the chart control inside mail_flow_container
+            # Structure: Column -> [Row (Header), Spacer, BarChart]
+            chart_control = self.mail_flow_container.content.controls[2]
+            chart_control.bar_groups = bar_groups
+
+            # Update bottom axis labels
+            labels = []
+            for i, data_point in enumerate(self.mail_flow_data):
+                # Show simplified date (e.g. "Mon" or "10-01")
+                try:
+                     d_str = datetime.strptime(data_point["date"], "%Y-%m-%d").strftime("%d.%m")
+                except:
+                     d_str = data_point["date"]
+                labels.append(ft.ChartAxisLabel(value=i, label=ft.Text(d_str, size=10, weight=ft.FontWeight.BOLD)))
+
+            chart_control.bottom_axis.labels = labels
+
         # Force update of all containers
         try:
             self.stats_row.update()
             self.chart_container.update()
             self.recent_container.update()
+            self.mail_flow_container.update()
             self.update()
         except Exception as e:
             import logging
@@ -228,7 +316,7 @@ class DashboardView(ft.Column):
                 ft.Icon(icon, color=color, size=40),
                 ft.Column([
                     ft.Text(value, size=24, weight=ft.FontWeight.BOLD),
-                    ft.Text(label, size=14, color="GREY")
+                    ft.Text(label, size=14, color="ON_SURFACE_VARIANT")
                 ])
             ]),
             bgcolor="BLACK26",
@@ -236,3 +324,48 @@ class DashboardView(ft.Column):
             border_radius=10,
             width=200
         )
+
+    def _start_mail_flow(self, e):
+        """
+        Handler for Start Mail Flow button.
+        """
+        # In a real app, this would open a dialog to select sender/recipient or use defaults.
+        # For now, we'll verify permissions and trigger a mock send or alert.
+        def close_dlg(e):
+             self.app_page.dialog.open = False
+             self.app_page.update()
+
+        def send_action(e):
+             # Placeholder for real send logic requiring auth
+             sender = sender_field.value
+             recipient = recipient_field.value
+
+             # Need a token - reusing Intune/Auth service or prompting login would be ideal.
+             # self.exchange_service.authenticate(...)
+             # For UI Demo:
+             self.app_page.dialog.open = False
+             self.app_page.update()
+
+             self.app_page.snack_bar = ft.SnackBar(ft.Text(f"Mail flow started: {sender} -> {recipient} (Mock)"))
+             self.app_page.snack_bar.open = True
+             self.app_page.update()
+
+        sender_field = ft.TextField(label="Sender (UPN)", value="admin@contoso.com")
+        recipient_field = ft.TextField(label="Recipient", value="user@contoso.com")
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Start Mail Flow Test"),
+            content=ft.Column([
+                ft.Text("Send a test email to verify mail flow."),
+                sender_field,
+                recipient_field
+            ], height=200),
+            actions=[
+                ft.TextButton("Cancel", on_click=close_dlg),
+                ft.FilledButton("Send", on_click=send_action),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self.app_page.dialog = dlg
+        dlg.open = True
+        self.app_page.update()

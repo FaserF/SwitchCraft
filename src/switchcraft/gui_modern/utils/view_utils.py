@@ -278,55 +278,31 @@ class ViewMixin:
                 return False
 
     def _open_dialog_safe(self, dlg):
+
         """
-        Safely open a dialog, ensuring it's added to the page first.
-        This prevents "Control must be added to the page first" errors.
-
-        Parameters:
-            dlg: The AlertDialog to open
-
-        Returns:
-            bool: True if dialog was opened successfully, False otherwise
+        Open a dialog safely across Flet versions.
         """
-        try:
-            page = getattr(self, "app_page", None)
-            if not page:
-                try:
-                    page = self.page
-                except (RuntimeError, AttributeError):
-                    logger.error("Cannot open dialog: page not available (RuntimeError/AttributeError)")
-                    return False
-            if not page:
-                logger.error("Cannot open dialog: page is None")
-                return False
-
-            # Ensure dialog is set on page before opening
-            if not hasattr(page, 'dialog') or page.dialog is None:
-                page.dialog = dlg
-
-            # Use page.open() if available (newer Flet API)
-            if hasattr(page, 'open') and callable(getattr(page, 'open')):
-                try:
-                    page.open(dlg)
-                except Exception as e:
-                    logger.warning(f"Failed to open dialog via page.open(): {e}, trying fallback", exc_info=True)
-                    # Fallback to manual assignment
-                    page.dialog = dlg
-                    dlg.open = True
-            else:
-                # Fallback to manual assignment
-                page.dialog = dlg
-                dlg.open = True
-
+        page = getattr(self, "app_page", None)
+        if not page:
             try:
-                page.update()
-            except Exception as e:
-                logger.warning(f"Failed to update page after opening dialog: {e}", exc_info=True)
+                page = self.page
+            except (RuntimeError, AttributeError):
+                pass
 
-            return True
-        except Exception as e:
-            logger.error(f"Error opening dialog: {e}", exc_info=True)
-            return False
+        if not page:
+             return False
+
+        if hasattr(page, 'open'):
+            # Force legacy mode even if open exists, due to Docker issues
+             page.dialog = dlg
+             dlg.open = True
+             page.update()
+        else:
+            page.dialog = dlg
+            dlg.open = True
+            page.update()
+        return True
+        return True
 
     def _close_dialog(self, dialog=None):
         """Close a dialog on the page."""

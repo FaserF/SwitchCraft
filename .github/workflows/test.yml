@@ -57,6 +57,23 @@ jobs:
           CI: true
           GITHUB_ACTIONS: true
 
+      - name: Smoke Test (CLI)
+        if: steps.should_run.outputs.should_run == 'true'
+        timeout-minutes: 5
+        run: |
+          python -m switchcraft.main --version
+          python -m switchcraft.main --help
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+
+      - name: Check Translations (i18n)
+        if: steps.should_run.outputs.should_run == 'true'
+        timeout-minutes: 5
+        run: |
+          python scripts/check_i18n.py
+        shell: bash
+
   test-cli-core:
     runs-on: windows-latest
     if: inputs.component == 'cli'

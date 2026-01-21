@@ -429,7 +429,7 @@ def main(page: ft.Page):
         ),
         expand=True,
         alignment=ft.Alignment(0, 0),
-        bgcolor="SURFACE" if hasattr(ft.colors, "SURFACE") else "BLACK",
+        bgcolor="SURFACE",
     )
 
     # Add loading screen FIRST - before any other operations
@@ -562,7 +562,7 @@ def main(page: ft.Page):
                     "Open Logs",
                     icon=ft.Icons.FOLDER_OPEN,
                     on_click=open_dump_folder,
-                    style=ft.ButtonStyle(bgcolor=ft.colors.BLUE_700, color=ft.colors.WHITE)
+                    style=ft.ButtonStyle(bgcolor="BLUE_700", color="WHITE")
                 )
             )
             actions.append(
@@ -592,7 +592,7 @@ def main(page: ft.Page):
                     "Exit",
                     icon=ft.Icons.CLOSE,
                     on_click=close_app,
-                    style=ft.ButtonStyle(bgcolor=ft.colors.RED_700, color=ft.colors.WHITE)
+                    style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE")
                 )
             )
         else:
@@ -613,34 +613,34 @@ def main(page: ft.Page):
                                 padding=40,
                                 content=ft.Column(
                                     [
-                                        ft.Icon(ft.Icons.GPP_MAYBE_ROUNDED, color=ft.colors.RED_400, size=64),
-                                        ft.Text("Something went wrong", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.ON_SURFACE),
-                                        ft.Text("SwitchCraft encountered a critical error during initialization.", size=16, color=ft.colors.ON_SURFACE_VARIANT),
+                                        ft.Icon(ft.Icons.GPP_MAYBE_ROUNDED, color="RED_400", size=64),
+                                        ft.Text("Something went wrong", size=24, weight=ft.FontWeight.BOLD, color="ON_SURFACE"),
+                                        ft.Text("SwitchCraft encountered a critical error during initialization.", size=16, color="ON_SURFACE_VARIANT"),
 
-                                        ft.Divider(height=20, color=ft.colors.TRANSPARENT),
+                                        ft.Divider(height=20, color="TRANSPARENT"),
 
                                         ft.Container(
                                             content=ft.Column([
-                                                ft.Text("Error Details:", size=12, weight=ft.FontWeight.BOLD, color=ft.colors.GREY_500),
+                                                ft.Text("Error Details:", size=12, weight=ft.FontWeight.BOLD, color="GREY_500"),
                                                 ft.Container(
                                                     content=ft.Text(
                                                         f"{sys.exc_info()[1]}",
                                                         font_family="Consolas, monospace",
-                                                        color=ft.colors.RED_300,
+                                                        color="RED_300",
                                                         size=13,
                                                         selectable=True
                                                     ),
-                                                    bgcolor=ft.colors.GREY_900,
+                                                    bgcolor="GREY_900",
                                                     padding=15,
                                                     border_radius=8,
                                                     width=600
                                                 ),
-                                                 ft.Text(f"Log ID: {dump_file.name}", size=11, italic=True, color=ft.colors.GREY_600),
+                                                 ft.Text(f"Log ID: {dump_file.name}", size=11, italic=True, color="GREY_600"),
                                             ]),
                                             alignment=ft.alignment.center
                                         ),
 
-                                        ft.Divider(height=30, color=ft.colors.TRANSPARENT),
+                                        ft.Divider(height=30, color="TRANSPARENT"),
 
                                         ft.Row(
                                             controls=actions,
@@ -656,17 +656,17 @@ def main(page: ft.Page):
                             elevation=10,
                         ),
                         ft.Container(height=20),
-                        ft.Text("Please report this issue on GitHub if it persists.", size=12, color=ft.colors.GREY_500)
+                        ft.Text("Please report this issue on GitHub if it persists.", size=12, color="GREY_500")
                     ],
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     alignment=ft.MainAxisAlignment.CENTER
                 ),
                 alignment=ft.alignment.center,
                 expand=True,
-                bgcolor=ft.colors.BACKGROUND,
+                bgcolor="BACKGROUND",
             )
         )
         page.update()
 
 if __name__ == "__main__":
-    ft.run(target=main, assets_dir="assets")
+    ft.app(target=main, assets_dir="assets")

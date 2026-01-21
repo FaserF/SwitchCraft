@@ -63,7 +63,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 ft.Column([
                     ft.Icon(ft.Icons.EXTENSION_OFF, color="orange", size=50),
                     ft.Text(i18n.get("winget_addon_not_installed") or "Winget Addon not installed.", size=20, weight=ft.FontWeight.BOLD),
-                    ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=14, color="grey"),
+                    ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=14, color="ON_SURFACE_VARIANT"),
                     ft.Container(height=10),
                     ft.Button(
                         i18n.get("btn_go_to_addons") or "Go to Addon Manager",
@@ -521,7 +521,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 ft.Icon(ft.Icons.APPS, size=64),
                 ft.Column([
                     ft.Text(info.get('Name', i18n.get("unknown") or "Unknown"), size=28, weight=ft.FontWeight.BOLD),
-                    ft.Text(info.get('Id', ''), color="grey", size=14)
+                    ft.Text(info.get('Id', ''), color="ON_SURFACE_VARIANT", size=14)
                 ], spacing=4, expand=True)
             ],
             spacing=15,
@@ -705,7 +705,7 @@ class ModernWingetView(ft.Row, ViewMixin):
 
         # Tip
         detail_controls.append(ft.Container(height=20))
-        detail_controls.append(ft.Text(i18n.get("winget_tip_autoupdate") or "Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color="GREY", italic=True))
+        detail_controls.append(ft.Text(i18n.get("winget_tip_autoupdate") or "Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color="ON_SURFACE_VARIANT", italic=True))
 
         # CRITICAL: Create a NEW Column instance with all controls
         # This forces Flet to recognize the change

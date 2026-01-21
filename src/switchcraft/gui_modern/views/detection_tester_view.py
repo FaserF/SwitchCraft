@@ -82,7 +82,7 @@ class DetectionTesterView(ft.Column):
 
         self.controls = [
             ft.Text("Live Detection Tester", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text("Verify your Intune detection rules locally before uploading.", size=16, color="GREY"),
+            ft.Text("Verify your Intune detection rules locally before uploading.", size=16, color="ON_SURFACE_VARIANT"),
             ft.Container(height=20),
             ft.Row([self.rule_type, self.operator_dd, self.path_field]),
             self.script_field,

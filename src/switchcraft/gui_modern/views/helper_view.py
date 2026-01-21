@@ -45,10 +45,10 @@ def ModernHelperView(page: ft.Page):
                 page.update()
 
         return ft.Column([
-            ft.Icon(ft.Icons.SMART_TOY_OUTLINED, size=60, color="grey"),
+            ft.Icon(ft.Icons.SMART_TOY_OUTLINED, size=60, color="ON_SURFACE_VARIANT"),
             ft.Text(i18n.get("ai_helper") or "AI Helper", size=28, weight=ft.FontWeight.BOLD),
             ft.Text(i18n.get("addon_missing_msg_ai") or "The AI Addon is not installed or failed to load.", color="orange", text_align=ft.TextAlign.CENTER),
-            ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=12, color="grey", text_align=ft.TextAlign.CENTER),
+            ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=12, color="ON_SURFACE_VARIANT", text_align=ft.TextAlign.CENTER),
             ft.Container(height=10),
             ft.Button(
                 i18n.get("btn_go_to_addons") or "Go to Addon Manager",
@@ -195,7 +195,7 @@ def ModernHelperView(page: ft.Page):
         add_message("You", user_msg, is_user=True)
 
         # Show typing indicator
-        typing_indicator = ft.Text("AI is typing...", italic=True, color="grey")
+        typing_indicator = ft.Text("AI is typing...", italic=True, color="ON_SURFACE_VARIANT")
         chat_history.controls.append(typing_indicator)
         page.update()
         input_field.focus()

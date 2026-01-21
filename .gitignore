@@ -63,6 +63,17 @@ test_addons_result.txt
 test_out.txt
 test_phase_result.txt
 final_rep_123.result
+verification_output*.txt
+debug_output*.txt
+debug_crash*.txt
+config_output*.txt
+final_pass*.txt
+final_output*.txt
+refactor_results.txt
+refactor_v2.txt
+pytest_ci_fixes.txt
+i18n_results*.txt
+i18n_*_check.txt
 
 # Unit Test / Coverage
 .coverage
@@ -117,12 +128,3 @@ mock_script.ps1
 test_output.ps1
 /docs/node_modules
 /docs/.vitepress
-verification_output*.txt
-debug_output*.txt
-debug_crash*.txt
-config_output*.txt
-final_pass*.txt
-final_output*.txt
-refactor_results.txt
-refactor_v2.txt
-pytest_ci_fixes.txt

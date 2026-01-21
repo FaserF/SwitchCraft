@@ -113,7 +113,11 @@ class ModernApp:
 
         # Update Page Properties
         self.page.title = "SwitchCraft"
-        self.page.favicon = "assets/switchcraft_logo.ico"  # Fix: Use SwitchCraft favicon
+        if not self.page.favicon:
+            if self.page.web:
+                self.page.favicon = "/switchcraft_logo.png"
+            else:
+                self.page.favicon = "assets/switchcraft_logo.ico"
         self.page.theme_mode = ft.ThemeMode.SYSTEM
 
         # Initialize Services EARLY
@@ -367,19 +371,13 @@ class ModernApp:
                 on_dismiss=self._on_drawer_dismiss
             )
 
-            # Open drawer logic - simplified and robust
+            # Force Legacy Mode for Docker/Web stability
+            # page.open() seems unreliable in this environment for drawers
             self.page.end_drawer = drawer
-            self.page.update() # Update page to attach drawer
-
-            # Use safest method to open
             drawer.open = True
             self.page.update()
 
-
-            # Single update after all state changes to avoid flicker
-            self.page.update()
-            logger.info("Notification drawer opened successfully")
-            logger.info(f"Notification drawer should now be visible. open={getattr(drawer, 'open', 'Unknown')}, page.end_drawer={self.page.end_drawer is not None}")
+            logger.info("Notification drawer opened successfully (Legacy Mode)")
 
             # Mark all as read after opening
             self.notification_service.mark_all_read()

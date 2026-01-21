@@ -81,7 +81,18 @@ def _create_mock_page():
     mock_page.snack_bar = None
     mock_page.open = MagicMock()
     mock_page.close = MagicMock()
-    mock_page.run_task = lambda func: func()
+
+    def mock_run_task(func):
+        if inspect.iscoroutinefunction(func):
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(func())
+            except RuntimeError:
+                asyncio.run(func())
+        else:
+            func()
+
+    mock_page.run_task = mock_run_task
     type(mock_page).page = property(lambda self: mock_page)
     return mock_page
 

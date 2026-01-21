@@ -68,7 +68,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
         self.controls = [
             ft.Text(i18n.get("intune_manager_title") or "Intune Manager", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text(i18n.get("intune_manager_desc") or "Package and Upload Win32 Apps", color="GREY"),
+            ft.Text(i18n.get("intune_manager_desc") or "Package and Upload Win32 Apps", color="ON_SURFACE_VARIANT"),
             ft.Divider(),
             self.tabs,
             self.tab_body
@@ -157,7 +157,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
         self.up_install_cmd = ft.TextField(label=i18n.get("lbl_install_cmd") or "Install Command")
         self.up_uninstall_cmd = ft.TextField(label=i18n.get("lbl_uninstall_cmd") or "Uninstall Command")
 
-        self.up_status = ft.Text(i18n.get("status_not_connected") or "Not connected", color="GREY")
+        self.up_status = ft.Text(i18n.get("status_not_connected") or "Not connected", color="ON_SURFACE_VARIANT")
         self.btn_upload = ft.Button(
             i18n.get("btn_upload_intune") or "Upload to Intune",
             icon=ft.Icons.CLOUD_UPLOAD,

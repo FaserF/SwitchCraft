@@ -159,11 +159,11 @@ def test_language_change_updates_ui(mock_page):
     if lang_dd.on_change:
         lang_dd.on_change(mock_event)
 
-    # Wait for app reload using polling instead of fixed sleep to reduce flakiness
+    # Wait for restart dialog using polling
     assert poll_until(
-        lambda: mock_page.switchcraft_app.goto_tab.called,
+        lambda: mock_page.dialog is not None and mock_page.dialog.open is True,
         timeout=3.0
-    ), "goto_tab should be called to reload UI"
+    ), "Restart dialog should be opened"
 
 
 def test_notification_bell_opens_drawer(mock_page):

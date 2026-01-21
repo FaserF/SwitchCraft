@@ -60,11 +60,20 @@ class GroupManagerView(ft.Column, ViewMixin):
              logger.warning("GroupManagerView did_mount called but UI not initialized (likely missing credentials)")
              return
 
-        try:
-            self._load_data()
-        except Exception as ex:
-            logger.exception(f"Error in did_mount: {ex}")
-            self._show_error_view(ex, "GroupManagerView initialization")
+        # Optimization: Do NOT load all groups on start. Wait for user search.
+        # self._load_data()
+        self.groups_list.controls.clear()
+        self.groups_list.controls.append(
+             ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.SEARCH, size=48, color="GREY_400"),
+                    ft.Text(i18n.get("entra_search_hint") or "Search to find groups...", color="GREY_500")
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                alignment=ft.alignment.center,
+                padding=20
+            )
+        )
+        self.groups_list.update()
 
     def _init_ui(self):
         # Header
@@ -72,7 +81,7 @@ class GroupManagerView(ft.Column, ViewMixin):
             label=i18n.get("search_groups") or "Search Groups",
             width=300,
             prefix_icon=ft.Icons.SEARCH,
-            on_change=self._safe_event_handler(self._on_search, "Search field")
+            on_submit=self._safe_event_handler(self._on_search, "Search field submit") # Optimize: Search on enter
         )
 
         self.refresh_btn = ft.IconButton(ft.Icons.REFRESH, on_click=self._safe_event_handler(lambda _: self._load_data(), "Refresh button"))
@@ -108,16 +117,16 @@ class GroupManagerView(ft.Column, ViewMixin):
             ft.Row([
                 self.search_field,
                 self.refresh_btn,
-                ft.VerticalDivider(),
+                ft.Container(width=10), # Spacer instead of Divider
                 self.create_btn,
                 ft.Container(expand=True),
                 self.members_btn
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, wrap=True),
+            ], alignment=ft.MainAxisAlignment.START), # Use START + Spacer to push items
             ft.Row([
                 ft.Container(expand=True),
                 self.delete_toggle,
                 self.delete_btn
-            ], alignment=ft.MainAxisAlignment.END, wrap=True)
+            ], alignment=ft.MainAxisAlignment.END)
         ], spacing=10)
 
         # Groups List (replacing DataTable with clickable ListView)
@@ -137,7 +146,7 @@ class GroupManagerView(ft.Column, ViewMixin):
         # Main Layout - ensure proper structure
         main_column = ft.Column([
             ft.Text(i18n.get("entra_group_manager_title") or "Entra Group Manager", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text(i18n.get("entra_group_manager_desc") or "Manage your Microsoft Entra ID (Azure AD) groups.", color="GREY"),
+            ft.Text(i18n.get("entra_group_manager_desc") or "Manage your Microsoft Entra ID (Azure AD) groups.", color="ON_SURFACE_VARIANT"),
             ft.Divider(),
             header,
             ft.Divider(),
@@ -278,7 +287,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                 logger.info("No filtered groups, showing empty state")
                 self.groups_list.controls.append(
                     ft.Container(
-                        content=ft.Text(i18n.get("no_groups_found") or "No groups found.", italic=True, color="GREY"),
+                        content=ft.Text(i18n.get("no_groups_found") or "No groups found.", italic=True, color="ON_SURFACE_VARIANT"),
                         padding=20,
                         alignment=ft.Alignment(0, 0)
                     )
@@ -289,6 +298,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                     is_selected = self.selected_group == g or (self.selected_group and self.selected_group.get('id') == g.get('id'))
 
                     # Create clickable tile for each group
+                    # Fix: Move on_click to ListTile for reliable selection handling
                     tile = ft.Container(
                         content=ft.ListTile(
                             leading=ft.Icon(
@@ -302,13 +312,13 @@ class GroupManagerView(ft.Column, ViewMixin):
                                 ft.Text(f"Type: {', '.join(g.get('groupTypes') or []) or 'Security'}", size=10, color="GREY_500"),
                             ], spacing=2, tight=True),
                             trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT, color="GREY_400") if is_selected else None,
+                            on_click=self._safe_event_handler(lambda e, grp=g: self._on_group_click(grp), f"Group click {g.get('displayName', 'Unknown')}")
                         ),
                         bgcolor="BLUE_50" if is_selected else None,
                         border=ft.Border.all(2, "BLUE" if is_selected else "GREY_300"),
                         border_radius=5,
-                        padding=5,
-                        on_click=self._safe_event_handler(lambda e, grp=g: self._on_group_click(grp), f"Group click {g.get('displayName', 'Unknown')}"),
-                        data=g  # Store group data in container
+                        padding=0, # Padding managed by ListTile
+                        data=g
                     )
                     self.groups_list.controls.append(tile)
 
@@ -344,22 +354,61 @@ class GroupManagerView(ft.Column, ViewMixin):
             self._show_error_view(ex, "Update table")
 
     def _on_search(self, e):
+        """
+        Handle search submission.
+        Triggers server-side search instead of client-side filtering.
+        """
         try:
-            query = self.search_field.value.lower() if self.search_field.value else ""
+            query = self.search_field.value
             logger.info(f"Search query: {query}")
-            logger.debug(f"Total groups available: {len(self.groups) if self.groups else 0}")
 
-            if not query:
-                self.filtered_groups = self.groups.copy() if self.groups else []
-            else:
-                self.filtered_groups = [
-                    g for g in self.groups
-                    if query in (g.get('displayName') or '').lower() or query in (g.get('description') or '').lower()
-                ]
-            logger.info(f"Filtered groups: {len(self.filtered_groups)}")
+            if not query or not query.strip():
+                # self._load_data() # Optionally load all or clear
+                self.filtered_groups = []
+                self._update_table()
+                return
 
-            # Update UI on main thread
-            self._update_table()
+            self.list_container.disabled = True
+            self.update()
+
+            def _bg():
+                try:
+                    # Use IntuneService to search/filter
+                    # Graph API filter for groups: startswith(displayName, 'query')
+                    # Note: IntuneService needs a dedicated search method or we adapt list_groups
+                    # Using list_groups with filter query manually for now:
+
+                     # Authenticate if needed
+                    if not self.token:
+                         tenant = SwitchCraftConfig.get_value("IntuneTenantID")
+                         client = SwitchCraftConfig.get_value("IntuneClientID")
+                         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
+                         self.token = self.intune_service.authenticate(tenant, client, secret)
+
+                    # Build filter
+                    # Case-insensitive usually requires specific headers or advanced query,
+                    # but 'startswith' is often case-insensitive in Graph for some properties or we try best effort.
+                    # Simple filter: startswith(displayName, 'query')
+                    escaped_query = query.replace("'", "''")
+                    filter_str = f"startswith(displayName, '{escaped_query}')"
+
+                    self.groups = self.intune_service.list_groups(self.token, filter_query=filter_str)
+                    self.filtered_groups = self.groups # Result is already filtered
+
+                    self._run_task_safe(lambda: [
+                        setattr(self.list_container, 'disabled', False),
+                        self._update_table()
+                    ])
+                except Exception as ex:
+                    logger.error(f"Search failed: {ex}", exc_info=True)
+                    self._run_task_safe(lambda: [
+                        setattr(self.list_container, 'disabled', False),
+                        self._show_snack(f"Search failed: {ex}", "RED"),
+                        self.update()
+                    ])
+
+            threading.Thread(target=_bg, daemon=True).start()
+
         except Exception as ex:
             logger.error(f"Error in search: {ex}", exc_info=True)
             self._show_error_view(ex, "Search")

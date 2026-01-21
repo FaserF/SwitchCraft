@@ -10,14 +10,13 @@ from unittest.mock import MagicMock, patch
 
 
 def test_language_change_updates_config(mock_page):
-    """Test that language change updates config and i18n."""
+    """Test that language change updates config and shows restart dialog."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
-    with patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference') as mock_set_pref, \
-         patch('switchcraft.utils.i18n.i18n.set_language') as mock_set_lang:
-
+    with patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference') as mock_set_pref:
         view = ModernSettingsView(mock_page)
         view.update = MagicMock()
+        view._page = mock_page
 
         # Change language
         view._on_lang_change("de")
@@ -25,34 +24,25 @@ def test_language_change_updates_config(mock_page):
         # Verify config was updated
         mock_set_pref.assert_called_once_with("Language", "de")
 
-        # Verify i18n was updated
-        mock_set_lang.assert_called_once_with("de")
-
-        # Verify view was reloaded (goto_tab called)
-        mock_page.switchcraft_app.goto_tab.assert_called()
+        # Verify restart dialog shown
+        assert mock_page.dialog is not None
+        assert mock_page.dialog.open is True
 
 
-def test_language_change_shows_restart_message(mock_page):
-    """Test that language change shows restart message."""
+def test_language_change_shows_restart_dialog_content(mock_page):
+    """Test that language change restart dialog has correct content."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-
-    snack_calls = []
-    def track_snack(msg, color):
-        snack_calls.append((msg, color))
+    from switchcraft.utils.i18n import i18n
 
     view = ModernSettingsView(mock_page)
-    view._show_snack = track_snack
+    view._page = mock_page
     view.update = MagicMock()
 
-    with patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference'), \
-         patch('switchcraft.utils.i18n.i18n.set_language'):
-
+    with patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference'):
         view._on_lang_change("de")
 
-        # Should show language change message (either "Language changed. UI updated." or restart message)
-        assert len(snack_calls) > 0
-        # Check for either success message or restart message (accept both English and German)
-        snack_messages = [str(call[0]).lower() for call in snack_calls]
-        assert any("language changed" in msg or "ui updated" in msg or "restart" in msg or
-                   "sprache geändert" in msg or "sprache" in msg for msg in snack_messages), \
-            f"Expected language change message, but got: {snack_messages}"
+        assert mock_page.dialog is not None
+        assert mock_page.dialog.open is True
+
+        # Check title
+        assert "Restart" in mock_page.dialog.title.value or "Neustart" in mock_page.dialog.title.value

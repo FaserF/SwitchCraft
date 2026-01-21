@@ -175,7 +175,7 @@ class ModernHomeView(ft.Container):
                 content=ft.Text(
                     i18n.get("no_recent_activity") or "No recent activity.",
                     italic=True,
-                    color="GREY"
+                    color="ON_SURFACE_VARIANT"
                 ),
                 bgcolor="SURFACE_VARIANT",
                 border_radius=10,
@@ -191,7 +191,7 @@ class ModernHomeView(ft.Container):
                 icon = ft.Icons.SEARCH
 
             items.append(ft.ListTile(
-                leading=ft.Icon(icon, color="GREY"),
+                leading=ft.Icon(icon, color="ON_SURFACE_VARIANT"),
                 title=ft.Text(entry.get("title", "Unknown")),
                 subtitle=ft.Text(entry.get("timestamp", "")),
                 dense=True

@@ -226,7 +226,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
             content=ft.Column([
                 ft.Icon(ft.Icons.FILE_UPLOAD, size=60, color="BLUE_400"),
                 ft.Text("Select Installer", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text("Supported: .exe, .msi", color="GREY"),
+                ft.Text("Supported: .exe, .msi", color="ON_SURFACE_VARIANT"),
                 ft.Container(height=20),
                 ft.Button("Browse File...", icon=ft.Icons.FOLDER_OPEN, on_click=self._pick_file),
                 ft.Container(height=10),
@@ -245,7 +245,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
             content=ft.Column([
                 ft.Icon(ft.Icons.CLOUD_DOWNLOAD, size=60, color="ORANGE_400"),
                 ft.Text("Download from Web", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text("Enter a direct link to an .exe or .msi file", color="GREY"),
+                ft.Text("Enter a direct link to an .exe or .msi file", color="ON_SURFACE_VARIANT"),
                 ft.Container(height=20),
                 ft.Row([self.url_field, ft.Button("Download", icon=ft.Icons.DOWNLOAD, on_click=self._start_download)]),
                 ft.Container(height=10),
