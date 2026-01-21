@@ -54,7 +54,8 @@ class TestWinget(unittest.TestCase):
     @patch('shutil.which', return_value=None)
     @patch('switchcraft_winget.utils.winget.WingetHelper._search_via_github', return_value=[])
     @patch('switchcraft_winget.utils.winget.WingetHelper._search_via_api', return_value=[])
-    def test_search_no_cli(self, mock_api, mock_github, mock_which):
+    @patch('switchcraft_winget.utils.winget.WingetHelper._search_via_static_dataset', return_value=[])
+    def test_search_no_cli(self, mock_static, mock_api, mock_github, mock_which):
         helper = WingetHelper()
         self.assertIsNone(helper.search_by_name("AnyApp"))
         self.assertEqual(helper.search_packages("AnyApp"), [])

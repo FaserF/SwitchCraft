@@ -48,7 +48,7 @@
     "view_winget": "View on Winget GitHub",
     "settings_theme": "Theme",
     "settings_lang": "Language",
-    "lang_change_refresh": "Language changed. Please refresh the page.",
+    "lang_change_refresh": "Language changed. Please restart the app (Ctrl+R).",
     "settings_debug": "Debug Logging",
     "settings_channel": "Update Channel",
     "settings_dark": "Dark",

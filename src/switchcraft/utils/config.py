@@ -139,23 +139,23 @@ class RegistryBackend(ConfigBackend):
                 import winreg
                 # Plain
                 val = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.POLICY_PATH, value_name)
-                if val: return val
+                if val is not None: return val
                 val = self._read_registry(winreg.HKEY_CURRENT_USER, self.POLICY_PATH, value_name)
-                if val: return val
+                if val is not None: return val
 
                 # 2. Encrypted Policy (HKLM then HKCU) - Suffix _ENC
                 from switchcraft.utils.crypto import SimpleCrypto
                 enc_name = value_name + "_ENC"
 
                 val_enc = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.POLICY_PATH, enc_name)
-                if val_enc:
+                if val_enc is not None:
                     dec = SimpleCrypto.decrypt(str(val_enc))
-                    if dec: return dec
+                    if dec is not None: return dec
 
                 val_enc = self._read_registry(winreg.HKEY_CURRENT_USER, self.POLICY_PATH, enc_name)
-                if val_enc:
+                if val_enc is not None:
                     dec = SimpleCrypto.decrypt(str(val_enc))
-                    if dec: return dec
+                    if dec is not None: return dec
 
              except Exception as e:
                  logger.debug(f"Secure lookup failed: {e}")
@@ -164,7 +164,7 @@ class RegistryBackend(ConfigBackend):
         try:
             import keyring
             keyring_val = keyring.get_password("SwitchCraft", value_name)
-            if keyring_val:
+            if keyring_val is not None:
                 return keyring_val
         except Exception:
             pass
@@ -175,7 +175,7 @@ class RegistryBackend(ConfigBackend):
              try:
                  import winreg
                  val_legacy = self._read_registry(winreg.HKEY_CURRENT_USER, self.PREFERENCE_PATH, value_name)
-                 if val_legacy:
+                 if val_legacy is not None:
                      logger.info(f"Migrating legacy secret '{value_name}' to Keyring...")
                      try:
                          import keyring
@@ -195,7 +195,7 @@ class RegistryBackend(ConfigBackend):
     def set_secure_value(self, value_name: str, value: str):
         try:
              import keyring
-             if not value:
+             if value is None:
                  try: keyring.delete_password("SwitchCraft", value_name)
                  except: pass
                  return
@@ -412,16 +412,64 @@ class SwitchCraftConfig:
 
     @classmethod
     def delete_all_application_data(cls):
-        # This is a dangerous op, usually only valid for Desktop Registry
-        # For Session/Web, we might just clear session
+        """
+        Factory Reset: Removes all data, secrets, and configuration.
+        """
         backend = cls._get_active_backend()
+        cleaned_up = []
 
-        # If Registry, perform full cleanup
-        if isinstance(backend, RegistryBackend):
-            import shutil
-            from pathlib import Path
-             # ... (Keep existing deletion logic for files if needed, or simplify)
-            pass # TODO: Restore full cleanup logic if critical, but for now focus on Config
+        # 1. Platform independent cleanup (if any generic caches exist)
+        # ...
+
+        if sys.platform == 'win32':
+             import winreg
+             import shutil
+             import keyring
+             from pathlib import Path
+
+             # A. Delete Registry Preferences (HKCU\Software\FaserF\SwitchCraft)
+             try:
+                 winreg.DeleteKey(winreg.HKEY_CURRENT_USER, r"Software\FaserF\SwitchCraft")
+                 cleaned_up.append("Registry Settings")
+             except FileNotFoundError:
+                 pass
+             except Exception as e:
+                 logger.error(f"Failed to delete registry key: {e}")
+
+             # B. Delete all secrets from Keyring
+             # Known secrets list to iterate and delete? Keyring doesn't easily list all per service.
+             # We try to delete known common keys
+             known_secrets = [
+                 "IntuneClientSecret", "GraphClientSecret",
+                 "EntraClientSecret", "PAT", "GitHubToken"
+             ]
+             for sec in known_secrets:
+                 try:
+                     keyring.delete_password("SwitchCraft", sec)
+                 except: pass
+             cleaned_up.append("Stored Credentials")
+
+             # C. Delete AppData (%APPDATA%\FaserF\SwitchCraft)
+             app_data = os.path.join(os.environ.get("APPDATA", ""), "FaserF", "SwitchCraft")
+             if os.path.exists(app_data):
+                 try:
+                     shutil.rmtree(app_data)
+                     cleaned_up.append("App Data (Logs, Cache, History)")
+                 except Exception as e:
+                     logger.error(f"Failed to delete AppData: {e}")
+
+             # D. Delete .switchcraft (%USERPROFILE%\.switchcraft)
+             user_profile = os.environ.get("USERPROFILE")
+             if user_profile:
+                 dot_switchcraft = os.path.join(user_profile, ".switchcraft")
+                 if os.path.exists(dot_switchcraft):
+                     try:
+                         shutil.rmtree(dot_switchcraft)
+                         cleaned_up.append("Addons & User Data")
+                     except Exception as e:
+                         logger.error(f"Failed to delete .switchcraft: {e}")
+
+        logger.info(f"Factory Reset Complete. Cleared: {', '.join(cleaned_up)}")
 
     # --- Helpers ---
     @classmethod

@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'src/**'
+      - 'assets/**'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
@@ -21,6 +23,29 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install Flet
+        run: |
+          python -m pip install --upgrade pip
+          pip install flet
+          pip install -r requirements.txt
+
+      - name: Build Web Demo
+        run: |
+          # Publish to 'docs/public/demo' folder so VitePress includes it
+          flet publish src/switchcraft/modern_main.py --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/"
+
+          # Move build to docs public folder
+          mkdir -p docs/public/demo
+          cp -r dist/* docs/public/demo/
+          # Clean up dist
+          rm -rf dist
+        shell: bash
 
       - name: Setup Node
         uses: actions/setup-node@v6

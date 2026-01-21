@@ -50,12 +50,42 @@ jobs:
     outputs:
       run_e2e: ${{ steps.calc.outputs.run_e2e }}
     steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            gui:
+              - 'src/switchcraft/gui_modern/**'
+              - 'src/switchcraft/auth_service.py'
+              - 'tests/test_ui_interactions.py'
+              - 'tests/test_github_login_integration.py'
+              - '.github/workflows/test.yml'
+
       - id: calc
         run: |
+          FORCE_RUN=false
           if [[ "${{ github.event_name }}" == "release" || "${{ inputs.mode }}" == "Full" || "${{ github.ref }}" == "refs/heads/main" ]]; then
+            FORCE_RUN=true
+          fi
+
+          # Check for label
+          HAS_LABEL=false
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'run-e2e') }}" == "true" ]]; then
+             HAS_LABEL=true
+          fi
+
+          # Check filter from previous step
+          GUI_CHANGED="${{ steps.filter.outputs.gui }}"
+
+          if [[ "$FORCE_RUN" == "true" || "$HAS_LABEL" == "true" || "$GUI_CHANGED" == "true" ]]; then
             echo "run_e2e=true" >> $GITHUB_OUTPUT
+            echo "::notice::E2E Tests Enabled (Force: $FORCE_RUN, Label: $HAS_LABEL, Files: $GUI_CHANGED)"
           else
             echo "run_e2e=false" >> $GITHUB_OUTPUT
+            echo "::notice::E2E Tests Skipped (Economy Mode)"
           fi
 
   lint:
@@ -69,12 +99,19 @@ jobs:
     with:
       component: backend
 
+  test-e2e:
+    needs: [lint, decision]
+    if: needs.decision.outputs.run_e2e == 'true'
+    uses: ./.github/workflows/test.yml
+    with:
+      component: e2e
+
   build:
     needs: [test-backend]
     uses: ./.github/workflows/build.yml
 
   auto-merge:
-    needs: [build]
+    needs: [build, test-e2e]
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     permissions:

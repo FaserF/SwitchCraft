@@ -43,7 +43,6 @@ class TestSwitchCraftConfig(unittest.TestCase):
             del sys.modules['winreg']
 
     @patch('sys.platform', 'win32')
-    @patch('sys.platform', 'win32')
     @patch('switchcraft.utils.config.RegistryBackend._read_registry')
     def test_precedence_policy_over_preference(self, mock_read_reg):
         """Test that Policy (HKLM/HKCU) overrides Preference (HKLM/HKCU)."""
@@ -74,7 +73,6 @@ class TestSwitchCraftConfig(unittest.TestCase):
         self.assertEqual(val, 1, "Should respect User Policy value (1) over Preference (0)")
 
     @patch('sys.platform', 'win32')
-    @patch('sys.platform', 'win32')
     @patch('switchcraft.utils.config.RegistryBackend._read_registry')
     def test_precedence_machine_policy_highest(self, mock_read_reg):
         """Test that Machine Policy has highest priority."""
@@ -86,7 +84,6 @@ class TestSwitchCraftConfig(unittest.TestCase):
         val = SwitchCraftConfig.get_value("DebugMode")
         self.assertEqual(val, 2, "Should respect Machine Policy")
 
-    @patch('sys.platform', 'win32')
     @patch('sys.platform', 'win32')
     @patch('switchcraft.utils.config.RegistryBackend._read_registry')
     def test_fallback_to_default(self, mock_read_reg):

@@ -16,6 +16,9 @@ hero:
       text: Download
       link: https://github.com/FaserF/SwitchCraft/releases/latest
     - theme: alt
+      text: Try Web Demo
+      link: /demo/
+    - theme: alt
       text: View on GitHub
       link: https://github.com/FaserF/SwitchCraft
 
@@ -132,20 +135,20 @@ SwitchCraft is designed for **Windows**. Core features require Windows-specific 
 | Winget Store | ✅ | ❌ |
 | Installer Analysis | ✅ | ⚠️ Basic |
 
-## Web App vs Static Hosting
+## Web Demo vs Desktop App
 
-SwitchCraft can be deployed in two main ways: as a full **Docker Web App** or as a **Static Site** (e.g., GitHub Pages). It's important to understand the differences:
+SwitchCraft can be used in the browser as a demo or installed on Windows for full functionality.
 
-| Feature | Docker / Web App | Static Site (GitHub Pages) |
+| Feature | Desktop App (Windows) | Web Demo (Browser) |
 |:---|:---:|:---:|
-| **Description** | Full application with backend | Frontend-only demo |
-| **Backend API** | ✅ Python (FastAPI/Flask) | ❌ None |
+| **Description** | Full featured application | Client-side WASM Demo |
+| **System Access** | ✅ Full (Registry, Files, PS) | ❌ Sandboxed |
 | **Intune Packaging** | ✅ Full generation & upload | ❌ Not available |
-| **Winget Search** | ✅ Live API + PowerShell | ⚠️ Static Dataset only |
+| **Winget Search** | ✅ Live API + PowerShell | ⚠️ Visual Only |
 | **Installer Analysis** | ✅ Deep analysis | ⚠️ Basic file inspection |
-| **Use Case** | Production / daily use | Demo / Preview / Docs |
+| **Use Case** | Production / Daily Use | Preview / Training |
 
 > [!NOTE]
-> The **Static Site** version is primarily for previewing the UI and hosting documentation. For actual packaging work, please use the Desktop App or the Docker container.
+> The **Web Demo** is purely client-side (Python in the browser). It is perfect for exploring the UI, but cannot perform system-level tasks like installing software or configuring Windows.
 
 </div>

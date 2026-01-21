@@ -23,6 +23,20 @@ class ScriptUploadView(ft.Column, ViewMixin):
         self.remediate_path = None  # For Remediation
         self.repo_script_items = []  # Track (path, checkbox) for GitHub View
 
+        # Initialize File Pickers once to prevent duplicate overlays on tab switch
+        self.ps_picker = ft.FilePicker()
+        self.ps_picker.on_result = self._on_ps_picked
+
+        self.det_picker = ft.FilePicker()
+        self.det_picker.on_result = self._on_det_picked
+
+        self.rem_picker = ft.FilePicker()
+        self.rem_picker.on_result = self._on_rem_picked
+
+        if self.app_page:
+            self.app_page.overlay.extend([self.ps_picker, self.det_picker, self.rem_picker])
+            self.app_page.update()
+
         # UI Components - wrapped in container with proper padding
         self.controls = [
             ft.Container(
@@ -85,14 +99,6 @@ class ScriptUploadView(ft.Column, ViewMixin):
 
     # --- Platform Script Tab ---
     def _build_platform_script_tab(self):
-        # Initialize File Picker
-        self.ps_picker = ft.FilePicker()
-        self.ps_picker.on_result = self._on_ps_picked
-        # Add to page overlay safely
-        if self.app_page:
-             self.app_page.overlay.append(self.ps_picker)
-             self.app_page.update()
-
         self.ps_name = ft.TextField(
             label=i18n.get("script_name") or "Script Name",
             border_radius=8
@@ -150,16 +156,17 @@ class ScriptUploadView(ft.Column, ViewMixin):
         )
 
     def _on_ps_picked(self, e):
-        if e.files:
-            path = e.files[0].path
-            # Web compat: process name and store path (if available)
-            # Note: On Web, path might be None. Upload flow required for Web.
-            # Ideally we check SwitchCraftConfig.is_web?
-            # For now, just handle local path assumption
-            self.script_path = path
-            self.ps_file_label.value = e.files[0].name
+        if e.files and e.files[0]:
+            file_obj = e.files[0]
+            # Web check: file_obj.path might be None
+            if file_obj.path:
+                self.script_path = file_obj.path
+            else:
+                self.script_path = None # Handle Web Upload later if needed
+
+            self.ps_file_label.value = file_obj.name
             if not self.ps_name.value:
-                self.ps_name.value = Path(e.files[0].name).stem
+                self.ps_name.value = Path(file_obj.name).stem
             self.update()
 
     def _upload_ps_script(self, e):
@@ -223,15 +230,6 @@ class ScriptUploadView(ft.Column, ViewMixin):
 
     # --- Remediation Tab ---
     def _build_remediation_tab(self):
-        # Initialize Pickers
-        self.det_picker = ft.FilePicker()
-        self.det_picker.on_result = self._on_det_picked
-        self.rem_picker = ft.FilePicker()
-        self.rem_picker.on_result = self._on_rem_picked
-        if self.app_page:
-            self.app_page.overlay.extend([self.det_picker, self.rem_picker])
-            self.app_page.update()
-
         self.rem_name = ft.TextField(
             label=i18n.get("remediation_name") or "Remediation Name",
             border_radius=8
@@ -303,19 +301,30 @@ class ScriptUploadView(ft.Column, ViewMixin):
         )
 
     def _on_det_picked(self, e):
-        if e.files:
-            path = e.files[0].path
-            self.detect_path = path
-            self.det_file_label.value = e.files[0].name
+        if e.files and e.files[0]:
+            file_obj = e.files[0]
+            if not file_obj.path:
+                 # Web case or error
+                 self.det_file_label.value = "Path unavailable (Web Upload?)"
+                 self.update()
+                 return
+
+            self.detect_path = file_obj.path
+            self.det_file_label.value = file_obj.name
             if not self.rem_name.value:
-                self.rem_name.value = Path(e.files[0].name).stem
+                self.rem_name.value = Path(file_obj.name).stem
             self.update()
 
     def _on_rem_picked(self, e):
-        if e.files:
-            path = e.files[0].path
-            self.remediate_path = path
-            self.rem_file_label.value = e.files[0].name
+        if e.files and e.files[0]:
+            file_obj = e.files[0]
+            if not file_obj.path:
+                 self.rem_file_label.value = "Path unavailable (Web Upload?)"
+                 self.update()
+                 return
+
+            self.remediate_path = file_obj.path
+            self.rem_file_label.value = file_obj.name
             self.update()
 
     def _upload_rem_script(self, e):

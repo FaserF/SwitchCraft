@@ -118,5 +118,10 @@ test_output.ps1
 /docs/node_modules
 /docs/.vitepress
 verification_output*.txt
-debug_output.txt
-debug_crash.txt
+debug_output*.txt
+debug_crash*.txt
+config_output*.txt
+final_pass*.txt
+final_output*.txt
+refactor_results.txt
+refactor_v2.txt

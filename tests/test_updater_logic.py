@@ -23,8 +23,8 @@ def test_stable_channel_stable_update(mock_requests):
         "prerelease": False
     }
 
-    with patch("switchcraft.utils.app_updater.sys") as mock_sys:
-        mock_sys.frozen = True
+    # Safe patch (create=True needed because sys.frozen doesn't exist in dev env)
+    with patch("switchcraft.utils.app_updater.sys.frozen", True, create=True):
         has_update, ver, data = checker.check_for_updates()
 
     assert has_update is True
@@ -63,8 +63,7 @@ def test_dev_channel_finds_stable_if_newer(mock_requests):
 
     mock_requests.get.side_effect = [stable_resp, beta_resp, dev_resp]
 
-    with patch("switchcraft.utils.app_updater.sys") as mock_sys:
-        mock_sys.frozen = True
+    with patch("switchcraft.utils.app_updater.sys.frozen", True, create=True):
         has_update, ver, data = checker.check_for_updates()
 
     assert has_update is True
@@ -98,8 +97,7 @@ def test_dev_channel_prefers_dev_if_newer(mock_requests):
 
     mock_requests.get.side_effect = [stable_resp, beta_resp, dev_resp]
 
-    with patch("switchcraft.utils.app_updater.sys") as mock_sys:
-        mock_sys.frozen = True
+    with patch("switchcraft.utils.app_updater.sys.frozen", True, create=True):
         has_update, ver, data = checker.check_for_updates()
 
     assert has_update is True
@@ -115,8 +113,7 @@ def test_no_update_found(mock_requests):
         "prerelease": False
     }
 
-    with patch("switchcraft.utils.app_updater.sys") as mock_sys:
-        mock_sys.frozen = True
+    with patch("switchcraft.utils.app_updater.sys.frozen", True, create=True):
         has_update, ver, _ = checker.check_for_updates()
 
     assert has_update is False
