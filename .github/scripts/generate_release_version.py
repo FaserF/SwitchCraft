@@ -73,7 +73,7 @@ def main():
     args = parser.parse_args()
 
     # Fallback version if version generation fails
-    FALLBACK_VERSION = "2026.1.2"
+    FALLBACK_VERSION = "2026.1.3"
 
     try:
         base_ver = get_current_date_version()
