@@ -27,21 +27,23 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.14'
+          python-version: '3.13'
 
       - name: Install Flet
         run: |
           python -m pip install --upgrade pip
-          pip install .  # Installs ONLY base dependencies (safe for web)
+          pip install .
           pip install flet
 
       - name: Build Web Demo
         run: |
-          # Copy source to current dir (switchcraft folder)
-          cp -r src/switchcraft .
+          # Create an isolated build directory
+          # This prevents 'flet publish' from auto-detecting the root 'pyproject.toml'
+          mkdir -p build_web
+          cp -r src/switchcraft build_web/
 
-          # Create entry point at root to preserve 'switchcraft' package structure
-          cat > web_entry.py <<EOF
+          # Create entry point inside build_web
+          cat > build_web/web_entry.py <<EOF
           import sys
           import os
           import flet as ft
@@ -57,15 +59,9 @@ jobs:
                   ft.app(target=switchcraft.main.main, assets_dir="switchcraft/assets")
           EOF
 
-          # Publish using the root entry script
-          # We explicitly define requirements to avoid any lingering local environment pollution
-          # Flet normally infers from environment, but explicit is safer for Pyodide
-          # We EXCLUDE py7zr, keyring, winotify
-
-          # Manually create requirements.txt with ONLY safe, web-compatible dependencies
-          # This avoids pulling in desktop-specific packages like py7zr/backports.zstd
-          # Essential Web Dependencies
-          cat > requirements.txt <<EOF
+          # Manually create requirements.txt inside build_web
+          # This ONLY contains safe, web-compatible dependencies
+          cat > build_web/requirements.txt <<EOF
           flet
           pefile
           olefile
@@ -78,15 +74,18 @@ jobs:
           anyio>=4.12.1
           EOF
 
-          flet publish web_entry.py --app-name "SwitchCraft" --app-short-name "SwitchCraft Demo" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist --assets switchcraft/assets
+          # Publish from WITHIN the build_web directory
+          cd build_web
+          flet publish web_entry.py --app-name "SwitchCraft" --app-short-name "SwitchCraft Demo" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath ../dist --assets switchcraft/assets
 
           # Move build to docs public folder
+          cd ..
           mkdir -p docs/public/demo
           cp -r dist/* docs/public/demo/
+
           # Clean up
           rm -rf dist
-          rm -rf switchcraft
-          rm web_entry.py
+          rm -rf build_web
         shell: bash
 
       - name: Setup Node
