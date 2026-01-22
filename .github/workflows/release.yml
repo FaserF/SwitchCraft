@@ -356,14 +356,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase Repository Owner
+        id: owner
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/switchcraft:${{ needs.prepare_release.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/switchcraft:${{ needs.prepare_release.outputs.is_prerelease == 'true' && 'prerelease' || 'latest' }}
+            ghcr.io/${{ steps.owner.outputs.owner }}/switchcraft:${{ needs.prepare_release.outputs.version }}
+            ghcr.io/${{ steps.owner.outputs.owner }}/switchcraft:${{ needs.prepare_release.outputs.is_prerelease == 'true' && 'prerelease' || 'latest' }}
 
 
   winget_manifests:
