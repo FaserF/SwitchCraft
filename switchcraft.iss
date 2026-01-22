@@ -6,7 +6,7 @@
 
 #define MyAppName "SwitchCraft"
 #ifndef MyAppVersion
-  #define MyAppVersion "2026.1.4.dev0+d98c720"
+  #define MyAppVersion "2026.1.4"
 #endif
 #ifndef MyAppVersionNumeric
   #define MyAppVersionNumeric "2026.1.4"
