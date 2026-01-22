@@ -140,7 +140,7 @@ class ModernApp:
         self.notif_btn = ft.IconButton(
             icon=ft.Icons.NOTIFICATIONS,
             tooltip="Notifications",
-            on_click=self._on_notification_click
+            on_click=self._toggle_notification_drawer
         )
         logger.debug(f"Notification button created with handler: {self.notif_btn.on_click is not None}")
 

@@ -62,12 +62,21 @@ jobs:
           # Flet normally infers from environment, but explicit is safer for Pyodide
           # We EXCLUDE py7zr, keyring, winotify
 
-          # Generate a clean requirements.txt for Flet to bundle
-          pip freeze > clean_reqs.txt
-          # Remove problematic packages if they somehow sneaked in (grep -v)
-          grep -vE "py7zr|keyring|winotify|backports.zstd|pyzstd|flet|pycryptodomex|pycryptodome|msal|azure|portalocker" clean_reqs.txt > requirements.txt
+          # Manually create requirements.txt with ONLY safe, web-compatible dependencies
+          # This avoids pulling in desktop-specific packages like py7zr/backports.zstd
+          cat > requirements.txt <<EOF
+          pefile
+          olefile
+          requests
+          click
+          rich
+          PyYAML
+          defusedxml
+          PyJWT
+          anyio>=4.12.1
+          EOF
 
-          flet publish web_entry.py --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist --assets switchcraft/assets
+          flet publish web_entry.py --app-name "SwitchCraft" --app-short-name "SwitchCraft Demo" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist --assets switchcraft/assets
 
           # Move build to docs public folder
           mkdir -p docs/public/demo

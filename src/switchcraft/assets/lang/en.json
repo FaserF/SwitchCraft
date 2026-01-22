@@ -348,6 +348,7 @@
     "sync_success_down": "Settings downloaded successfully!",
     "sync_failed": "Sync failed.",
     "export_success": "Settings exported to:",
+    "export_failed": "Export Failed",
     "import_success": "Settings imported successfully!",
     "import_failed": "Import failed.",
     "addon_detect_failed": "Could not auto-detect a valid SwitchCraft addon in the zip file.",

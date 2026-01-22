@@ -214,5 +214,9 @@ def setup_session_logging(root_logger=None):
     if handler not in root_logger.handlers:
         root_logger.addHandler(handler)
 
+    # Ensure root logger captures INFO by default so our handlers receive it
+    if root_logger.level == logging.NOTSET or root_logger.level > logging.INFO:
+        root_logger.setLevel(logging.INFO)
+
     if '--debug' in sys.argv:
         handler.set_debug_mode(True)

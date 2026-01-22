@@ -87,7 +87,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
             ])
 
         try:
-            self.update()
+            if self.page:
+                self.update()
+        except RuntimeError:
+            pass
         except Exception as e:
             logger.warning(f"Failed to update settings view after tab switch: {e}", exc_info=True)
 
@@ -1113,12 +1116,16 @@ class ModernSettingsView(ft.Column, ViewMixin):
         Opens a save-file picker prompting the user for a destination (default filename "settings.json"); if a path is selected, exports the application preferences to that file as pretty-printed JSON and shows a success notification.
         """
         from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
-        path = FilePickerHelper.save_file(dialog_title=i18n.get("btn_export_settings") or "Export Settings", file_name="settings.json", allowed_extensions=["json"])
-        if path:
-            prefs = SwitchCraftConfig.export_preferences()
-            with open(path, "w") as f:
-                json.dump(prefs, f, indent=4)
-            self._show_snack(f"{i18n.get('export_success') or 'Exported to'} {path}")
+        try:
+            path = FilePickerHelper.save_file(dialog_title=i18n.get("btn_export_settings") or "Export Settings", file_name="settings.json", allowed_extensions=["json"])
+            if path:
+                prefs = SwitchCraftConfig.export_preferences()
+                with open(path, "w") as f:
+                    json.dump(prefs, f, indent=4)
+                self._show_snack(f"{i18n.get('export_success') or 'Exported to'} {path}")
+        except Exception as ex:
+             logger.error(f"Failed to export settings: {ex}")
+             self._show_snack(f"{i18n.get('export_failed') or 'Export Failed'}: {ex}", "RED")
 
     def _import_settings(self, e):
         """
