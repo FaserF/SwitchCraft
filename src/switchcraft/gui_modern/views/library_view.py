@@ -374,9 +374,8 @@ class LibraryView(ft.Column, ViewMixin):
             ], tight=True, spacing=10),
             actions=[
                 ft.TextButton(i18n.get("btn_cancel") or "Close", on_click=lambda e: self._close_dialog(dlg)),
-                ft.ElevatedButton(
-                    text=i18n.get("open_folder") or "Open Folder",
-                    icon=ft.Icons.FOLDER_OPEN,
+                ft.FilledButton(
+                    content=ft.Row([ft.Icon(ft.Icons.FOLDER_OPEN), ft.Text(i18n.get("open_folder") or "Open Folder")], alignment=ft.MainAxisAlignment.CENTER),
                     on_click=lambda e: (self._close_dialog(dlg), self._open_folder(path))
                 )
             ]

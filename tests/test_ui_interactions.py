@@ -27,6 +27,7 @@ def mock_page():
 
     # Mock open for dialogs (newer Flet API)
     page.open = MagicMock()
+    page.launch_url = MagicMock()
     return page
 
 def find_buttons(control):
@@ -444,6 +445,11 @@ def test_settings_view_entra_test_connection(mock_page):
                     label = item.content
                 elif isinstance(item.content, ft.Text):
                     label = item.content.value
+                elif isinstance(item.content, ft.Row):
+                     for c in item.content.controls:
+                         if isinstance(c, ft.Text):
+                             label = c.value
+                             break
 
             found_labels.append(label)
             if label == "Test Connection":

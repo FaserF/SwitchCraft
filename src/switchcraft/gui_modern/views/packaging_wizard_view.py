@@ -118,11 +118,11 @@ class PackagingWizardView(ft.Column, ViewMixin):
             self.update()
 
     def _build_nav_buttons(self):
-        self.btn_prev = ft.ElevatedButton(
-            text="Previous", on_click=self._prev_step, disabled=True
+        self.btn_prev = ft.FilledButton(
+            content=ft.Text("Previous"), on_click=self._prev_step, disabled=True
         )
-        self.btn_next = ft.ElevatedButton(
-            text="Next", on_click=self._next_step, bgcolor="BLUE", color="WHITE"
+        self.btn_next = ft.FilledButton(
+            content=ft.Text("Next"), on_click=self._next_step, bgcolor="BLUE", color="WHITE"
         )
         return ft.Row(
             [self.btn_prev, ft.Container(expand=True), self.btn_next],
@@ -228,7 +228,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
                 ft.Text("Select Installer", size=24, weight=ft.FontWeight.BOLD),
                 ft.Text("Supported: .exe, .msi", color="ON_SURFACE_VARIANT"),
                 ft.Container(height=20),
-                ft.ElevatedButton(text="Browse File...", icon=ft.Icons.FOLDER_OPEN, on_click=self._pick_file),
+                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.FOLDER_OPEN), ft.Text("Browse File...")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._pick_file),
                 ft.Container(height=10),
                 self.file_text
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
@@ -247,7 +247,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
                 ft.Text("Download from Web", size=24, weight=ft.FontWeight.BOLD),
                 ft.Text("Enter a direct link to an .exe or .msi file", color="ON_SURFACE_VARIANT"),
                 ft.Container(height=20),
-                ft.Row([self.url_field, ft.ElevatedButton(text="Download", icon=ft.Icons.DOWNLOAD, on_click=self._start_download)]),
+                ft.Row([self.url_field, ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.DOWNLOAD), ft.Text("Download")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._start_download)]),
                 ft.Container(height=10),
                 self.download_progress,
                 self.download_status
@@ -491,7 +491,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
             ft.Text("Review & Edit Script", size=20, weight=ft.FontWeight.BOLD),
             sign_status,
             self.script_field,
-            ft.ElevatedButton(text="Regenerate", on_click=lambda _: self._generate_script_content())
+            ft.FilledButton(content=ft.Text("Regenerate"), on_click=lambda _: self._generate_script_content())
         ], scroll=ft.ScrollMode.AUTO)
 
     def _generate_script_content(self):
@@ -550,8 +550,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
     def _step_package_ui(self):
         self.pkg_status = ft.Text("Ready to package.", size=16)
-        self.pkg_btn = ft.ElevatedButton(
-            text="Start Packaging", on_click=self._run_packaging, bgcolor="GREEN", color="WHITE"
+        self.pkg_btn = ft.FilledButton(
+            content=ft.Text("Start Packaging"), on_click=self._run_packaging, bgcolor="GREEN", color="WHITE"
         )
         return ft.Column([
             ft.Text("Create Intune Package (.intunewin)", size=20, weight=ft.FontWeight.BOLD),
@@ -617,8 +617,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         self.txt_desc = ft.TextField(label="Description", value=f"Packaged by SwitchCraft based on {Path(self.installer_path).name if self.installer_path else 'installer'}", multiline=True)
 
         self.upload_status = ft.Text("Waiting for authentication...", italic=True)
-        self.btn_upload = ft.ElevatedButton(text="Upload to Intune", on_click=self._run_upload, icon=ft.Icons.CLOUD_UPLOAD, disabled=True)
-        self.btn_connect = ft.ElevatedButton(text="Connect", on_click=self._connect_intune)
+        self.btn_upload = ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CLOUD_UPLOAD), ft.Text("Upload to Intune")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._run_upload, disabled=True)
+        self.btn_connect = ft.FilledButton(content=ft.Text("Connect"), on_click=self._connect_intune)
 
         return ft.Column([
             ft.Text("Upload to Microsoft Intune", size=20, weight=ft.FontWeight.BOLD),
@@ -872,8 +872,11 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         def _update_status(msg):
             # Hacky way to update dialog content if we don't have ref
             self.autopilot_dlg.content.controls[1].value = msg
-            if self.autopilot_dlg._page:
-                self.autopilot_dlg.update()
+            try:
+                if self.autopilot_dlg.page:
+                    self.autopilot_dlg.update()
+            except RuntimeError:
+                pass
 
         def _bg():
             try:
@@ -890,7 +893,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                 # Generate default script logic
                 info = res.info
                 installer_name = Path(self.installer_path).name
-                args = " ".join(info.install_switches) if info.install_switches else "/S"
+                args = " ".join(info.install_switches) if info and info.install_switches else "/S"
 
                 # We need to save the script to disk
                 script_dir = Path(self.installer_path).parent
@@ -971,8 +974,11 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                      self.autopilot_dlg.title = ft.Text("Magic Failed 💀")
                      _update_status(f"Error: {ex}")
                      self.autopilot_dlg.actions = [ft.TextButton("Close", on_click=lambda e: self._close_autopilot())]
-                     if self.autopilot_dlg._page:
-                        self.autopilot_dlg.update()
+                     try:
+                        if self.autopilot_dlg.page:
+                            self.autopilot_dlg.update()
+                     except RuntimeError:
+                        pass
                 logger.error(f"Autopilot error: {ex}")
 
         threading.Thread(target=_bg, daemon=True).start()

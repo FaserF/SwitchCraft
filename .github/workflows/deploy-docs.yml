@@ -32,8 +32,8 @@ jobs:
       - name: Install Flet
         run: |
           python -m pip install --upgrade pip
+          pip install .  # Installs ONLY base dependencies (safe for web)
           pip install flet
-          pip install -r requirements.txt
 
       - name: Build Web Demo
         run: |
@@ -58,7 +58,15 @@ jobs:
           EOF
 
           # Publish using the root entry script
-          # --assets ensures the assets are copied to the root of the web build
+          # We explicitly define requirements to avoid any lingering local environment pollution
+          # Flet normally infers from environment, but explicit is safer for Pyodide
+          # We EXCLUDE py7zr, keyring, winotify
+
+          # Generate a clean requirements.txt for Flet to bundle
+          pip freeze > clean_reqs.txt
+          # Remove problematic packages if they somehow sneaked in (grep -v)
+          grep -vE "py7zr|keyring|winotify|backports.zstd|pyzstd|flet" clean_reqs.txt > web_requirements.txt
+
           flet publish web_entry.py --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist --assets switchcraft/assets
 
           # Move build to docs public folder

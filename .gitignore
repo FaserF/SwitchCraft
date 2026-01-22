@@ -85,3 +85,5 @@ test_tabs*.py
 SwitchCraft.ps1
 mock_script.ps1
 debug_shell.py
+debug_button.py
+debug_button_2.py

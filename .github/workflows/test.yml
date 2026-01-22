@@ -54,7 +54,7 @@ jobs:
         if: steps.should_run.outputs.should_run == 'true'
         run: |
           python -m pip install --upgrade pip
-          pip install .[test,gui]
+          pip install .[test,gui,desktop]
 
       - name: Run All Python Tests
         if: steps.should_run.outputs.should_run == 'true'
@@ -97,7 +97,7 @@ jobs:
       - name: Install Core (No GUI)
         run: |
            python -m pip install --upgrade pip
-           pip install .[test]
+           pip install .[test,desktop]
 
       - name: Run CLI Dynamic Tests
         timeout-minutes: 10
@@ -120,7 +120,7 @@ jobs:
       - name: Install Dependencies
         run: |
            python -m pip install --upgrade pip
-           pip install .[test,gui]
+           pip install .[test,gui,desktop]
            pip install pytest-asyncio
 
       - name: Run E2E Integration Tests

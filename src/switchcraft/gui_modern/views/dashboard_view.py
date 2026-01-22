@@ -296,7 +296,7 @@ class DashboardView(ft.Column):
             ], height=200),
             actions=[
                 ft.TextButton("Cancel", on_click=close_dlg),
-                ft.FilledButton("Send", on_click=send_action),
+                ft.FilledButton(content=ft.Text("Send"), on_click=send_action),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )

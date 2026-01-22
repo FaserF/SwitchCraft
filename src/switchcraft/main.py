@@ -549,16 +549,14 @@ def main(page: ft.Page):
         if not is_web:
             actions.append(
                 ft.ElevatedButton(
-                    text="Open Logs",
-                    icon=ft.Icons.FOLDER_OPEN,
+                    content=ft.Row([ft.Icon(ft.Icons.FOLDER_OPEN), ft.Text("Open Logs")], alignment=ft.MainAxisAlignment.CENTER, spacing=5),
                     on_click=open_dump_folder,
                     style=ft.ButtonStyle(bgcolor="BLUE_700", color="WHITE")
                 )
             )
             actions.append(
                  ft.ElevatedButton(
-                    text="View File",
-                    icon=ft.Icons.DESCRIPTION,
+                    content=ft.Row([ft.Icon(ft.Icons.DESCRIPTION), ft.Text("View File")], alignment=ft.MainAxisAlignment.CENTER, spacing=5),
                     on_click=open_dump_file
                 )
             )
@@ -579,8 +577,7 @@ def main(page: ft.Page):
         if not is_web:
             actions.append(
                 ft.ElevatedButton(
-                    text="Exit",
-                    icon=ft.Icons.CLOSE,
+                    content=ft.Row([ft.Icon(ft.Icons.CLOSE), ft.Text("Exit")], alignment=ft.MainAxisAlignment.CENTER, spacing=5),
                     on_click=close_app,
                     style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE")
                 )
@@ -588,8 +585,7 @@ def main(page: ft.Page):
         else:
              actions.append(
                 ft.ElevatedButton(
-                    text="Reload App",
-                    icon=ft.Icons.REFRESH,
+                    content=ft.Row([ft.Icon(ft.Icons.REFRESH), ft.Text("Reload App")], alignment=ft.MainAxisAlignment.CENTER, spacing=5),
                     on_click=lambda e: page.launch_url(page.route or "/"),
                 )
             )

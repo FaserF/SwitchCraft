@@ -64,9 +64,8 @@ class DetectionTesterView(ft.Column):
             expand=True
         )
 
-        self.check_btn = ft.ElevatedButton(
-            text="Test Detection",
-            icon=ft.Icons.PLAY_ARROW,
+        self.check_btn = ft.FilledButton(
+            content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text("Test Detection")], alignment=ft.MainAxisAlignment.CENTER),
             bgcolor="GREEN",
             color="WHITE",
             on_click=self._run_check

@@ -115,14 +115,12 @@ class StackManagerView(ft.Column, ViewMixin):
                 ),
                 ft.Container(height=15),
                 ft.Row([
-                    ft.ElevatedButton(
-                        text=i18n.get("save_stack") or "Save Stack",
-                        icon=ft.Icons.SAVE,
+                    ft.FilledButton(
+                        content=ft.Row([ft.Icon(ft.Icons.SAVE), ft.Text(i18n.get("save_stack") or "Save Stack")], alignment=ft.MainAxisAlignment.CENTER),
                         on_click=self._save_stacks_action
                     ),
-                    ft.ElevatedButton(
-                        text=i18n.get("deploy_stack") or "Deploy Stack",
-                        icon=ft.Icons.ROCKET_LAUNCH,
+                    ft.FilledButton(
+                        content=ft.Row([ft.Icon(ft.Icons.ROCKET_LAUNCH), ft.Text(i18n.get("deploy_stack") or "Deploy Stack")], alignment=ft.MainAxisAlignment.CENTER),
                         bgcolor="BLUE_700",
                         color="WHITE",
                         on_click=self._deploy_stack
@@ -323,8 +321,8 @@ class StackManagerView(ft.Column, ViewMixin):
             ], tight=True),
             actions=[
                 ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda e: self.app_page.close(dlg)),
-                ft.ElevatedButton(
-                    text=i18n.get("btn_deploy") or "Deploy",
+                ft.FilledButton(
+                    content=ft.Text(i18n.get("btn_deploy") or "Deploy"),
                     bgcolor="BLUE_700",
                     color="WHITE",
                     on_click=lambda e: self._execute_deploy(dlg)

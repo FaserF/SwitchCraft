@@ -214,7 +214,7 @@ class ModernHomeView(ft.Container):
 
         items.append(
             ft.TextButton(
-                i18n.get("view_full_history") or "View full history",
+                content=ft.Text(i18n.get("view_full_history") or "View full history"),
                 on_click=lambda e: self.on_navigate(NavIndex.HISTORY) if self.on_navigate else None
             )
         )
