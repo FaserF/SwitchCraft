@@ -64,7 +64,9 @@ jobs:
 
           # Manually create requirements.txt with ONLY safe, web-compatible dependencies
           # This avoids pulling in desktop-specific packages like py7zr/backports.zstd
+          # Essential Web Dependencies
           cat > requirements.txt <<EOF
+          flet
           pefile
           olefile
           requests

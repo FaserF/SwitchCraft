@@ -88,6 +88,15 @@ a = Analysis(
     noarchive=False,
 )
 
+splash = Splash(
+    'src/switchcraft/assets/switchcraft_logo.png',
+    binaries=a.binaries,
+    datas=a.datas,
+    text_pos=None,
+    text_size=12,
+    minify_script=True
+)
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
@@ -96,6 +105,8 @@ exe = EXE(
     a.binaries,
     a.zipfiles,
     a.datas,
+    splash,
+    splash.binaries,
     [],
     name='SwitchCraft', # Modern (Flet) is now the main 'SwitchCraft'
     debug=False,

@@ -370,13 +370,17 @@ class ModernApp:
                 on_dismiss=self._on_drawer_dismiss
             )
 
-            # Force Legacy Mode for Docker/Web stability
-            # page.open() seems unreliable in this environment for drawers
-            self.page.end_drawer = drawer
-            drawer.open = True
-            self.page.update()
-
-            logger.info("Notification drawer opened successfully (Legacy Mode)")
+            # Try modern page.open() if available (Flet 0.21+)
+            if hasattr(self.page, "open"):
+                self.page.end_drawer = drawer
+                self.page.open(drawer)
+                logger.info("Notification drawer opened using page.open()")
+            else:
+                # Legacy Mode
+                self.page.end_drawer = drawer
+                drawer.open = True
+                self.page.update()
+                logger.info("Notification drawer opened successfully (Legacy Mode)")
 
             # Mark all as read after opening
             self.notification_service.mark_all_read()

@@ -773,13 +773,17 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     def _on_github_login_click(self, e):
         """Handle GitHub login button click."""
-        print("DEBUG: _on_github_login_click STARTED", flush=True)
-        logger.info("GitHub login clicked (direct handler)")
-        # Show snack immediately to confirm UI reaction
-        self._show_snack("Starting GitHub Login...", "BLUE")
-        # Proceed to permission dialog
-        self._show_permission_dialog(self._start_github_login)
-        print("DEBUG: _on_github_login_click FINISHED", flush=True)
+        try:
+            print("DEBUG: _on_github_login_click STARTED", flush=True)
+            logger.info("GitHub login clicked (direct handler)")
+            # Show snack immediately to confirm UI reaction
+            self._show_snack("Starting GitHub Login...", "BLUE")
+            # Proceed to permission dialog
+            self._show_permission_dialog(self._start_github_login)
+            print("DEBUG: _on_github_login_click FINISHED", flush=True)
+        except Exception as e:
+            logger.exception(f"CRITICAL: Failed in _on_github_login_click: {e}")
+            self._show_snack(f"Login Error: {e}", "RED")
 
     def _show_permission_dialog(self, callback):
         """Show permission explanation dialog before GitHub login."""
@@ -826,9 +830,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
         )
 
         print("DEBUG: Setting page.dialog and opening...", flush=True)
-        self.app_page.dialog = dlg
-        dlg.open = True
-        self.app_page.update()
+        if hasattr(self.app_page, "open"):
+             self.app_page.open(dlg)
+             logger.info("Permission dialog opened using page.open()")
+        else:
+             self.app_page.dialog = dlg
+             dlg.open = True
+             self.app_page.update()
+             logger.info("Permission dialog opened using legacy mode")
         print("DEBUG: self.app_page.update() called for dialog", flush=True)
 
     def _start_github_login(self, e):

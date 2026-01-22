@@ -446,6 +446,14 @@ def main(page: ft.Page):
     time.sleep(0.3)  # 300ms delay to ensure loading screen is rendered and visible
     page.update()  # Final update after delay
 
+    # Close the native PyInstaller Splash Screen
+    try:
+        import pyi_splash
+        pyi_splash.close()
+        print("Closed PyInstaller splash screen")
+    except ImportError:
+        pass
+
     try:
         # If we had an import error, we shouldn't even be here effectively,
         # but let's handle the control flow.
