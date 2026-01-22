@@ -202,4 +202,10 @@ end;
 
 [UninstallDelete]
 ; Clean up any leftover files
+; Clean up any leftover files
+Type: files; Name: "{app}\*.log"
+Type: files; Name: "{app}\*.json"
+Type: files; Name: "{app}\*.db"
+Type: files; Name: "{app}\*.tmp"
+Type: files; Name: "{app}\SwitchCraft.exe"
 Type: filesandordirs; Name: "{app}"

@@ -65,7 +65,7 @@ jobs:
           # Generate a clean requirements.txt for Flet to bundle
           pip freeze > clean_reqs.txt
           # Remove problematic packages if they somehow sneaked in (grep -v)
-          grep -vE "py7zr|keyring|winotify|backports.zstd|pyzstd|flet" clean_reqs.txt > web_requirements.txt
+          grep -vE "py7zr|keyring|winotify|backports.zstd|pyzstd|flet|pycryptodomex|pycryptodome|msal|azure|portalocker" clean_reqs.txt > requirements.txt
 
           flet publish web_entry.py --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist --assets switchcraft/assets
 
