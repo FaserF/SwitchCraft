@@ -1,7 +1,6 @@
 """
 Tests for Group Manager View interactions (Create, Members, Delete, etc.).
 """
-import pytest
 import flet as ft
 from unittest.mock import MagicMock, patch
 import time

@@ -3,9 +3,7 @@ Real test for GitHub login - ensures dialog actually opens.
 """
 import pytest
 import flet as ft
-from unittest.mock import MagicMock, patch, Mock
-import threading
-import time
+from unittest.mock import MagicMock, patch
 import os
 
 # Import shared fixtures and helpers from conftest

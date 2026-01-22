@@ -6,6 +6,7 @@ from switchcraft.gui_modern.utils.flet_compat import create_tabs
 import logging
 from pathlib import Path
 import threading
+import requests
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,8 @@ class ScriptUploadView(ft.Column, ViewMixin):
         self.detect_path = None  # For Remediation
         self.remediate_path = None  # For Remediation
         self.repo_script_items = []  # Track (path, checkbox) for GitHub View
+        self.current_owner = None
+        self.current_repo = None
 
         # Initialize File Pickers once to prevent duplicate overlays on tab switch
         self.ps_picker = ft.FilePicker()
@@ -33,8 +36,11 @@ class ScriptUploadView(ft.Column, ViewMixin):
         self.rem_picker = ft.FilePicker()
         self.rem_picker.on_result = self._on_rem_picked
 
+        self.folder_picker = ft.FilePicker()
+        self.folder_picker.on_result = self._on_import_folder_picked
+
         if self.app_page:
-            self.app_page.overlay.extend([self.ps_picker, self.det_picker, self.rem_picker])
+            self.app_page.overlay.extend([self.ps_picker, self.det_picker, self.rem_picker, self.folder_picker])
             self.app_page.update()
 
         # UI Components - wrapped in container with proper padding
@@ -479,8 +485,6 @@ class ScriptUploadView(ft.Column, ViewMixin):
 
         def _bg():
             try:
-                import requests
-
                 # Parse GitHub URL
                 from urllib.parse import urlparse
                 clean_url = repo_url.strip()
@@ -503,6 +507,9 @@ class ScriptUploadView(ft.Column, ViewMixin):
                 owner = path_parts[0]
                 repo = path_parts[1]
                 branch = self.github_branch.value or "main"
+
+                self.current_owner = owner
+                self.current_repo = repo
 
                 # Use GitHub API to list files
                 api_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/{branch}?recursive=1"
@@ -593,20 +600,121 @@ class ScriptUploadView(ft.Column, ViewMixin):
 
         threading.Thread(target=_bg, daemon=True).start()
 
+    def _fetch_github_content(self, path, branch):
+        if not self.current_owner or not self.current_repo:
+            raise ValueError("Repository info missing")
+
+        url = f"https://api.github.com/repos/{self.current_owner}/{self.current_repo}/contents/{path}?ref={branch}"
+        headers = {"Accept": "application/vnd.github.v3.raw"}
+        if self.github_pat.value:
+            headers["Authorization"] = f"token {self.github_pat.value}"
+
+        resp = requests.get(url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        return resp.text
+
+    def _on_import_folder_picked(self, e):
+        if e.path:
+            self._start_download_import(e.path)
+
     def _import_github_scripts(self, e):
         selected = [item["path"] for item in self.repo_script_items if item["checkbox"].value]
-
         if not selected:
             self._show_snack(i18n.get("no_scripts_selected") or "No scripts selected", "ORANGE")
             return
 
-        self._show_snack(
-            f"Future Feature: Import {len(selected)} scripts: {', '.join(selected)}",
-            "BLUE"
-        )
+        self.folder_picker.get_directory_path(dialog_title="Select Destination Folder")
+
+    def _start_download_import(self, dest_path):
+        selected = [item["path"] for item in self.repo_script_items if item["checkbox"].value]
+        self.github_status.value = f"Downloading {len(selected)} scripts..."
+        self.github_status.color = "BLUE"
+        self.update()
+
+        def _bg():
+            count = 0
+            errors = []
+            try:
+                dest = Path(dest_path)
+                branch = self.github_branch.value or "main"
+                for script_path in selected:
+                    try:
+                        content = self._fetch_github_content(script_path, branch)
+                        # Save to file, preserving structure? No, flatten or prompt?
+                        # Flattening is safer for now, using filename
+                        filename = Path(script_path).name
+                        with open(dest / filename, "w", encoding="utf-8") as f:
+                            f.write(content)
+                        count += 1
+                    except Exception as sub_ex:
+                        errors.append(f"{script_path}: {sub_ex}")
+
+                if errors:
+                    self.github_status.value = f"Downloaded {count}. Errors: {len(errors)}"
+                    self.github_status.color = "ORANGE"
+                    logger.error(f"Import errors: {errors}")
+                else:
+                    self.github_status.value = f"Successfully imported {count} scripts!"
+                    self.github_status.color = "GREEN"
+            except Exception as ex:
+                self.github_status.value = f"Import failed: {ex}"
+                self.github_status.color = "RED"
+            finally:
+                self.update()
+
+        threading.Thread(target=_bg, daemon=True).start()
 
     def _deploy_github_scripts(self, e):
-        self._show_snack(
-            i18n.get("feature_coming_soon") or "Feature coming soon!",
-            "BLUE"
-        )
+        selected = [item["path"] for item in self.repo_script_items if item["checkbox"].value]
+        if not selected:
+            self._show_snack(i18n.get("no_scripts_selected") or "No scripts selected", "ORANGE")
+            return
+
+        # Check Credentials
+        tenant = SwitchCraftConfig.get_value("IntuneTenantID")
+        client = SwitchCraftConfig.get_value("IntuneClientID")
+        secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
+
+        if not all([tenant, client, secret]):
+            self._show_snack(i18n.get("intune_creds_missing") or "Intune Credentials missing in Settings", "RED")
+            return
+
+        self.github_status.value = f"Deploying {len(selected)} scripts..."
+        self.github_status.color = "BLUE"
+        self.update()
+
+        def _bg():
+            count = 0
+            errors = []
+            try:
+                token = self.intune_service.authenticate(tenant, client, secret)
+                branch = self.github_branch.value or "main"
+
+                for script_path in selected:
+                    try:
+                        content = self._fetch_github_content(script_path, branch)
+                        name = Path(script_path).stem
+                        desc = f"Imported from {self.current_owner}/{self.current_repo} ({script_path})"
+
+                        self.intune_service.upload_powershell_script(
+                            token, name, desc, content, run_as_account="system"
+                        )
+                        count += 1
+                    except Exception as sub_ex:
+                        errors.append(f"{script_path}: {sub_ex}")
+
+                if errors:
+                    self.github_status.value = f"Deployed {count}. Errors: {len(errors)}"
+                    self.github_status.color = "ORANGE"
+                    logger.error(f"Deploy errors: {errors}")
+                else:
+                    self.github_status.value = f"Successfully deployed {count} scripts to Intune!"
+                    self.github_status.color = "GREEN"
+
+            except Exception as ex:
+                self.github_status.value = f"Deployment failed: {ex}"
+                self.github_status.color = "RED"
+            finally:
+                self.update()
+
+        threading.Thread(target=_bg, daemon=True).start()

@@ -1,7 +1,6 @@
 import sys
 import logging
 import os
-import json
 from typing import Optional, Any, Dict
 from contextvars import ContextVar
 from abc import ABC, abstractmethod
@@ -425,7 +424,6 @@ class SwitchCraftConfig:
              import winreg
              import shutil
              import keyring
-             from pathlib import Path
 
              # A. Delete Registry Preferences (HKCU\Software\FaserF\SwitchCraft)
              try:

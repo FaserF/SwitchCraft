@@ -1,6 +1,5 @@
 
 import requests
-import json
 
 def test_api(name, url, params):
     try:

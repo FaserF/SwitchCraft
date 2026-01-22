@@ -37,17 +37,37 @@ jobs:
 
       - name: Build Web Demo
         run: |
+          # Copy source to current dir (switchcraft folder)
           cp -r src/switchcraft .
 
-          # Publish using main.py
-          flet publish switchcraft/main.py --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist --assets switchcraft/assets
+          # Create entry point at root to preserve 'switchcraft' package structure
+          cat > web_entry.py <<EOF
+          import sys
+          import os
+          import flet as ft
+          # Ensure current dir is in path
+          sys.path.insert(0, os.getcwd())
+          import switchcraft.main
+
+          if __name__ == "__main__":
+              # Detect if run() is available (Flet >= 0.21)
+              if hasattr(ft, "run"):
+                  ft.run(target=switchcraft.main.main)
+              else:
+                  ft.app(target=switchcraft.main.main, assets_dir="switchcraft/assets")
+          EOF
+
+          # Publish using the root entry script
+          # --assets ensures the assets are copied to the root of the web build
+          flet publish web_entry.py --app-name "SwitchCraft" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath dist --assets switchcraft/assets
 
           # Move build to docs public folder
           mkdir -p docs/public/demo
-          cp -r switchcraft/dist/* docs/public/demo/
-          # Clean up dist and the temporary copy
+          cp -r dist/* docs/public/demo/
+          # Clean up
           rm -rf dist
           rm -rf switchcraft
+          rm web_entry.py
         shell: bash
 
       - name: Setup Node

@@ -221,11 +221,13 @@ class LibraryView(ft.Column, ViewMixin):
                     logger.error(f"Error scanning library data: {ex}", exc_info=True)
                     def show_error():
                         try:
-                            self._show_snack(f"Failed to load library: {ex}", "RED")
+                            msg = f"Failed to load library: {ex}"
+                            self._show_snack(msg, "RED")
                             self.dir_info.value = f"{i18n.get('error') or 'Error'}: {str(ex)[:50]}"
                             self.dir_info.update()
-                        except (RuntimeError, AttributeError):
-                            logger.debug("Cannot update error UI: control not attached")
+                        except (RuntimeError, AttributeError) as ex:
+                            pass
+                        logger.debug("Cannot update error UI: control not attached")
                     self._run_task_safe(show_error)
 
             # Start scanning in background thread

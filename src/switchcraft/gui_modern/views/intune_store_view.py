@@ -458,7 +458,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     logger.exception("Failed to load assignments")
                     def _show_error():
                         self.assignments_col.controls.clear()
-                        self.assignments_col.controls.append(ft.Text(f"{i18n.get('error') or 'Error'}: {ex}", color="red", selectable=True))
+                        msg = f"{i18n.get('error') or 'Error'}: {ex}"
+                        self.assignments_col.controls.append(ft.Text(msg, color="red", selectable=True))
                         self.update()
                     self._run_task_safe(_show_error)
 
@@ -598,7 +599,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     self._run_task_safe(lambda: self._show_details(app))
                 except Exception as ex:
                     logger.error(f"Failed to save changes: {ex}")
-                    self._run_task_safe(lambda: self._show_snack(f"Failed to save: {ex}", "RED"))
+                    msg = f"Failed to save: {ex}"
+                    self._run_task_safe(lambda: self._show_snack(msg, "RED"))
 
             threading.Thread(target=_bg_save, daemon=True).start()
 

@@ -1,7 +1,6 @@
 """
 Tests for Library View interactions (Folder button, Refresh button, etc.).
 """
-import pytest
 import flet as ft
 from unittest.mock import MagicMock, patch
 import time

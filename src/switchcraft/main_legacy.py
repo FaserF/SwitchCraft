@@ -28,7 +28,7 @@ def main():
                 with open(debug_log, "a") as f:
                     f.write(f"Splash execution failed: {e}\n{traceback.format_exc()}\n")
                 sys.exit(1)
-        except Exception as e:
+        except Exception:
             # Fallback if logging fails
             sys.exit(1)
 

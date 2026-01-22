@@ -1090,7 +1090,7 @@ class ModernApp:
         # Ensure UI is fully built before replacing loading screen
         # IMPORTANT: Only replace loading screen if it exists (from modern_main.py)
         # Check if page has controls and if first control is the loading container
-        has_loading_screen = len(self.page.controls) > 0
+        # has_loading_screen = len(self.page.controls) > 0 # Unused
 
         self.page.clean()
         self.page.add(
@@ -1453,7 +1453,7 @@ class ModernApp:
                 view = factory_func()
                 if view is None:
                     logger.warning(f"View factory returned None: {factory_func.__name__ if hasattr(factory_func, '__name__') else 'unknown'}")
-                    new_controls.append(ft.Text(f"Error: View factory returned None", color="red"))
+                    new_controls.append(ft.Text("Error: View factory returned None", color="red"))
                 else:
                     new_controls.append(view)
             except Exception as ex:
@@ -1508,6 +1508,12 @@ class ModernApp:
              load_view(_f)
         elif idx == NavIndex.SETTINGS_HELP:
              # Help (Settings sub)
+             def _f():
+                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+                return ModernSettingsView(self.page, initial_tab_index=4)
+             load_view(_f)
+        elif idx == NavIndex.SETTINGS_POLICIES:
+             # Policies (Settings sub)
              def _f():
                 from switchcraft.gui_modern.views.settings_view import ModernSettingsView
                 return ModernSettingsView(self.page, initial_tab_index=3)
@@ -1728,7 +1734,7 @@ class ModernApp:
                              # Button 1: Open Logs Folder (if exists)
                              logs_path = Path(os.getenv('APPDATA', '')) / "FaserF" / "SwitchCraft" / "Logs"
                              if logs_path.exists():
-                                 toast.add_actions(label=i18n.get("notif_open_logs") or "Open Logs", launch=f"file://{{logs_path}}")
+                                 toast.add_actions(label=i18n.get("notif_open_logs") or "Open Logs", launch="file://{logs_path}")
 
                              if notif_type == "error":
                                  toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
@@ -1740,35 +1746,35 @@ class ModernApp:
 
                          try:
                              toast.show()
-                         except Exception as ex:
-                             logger.debug(f"Failed to show Windows toast: {{ex}}")
+                         except Exception:
+                             logger.debug("Failed to show Windows toast: {ex}")
 
                      # B) Browser Notification
                      if self.page.web:
                          try:
-                             js_title = json.dumps(latest["title"])
-                             js_body = json.dumps(latest["message"])
+                             # js_title = json.dumps(latest["title"])
+                             # js_body = json.dumps(latest["message"])
                              # Simple JS to trigger browser notification
-                             js_code = f"""
-                             (function() {{
-                                 var title = {{js_title}};
-                                 var options = {{ body: {{js_body}}, icon: "/switchcraft_logo.png" }};
+                             js_code = """
+                             (function() {
+                                 var title = {js_title};
+                                 var options = { body: {js_body}, icon: "/switchcraft_logo.png" };
                                  if (!("Notification" in window)) return;
-                                 if (Notification.permission === "granted") {{
+                                 if (Notification.permission === "granted") {
                                      new Notification(title, options);
-                                 }} else if (Notification.permission !== "denied") {{
-                                     Notification.requestPermission().then(function (permission) {{
-                                         if (permission === "granted") {{
+                                 } else if (Notification.permission !== "denied") {
+                                     Notification.requestPermission().then(function (permission) {
+                                         if (permission === "granted") {
                                              new Notification(title, options);
-                                         }}
-                                     }});
-                                 }}
-                             }})();
+                                         }
+                                     });
+                                 }
+                             })();
                              """
                              self.page.run_js(js_code)
                              logger.debug("Sent browser notification JS")
-                         except Exception as js_ex:
-                             logger.error(f"Failed to trigger browser notification: {{js_ex}}")
+                         except Exception:
+                             logger.error("Failed to trigger browser notification: {js_ex}")
 
         except Exception as e:
              logger.error(f"Error updating notification icon: {e}")

@@ -22,7 +22,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
         # Check Tool Availability
         if not self.intune_service.is_tool_available():
             btn_dl = ft.Button(i18n.get("btn_download_tool") or "Download Intune Tool")
-            btn_dl.on_click = lambda e: self._show_snack("Download feature coming soon")
+            btn_dl.on_click = self._download_tool
 
             self.controls = [
                 ft.Column([
@@ -36,6 +36,36 @@ class ModernIntuneView(ft.Column, ViewMixin):
             self.horizontal_alignment = ft.CrossAxisAlignment.CENTER
             return
 
+        # Tool is available - build the main UI
+        self._build_main_ui()
+
+    def _download_tool(self, e):
+        e.control.disabled = True
+        e.control.text = "Downloading..."
+        self.update()
+
+        def _bg():
+            success = self.intune_service.download_tool()
+            if success:
+                self._run_task_safe(lambda: self._refresh_view())
+            else:
+                 def _fail():
+                     e.control.disabled = False
+                     e.control.text = i18n.get("btn_download_tool") or "Download Intune Tool"
+                     self._show_snack("Download failed. Check logs.", "RED")
+                     self.update()
+                 self._run_task_safe(_fail)
+
+        threading.Thread(target=_bg, daemon=True).start()
+
+    def _refresh_view(self):
+        # Clear current controls and rebuild the view (now that tool is available)
+        self.controls.clear()
+        self._build_main_ui()
+        self.update()
+
+    def _build_main_ui(self):
+        """Build the main Intune Manager UI with tabs."""
         # Main Layout: Tabs
         self.packager_content = self._build_packager_tab()
         self.uploader_content = self._build_uploader_tab()
@@ -73,6 +103,8 @@ class ModernIntuneView(ft.Column, ViewMixin):
             self.tabs,
             self.tab_body
         ]
+        self.alignment = ft.MainAxisAlignment.START
+
 
     # --- Packager Tab ---
     def _build_packager_tab(self):
@@ -182,7 +214,8 @@ class ModernIntuneView(ft.Column, ViewMixin):
         # Connect Logic
         def connect(e):
             self.up_status.value = "Connecting..."
-            self.update()
+            if self.page:
+                self.update()
             def _bg():
                 try:
                     if not self.tenant_id or not self.client_id or not self.client_secret:

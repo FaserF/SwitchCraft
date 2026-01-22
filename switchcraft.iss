@@ -26,7 +26,7 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-AppPublisherURL={#MyAppURL}
+AppPublisherURL=https://switchcraft.fabiseitz.de/
 AppSupportURL={#MyAppURL}/issues
 AppUpdatesURL={#MyAppURL}/releases
 VersionInfoVersion={#MyAppVersionInfo}
@@ -155,14 +155,47 @@ begin
   end;
 end;
 
-// Write debug mode registry value based on command line param (for silent install)
+// Write debug mode registry value and force silent uninstall string
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  UninstallKey: String;
+  UninstallString: String;
+  RootKey: Integer;
 begin
   if CurStep = ssPostInstall then
   begin
+    // 1. Handle Debug Mode Registry
     if DebugModeParam then
     begin
       RegWriteDWordValue(HKEY_CURRENT_USER, 'Software\{#MyAppPublisher}\{#MyAppName}', 'DebugMode', 1);
+    end;
+
+    // 2. Force Silent Uninstall String
+    // Determine the correct registry root based on install mode
+    if IsAdminInstallMode then
+      RootKey := HKEY_LOCAL_MACHINE
+    else
+      RootKey := HKEY_CURRENT_USER;
+
+    // The key is AppId_is1. Note: Preprocessor handles {{ -> {
+    UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{F4A53RF0-5W1T-CH3R-AFTF-ASE3RF453RF0}_is1';
+
+    // Read existing UninstallString
+    if RegQueryStringValue(RootKey, UninstallKey, 'UninstallString', UninstallString) then
+    begin
+      // Check if flags are already present (avoid duplication)
+      if Pos('/VERYSILENT', UninstallString) = 0 then
+      begin
+        UninstallString := UninstallString + ' /VERYSILENT /SUPPRESSMSGBOXES /NORESTART';
+        if RegWriteStringValue(RootKey, UninstallKey, 'UninstallString', UninstallString) then
+        begin
+          Log('Successfully updated UninstallString to be silent.');
+        end
+        else
+        begin
+          Log('Failed to update UninstallString.');
+        end;
+      end;
     end;
   end;
 end;

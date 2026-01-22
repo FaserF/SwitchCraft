@@ -2,7 +2,6 @@ import flet as ft
 import logging
 import asyncio
 import inspect
-import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +28,11 @@ class ViewMixin:
                 try:
                     page = self.page
                 except (RuntimeError, AttributeError):
-                    logger.error(f"Cannot show error view: page not available")
+                    logger.error("Cannot show error view: page not available")
                     return
 
             if not page:
-                logger.error(f"Cannot show error view: page is None")
+                logger.error("Cannot show error view: page is None")
                 return
 
             # Get traceback from the exception object
@@ -114,10 +113,10 @@ class ViewMixin:
                 try:
                     page = self.page
                 except (RuntimeError, AttributeError):
-                    logger.warning(f"Failed to show snackbar: page not available (RuntimeError/AttributeError)")
+                    logger.warning("Failed to show snackbar: page not available (RuntimeError/AttributeError)")
                     return
             if not page:
-                logger.warning(f"Failed to show snackbar: page is None")
+                logger.warning("Failed to show snackbar: page is None")
                 return
 
             page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
@@ -226,7 +225,7 @@ class ViewMixin:
                             import asyncio
                             try:
                                 # Check if event loop is running
-                                loop = asyncio.get_running_loop()
+                                asyncio.get_running_loop()
                                 # If loop is running, schedule the coroutine
                                 asyncio.create_task(func())
                                 return True

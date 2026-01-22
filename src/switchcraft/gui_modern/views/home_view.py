@@ -51,42 +51,42 @@ class ModernHomeView(ft.Container):
                 "greeting_early_1", "greeting_early_2",
                 "greeting_early_3", "greeting_early_4", "greeting_early_5"
             ]
-            default_greetings = ["Good Morning", "Rise and shine!", "Early bird!", "Morning!", "Good start!"]
+            default_greetings = ["Good morning, {name}", "Rise and shine, {name}!", "Early bird, {name}!", "Morning, {name}!", "Good start, {name}!"]
         elif hour < 12:
             # Morning (8-11)
             greeting_keys = [
                 "greeting_morning_1", "greeting_morning_2",
                 "greeting_morning_3", "greeting_morning_4", "greeting_morning_5", "greeting_morning_6"
             ]
-            default_greetings = ["Good Morning", "Morning!", "Have a great morning!", "Good day ahead!", "Hello!", "Top of the morning!"]
+            default_greetings = ["Good morning, {name}", "Morning, {name}!", "Have a great morning, {name}!", "Good day ahead, {name}!", "Hello {name}!", "Top of the morning, {name}!"]
         elif hour < 13:
             # Noon (12)
             greeting_keys = [
                 "greeting_noon_1", "greeting_noon_2",
                 "greeting_noon_3", "greeting_noon_4"
             ]
-            default_greetings = ["Good Noon", "Lunch time!", "Midday!", "Halfway there!"]
+            default_greetings = ["Good noon, {name}", "Lunch time, {name}!", "Midday, {name}!", "Halfway there, {name}!"]
         elif hour < 15:
             # Early afternoon (13-14)
             greeting_keys = [
                 "greeting_early_afternoon_1", "greeting_early_afternoon_2",
                 "greeting_early_afternoon_3", "greeting_early_afternoon_4"
             ]
-            default_greetings = ["Good Afternoon", "Afternoon!", "Good day!", "Hello there!"]
+            default_greetings = ["Good afternoon, {name}", "Afternoon, {name}!", "Good day, {name}!", "Hello there, {name}!"]
         elif hour < 18:
             # Afternoon (15-17)
             greeting_keys = [
                 "greeting_afternoon_1", "greeting_afternoon_2",
                 "greeting_afternoon_3", "greeting_afternoon_4", "greeting_afternoon_5"
             ]
-            default_greetings = ["Good Afternoon", "Afternoon!", "Hope you're having a good day!", "Hello!", "Afternoon vibes!"]
+            default_greetings = ["Good afternoon, {name}", "Afternoon, {name}!", "Hope you're having a good day, {name}!", "Hello {name}!", "Afternoon vibes, {name}!"]
         elif hour < 21:
             # Evening (18-20)
             greeting_keys = [
                 "greeting_evening_1", "greeting_evening_2",
                 "greeting_evening_3", "greeting_evening_4", "greeting_evening_5"
             ]
-            default_greetings = ["Good Evening", "Evening!", "Good evening!", "Hello!", "Evening time!"]
+            default_greetings = ["Good evening, {name}", "Evening, {name}!", "Good evening, {name}!", "Hello {name}!", "Evening time, {name}!"]
         else:
             # Late evening / Night (21-23)
             greeting_keys = [
@@ -101,7 +101,8 @@ class ModernHomeView(ft.Container):
         greeting_key = greeting_keys[selected_index]
         default_greeting = default_greetings[selected_index]
 
-        greeting = i18n.get(greeting_key) or default_greeting
+        # Use the placeholder logic if possible
+        # We need to get the username first to pass it to i18n.get
 
         # Try to get display name from Windows (full name instead of login name)
         import os
@@ -123,6 +124,20 @@ class ModernHomeView(ft.Container):
         if not username:
             username = os.getenv("USERNAME") or os.getenv("USER") or i18n.get("default_user") or "User"
 
+        # Now get the greeting with the name
+        greeting = i18n.get(greeting_key, name=username)
+        # Handle fallback if the translation doesn't have the {name} placeholder yet or fails
+        if greeting == greeting_key or greeting == default_greeting:
+            if "{name}" in default_greeting:
+                greeting = default_greeting.format(name=username)
+            else:
+                greeting = f"{default_greeting}, {username}"
+        elif "{name}" not in greeting and username not in greeting:
+            # If the translated string doesn't contain the name and it's not the key itself,
+            # we should append the name to avoid "Hallo, User" issues if the key was just updated.
+            # But we want to avoid double name if the key ALREADY had it.
+            greeting = f"{greeting}, {username}"
+
         # Admin Privilege Check
         is_admin = False
         try:
@@ -139,7 +154,7 @@ class ModernHomeView(ft.Container):
 
         return ft.Column([
             # Header
-            ft.Text(f"{greeting}, {username}", size=32, weight=ft.FontWeight.BOLD, color="PRIMARY"),
+            ft.Text(f"{greeting}", size=32, weight=ft.FontWeight.BOLD, color="PRIMARY"),
             ft.Text(privilege_text, size=14, color="SECONDARY", weight=ft.FontWeight.W_500),
             ft.Text(subtitle, size=14, color="SECONDARY"),
 

@@ -28,7 +28,7 @@ class HoverSidebar(ft.Stack):
             (ft.Icons.DASHBOARD, i18n.get("cat_dashboard") or "Dashboard", [NavIndex.HOME, NavIndex.DASHBOARD]), # Home, Dashboard
             (ft.Icons.APPS, i18n.get("cat_apps_devices") or "Apps & Devices", [NavIndex.INTUNE, NavIndex.INTUNE_STORE, NavIndex.WINGET, NavIndex.LIBRARY, NavIndex.GROUP_MANAGER, NavIndex.EXCHANGE, NavIndex.STACK_MANAGER]), # Intune, Store, Winget, Library, Groups, Exchange, Stacks
             (ft.Icons.BUILD, i18n.get("cat_tools") or "Tools", [NavIndex.ANALYZER, NavIndex.HELPER, NavIndex.SCRIPTS, NavIndex.MACOS, NavIndex.PACKAGING_WIZARD, NavIndex.DETECTION_TESTER, NavIndex.WINGET_CREATE]), # Analyze, Generate, Scripts, MacOS, Wizard, Tester, WingetCreate
-            (ft.Icons.SETTINGS, i18n.get("cat_system") or "System", [NavIndex.SETTINGS, NavIndex.SETTINGS_UPDATES, NavIndex.SETTINGS_GRAPH, NavIndex.HISTORY, NavIndex.SETTINGS_HELP]), # Settings, Updates, Graph, History, Help
+            (ft.Icons.SETTINGS, i18n.get("cat_system") or "System", [NavIndex.SETTINGS, NavIndex.SETTINGS_UPDATES, NavIndex.SETTINGS_GRAPH, NavIndex.SETTINGS_POLICIES, NavIndex.HISTORY, NavIndex.SETTINGS_HELP]), # Settings, Updates, Graph, Policies, History, Help
         ]
 
         self.sidebar_column = ft.Column(

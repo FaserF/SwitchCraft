@@ -6,6 +6,7 @@ __pycache__/
 *.tmp
 *.bak
 *.swp
+*.txt
 
 # Distribution / Build
 build/
@@ -15,9 +16,12 @@ dist/
 !switchcraft_cli.spec
 !switchcraft_legacy.spec
 !switchcraft_modern.spec
+!file_version_info.txt
+!file_version_info_legacy.txt
 *.egg-info/
 var/
 bin/
+/src/switchcraft/assets/addons
 
 # PyInstaller
 *.manifest
@@ -41,39 +45,10 @@ auth.json
 
 # Local Tests
 ComSoft-Basic.exe
-test_output.txt
-out_debug.txt
-final_test_output.txt
-out_debug_nocolor.txt
-config_test_output.txt
-debug_suite.txt
 
 # SwitchCraft tools
 tools/
 *.exe
-test_results.txt
-log.txt
-smoke_retry*.txt
-smoke_out.txt
-winget_out.txt
-flake8_log.txt
-phase2_err.out
-addon_test_out.txt
-test_addons_result.txt
-test_out.txt
-test_phase_result.txt
-final_rep_123.result
-verification_output*.txt
-debug_output*.txt
-debug_crash*.txt
-config_output*.txt
-final_pass*.txt
-final_output*.txt
-refactor_results.txt
-refactor_v2.txt
-pytest_ci_fixes.txt
-i18n_results*.txt
-i18n_*_check.txt
 
 # Unit Test / Coverage
 .coverage
@@ -93,39 +68,18 @@ env/
 .venv/
 
 # SwitchCraft - Specific Runtime
-debug.log
-error.log
-*.tmp
 debug_pyinstaller.py
-run_log.txt
 debug_collection.py
-run_log_init.txt
-/src/switchcraft/assets/addons
-tabs_sig.txt
-test_*.txt
-*_test_*.txt
-linter_errors*.txt
-tests_*.txt
-*_tests_*.txt
-crash_dumps/crash_dump_20260113_234916.txt
 build_debug/switchcraft_modern/base_library.zip
 *.toc
 build_debug/switchcraft_modern/PYZ-00.pyz
 /build_debug
-i18n_output.txt
 inspect_tabs.py
-inspect_out.txt
 inspect_flet.py
-flet_inspect_2.py
-flet_inspect.py
+flet_inspect*.py
 fix_deprecations.py
-button_inspect.txt
 test_flet_controls.py
-test_tabs.py
-test_tabs_2.py
-pytest_out.txt
-mock_script.ps1
-test_output.ps1
+test_tabs*.py
 /docs/node_modules
 /docs/.vitepress
-full_run_output.txt
+SwitchCraft.ps1

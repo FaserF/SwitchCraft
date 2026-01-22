@@ -22,21 +22,60 @@ class IntuneService:
     TOOL_FILENAME = "IntuneWinAppUtil.exe"
 
     def __init__(self, tools_dir: str = None):
-        if tools_dir:
-            self.tools_dir = Path(tools_dir)
-        else:
-            # Default to a 'tools' directory in the user's home or app data
-            self.tools_dir = Path.home() / ".switchcraft" / "tools"
+        from switchcraft.utils.config import SwitchCraftConfig
 
-        self.tool_path = self.tools_dir / self.TOOL_FILENAME
+        # Check for custom path in config first
+        custom_path = SwitchCraftConfig.get_value("IntuneToolPath")
+        if custom_path and os.path.exists(custom_path):
+            p = Path(custom_path)
+            if p.is_file():
+                self.tool_path = p
+                self.tools_dir = p.parent
+            else:
+                self.tools_dir = p
+                self.tool_path = self.tools_dir / self.TOOL_FILENAME
+        else:
+            if tools_dir:
+                self.tools_dir = Path(tools_dir)
+            else:
+                # Default to a 'tools' directory in the user's home or app data
+                self.tools_dir = Path.home() / ".switchcraft" / "tools"
+            self.tool_path = self.tools_dir / self.TOOL_FILENAME
 
     def is_tool_available(self) -> bool:
         return self.tool_path.exists()
 
+    def get_tool_version(self) -> str:
+        """Returns the file version of the IntuneWinAppUtil.exe if available."""
+        if not self.tool_path.exists():
+            return None
+
+        try:
+            # PowerShell method to get file version (robust on Windows)
+            if os.name == 'nt':
+                cmd = f'(Get-Item "{self.tool_path}").VersionInfo.FileVersion'
+                result = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True)
+                if result.returncode == 0:
+                    ver = result.stdout.strip()
+                    if ver:
+                        return ver
+
+            # Fallback or Non-Windows (unlikely for this tool)
+            return "Unknown"
+        except Exception as e:
+            logger.warning(f"Failed to get tool version: {e}")
+            return "Error"
+
     def download_tool(self) -> bool:
         """Downloads the IntuneWinAppUtil.exe from Microsoft."""
         try:
+            # Always download to the calculated tools_dir (which might be custom or default)
             self.tools_dir.mkdir(parents=True, exist_ok=True)
+            # target_path = self.tools_dir / self.TOOL_FILENAME
+
+            # If the user configured a file path specifically, we should probably update THAT specific file
+            # But self.tool_path is already set to it.
+
             logger.info(f"Downloading IntuneWinAppUtil from {self.TOOL_URL}...")
 
             response = requests.get(self.TOOL_URL, stream=True, timeout=30)

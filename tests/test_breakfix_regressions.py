@@ -4,10 +4,9 @@ Regression tests for recent break-fixes:
 2. Addon Service: Manifest discovery (recursive, case-insensitive).
 """
 import pytest
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import MagicMock, patch
 import tempfile
 import zipfile
-import os
 import shutil
 from pathlib import Path
 import flet as ft

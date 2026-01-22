@@ -3,7 +3,7 @@ Tests for GitHub login functionality in Modern Settings View.
 """
 import pytest
 import flet as ft
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, patch
 import threading
 import time
 import os
@@ -30,8 +30,17 @@ except ImportError:
         page.update = MagicMock()
         page.snack_bar = MagicMock(spec=ft.SnackBar)
         page.snack_bar.open = False
-        def run_task(func):
-            func()
+        def run_task(func, *args, **kwargs):
+            import asyncio
+            import inspect
+            if inspect.iscoroutinefunction(func):
+                try:
+                    asyncio.get_running_loop()
+                    return asyncio.create_task(func(*args, **kwargs))
+                except RuntimeError:
+                    return asyncio.run(func(*args, **kwargs))
+            else:
+                return func(*args, **kwargs)
         page.run_task = run_task
         def mock_open(control):
             if isinstance(control, ft.AlertDialog):
@@ -72,6 +81,10 @@ def test_github_login_button_click_opens_dialog(mock_page, mock_auth_service):
     mock_auth_service.poll_for_token.side_effect = delayed_poll
 
     view = ModernSettingsView(mock_page)
+    # Manually trigger build phases
+    view.build()
+    if hasattr(view, '_build_cloud_sync_section'):
+        view._build_cloud_sync_section()
     mock_page.add(view)
 
     # Mock the page property to avoid RuntimeError
@@ -111,6 +124,10 @@ def test_github_login_shows_error_on_failure(mock_page, mock_auth_service):
     mock_auth_service.initiate_device_flow.return_value = None
 
     view = ModernSettingsView(mock_page)
+    # Manually trigger build phases
+    view.build()
+    if hasattr(view, '_build_cloud_sync_section'):
+        view._build_cloud_sync_section()
     mock_page.add(view)
 
     # Mock the page property to avoid RuntimeError
@@ -139,7 +156,6 @@ def test_github_login_shows_error_on_failure(mock_page, mock_auth_service):
 def test_github_login_success_saves_token(mock_page, mock_auth_service):
     """Test that successful GitHub login saves token and updates UI."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-    import threading
 
     # Skip in CI to avoid long waits
     if os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true':
@@ -158,6 +174,10 @@ def test_github_login_success_saves_token(mock_page, mock_auth_service):
     mock_auth_service.save_token = MagicMock()
 
     view = ModernSettingsView(mock_page)
+    # Manually trigger build phases
+    view.build()
+    if hasattr(view, '_build_cloud_sync_section'):
+        view._build_cloud_sync_section()
     mock_page.add(view)
 
     # Mock the page property to avoid RuntimeError

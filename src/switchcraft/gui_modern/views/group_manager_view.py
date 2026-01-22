@@ -401,9 +401,10 @@ class GroupManagerView(ft.Column, ViewMixin):
                     ])
                 except Exception as ex:
                     logger.error(f"Search failed: {ex}", exc_info=True)
+                    error_msg = f"Search failed: {ex}"
                     self._run_task_safe(lambda: [
                         setattr(self.list_container, 'disabled', False),
-                        self._show_snack(f"Search failed: {ex}", "RED"),
+                        self._show_snack(error_msg, "RED"),
                         self.update()
                     ])
 
@@ -486,7 +487,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                         logger.error(f"Failed to create group: {ex}", exc_info=True)
                         def show_error():
                             try:
-                                self._show_snack(f"Creation failed: {ex}", "RED")
+                                msg = f"Creation failed: {ex}"
+                                self._show_snack(msg, "RED")
                             except Exception:
                                 pass
                         self._run_task_safe(show_error)
@@ -553,7 +555,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                         logger.error(f"Failed to delete group: {ex}", exc_info=True)
                         def show_error():
                             try:
-                                self._show_snack(f"Deletion failed: {ex}", "RED")
+                                msg = f"Deletion failed: {ex}"
+                                self._show_snack(msg, "RED")
                             except Exception:
                                 pass
                         self._run_task_safe(show_error)
@@ -650,7 +653,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                 except Exception as ex:
                     logger.error(f"Failed to remove member {user_id} from group {group_id}: {ex}", exc_info=True)
                     # Marshal error UI update to main thread
-                    self._run_task_safe(lambda: self._show_snack(f"Failed to remove member: {ex}", "RED"))
+                    msg = f"Failed to remove member: {ex}"
+                    self._run_task_safe(lambda: self._show_snack(msg, "RED"))
             threading.Thread(target=_bg, daemon=True).start()
 
         def load_members():
@@ -658,8 +662,8 @@ class GroupManagerView(ft.Column, ViewMixin):
             try:
                 members_list.controls.clear()
                 members_list.controls.append(loading)
-                # Use _run_task_safe to ensure dialog is on page before updating
-                self._run_task_safe(lambda: dlg.update())
+                # Update page instead of dialog to avoid "Control must be added to page first" error
+                self._run_task_safe(lambda: self.app_page.update() if self.app_page else None)
             except Exception as ex:
                 logger.error(f"Error initializing members list: {ex}", exc_info=True)
 
@@ -697,14 +701,17 @@ class GroupManagerView(ft.Column, ViewMixin):
 
                     self._run_task_safe(update_ui)
                 except Exception as ex:
-                    logger.error(f"Error loading group members: {ex}", exc_info=True)
+                    import logging
+                    logging.getLogger(__name__).error(f"Error loading members: {ex}", exc_info=True)
                     def show_error():
                         try:
-                            members_list.controls.clear()
-                            error_tmpl = i18n.get("error_loading_members") or "Error loading members: {error}"
-                            members_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
-                            if self.app_page:
-                                self.app_page.update()
+                            if members_list:
+                                members_list.controls.clear()
+                                error_tmpl = i18n.get("error_loading_members") or "Error loading members: {error}"
+                                msg = error_tmpl.format(error=ex)
+                                members_list.controls.append(ft.Text(msg, color="RED"))
+                                if self.app_page:
+                                    self.app_page.update()
                         except Exception as ex2:
                             logger.error(f"Error showing error message in members dialog: {ex2}", exc_info=True)
                     self._run_task_safe(show_error)
@@ -763,10 +770,11 @@ class GroupManagerView(ft.Column, ViewMixin):
                         logger.error(f"Error searching users: {ex}", exc_info=True)
                         def show_error():
                             try:
-                                results_list.controls.clear()
-                                error_tmpl = i18n.get("error_search_failed") or "Search failed: {error}"
-                                results_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
-                                add_dlg.update()
+                                if results_list:
+                                    results_list.controls.clear()
+                                    error_tmpl = i18n.get("error_search_failed") or "Search failed: {error}"
+                                    results_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
+                                    add_dlg.update()
                             except Exception as ex2:
                                 logger.error(f"Error showing search error: {ex2}", exc_info=True)
                         self._run_task_safe(show_error)
@@ -790,7 +798,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                     except Exception as ex:
                         logger.error(f"Failed to add member {user_id} to group {group_id}: {ex}", exc_info=True)
                         # Marshal error UI update to main thread
-                        self._run_task_safe(lambda: self._show_snack(f"Failed to add member: {ex}", "RED"))
+                        msg = f"Failed to add member: {ex}"
+                        self._run_task_safe(lambda: self._show_snack(msg, "RED"))
                 threading.Thread(target=_bg, daemon=True).start()
 
             # Create dialog first so it can be referenced in nested functions

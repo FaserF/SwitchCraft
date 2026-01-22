@@ -1,5 +1,4 @@
 import flet as ft
-from flet_charts import BarChart, BarChartGroup, BarChartRod, ChartAxisLabel
 from switchcraft.services.history_service import HistoryService
 from switchcraft.utils.i18n import i18n
 from collections import defaultdict
@@ -217,15 +216,20 @@ class DashboardView(ft.Column):
 
 
         # Force update of all containers
+        # Force update of all containers
         try:
-            self.stats_row.update()
-            self.chart_container.update()
-            self.recent_container.update()
-            self.recent_container.update()
-            self.update()
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Failed to update dashboard UI: {e}", exc_info=True)
+            if self.page:
+                try:
+                    self.stats_row.update()
+                    self.chart_container.update()
+                    self.recent_container.update()
+                    self.update()
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Failed to update dashboard UI: {e}", exc_info=True)
+        except RuntimeError:
+            # Control not yet added to page, skip update
+            pass
 
 
     def _stat_card(self, label, value, icon, color):

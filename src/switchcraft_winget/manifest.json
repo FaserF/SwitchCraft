@@ -1,0 +1,7 @@
+{
+    "id": "winget",
+    "name": "Winget Integration",
+    "version": "1.0.0",
+    "author": "SwitchCraft Internal",
+    "description": "Integration with Windows Package Manager (Winget)."
+}

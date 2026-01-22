@@ -8,7 +8,6 @@ Simulates the user journey:
 """
 import pytest
 from unittest.mock import MagicMock, patch
-import flet as ft
 from conftest import poll_until, _create_mock_page
 
 def test_exchange_e2e_flow():

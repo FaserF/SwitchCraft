@@ -12,6 +12,7 @@ DESCRIPTION_MAP = {
     "Analyse": "desc_analyzer",
     "AI Helper": "desc_ai",
     "KI Helfer": "desc_ai",
+    "Exchange Online": "exchange_subtitle",
     "Intune Utility": "desc_intune",
     "Intune": "desc_intune",
     "Intune Store": "desc_intune_store",

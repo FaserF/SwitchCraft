@@ -4,8 +4,7 @@ This test ensures the button actually works when clicked in the UI.
 """
 import pytest
 import flet as ft
-from unittest.mock import MagicMock, patch, Mock
-import threading
+from unittest.mock import MagicMock, patch
 import time
 import os
 
@@ -53,7 +52,43 @@ except ImportError:
         page.snack_bar = MagicMock(spec=ft.SnackBar)
         page.snack_bar.open = False
         page.open = MagicMock()
-        page.run_task = lambda func: func()
+
+        # Proper run_task
+        def run_task(func, *args, **kwargs):
+            import asyncio
+            import inspect
+            if inspect.iscoroutinefunction(func):
+                try:
+                    asyncio.get_running_loop()
+                    return asyncio.create_task(func(*args, **kwargs))
+                except RuntimeError:
+                    return asyncio.run(func(*args, **kwargs))
+            else:
+                return func(*args, **kwargs)
+        page.run_task = run_task
+
+        # Proper add to recursively set page
+        def add(*controls):
+            import weakref
+            def set_structure_recursive(ctrl, parent):
+                try: ctrl._parent = weakref.ref(parent)
+                except Exception: pass
+
+                try: ctrl._page = page
+                except AttributeError: pass
+
+                if hasattr(ctrl, 'controls') and ctrl.controls:
+                    for child in ctrl.controls:
+                        set_structure_recursive(child, ctrl)
+                if hasattr(ctrl, 'content') and ctrl.content:
+                    set_structure_recursive(ctrl.content, ctrl)
+
+            for control in controls:
+                set_structure_recursive(control, page)
+
+            page.update()
+
+        page.add = add
         return page
 
 
@@ -69,6 +104,8 @@ def mock_auth_service():
             "expires_in": 900
         }
         mock_auth.initiate_device_flow.return_value = mock_flow
+        # Ensure we are not authenticated so login button is shown
+        mock_auth.is_authenticated.return_value = False
         # Mock poll_for_token with delay to keep dialog open during assertion
         def delayed_poll(*args, **kwargs):
             time.sleep(0.5)
@@ -84,6 +121,10 @@ def test_github_login_button_click_integration(mock_page, mock_auth_service):
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
     view = ModernSettingsView(mock_page)
+    # Manually trigger build logic and capture the resulting container
+    if hasattr(view, '_build_cloud_sync_section'):
+        content = view._build_cloud_sync_section()
+        mock_page.add(content)
     mock_page.add(view)
 
     # Ensure page has required attributes
@@ -128,6 +169,10 @@ def test_github_login_button_handler_wrapped(mock_page):
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
     view = ModernSettingsView(mock_page)
+    # Manually trigger build phases
+    view.build()
+    if hasattr(view, '_build_cloud_sync_section'):
+        view._build_cloud_sync_section()
     mock_page.add(view)
 
     # Verify button exists

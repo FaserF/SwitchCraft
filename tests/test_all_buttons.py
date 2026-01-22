@@ -4,11 +4,10 @@ This test systematically checks every button in every view.
 """
 import pytest
 import flet as ft
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import inspect
 import importlib
 import os
-import sys
 import asyncio
 
 # Import CI detection helper

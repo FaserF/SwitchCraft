@@ -71,7 +71,6 @@ class TestSettingsLanguage(unittest.TestCase):
     def test_language_switch_functionality(self):
         """Test that language switch actually changes language (Interaction Test)."""
         from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-        from switchcraft.utils.i18n import i18n
         import flet as ft
         import time
         from unittest.mock import MagicMock

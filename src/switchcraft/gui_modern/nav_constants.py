@@ -22,6 +22,7 @@ class NavIndex:
     SETTINGS_UPDATES = 1      # Settings tab index 1
     SETTINGS_GRAPH = 2        # Settings tab index 2
     SETTINGS_HELP = 3         # Settings tab index 3
+    SETTINGS_POLICIES = 21    # Settings tab index 4 (Policies)
 
     # === TOOLS & APPS ===
     WINGET = 4                # Apps (Winget Search)
@@ -63,6 +64,7 @@ NAV_CATEGORIES = {
     ],
     "System": [
         NavIndex.SETTINGS, NavIndex.SETTINGS_UPDATES,
-        NavIndex.SETTINGS_GRAPH, NavIndex.HISTORY, NavIndex.SETTINGS_HELP
+        NavIndex.SETTINGS_GRAPH, NavIndex.SETTINGS_POLICIES,
+        NavIndex.HISTORY, NavIndex.SETTINGS_HELP
     ]
 }

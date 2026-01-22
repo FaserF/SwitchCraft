@@ -669,4 +669,7 @@ def main(page: ft.Page):
         page.update()
 
 if __name__ == "__main__":
-    ft.app(target=main, assets_dir="assets")
+    if hasattr(ft, "run"):
+        ft.run(main)
+    else:
+        ft.app(target=main, assets_dir="assets")

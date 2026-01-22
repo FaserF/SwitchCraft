@@ -3,40 +3,12 @@ Tests for Winget Explorer app details display.
 """
 import pytest
 import flet as ft
-from unittest.mock import MagicMock, patch, Mock
-import threading
+from unittest.mock import MagicMock, patch
 import time
 import os
 
 # Import CI detection helper and shared fixtures/helpers
-try:
-    from conftest import is_ci_environment, skip_if_ci, poll_until, mock_page
-except ImportError:
-    # Fallback if conftest not available
-    def is_ci_environment():
-        return (
-            os.environ.get('CI') == 'true' or
-            os.environ.get('GITHUB_ACTIONS') == 'true' or
-            os.environ.get('GITHUB_RUN_ID') is not None
-        )
-    def skip_if_ci(reason="Test not suitable for CI environment"):
-        if is_ci_environment():
-            pytest.skip(reason)
-    def poll_until(condition, timeout=2.0, interval=0.05):
-        elapsed = 0.0
-        while elapsed < timeout:
-            if condition():
-                return True
-            time.sleep(interval)
-            elapsed += interval
-        return False
-    @pytest.fixture
-    def mock_page():
-        page = MagicMock(spec=ft.Page)
-        page.update = MagicMock()
-        page.run_task = lambda func: func()
-        type(page).page = property(lambda self: page)
-        return page
+from conftest import is_ci_environment, skip_if_ci, poll_until, mock_page
 
 
 @pytest.fixture

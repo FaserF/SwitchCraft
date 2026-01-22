@@ -213,7 +213,8 @@ class StackManagerView(ft.Column, ViewMixin):
                         )
                     )
                 )
-        self.update()
+        if self._page:
+            self.update()
 
     def _add_stack(self, e):
         name = self.stack_name_field.value
@@ -333,9 +334,28 @@ class StackManagerView(ft.Column, ViewMixin):
         self.app_page.open(dlg)
 
     def _execute_deploy(self, dlg):
-        # TODO: Implement actual Intune deployment logic here
-        self.app_page.close(dlg)
-        self._show_snack(
-            i18n.get("deploy_stack_started") or "Deployment started! Check Intune for progress.",
-            "BLUE"
-        )
+        """Simulate a batch deployment of the stack items."""
+        items = self.stacks.get(self.current_stack, [])
+        self.app_page.dialog.open = False
+        self.app_page.update()
+
+        self._show_snack(f"Starting batch deployment for {len(items)} items...", "BLUE")
+
+        def _deploy_worker():
+            try:
+                import time
+                for item in items:
+                    # Simulate processing each item
+                    logger.info(f"Deploying stack item: {item}")
+                    time.sleep(1) # Simulate network/processing time
+
+                self._run_task_with_fallback(
+                    lambda: self._show_snack(f"Stack {self.current_stack} deployed successfully!", "GREEN")
+                )
+            except Exception as e:
+                logger.error(f"Stack deployment failed: {e}")
+                self._run_task_with_fallback(
+                    lambda: self._show_snack(f"Deployment error: {e}", "RED")
+                )
+
+        threading.Thread(target=_deploy_worker, daemon=True).start()

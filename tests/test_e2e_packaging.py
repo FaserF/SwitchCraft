@@ -9,7 +9,6 @@ Simulates the user journey:
 """
 import pytest
 from unittest.mock import MagicMock, patch, PropertyMock
-import flet as ft
 from conftest import poll_until, _create_mock_page
 
 # Mock Dependencies

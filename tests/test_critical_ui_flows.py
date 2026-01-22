@@ -6,9 +6,7 @@ Tests for critical UI interaction features:
 """
 import pytest
 import flet as ft
-from unittest.mock import MagicMock, patch, Mock
-import threading
-import time
+from unittest.mock import MagicMock, patch
 import os
 import asyncio
 from conftest import poll_until
@@ -110,7 +108,6 @@ def test_github_login_opens_dialog(mock_page, mock_auth_service):
 def test_language_change_updates_ui(mock_page):
     """Test that language change actually updates the UI."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-    from switchcraft.utils.i18n import i18n
 
     view = ModernSettingsView(mock_page)
     mock_page.add(view)

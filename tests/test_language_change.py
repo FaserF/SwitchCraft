@@ -1,8 +1,6 @@
 """
 Tests for language change functionality in settings.
 """
-import pytest
-import flet as ft
 from unittest.mock import MagicMock, patch
 
 
@@ -32,7 +30,6 @@ def test_language_change_updates_config(mock_page):
 def test_language_change_shows_restart_dialog_content(mock_page):
     """Test that language change restart dialog has correct content."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-    from switchcraft.utils.i18n import i18n
 
     view = ModernSettingsView(mock_page)
     view._page = mock_page

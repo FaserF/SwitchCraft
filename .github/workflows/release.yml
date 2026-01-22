@@ -67,6 +67,12 @@ jobs:
           # Update file_version_info.txt
           python .github/scripts/update_version_info.py "$VERSION"
 
+          # Update Addon Manifests
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_advanced/manifest.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_ai/manifest.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_winget/manifest.json
+
+
           # Update .iss files (Inno Setup installer scripts)
           # Extract numeric version only (remove .dev0, +build, etc.) for VersionInfoVersion
           BASE_VERSION=$(echo "$VERSION" | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
@@ -119,7 +125,8 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft.iss switchcraft_legacy.iss
+          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft.iss switchcraft_legacy.iss src/switchcraft_advanced/manifest.json src/switchcraft_ai/manifest.json src/switchcraft_winget/manifest.json
+
 
           # Only commit if there are changes
           if ! git diff --cached --quiet; then
@@ -358,7 +365,10 @@ jobs:
 
       - name: Lowercase Repository Owner
         id: owner
-        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
+        run: |
+          owner=${GITHUB_REPOSITORY_OWNER,,}
+          echo "owner=$owner" >> $GITHUB_OUTPUT
+        shell: bash
 
       - name: Build and push
         uses: docker/build-push-action@v6

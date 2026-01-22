@@ -6,9 +6,7 @@ Tests for critical UI interaction features:
 """
 import pytest
 import flet as ft
-from unittest.mock import MagicMock, patch, Mock
-import threading
-import time
+from unittest.mock import MagicMock, patch
 import os
 
 # Import shared fixtures and helpers from conftest
@@ -44,6 +42,10 @@ def test_github_login_opens_dialog(mock_page, mock_auth_service):
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
     view = ModernSettingsView(mock_page)
+    # Manually trigger build phases
+    view.build()
+    if hasattr(view, '_build_cloud_sync_section'):
+        view._build_cloud_sync_section()
     mock_page.add(view)
 
     # Skip in CI to avoid long waits
@@ -72,9 +74,12 @@ def test_github_login_opens_dialog(mock_page, mock_auth_service):
 def test_language_change_updates_ui(mock_page):
     """Test that language change actually updates the UI."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-    from switchcraft.utils.i18n import i18n
 
     view = ModernSettingsView(mock_page)
+    # Manually trigger build phases
+    view.build()
+    if hasattr(view, '_build_cloud_sync_section'):
+        view._build_cloud_sync_section()
     mock_page.add(view)
 
     # Get the language dropdown from the general tab
@@ -163,6 +168,10 @@ def test_language_dropdown_handler_exists(mock_page):
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
     view = ModernSettingsView(mock_page)
+    # Manually trigger build phases
+    view.build()
+    if hasattr(view, '_build_cloud_sync_section'):
+        view._build_cloud_sync_section()
     mock_page.add(view)
 
     # Get the language dropdown - search recursively
@@ -194,6 +203,10 @@ def test_github_login_button_exists(mock_page):
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
     view = ModernSettingsView(mock_page)
+    # Manually trigger build phases
+    view.build()
+    if hasattr(view, '_build_cloud_sync_section'):
+        view._build_cloud_sync_section()
     mock_page.add(view)
 
     # Get the login button from cloud sync section

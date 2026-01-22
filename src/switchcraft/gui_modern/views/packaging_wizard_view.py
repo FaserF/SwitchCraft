@@ -872,7 +872,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         def _update_status(msg):
             # Hacky way to update dialog content if we don't have ref
             self.autopilot_dlg.content.controls[1].value = msg
-            self.autopilot_dlg.update()
+            if self.autopilot_dlg._page:
+                self.autopilot_dlg.update()
 
         def _bg():
             try:
@@ -970,7 +971,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                      self.autopilot_dlg.title = ft.Text("Magic Failed 💀")
                      _update_status(f"Error: {ex}")
                      self.autopilot_dlg.actions = [ft.TextButton("Close", on_click=lambda e: self._close_autopilot())]
-                     self.autopilot_dlg.update()
+                     if self.autopilot_dlg._page:
+                        self.autopilot_dlg.update()
                 logger.error(f"Autopilot error: {ex}")
 
         threading.Thread(target=_bg, daemon=True).start()

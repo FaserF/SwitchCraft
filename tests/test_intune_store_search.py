@@ -3,7 +3,7 @@ Tests for Intune Store search functionality with timeout handling.
 """
 import pytest
 import flet as ft
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, patch
 import threading
 import time
 import requests
@@ -35,7 +35,18 @@ except ImportError:
     def mock_page():
         page = MagicMock(spec=ft.Page)
         page.update = MagicMock()
-        page.run_task = lambda func: func()
+        def run_task(func, *args, **kwargs):
+            import asyncio
+            import inspect
+            if inspect.iscoroutinefunction(func):
+                try:
+                    asyncio.get_running_loop()
+                    return asyncio.create_task(func(*args, **kwargs))
+                except RuntimeError:
+                    return asyncio.run(func(*args, **kwargs))
+            else:
+                return func(*args, **kwargs)
+        page.run_task = run_task
         type(page).page = property(lambda self: page)
         return page
 
@@ -242,14 +253,14 @@ def test_intune_search_timeout_mechanism(mock_page, mock_intune_service):
 
         assert poll_until(search_started_check, timeout=2.0), "Search should start within timeout"
 
-        # Wait for timeout handling using polling
+        # Wait for timeout handling using polling - Increased timeout to handle view's internal 1s delay
         def timeout_error_shown():
             return len(error_calls) > 0 and any(
                 "timeout" in str(msg).lower() or "60 seconds" in str(msg)
                 for msg in error_calls
             )
 
-        assert poll_until(timeout_error_shown, timeout=2.0), \
+        assert poll_until(timeout_error_shown, timeout=3.0), \
             f"Timeout error should be shown within timeout. Got: {error_calls}"
 
         # Verify that timeout error was shown

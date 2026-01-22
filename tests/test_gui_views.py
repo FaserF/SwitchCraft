@@ -54,7 +54,6 @@ def test_instantiate_analyzer_view(page):
 def test_dialog_opening_safety(page):
     """Test that dialogs can be opened safely without 'Control must be added to page first' errors."""
     from switchcraft.gui_modern.utils.view_utils import ViewMixin
-    from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
 
     # Create a mock view that uses ViewMixin
     class TestView(ft.Column, ViewMixin):

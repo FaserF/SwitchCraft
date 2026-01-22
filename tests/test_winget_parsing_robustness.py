@@ -1,4 +1,3 @@
-import pytest
 from switchcraft_winget.utils.winget import WingetHelper
 
 # Sample outputs based on real Winget CLI behavior

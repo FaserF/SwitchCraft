@@ -28,16 +28,16 @@ VSVersionInfo(
     StringFileInfo(
       [
       StringTable(
-        u'040904B0',
-        [StringStruct(u'CompanyName', u'FaserF'),
-        StringStruct(u'FileDescription', u'SwitchCraft - Advanced Silent Switch & Packaging Tool'),
-        StringStruct(u'FileVersion', u'2026.1.4.0'),
-        StringStruct(u'InternalName', u'SwitchCraft'),
-        StringStruct(u'LegalCopyright', u'Copyright (c) 2026 FaserF'),
-        StringStruct(u'OriginalFilename', u'SwitchCraft.exe'),
-        StringStruct(u'ProductName', u'SwitchCraft'),
-        StringStruct(u'ProductVersion', u'2026.1.4.0')])
+        '040904B0',
+        [StringStruct('CompanyName', 'FaserF'),
+        StringStruct('FileDescription', 'SwitchCraft - Advanced Silent Switch & Packaging Tool'),
+        StringStruct('FileVersion', '2026.1.4.0'),
+        StringStruct('InternalName', 'SwitchCraft'),
+        StringStruct('LegalCopyright', 'Copyright (c) 2026 FaserF'),
+        StringStruct('OriginalFilename', 'SwitchCraft.exe'),
+        StringStruct('ProductName', 'SwitchCraft'),
+        StringStruct('ProductVersion', '2026.1.4.0')])
       ]),
-    VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])
   ]
 )
