@@ -37,8 +37,8 @@ class ExchangeView(ft.Column, ViewMixin):
                             size=16, color="GREY_400", text_align=ft.TextAlign.CENTER
                         ),
                         ft.Container(height=20),
-                        ft.Button(
-                            i18n.get("tab_settings") or "Go to Settings",
+                        ft.ElevatedButton(
+                            text=i18n.get("tab_settings") or "Go to Settings",
                             icon=ft.Icons.SETTINGS,
                             on_click=self._go_to_settings
                         )
@@ -258,7 +258,7 @@ class ExchangeView(ft.Column, ViewMixin):
             self.oof_status,
             self.oof_internal,
             self.oof_external,
-            ft.Button(i18n.get("ex_btn_save_oof") or "Save", icon=ft.Icons.SAVE, on_click=self._save_oof_data)
+            ft.ElevatedButton(text=i18n.get("ex_btn_save_oof") or "Save", icon=ft.Icons.SAVE, on_click=self._save_oof_data)
         ], scroll=ft.ScrollMode.AUTO, expand=True)
 
     def _load_oof_data(self):
@@ -318,7 +318,7 @@ class ExchangeView(ft.Column, ViewMixin):
                 border_radius=10,
                 padding=10
             ),
-            ft.Button(i18n.get("ex_add_delegate") or "Add Delegate", icon=ft.Icons.ADD, disabled=True)
+            ft.ElevatedButton(text=i18n.get("ex_add_delegate") or "Add Delegate", icon=ft.Icons.ADD, disabled=True)
         ], scroll=ft.ScrollMode.AUTO, expand=True)
 
     def _load_delegation_data(self):

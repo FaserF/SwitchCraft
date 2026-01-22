@@ -40,7 +40,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         self.nav_row = ft.Row(scroll=ft.ScrollMode.AUTO, height=50)
         for i, (name, icon, func) in enumerate(self.tab_defs):
-            btn = ft.Button(
+            btn = ft.ElevatedButton(
                 content=ft.Row([ft.Icon(icon), ft.Text(name)]),
                 on_click=lambda e, f=func: self._switch_tab(f),
                 style=ft.ButtonStyle(
@@ -215,8 +215,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
         ai_config = self._build_ai_config_section()
 
         # Export/Import buttons
-        btn_export = ft.Button(i18n.get("btn_export_settings") or "Export Settings", icon=ft.Icons.UPLOAD_FILE, on_click=self._export_settings)
-        btn_import = ft.Button(i18n.get("btn_import_settings") or "Import Settings", icon=ft.Icons.FILE_DOWNLOAD, on_click=self._import_settings)
+        btn_export = ft.ElevatedButton(text=i18n.get("btn_export_settings") or "Export Settings", icon=ft.Icons.UPLOAD_FILE, on_click=self._export_settings)
+        btn_import = ft.ElevatedButton(text=i18n.get("btn_import_settings") or "Import Settings", icon=ft.Icons.FILE_DOWNLOAD, on_click=self._import_settings)
         export_row = ft.Row([btn_export, btn_import])
 
         return ft.ListView(
@@ -232,7 +232,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ai_config,
                 ft.Divider(),
                 ft.Row([
-                    ft.Button("Test Notification", icon=ft.Icons.NOTIFICATIONS_ACTIVE, on_click=self._send_test_notification),
+                    ft.ElevatedButton(text="Test Notification", icon=ft.Icons.NOTIFICATIONS_ACTIVE, on_click=self._send_test_notification),
                     export_row
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
             ],
@@ -274,8 +274,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ])
             )
 
-            logout_btn = ft.Button(
-                i18n.get("btn_logout") or "Logout",
+            logout_btn = ft.ElevatedButton(
+                text=i18n.get("btn_logout") or "Logout",
                 icon=ft.Icons.LOGOUT,
                 on_click=self._logout_github,
                 bgcolor="RED_900" if hasattr(getattr(ft, "colors", None), "RED_900") else "RED",
@@ -283,8 +283,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
             )
 
             sync_controls = ft.Row([
-                ft.Button(i18n.get("btn_sync_up") or "Sync Up", icon=ft.Icons.CLOUD_UPLOAD, on_click=self._sync_up),
-                ft.Button(i18n.get("btn_sync_down") or "Sync Down", icon=ft.Icons.CLOUD_DOWNLOAD, on_click=self._sync_down),
+                ft.ElevatedButton(text=i18n.get("btn_sync_up") or "Sync Up", icon=ft.Icons.CLOUD_UPLOAD, on_click=self._sync_up),
+                ft.ElevatedButton(text=i18n.get("btn_sync_down") or "Sync Down", icon=ft.Icons.CLOUD_DOWNLOAD, on_click=self._sync_down),
                 logout_btn
             ])
             self.sync_section_container.controls.append(sync_controls)
@@ -364,7 +364,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self.changelog_text = ft.Markdown(initial_changelog)
         self.latest_version_text = ft.Text(initial_latest)
 
-        check_btn = ft.Button(i18n.get("check_updates") or "Check for Updates", icon=ft.Icons.REFRESH, on_click=self._check_updates)
+        check_btn = ft.ElevatedButton(text=i18n.get("check_updates") or "Check for Updates", icon=ft.Icons.REFRESH, on_click=self._check_updates)
 
         return ft.ListView(
             controls=[
@@ -420,9 +420,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
             visible=bool(saved_thumb),
             icon_size=18
         )
-        cert_auto_btn = ft.Button(i18n.get("btn_auto_detect_cert") or "Auto-Detect", icon=ft.Icons.SEARCH, on_click=self._auto_detect_signing_cert)
-        cert_browse_btn = ft.Button(i18n.get("btn_browse_cert") or "Browse .pfx", icon=ft.Icons.FOLDER_OPEN, on_click=self._browse_signing_cert)
-        cert_reset_btn = ft.Button(i18n.get("btn_reset") or "Reset", icon=ft.Icons.DELETE, bgcolor="RED_900" if hasattr(getattr(ft, "colors", None), "RED_900") else "RED", on_click=self._reset_signing_cert)
+        cert_auto_btn = ft.ElevatedButton(text=i18n.get("btn_auto_detect_cert") or "Auto-Detect", icon=ft.Icons.SEARCH, on_click=self._auto_detect_signing_cert)
+        cert_browse_btn = ft.ElevatedButton(text=i18n.get("btn_browse_cert") or "Browse .pfx", icon=ft.Icons.FOLDER_OPEN, on_click=self._browse_signing_cert)
+        cert_reset_btn = ft.ElevatedButton(text=i18n.get("btn_reset") or "Reset", icon=ft.Icons.DELETE, bgcolor="RED_900" if hasattr(getattr(ft, "colors", None), "RED_900") else "RED", on_click=self._reset_signing_cert)
 
         # Paths Section
         git_path = ft.TextField(
@@ -458,12 +458,27 @@ class ModernSettingsView(ft.Column, ViewMixin):
         intune_config_row = ft.Row([intune_tool_ctrl, intune_browse_btn])
         intune_ver_text = ft.Text(f"Detected Tool Version: {tool_ver}", size=12, color="GREEN" if tool_ver != "Not detected" else "ORANGE")
 
+        # New Toggle for Show Console
+        show_console_sw = ft.Switch(
+            label="Show Intune Console (Debug)",
+            value=bool(SwitchCraftConfig.get_value("ShowIntuneConsole", False)),
+            tooltip="Enable this if package creation fails silently. Shows the CMD window during execution."
+        )
+        show_console_sw.on_change = lambda e: SwitchCraftConfig.set_user_preference("ShowIntuneConsole", e.control.value)
+
+        # Combine version and toggle in a row
+        intune_options_row = ft.Row([
+            intune_ver_text,
+            ft.Container(width=20), # spacer
+            show_console_sw
+        ])
+
 
         # Template Section
         template_display = SwitchCraftConfig.get_value("CustomTemplatePath", "") or (i18n.get("template_default") or "(Default)")
         self.template_status_text = ft.Text(template_display, color="ON_SURFACE_VARIANT" if "(Default)" in template_display else "GREEN")
-        template_browse_btn = ft.Button(i18n.get("btn_browse") or "Browse", icon=ft.Icons.FOLDER_OPEN, on_click=self._browse_template)
-        template_reset_btn = ft.Button(i18n.get("btn_reset") or "Reset", icon=ft.Icons.REFRESH, on_click=self._reset_template)
+        template_browse_btn = ft.ElevatedButton(text=i18n.get("btn_browse") or "Browse", icon=ft.Icons.FOLDER_OPEN, on_click=self._browse_template)
+        template_reset_btn = ft.ElevatedButton(text=i18n.get("btn_reset") or "Reset", icon=ft.Icons.REFRESH, on_click=self._reset_template)
 
         # Intune API Section
         tenant = ft.TextField(label=i18n.get("settings_entra_tenant") or "Entra Tenant ID", value=str(SwitchCraftConfig.get_value("GraphTenantId", "")))
@@ -481,7 +496,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self.raw_client_field = client
         self.raw_secret_field = secret
 
-        test_btn = ft.Button("Test Connection", icon=ft.Icons.CHECK_CIRCLE, on_click=self._test_graph_connection)
+        test_btn = ft.ElevatedButton(text="Test Connection", icon=ft.Icons.CHECK_CIRCLE, on_click=self._test_graph_connection)
         self.test_conn_res = ft.Text("", size=12)
 
         return ft.ListView(
@@ -511,7 +526,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.Container(height=10),
                 ft.Text("IntuneWinAppUtil Configuration", weight=ft.FontWeight.BOLD),
                 intune_config_row,
-                intune_ver_text,
+                intune_options_row,
                 ft.Divider(),
 
                 ft.Text(i18n.get("settings_hdr_template") or "PowerShell Template", size=18, color="BLUE"),
@@ -541,12 +556,12 @@ class ModernSettingsView(ft.Column, ViewMixin):
             ft.ListView: A ListView containing the assembled controls for the Help & Resources tab.
         """
         links = ft.Row([
-            ft.Button(i18n.get("help_github_repo") or "GitHub Repo", icon=ft.Icons.CODE, url="https://github.com/FaserF/SwitchCraft"),
-            ft.Button(i18n.get("help_report_issue") or "Report Issue", icon=ft.Icons.BUG_REPORT, url="https://github.com/FaserF/SwitchCraft/issues"),
-            ft.Button(i18n.get("help_documentation") or "Documentation", icon=ft.Icons.BOOK, url="https://switchcraft.fabiseitz.de"),
+            ft.ElevatedButton(text=i18n.get("help_github_repo") or "GitHub Repo", icon=ft.Icons.CODE, url="https://github.com/FaserF/SwitchCraft"),
+            ft.ElevatedButton(text=i18n.get("help_report_issue") or "Report Issue", icon=ft.Icons.BUG_REPORT, url="https://github.com/FaserF/SwitchCraft/issues"),
+            ft.ElevatedButton(text=i18n.get("help_documentation") or "Documentation", icon=ft.Icons.BOOK, url="https://switchcraft.fabiseitz.de"),
         ])
 
-        logs_btn = ft.Button(i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs)
+        logs_btn = ft.ElevatedButton(text=i18n.get("help_export_logs") or "Export Logs", icon=ft.Icons.DOWNLOAD, on_click=self._export_logs)
 
         # Debug Toggle
         debug_sw = ft.Switch(
@@ -595,8 +610,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 logger.exception(f"Error opening issue reporter: {ex}")
                 self._show_snack(f"{i18n.get('issue_reporter_failed') or 'Failed to open issue reporter'}: {ex}", "RED")
 
-        issue_btn = ft.Button(
-            i18n.get("help_report_issue_prefilled") or "Report Issue (with Logs)",
+        issue_btn = ft.ElevatedButton(
+            text=i18n.get("help_report_issue_prefilled") or "Report Issue (with Logs)",
             icon=ft.Icons.BUG_REPORT,
             bgcolor="GREY_800",
             on_click=open_issue_reporter
@@ -621,8 +636,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
             self.debug_log_text.visible = self.debug_console_visible
             self.update()
 
-        debug_toggle_btn = ft.Button(
-            i18n.get("show_debug_console") or "Show Debug Console",
+        debug_toggle_btn = ft.ElevatedButton(
+            text=i18n.get("show_debug_console") or "Show Debug Console",
             icon=ft.Icons.TERMINAL,
             on_click=toggle_debug_console
         )
@@ -638,8 +653,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
             content=ft.Column([
                 ft.Text(i18n.get("help_danger_zone") or "Danger Zone", color="RED", weight=ft.FontWeight.BOLD),
                 ft.Text(i18n.get("help_danger_zone_desc") or "Irreversible actions. Proceed with caution.", color="ON_SURFACE_VARIANT", size=12),
-                ft.Button(
-                    i18n.get("help_factory_reset") or "Factory Reset (Delete All Data)",
+                ft.ElevatedButton(
+                    text=i18n.get("help_factory_reset") or "Factory Reset (Delete All Data)",
                     icon=ft.Icons.DELETE_FOREVER,
                     bgcolor="RED_900" if hasattr(getattr(ft, "colors", None), "RED_900") else "RED",
                     color="WHITE",
@@ -1413,15 +1428,15 @@ class ModernSettingsView(ft.Column, ViewMixin):
             rows.append(element)
 
         # Custom upload button
-        upload_btn = ft.Button(
-            i18n.get("btn_upload_custom_addon") or "Upload Custom Addon (.zip)",
+        upload_btn = ft.ElevatedButton(
+            text=i18n.get("btn_upload_custom_addon") or "Upload Custom Addon (.zip)",
             icon=ft.Icons.UPLOAD_FILE,
             on_click=self._upload_custom_addon
         )
 
         # Import from URL button
-        url_import_btn = ft.Button(
-            i18n.get("btn_import_addon_url") or "Import from URL",
+        url_import_btn = ft.ElevatedButton(
+            text=i18n.get("btn_import_addon_url") or "Import from URL",
             icon=ft.Icons.LINK,
             on_click=self._import_addon_from_url
         )
@@ -1442,8 +1457,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
             color="GREEN" if is_installed else "ORANGE"
         )
 
-        install_btn = ft.Button(
-            i18n.get("btn_install") or "Install" if not is_installed else i18n.get("btn_reinstall") or "Reinstall",
+        install_btn = ft.ElevatedButton(
+            text=i18n.get("btn_install") or "Install" if not is_installed else i18n.get("btn_reinstall") or "Reinstall",
             icon=ft.Icons.DOWNLOAD,
             on_click=lambda e, aid=addon["id"]: self._install_addon_click(aid),
             disabled=False
@@ -1809,7 +1824,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
             ], tight=True, height=120),
             actions=[
                 ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=cancel),
-                ft.Button(i18n.get("btn_import") or "Import", on_click=do_import, bgcolor="GREEN")
+                ft.ElevatedButton(text=i18n.get("btn_import") or "Import", on_click=do_import, bgcolor="GREEN")
             ],
             actions_alignment=ft.MainAxisAlignment.END
         )

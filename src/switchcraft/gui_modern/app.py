@@ -765,7 +765,7 @@ class ModernApp:
 
                             dlg.actions.clear()
                             dlg.actions.append(ft.TextButton("No, thanks", on_click=close_wizard))
-                            dlg.actions.append(ft.Button("Install Optional", on_click=install_optional))
+                            dlg.actions.append(ft.ElevatedButton(text="Install Optional", on_click=install_optional))
                         else:
                             content.controls.append(ft.Text(i18n.get("failed_install_base", msg=msg) or f"Failed to install base: {msg}", color="RED"))
                             dlg.actions.clear()
@@ -799,7 +799,7 @@ class ModernApp:
             content=content,
             actions=[
                 ft.TextButton("Skip", on_click=close_wizard),
-                ft.Button("Install Essential", on_click=start_setup)
+                ft.ElevatedButton(text="Install Essential", on_click=start_setup)
             ],
             modal=True,
         )
@@ -1850,8 +1850,8 @@ class ModernApp:
                         ], tight=True),
                         actions=[
                             ft.TextButton(i18n.get("btn_later") or "Later", on_click=skip_demo),
-                            ft.Button(
-                                "Start Demo",
+                            ft.ElevatedButton(
+                                text="Start Demo",
                                 on_click=start_demo,
                                 bgcolor="BLUE_700",
                                 color="WHITE"
@@ -1938,7 +1938,7 @@ class ModernApp:
                         content=ft.Text(i18n.get("demo_ask_download", error=error_msg) or f"Could not download demo installer.\nError: {error_msg}\n\nOpen download page instead?"),
                         actions=[
                             ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda e: setattr(dlg, "open", False) or self.page.update()),
-                            ft.Button("Open Download Page", on_click=open_download, bgcolor="BLUE_700", color="WHITE"),
+                            ft.ElevatedButton(text="Open Download Page", on_click=open_download, bgcolor="BLUE_700", color="WHITE"),
                         ]
                     )
                     self.page.open(dlg)

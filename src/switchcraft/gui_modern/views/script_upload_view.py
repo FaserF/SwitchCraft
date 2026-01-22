@@ -115,8 +115,8 @@ class ScriptUploadView(ft.Column, ViewMixin):
             min_lines=2,
             border_radius=8
         )
-        self.ps_file_btn = ft.Button(
-            i18n.get("select_script_file") or "Select Script (.ps1)...",
+        self.ps_file_btn = ft.ElevatedButton(
+            text=i18n.get("select_script_file") or "Select Script (.ps1)...",
             icon=ft.Icons.FILE_OPEN,
             on_click=lambda _: self.ps_picker.pick_files(allowed_extensions=["ps1"])
         )
@@ -134,8 +134,8 @@ class ScriptUploadView(ft.Column, ViewMixin):
             value="system",
             width=200
         )
-        self.ps_btn_upload = ft.Button(
-            i18n.get("upload_script") or "Upload Script",
+        self.ps_btn_upload = ft.ElevatedButton(
+            text=i18n.get("upload_script") or "Upload Script",
             icon=ft.Icons.CLOUD_UPLOAD,
             bgcolor="BLUE_700",
             color="WHITE",
@@ -247,8 +247,8 @@ class ScriptUploadView(ft.Column, ViewMixin):
             border_radius=8
         )
 
-        self.det_file_btn = ft.Button(
-            i18n.get("select_detection_script") or "Select Detection (.ps1)...",
+        self.det_file_btn = ft.ElevatedButton(
+            text=i18n.get("select_detection_script") or "Select Detection (.ps1)...",
             icon=ft.Icons.SEARCH,
             on_click=lambda _: self.det_picker.pick_files(allowed_extensions=["ps1"])
         )
@@ -258,8 +258,8 @@ class ScriptUploadView(ft.Column, ViewMixin):
             color="GREY_500"
         )
 
-        self.rem_file_btn = ft.Button(
-            i18n.get("select_remediation_script") or "Select Remediation (.ps1)...",
+        self.rem_file_btn = ft.ElevatedButton(
+            text=i18n.get("select_remediation_script") or "Select Remediation (.ps1)...",
             icon=ft.Icons.HEALING,
             on_click=lambda _: self.rem_picker.pick_files(allowed_extensions=["ps1"])
         )
@@ -278,8 +278,8 @@ class ScriptUploadView(ft.Column, ViewMixin):
             value="system",
             width=200
         )
-        self.rem_btn_upload = ft.Button(
-            i18n.get("upload_remediation") or "Upload Remediation",
+        self.rem_btn_upload = ft.ElevatedButton(
+            text=i18n.get("upload_remediation") or "Upload Remediation",
             icon=ft.Icons.CLOUD_UPLOAD,
             bgcolor="BLUE_700",
             color="WHITE",
@@ -435,8 +435,8 @@ class ScriptUploadView(ft.Column, ViewMixin):
                 self.github_pat,
                 ft.Row([
                     self.github_path,
-                    ft.Button(
-                        i18n.get("browse_repo") or "Browse Repo",
+                    ft.ElevatedButton(
+                        text=i18n.get("browse_repo") or "Browse Repo",
                         icon=ft.Icons.FOLDER_OPEN,
                         on_click=self._browse_github_repo
                     )
@@ -451,13 +451,13 @@ class ScriptUploadView(ft.Column, ViewMixin):
                 ),
                 ft.Container(height=10),
                 ft.Row([
-                    ft.Button(
-                        i18n.get("import_selected") or "Import Selected",
+                    ft.ElevatedButton(
+                        text=i18n.get("import_selected") or "Import Selected",
                         icon=ft.Icons.DOWNLOAD,
                         on_click=self._import_github_scripts
                     ),
-                    ft.Button(
-                        i18n.get("deploy_to_intune") or "Deploy to Intune",
+                    ft.ElevatedButton(
+                        text=i18n.get("deploy_to_intune") or "Deploy to Intune",
                         icon=ft.Icons.CLOUD_UPLOAD,
                         bgcolor="BLUE_700",
                         color="WHITE",

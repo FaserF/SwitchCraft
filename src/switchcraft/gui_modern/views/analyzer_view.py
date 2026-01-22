@@ -147,8 +147,8 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 ft.Container(height=10),
                 ft.Row([
                     self.url_field,
-                    ft.Button(
-                        i18n.get("download_and_analyze") or "Download & Analyze",
+                    ft.ElevatedButton(
+                        text=i18n.get("download_and_analyze") or "Download & Analyze",
                         icon=ft.Icons.DOWNLOAD,
                         on_click=self._start_url_download
                     )
@@ -315,8 +315,8 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                         ft.Text(i18n.get("analyzer_addon_warning") or "Advanced Analysis Addon is missing!", weight=ft.FontWeight.BOLD, color="WHITE"),
                         ft.Text("Standard detection will be limited.", size=12, color="WHITE70"),
                     ], expand=True),
-                    ft.Button(
-                        i18n.get("analyzer_addon_install") or "Install Now",
+                    ft.ElevatedButton(
+                        text=i18n.get("analyzer_addon_install") or "Install Now",
                         color="WHITE",
                         bgcolor="RED_700",
                         on_click=self._install_advanced_addon
@@ -536,9 +536,9 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         # 7. Deployment Actions (Intune, IntuneWin)
         self.results_column.controls.append(
             ft.Row([
-                ft.Button(i18n.get("generate_intune_script") or "Generate Intune Script", icon=ft.Icons.CODE, on_click=self._on_click_create_script),
-                ft.Button(i18n.get("btn_create_intunewin") or "Create .intunewin", icon=ft.Icons.INVENTORY, on_click=self._on_click_create_intunewin),
-                ft.Button(i18n.get("btn_manual_cmds") or "Manual Commands", icon=ft.Icons.TERMINAL, on_click=self._show_manual_cmds),
+                ft.ElevatedButton(text=i18n.get("generate_intune_script") or "Generate Intune Script", icon=ft.Icons.CODE, on_click=self._on_click_create_script),
+                ft.ElevatedButton(text=i18n.get("btn_create_intunewin") or "Create .intunewin", icon=ft.Icons.INVENTORY, on_click=self._on_click_create_intunewin),
+                ft.ElevatedButton(text=i18n.get("btn_manual_cmds") or "Manual Commands", icon=ft.Icons.TERMINAL, on_click=self._show_manual_cmds),
             ], wrap=True)
         )
 
@@ -610,7 +610,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         # 12. View Detailed Button
         self.results_column.controls.append(
-            ft.Button(i18n.get("view_full_params") or "View Detailed Analysis Data", icon=ft.Icons.ZOOM_IN, on_click=lambda _: self._show_detailed_parameters(result))
+            ft.ElevatedButton(text=i18n.get("view_full_params") or "View Detailed Analysis Data", icon=ft.Icons.ZOOM_IN, on_click=lambda _: self._show_detailed_parameters(result))
         )
 
         self.update()
@@ -713,7 +713,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             content=ft.Text(i18n.get("confirm_automation_msg") or "This will generate a script, test it, and upload to Intune. Continue?"),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False)),
-                ft.Button("Start Flow", bgcolor="RED_700", color="WHITE", on_click=start_flow),
+                ft.ElevatedButton(text="Start Flow", bgcolor="RED_700", color="WHITE", on_click=start_flow),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
@@ -909,7 +909,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 content=ft.Text(i18n.get("admin_required_msg") or "Local testing requires administrative privileges. Would you like to restart SwitchCraft as Administrator?"),
                 actions=[
                     ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda _: setattr(restart_dlg, "open", False) or self.app_page.update()),
-                    ft.Button(i18n.get("btn_restart_admin") or "Restart as Admin", bgcolor="RED_700", color="WHITE", on_click=on_restart_confirm),
+                    ft.ElevatedButton(text=i18n.get("btn_restart_admin") or "Restart as Admin", bgcolor="RED_700", color="WHITE", on_click=on_restart_confirm),
                 ],
             )
             self.app_page.open(restart_dlg)
@@ -942,7 +942,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             content=ft.Text(f"{i18n.get('confirm_local_test_msg') or 'Do you want to run the installer locally?'}\n\nFile: {Path(file_path).name}"),
             actions=[
                 ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda _: setattr(local_dlg, "open", False) or self.app_page.update()),
-                ft.Button(i18n.get("btn_run_now") or "Run Now (Admin)", bgcolor="GREEN_700", color="WHITE", on_click=on_confirm),
+                ft.ElevatedButton(text=i18n.get("btn_run_now") or "Run Now (Admin)", bgcolor="GREEN_700", color="WHITE", on_click=on_confirm),
             ],
         )
         self.app_page.open(local_dlg)
@@ -1002,7 +1002,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: setattr(dlg, "open", False) or self.app_page.update()),
                 ft.TextButton("Open Manager", on_click=open_winget_manager),
-                ft.Button("Generate Locals", icon=ft.Icons.BUILD, on_click=generate_local, bgcolor="BLUE_700", color="WHITE"),
+                ft.ElevatedButton(text="Generate Locals", icon=ft.Icons.BUILD, on_click=generate_local, bgcolor="BLUE_700", color="WHITE"),
             ],
         )
 
@@ -1099,8 +1099,8 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                     ], tight=True),
                     actions=[
                         ft.TextButton(i18n.get("btn_close") or "Close", on_click=close_dlg),
-                        ft.Button(
-                            i18n.get("open_folder") or "Open Folder",
+                        ft.ElevatedButton(
+                            text=i18n.get("open_folder") or "Open Folder",
                             icon=ft.Icons.FOLDER_OPEN,
                             on_click=open_folder
                         )

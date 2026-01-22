@@ -20,17 +20,14 @@ dependencies = [
     "requests",
     "click",
     "rich",
-    "py7zr",
     "PyYAML",
-    "keyring",
     "openai",
     "google-generativeai",
     "defusedxml",
     "PyJWT",
-    "winotify",
     "anyio>=4.12.1"
 ]
-requires-python = "==3.14"
+requires-python = ">=3.12"
 
 [project.optional-dependencies]
 gui = [
@@ -47,6 +44,11 @@ test = [
 ]
 build = [
     "pyinstaller==6.18.0"
+]
+desktop = [
+    "winotify",
+    "py7zr",
+    "keyring"
 ]
 
 [project.scripts]

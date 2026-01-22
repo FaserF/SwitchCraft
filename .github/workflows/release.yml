@@ -34,7 +34,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.14.2'
+          python-version: '3.14'
 
       - name: Generate Version
         id: version
@@ -247,7 +247,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: '3.14.2'
+        python-version: '3.14'
 
     # Cache PyInstaller
     - uses: actions/cache@v5
@@ -391,7 +391,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.14.2'
+          python-version: '3.14'
 
       - name: Install Dependencies
         run: pip install requests pyyaml

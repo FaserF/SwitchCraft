@@ -548,16 +548,16 @@ def main(page: ft.Page):
         # Open Folder (Desktop Only)
         if not is_web:
             actions.append(
-                ft.Button(
-                    "Open Logs",
+                ft.ElevatedButton(
+                    text="Open Logs",
                     icon=ft.Icons.FOLDER_OPEN,
                     on_click=open_dump_folder,
                     style=ft.ButtonStyle(bgcolor="BLUE_700", color="WHITE")
                 )
             )
             actions.append(
-                 ft.Button(
-                    "View File",
+                 ft.ElevatedButton(
+                    text="View File",
                     icon=ft.Icons.DESCRIPTION,
                     on_click=open_dump_file
                 )
@@ -578,8 +578,8 @@ def main(page: ft.Page):
         # Close/Reload (Contextual)
         if not is_web:
             actions.append(
-                ft.Button(
-                    "Exit",
+                ft.ElevatedButton(
+                    text="Exit",
                     icon=ft.Icons.CLOSE,
                     on_click=close_app,
                     style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE")
@@ -587,8 +587,8 @@ def main(page: ft.Page):
             )
         else:
              actions.append(
-                ft.Button(
-                    "Reload App",
+                ft.ElevatedButton(
+                    text="Reload App",
                     icon=ft.Icons.REFRESH,
                     on_click=lambda e: page.launch_url(page.route or "/"),
                 )

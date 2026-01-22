@@ -38,18 +38,38 @@ class IntuneService:
         else:
             if tools_dir:
                 self.tools_dir = Path(tools_dir)
+                self.tool_path = self.tools_dir / self.TOOL_FILENAME
             else:
+                # Search priority:
+                # 1. Standard AppData: %APPDATA%\FaserF\SwitchCraft\tools
+                # 2. Legacy/User Home: ~/.switchcraft/tools
+
+                paths_to_check = []
+
                 if os.name == 'nt':
-                    # Use standard AppData for Windows
                     app_data = os.environ.get("APPDATA")
                     if app_data:
-                        self.tools_dir = Path(app_data) / "FaserF" / "SwitchCraft" / "tools"
+                        paths_to_check.append(Path(app_data) / "FaserF" / "SwitchCraft" / "tools")
+
+                # Always check home dir as fallback
+                paths_to_check.append(Path.home() / ".switchcraft" / "tools")
+
+                found = False
+                for p_dir in paths_to_check:
+                    t_path = p_dir / self.TOOL_FILENAME
+                    if t_path.exists():
+                        self.tools_dir = p_dir
+                        self.tool_path = t_path
+                        found = True
+                        break
+
+                if not found:
+                    # Default to first preferred path (AppData on Windows) for download
+                    if paths_to_check:
+                        self.tools_dir = paths_to_check[0]
                     else:
                         self.tools_dir = Path.home() / ".switchcraft" / "tools"
-                else:
-                    # Default to a 'tools' directory in the user's home or app data
-                    self.tools_dir = Path.home() / ".switchcraft" / "tools"
-            self.tool_path = self.tools_dir / self.TOOL_FILENAME
+                    self.tool_path = self.tools_dir / self.TOOL_FILENAME
 
     def is_tool_available(self) -> bool:
         return self.tool_path.exists()
@@ -148,13 +168,19 @@ class IntuneService:
         if quiet:
             cmd.append("-q")
 
-        logger.info(f"Running IntuneWinAppUtil: {cmd}")
+        # Check config for "Show Console" preference
+        # If ShowIntuneConsole is True, we want silent=False
+        from switchcraft.utils.config import SwitchCraftConfig
+        show_console = SwitchCraftConfig.get_value("ShowIntuneConsole", False)
+        silent_execution = not show_console
+
+        logger.info(f"Running IntuneWinAppUtil: {cmd} (Show Console: {show_console})")
 
         startupinfo = None
         try:
             process = ShellUtils.Popen(
                 cmd,
-                silent=True,
+                silent=silent_execution,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,

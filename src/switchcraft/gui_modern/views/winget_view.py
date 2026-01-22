@@ -65,8 +65,8 @@ class ModernWingetView(ft.Row, ViewMixin):
                     ft.Text(i18n.get("winget_addon_not_installed") or "Winget Addon not installed.", size=20, weight=ft.FontWeight.BOLD),
                     ft.Text(i18n.get("addon_install_hint") or "Install the addon to enable this feature.", size=14, color="ON_SURFACE_VARIANT"),
                     ft.Container(height=10),
-                    ft.Button(
-                        i18n.get("btn_go_to_addons") or "Go to Addon Manager",
+                    ft.ElevatedButton(
+                        text=i18n.get("btn_go_to_addons") or "Go to Addon Manager",
                         icon=ft.Icons.EXTENSION,
                         bgcolor="BLUE_700",
                         color="WHITE",
@@ -692,13 +692,13 @@ class ModernWingetView(ft.Row, ViewMixin):
         detail_controls.append(ft.Divider())
 
         # Actions
-        btn_copy = ft.Button(i18n.get("btn_copy_command") or "Copy Command", icon=ft.Icons.COPY, bgcolor="GREY_700", color="WHITE")
+        btn_copy = ft.ElevatedButton(text=i18n.get("btn_copy_command") or "Copy Command", icon=ft.Icons.COPY, bgcolor="GREY_700", color="WHITE")
         btn_copy.on_click = lambda e, i=info: self._copy_install_command(i)
 
-        btn_local = ft.Button(i18n.get("btn_install_locally") or "Install Locally", icon=ft.Icons.DOWNLOAD, bgcolor="GREEN", color="WHITE")
+        btn_local = ft.ElevatedButton(text=i18n.get("btn_install_locally") or "Install Locally", icon=ft.Icons.DOWNLOAD, bgcolor="GREEN", color="WHITE")
         btn_local.on_click = self._install_local
 
-        btn_deploy = ft.Button(i18n.get("btn_deploy_package") or "Deploy / Package...", icon=ft.Icons.CLOUD_UPLOAD, bgcolor="BLUE", color="WHITE")
+        btn_deploy = ft.ElevatedButton(text=i18n.get("btn_deploy_package") or "Deploy / Package...", icon=ft.Icons.CLOUD_UPLOAD, bgcolor="BLUE", color="WHITE")
         btn_deploy.on_click = lambda e: self._open_deploy_menu(info)
 
         detail_controls.append(ft.Row([btn_copy, btn_local, btn_deploy], wrap=True, spacing=8))
@@ -848,19 +848,19 @@ class ModernWingetView(ft.Row, ViewMixin):
                 ft.Text(i18n.get("winget_deploy_select_method") or "Select a deployment method:", size=16),
                 ft.Container(height=10),
 
-                ft.Button("Winget-AutoUpdate (WAU)", icon=ft.Icons.UPDATE,
+                ft.ElevatedButton(text="Winget-AutoUpdate (WAU)", icon=ft.Icons.UPDATE,
                     style=ft.ButtonStyle(bgcolor="GREEN", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_wau(info)], width=250),
                 ft.Text(i18n.get("winget_deploy_wau_desc") or "Best for keeping apps updated automatically.", size=12, italic=True),
 
                 ft.Container(height=5),
-                ft.Button("Download & Package", icon=ft.Icons.ARCHIVE,
+                ft.ElevatedButton(text="Download & Package", icon=ft.Icons.ARCHIVE,
                     style=ft.ButtonStyle(bgcolor="BLUE", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_package(info)], width=250),
                 ft.Text(i18n.get("winget_deploy_package_desc") or "Download installer and prepare for Intune.", size=12, italic=True),
 
                 ft.Container(height=5),
-                ft.Button("Create Install Script", icon=ft.Icons.CODE,
+                ft.ElevatedButton(text="Create Install Script", icon=ft.Icons.CODE,
                     style=ft.ButtonStyle(bgcolor="GREY_700", color="WHITE"),
                     on_click=lambda e: [close_dlg(e), self._deploy_script(info)], width=250),
                 ft.Text(i18n.get("winget_deploy_script_desc") or "Generate PowerShell script for deployment.", size=12, italic=True),
@@ -1011,7 +1011,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 content=ft.Text(i18n.get("admin_required_msg") or "Local testing requires administrative privileges. Would you like to restart SwitchCraft as Administrator?"),
                 actions=[
                     ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda _: setattr(restart_dlg, "open", False) or self.app_page.update()),
-                    ft.Button(i18n.get("btn_restart_admin") or "Restart as Admin", bgcolor="RED_700", color="WHITE", on_click=on_restart_confirm),
+                    ft.ElevatedButton(text=i18n.get("btn_restart_admin") or "Restart as Admin", bgcolor="RED_700", color="WHITE", on_click=on_restart_confirm),
                 ],
             )
             self.app_page.open(restart_dlg)

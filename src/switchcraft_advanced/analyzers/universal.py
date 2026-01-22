@@ -6,7 +6,11 @@ import tempfile
 import os
 from pathlib import Path
 from typing import Optional, List, Dict, Tuple
-import py7zr
+try:
+    import py7zr
+    PY7ZR_AVAILABLE = True
+except ImportError:
+    PY7ZR_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +85,7 @@ class UniversalAnalyzer:
         """
         try:
             # 1. Check with py7zr (7-Zip)
-            if py7zr.is_7zfile(file_path):
+            if PY7ZR_AVAILABLE and py7zr.is_7zfile(file_path):
                 try:
                     with py7zr.SevenZipFile(file_path, mode='r') as z:
                         for filename in z.getnames():

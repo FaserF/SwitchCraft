@@ -32,8 +32,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                         ft.Text(i18n.get("intune_not_configured") or "Intune is not configured", size=28, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
                         ft.Text(i18n.get("intune_config_hint") or "Please configure Microsoft Graph API credentials in Settings.", size=16, color="GREY_400", text_align=ft.TextAlign.CENTER),
                         ft.Container(height=20),
-                        ft.Button(
-                            i18n.get("tab_settings") or "Go to Settings",
+                        ft.ElevatedButton(
+                            text=i18n.get("tab_settings") or "Go to Settings",
                             icon=ft.Icons.SETTINGS,
                             on_click=self._go_to_settings
                         )
@@ -85,8 +85,8 @@ class GroupManagerView(ft.Column, ViewMixin):
         )
 
         self.refresh_btn = ft.IconButton(ft.Icons.REFRESH, on_click=self._safe_event_handler(lambda _: self._load_data(), "Refresh button"))
-        self.create_btn = ft.Button(
-            i18n.get("btn_create_group") or "Create Group",
+        self.create_btn = ft.ElevatedButton(
+            text=i18n.get("btn_create_group") or "Create Group",
             icon=ft.Icons.ADD,
             on_click=self._safe_event_handler(self._show_create_dialog, "Create group button")
         )
@@ -96,8 +96,8 @@ class GroupManagerView(ft.Column, ViewMixin):
             value=False,
             on_change=self._safe_event_handler(self._toggle_delete_mode, "Delete toggle")
         )
-        self.delete_btn = ft.Button(
-            i18n.get("btn_delete_selected") or "Delete Selected",
+        self.delete_btn = ft.ElevatedButton(
+            text=i18n.get("btn_delete_selected") or "Delete Selected",
             icon=ft.Icons.DELETE_FOREVER,
             bgcolor="RED",
             color="WHITE",
@@ -105,8 +105,8 @@ class GroupManagerView(ft.Column, ViewMixin):
             on_click=self._safe_event_handler(self._confirm_delete, "Delete selected button")
         )
 
-        self.members_btn = ft.Button(
-            i18n.get("btn_manage_members") or "Manage Members",
+        self.members_btn = ft.ElevatedButton(
+            text=i18n.get("btn_manage_members") or "Manage Members",
             icon=ft.Icons.PEOPLE,
             disabled=True,
             on_click=self._safe_event_handler(self._show_members_dialog, "Manage Members button")
@@ -256,7 +256,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                                     content=ft.Column([
                                         ft.Icon(ft.Icons.ERROR_OUTLINE, color="RED", size=48),
                                         ft.Text(error_msg, color="RED", text_align=ft.TextAlign.CENTER),
-                                        ft.Button("Retry", on_click=lambda _: self._load_data())
+                                        ft.ElevatedButton(text="Retry", on_click=lambda _: self._load_data())
                                     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                                     alignment=ft.alignment.center,
                                     padding=20
@@ -503,7 +503,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                 content=ft.Column([name_field, desc_field], height=150, width=400),
                 actions=[
                     ft.TextButton(i18n.get("cancel") or "Cancel", on_click=close_dlg),
-                    ft.Button(i18n.get("create") or "Create", on_click=self._safe_event_handler(create, "Create group button"), bgcolor="BLUE", color="WHITE")
+                    ft.ElevatedButton(text=i18n.get("create") or "Create", on_click=self._safe_event_handler(create, "Create group button"), bgcolor="BLUE", color="WHITE")
                 ],
             )
             if not self._open_dialog_safe(dlg):
@@ -571,8 +571,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                 ),
                 actions=[
                     ft.TextButton(i18n.get("cancel") or "Cancel", on_click=close_dlg),
-                    ft.Button(
-                        i18n.get("delete") or "Delete",
+                    ft.ElevatedButton(
+                        text=i18n.get("delete") or "Delete",
                         on_click=self._safe_event_handler(delete, "Delete group button"),
                         bgcolor="RED",
                         color="WHITE"
@@ -820,7 +820,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                 ft.Row([
                     ft.Text(i18n.get("current_members") or "Current Members", weight=ft.FontWeight.BOLD, size=16),
                     ft.Container(expand=True),
-                    ft.Button(i18n.get("btn_add_member") or "Add Member", icon=ft.Icons.ADD, on_click=show_add_dialog)
+                    ft.ElevatedButton(text=i18n.get("btn_add_member") or "Add Member", icon=ft.Icons.ADD, on_click=show_add_dialog)
                 ]),
                 ft.Divider(),
                 members_list

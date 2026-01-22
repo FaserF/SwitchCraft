@@ -85,8 +85,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                         ft.Text(i18n.get("intune_not_configured") or "Intune is not configured", size=28, weight="bold", text_align=ft.TextAlign.CENTER),
                         ft.Text(i18n.get("intune_config_hint") or "Please configure Microsoft Graph API credentials in Settings.", size=16, color="GREY_400", text_align=ft.TextAlign.CENTER),
                         ft.Container(height=20),
-                        ft.Button(
-                            i18n.get("tab_settings") or "Go to Settings",
+                        ft.ElevatedButton(
+                            text=i18n.get("tab_settings") or "Go to Settings",
                             icon=ft.Icons.SETTINGS,
                             on_click=lambda _: self._switch_to_settings()
                         )
@@ -432,8 +432,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                             self.assignments_col.controls.append(ft.Text(i18n.get("not_assigned") or "Not assigned.", italic=True, selectable=True))
                             # Add button to add assignment
                             self.assignments_col.controls.append(
-                                ft.Button(
-                                    i18n.get("btn_add_assignment") or "Add Assignment",
+                                ft.ElevatedButton(
+                                    text=i18n.get("btn_add_assignment") or "Add Assignment",
                                     icon=ft.Icons.ADD,
                                     on_click=lambda e: self._add_assignment_row()
                                 )
@@ -445,8 +445,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
 
                             # Add button to add more assignments
                             self.assignments_col.controls.append(
-                                ft.Button(
-                                    i18n.get("btn_add_assignment") or "Add Assignment",
+                                ft.ElevatedButton(
+                                    text=i18n.get("btn_add_assignment") or "Add Assignment",
                                     icon=ft.Icons.ADD,
                                     on_click=lambda e: self._add_assignment_row()
                                 )
@@ -496,22 +496,22 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             # Action Buttons
             detail_controls.append(
                 ft.Row([
-                    ft.Button(
-                        i18n.get("btn_open_in_intune") or "Open in Intune",
+                    ft.ElevatedButton(
+                        text=i18n.get("btn_open_in_intune") or "Open in Intune",
                         icon=ft.Icons.OPEN_IN_NEW,
                         bgcolor="BLUE_700",
                         color="WHITE",
                         on_click=lambda e, a=app: self._open_in_intune(a)
                     ),
-                    ft.Button(
-                        i18n.get("btn_save_changes") or "Save Changes",
+                    ft.ElevatedButton(
+                        text=i18n.get("btn_save_changes") or "Save Changes",
                         icon=ft.Icons.SAVE,
                         bgcolor="GREEN",
                         color="WHITE",
                         on_click=lambda e, a=app: self._save_changes(a)
                     ),
-                    ft.Button(
-                        i18n.get("btn_deploy_assignment") or "Deploy / Assign...",
+                    ft.ElevatedButton(
+                        text=i18n.get("btn_deploy_assignment") or "Deploy / Assign...",
                         icon=ft.Icons.CLOUD_UPLOAD,
                         bgcolor="BLUE",
                         color="WHITE",
@@ -713,8 +713,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             content=ft.Container(
                 content=ft.Column([
                     search_box,
-                    ft.Button(
-                        i18n.get("search") or "Search",
+                    ft.ElevatedButton(
+                        text=i18n.get("search") or "Search",
                         icon=ft.Icons.SEARCH,
                         on_click=lambda e: _search_groups(search_box.value)
                     ),
@@ -729,7 +729,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             ),
             actions=[
                 ft.TextButton(i18n.get("cancel") or "Cancel", on_click=lambda e: setattr(dlg, 'open', False) or self.app_page.update()),
-                ft.Button(i18n.get("assign") or "Assign", on_click=_confirm_assign, bgcolor="BLUE", color="WHITE")
+                ft.ElevatedButton(text=i18n.get("assign") or "Assign", on_click=_confirm_assign, bgcolor="BLUE", color="WHITE")
             ]
         )
 
