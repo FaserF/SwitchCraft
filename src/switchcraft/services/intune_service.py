@@ -8,6 +8,7 @@ from pathlib import Path
 import zipfile
 from typing import Optional, Callable
 from switchcraft.utils.i18n import i18n
+from switchcraft.utils.shell_utils import ShellUtils
 from defusedxml import ElementTree as DefusedET
 import jwt
 
@@ -38,8 +39,16 @@ class IntuneService:
             if tools_dir:
                 self.tools_dir = Path(tools_dir)
             else:
-                # Default to a 'tools' directory in the user's home or app data
-                self.tools_dir = Path.home() / ".switchcraft" / "tools"
+                if os.name == 'nt':
+                    # Use standard AppData for Windows
+                    app_data = os.environ.get("APPDATA")
+                    if app_data:
+                        self.tools_dir = Path(app_data) / "FaserF" / "SwitchCraft" / "tools"
+                    else:
+                        self.tools_dir = Path.home() / ".switchcraft" / "tools"
+                else:
+                    # Default to a 'tools' directory in the user's home or app data
+                    self.tools_dir = Path.home() / ".switchcraft" / "tools"
             self.tool_path = self.tools_dir / self.TOOL_FILENAME
 
     def is_tool_available(self) -> bool:
@@ -52,13 +61,15 @@ class IntuneService:
 
         try:
             # PowerShell method to get file version (robust on Windows)
-            if os.name == 'nt':
-                cmd = f'(Get-Item "{self.tool_path}").VersionInfo.FileVersion'
-                result = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True)
-                if result.returncode == 0:
-                    ver = result.stdout.strip()
-                    if ver:
-                        return ver
+            # Use single quotes for the path to avoid issues with double quotes if the path has spaces
+            # Ensure we use the full resolved path
+            resolved_path = str(self.tool_path.resolve())
+            cmd = f"(Get-Item '{resolved_path}').VersionInfo.FileVersion"
+            result = ShellUtils.run_command(["powershell", "-NoProfile", "-NonInteractive", "-Command", cmd], silent=True)
+            if result and result.returncode == 0:
+                ver = result.stdout.strip()
+                if ver:
+                    return ver
 
             # Fallback or Non-Windows (unlikely for this tool)
             return "Unknown"
@@ -140,13 +151,10 @@ class IntuneService:
         logger.info(f"Running IntuneWinAppUtil: {cmd}")
 
         startupinfo = None
-        if os.name == 'nt':
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
         try:
-            with subprocess.Popen(
+            process = ShellUtils.Popen(
                 cmd,
+                silent=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -154,7 +162,11 @@ class IntuneService:
                 startupinfo=startupinfo,
                 bufsize=1,
                 universal_newlines=True
-            ) as process:
+            )
+            if not process:
+                raise RuntimeError("Failed to start process (likely WASM environment)")
+
+            with process:
 
                 full_output = []
 

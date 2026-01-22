@@ -36,7 +36,9 @@ class AuthService:
         }
 
         try:
+            logger.info(f"Initiating GitHub device flow for client {cls.CLIENT_ID}...")
             response = requests.post(cls.AUTH_URL, headers=headers, data=data, timeout=10)
+            logger.debug(f"GitHub response: {response.status_code} - {response.text}")
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:

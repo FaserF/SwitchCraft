@@ -3,6 +3,7 @@ import logging
 import subprocess
 from pathlib import Path
 from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.shell_utils import ShellUtils
 
 logger = logging.getLogger(__name__)
 
@@ -78,16 +79,13 @@ class WingetManifestService:
 
             # Start process without window
             startupinfo = None
-            if hasattr(subprocess, 'STARTUPINFO'):
+            if hasattr(subprocess, 'STARTUPINFO') and 'subprocess' in globals():
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-            result = subprocess.run(
+            result = ShellUtils.run_command(
                 cmd,
-                capture_output=True,
-                text=True,
-                startupinfo=startupinfo,
-                check=False
+                startupinfo=startupinfo
             )
 
             is_valid = "Manifest validation success" in result.stdout

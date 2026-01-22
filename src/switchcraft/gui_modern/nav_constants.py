@@ -21,8 +21,8 @@ class NavIndex:
     # === SETTINGS SUB-VIEWS (via SettingsView tabs) ===
     SETTINGS_UPDATES = 1      # Settings tab index 1
     SETTINGS_GRAPH = 2        # Settings tab index 2
-    SETTINGS_HELP = 3         # Settings tab index 3
-    SETTINGS_POLICIES = 21    # Settings tab index 4 (Policies)
+    SETTINGS_HELP = 3         # Settings tab index 4
+    SETTINGS_POLICIES = 21    # Settings tab index 3 (Policies)
 
     # === TOOLS & APPS ===
     WINGET = 4                # Apps (Winget Search)

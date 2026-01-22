@@ -83,3 +83,5 @@ test_tabs*.py
 /docs/node_modules
 /docs/.vitepress
 SwitchCraft.ps1
+mock_script.ps1
+debug_shell.py

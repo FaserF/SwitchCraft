@@ -1,5 +1,6 @@
-import subprocess
+import os
 import logging
+from switchcraft.utils.shell_utils import ShellUtils
 from pathlib import Path
 from switchcraft.utils.config import SwitchCraftConfig
 
@@ -31,12 +32,12 @@ class SigningService:
 
         logger.info(f"Attempting to sign: {script_path}")
 
-        ps_command = ""
+        ps_command_str = ""
 
         if cert_thumbprint:
              # Use specific thumbprint from Policy/Config
              logger.info(f"Using Certificate Thumbprint from Policy: {cert_thumbprint}")
-             ps_command = (
+             ps_command_str = (
                 f'$cert = Get-Item "Cert:\\CurrentUser\\My\\{cert_thumbprint}" -ErrorAction SilentlyContinue; '
                 f'if (-not $cert) {{ $cert = Get-Item "Cert:\\LocalMachine\\My\\{cert_thumbprint}" -ErrorAction SilentlyContinue }}; '
                 f'if ($cert) {{ '
@@ -62,7 +63,7 @@ class SigningService:
 
             logger.warning("Using direct PFX path might require manual password entry which is not supported in this automation yet. Prefer Certificate Store.")
             # We construct a command that attempts to load it.
-            ps_command = (
+            ps_command_str = (
                 f'$pfx = "{cert_path}"; '
                 f'$cert = Get-PfxCertificate -FilePath $pfx; '
                 f'if ($cert) {{ Set-AuthenticodeSignature -FilePath "{script_path_obj}" -Certificate $cert }} '
@@ -70,7 +71,7 @@ class SigningService:
             )
         else:
             # Auto-Detect from Store (CurrentUser mainly, then LocalMachine)
-            ps_command = (
+            ps_command_str = (
                 f'$cert = Get-ChildItem Cert:\\CurrentUser\\My -CodeSigningCert | Select-Object -First 1; '
                 f'if ($cert) {{ Write-Output "Found cert in CurrentUser\\My: $($cert.Subject)" }} '
                 f'else {{ '
@@ -85,11 +86,13 @@ class SigningService:
                 f'else {{ Write-Error "No CodeSigning certificate found in User or Machine store." }}'
             )
 
+        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_command_str]
+
         try:
             # Run PowerShell
-            completed = subprocess.run(
-                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_command],
-                capture_output=True, text=True
+            completed = ShellUtils.run_command(
+                cmd,
+                check=True
             )
 
             if completed.returncode == 0 and "Signed Successfully" in completed.stdout:

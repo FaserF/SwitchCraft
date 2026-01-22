@@ -3,7 +3,7 @@ import threading
 import logging
 import shutil
 import ctypes
-import webbrowser
+
 import requests
 import tempfile
 from pathlib import Path
@@ -602,7 +602,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                     content=ft.Row([
                         ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN"),
                         ft.Text("Matches Winget Package!", weight=ft.FontWeight.BOLD, expand=True),
-                        ft.TextButton(i18n.get("view_winget") or "View on Web", on_click=lambda _: webbrowser.open(result.winget_url))
+                        ft.TextButton(i18n.get("view_winget") or "View on Web", on_click=lambda _: self._launch_url(result.winget_url))
                     ]),
                     padding=10, bgcolor="GREEN_900", border_radius=5
                 )

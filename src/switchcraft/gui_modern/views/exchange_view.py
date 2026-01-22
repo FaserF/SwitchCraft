@@ -146,7 +146,7 @@ class ExchangeView(ft.Column, ViewMixin):
 
         # Dashboard Stats Area
         self.stats_row = ft.Row(spacing=20, alignment=ft.MainAxisAlignment.CENTER)
-        self.chart_container = ft.Column(spacing=2, expand=True)
+        self.mail_chart = ft.Column(spacing=2, expand=True)
 
         # Range Toggle
         self.mf_range_dd = ft.Dropdown(
@@ -172,15 +172,17 @@ class ExchangeView(ft.Column, ViewMixin):
                 ft.IconButton(ft.Icons.SEARCH, on_click=self._run_mail_search, tooltip=i18n.get("ex_btn_search"))
             ], spacing=10),
             ft.Divider(),
-            self.stats_row,
-            ft.Divider(),
-            ft.Text(i18n.get("ex_mail_traffic") or "Mail Traffic Trend", weight=ft.FontWeight.BOLD),
             ft.Container(
-                content=self.chart_container,
-                bgcolor="BLACK12",
-                padding=10,
-                border_radius=5,
-                height=200
+                content=ft.Column([
+                    ft.Text(i18n.get("ex_mail_traffic") or "Mail Traffic Statistics", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
+                    self.stats_row,
+                    ft.Divider(height=20, color=ft.Colors.TRANSPARENT),
+                    self.mail_chart
+                ]),
+                padding=20,
+                border_radius=10,
+                bgcolor="SURFACE_VARIANT"
             ),
             ft.Divider(height=20, color="TRANSPARENT"),
             ft.Text(i18n.get("ex_msg_trace_title") or "Recent Messages", weight=ft.FontWeight.BOLD),
@@ -392,8 +394,12 @@ class ExchangeView(ft.Column, ViewMixin):
         if not self._ui_initialized: return
         self._update_stats()
         self._update_chart()
-        if self._page:
-            self.update()
+        try:
+            if self.page:
+                self.update()
+        except RuntimeError:
+            pass
+
 
     def _update_stats(self):
         """Calculate and display statistics summary."""
@@ -426,14 +432,14 @@ class ExchangeView(ft.Column, ViewMixin):
         """Draw a custom bar chart using simple containers."""
         if not self.mail_flow_data: return
 
-        self.chart_container.controls = []
+        self.mail_chart.controls = []
         max_val = max(max(d["sent"], d["received"]) for d in self.mail_flow_data) or 1
 
         for d in self.mail_flow_data:
             sent_w = (d["sent"] / max_val) * 200
             recv_w = (d["received"] / max_val) * 200
 
-            self.chart_container.controls.append(
+            self.mail_chart.controls.append(
                 ft.Row([
                     ft.Text(d["date"][-5:], size=10, width=40),
                     ft.Container(bgcolor="BLUE", width=sent_w, height=8, border_radius=4, tooltip=f"Sent: {d['sent']}"),

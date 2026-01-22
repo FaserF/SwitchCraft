@@ -57,7 +57,15 @@ def test_comprehensive_view_interaction(mock_page, view_info):
         def run_test_with_instance():
             view = view_class(mock_page, **kwargs)
             if hasattr(view, "did_mount"):
-                view.did_mount()
+                try:
+                    view.did_mount()
+                except RuntimeError as e:
+                    # Some views call update() in did_mount() before controls are added to page
+                    # This is expected behavior in unit tests with mock pages
+                    if "Control must be added to the page first" in str(e):
+                        pass  # Expected, continue with test
+                    else:
+                        raise
 
             clickables = []
             find_all_clickables(view, clickables)

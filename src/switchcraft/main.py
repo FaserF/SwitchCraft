@@ -17,7 +17,7 @@ def start_splash():
 
     global splash_proc
     try:
-        import subprocess
+        from switchcraft.utils.shell_utils import ShellUtils
         from pathlib import Path
 
         # Resolve path to splash.py (shared with Legacy)
@@ -31,9 +31,9 @@ def start_splash():
             # Use DETACHED_PROCESS instead of CREATE_NO_WINDOW
             # This ensures the process runs independently and GUI is not suppressed
             # Note: DETACHED_PROCESS may affect splash logging/cleanup on Windows
-            creationflags = subprocess.DETACHED_PROCESS if sys.platform == "win32" else 0
+            creationflags = subprocess.DETACHED_PROCESS if sys.platform == "win32" and "subprocess" in globals() else 0
 
-            splash_proc = subprocess.Popen(
+            splash_proc = ShellUtils.Popen(
                 [sys.executable, str(splash_script)],
                 env=env,
                 creationflags=creationflags
@@ -90,6 +90,7 @@ try:
 
     from switchcraft.gui_modern.app import ModernApp  # noqa: E402
     from switchcraft.utils.logging_handler import setup_session_logging  # noqa: E402
+    from switchcraft.utils.shell_utils import ShellUtils # noqa: E402
     from switchcraft.utils.protocol_handler import (
         register_protocol_handler,
         parse_protocol_url,
@@ -496,17 +497,8 @@ def main(page: ft.Page):
         dump_folder = str(dump_file.parent)
 
         def open_dump_folder(e):
-            import subprocess
-            # Use list args for explorer to avoid quoting edge cases with paths containing spaces/quotes
-            proc = subprocess.Popen(['explorer', dump_folder])
-            # Don't wait for explorer, but ensure it's properly started
-            # Explorer will close itself, so we don't need to wait
-            try:
-                # Give it a moment to start, then detach
-                import time
-                time.sleep(0.1)
-            except Exception:
-                pass
+            # Use ShellUtils for cross-platform explorer access
+            ShellUtils.run_command(['explorer', dump_folder])
 
         def open_dump_file(e):
             import os
@@ -527,10 +519,8 @@ def main(page: ft.Page):
 
             # 2. Force Windows Clipboard (cmd /c check)
             try:
-                import subprocess
-                # Use shell=False and pass input via stdin to avoid injection
-                if sys.platform == "win32":
-                     subprocess.run(['clip'], input=path_str.encode('utf-8'), check=False)
+                # Use ShellUtils which handles wine prefixing on linux
+                ShellUtils.run_command(['clip'], input=path_str.encode('utf-8'))
             except Exception:
                 pass
 

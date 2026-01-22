@@ -118,12 +118,15 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         # Scan for managed keys
         for key in known_keys:
-            if SwitchCraftConfig.is_managed(key):
-                val = SwitchCraftConfig.get_value(key)
+            res = SwitchCraftConfig.get_value_with_source(key)
+            if res:
+                # If managed, the source will be one of the GPO or Intune ones
+                # But even if it's just 'System Registry', we show it if it's considered 'managed' or if we want to show all sources
+                # The user specifically asked to show GPO, Systemregistry, Userregistry, Intune OMA URI
                 managed_settings.append({
                     "Setting": key,
-                    "Value": str(val),
-                    "Source": "GPO / Intune Policy"
+                    "Value": str(res["value"]),
+                    "Source": res["source"]
                 })
 
         if not managed_settings:
@@ -291,10 +294,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.Text(i18n.get("sync_desc") or "Sync your settings and snippets via GitHub Gists.", color="ON_SURFACE_VARIANT", size=12)
             )
 
-            self.login_btn = ft.Button(
-                i18n.get("github_login") or "Login with GitHub",
+            self.login_btn = ft.ElevatedButton(
+                text=i18n.get("github_login") or "Login with GitHub",
                 icon=ft.Icons.LOGIN,
-                on_click=self._start_github_login
+                on_click=self._on_github_login_click
             )
             self.sync_section_container.controls.append(self.login_btn)
 
@@ -572,7 +575,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
                 # Try to open in default browser
                 try:
-                    webbrowser.open(url)
+                    self._launch_url(url)
                     self._show_snack(i18n.get("issue_reporter_opened") or "Opening GitHub issue reporter...", "BLUE")
                 except Exception as ex:
                     logger.error(f"Failed to open browser: {ex}")
@@ -755,15 +758,71 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         threading.Thread(target=_run, daemon=True).start()
 
+    def _on_github_login_click(self, e):
+        """Handle GitHub login button click."""
+        print("DEBUG: _on_github_login_click STARTED", flush=True)
+        logger.info("GitHub login clicked (direct handler)")
+        # Show snack immediately to confirm UI reaction
+        self._show_snack("Starting GitHub Login...", "BLUE")
+        # Proceed to permission dialog
+        self._show_permission_dialog(self._start_github_login)
+        print("DEBUG: _on_github_login_click FINISHED", flush=True)
+
+    def _show_permission_dialog(self, callback):
+        """Show permission explanation dialog before GitHub login."""
+        print("DEBUG: _show_permission_dialog ENTERED", flush=True)
+
+        # Immediate snack confirmation
+        self._show_snack("Preparing GitHub Permissions...", "BLUE")
+
+        def proceed(e):
+            print("DEBUG: User clicked 'Continue'", flush=True)
+            if hasattr(dlg, "open"):
+                dlg.open = False
+            self.app_page.update()
+            callback(None)
+
+        def cancel(e):
+            print("DEBUG: User clicked 'Cancel'", flush=True)
+            if hasattr(dlg, "open"):
+                dlg.open = False
+            self.app_page.update()
+
+        explanation = i18n.get("github_permissions_explanation") or (
+            "SwitchCraft requests the following GitHub permissions:\n\n"
+            "• gist - Create and edit private Gists to store your settings\n"
+            "• read:user - Read your GitHub username for display\n\n"
+            "Your settings are stored as a PRIVATE Gist in your GitHub account.\n"
+            "No other data is accessed or stored."
+        )
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(i18n.get("github_permissions_title") or "GitHub Permissions"),
+            content=ft.Column([
+                ft.Text(explanation),
+                ft.TextButton(
+                    i18n.get("github_permissions_docs_hint") or "Learn more: GitHub Documentation",
+                    on_click=lambda _: self._launch_url("https://github.com/FaserF/SwitchCraft/blob/main/docs/CLOUDSYNC.md")
+                )
+            ], tight=True, width=450),
+            actions=[
+                ft.TextButton(i18n.get("btn_continue") or "Continue", on_click=proceed),
+                ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=cancel),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+
+        print("DEBUG: Setting page.dialog and opening...", flush=True)
+        self.app_page.dialog = dlg
+        dlg.open = True
+        self.app_page.update()
+        print("DEBUG: self.app_page.update() called for dialog", flush=True)
+
     def _start_github_login(self, e):
         """
         Start an interactive GitHub device‑flow login in a background thread and handle the result.
-
-        Starts the device authorization flow, presents a dialog with the verification URL and user code, opens the browser when requested, polls for an access token, and on success saves the token, updates the cloud-sync UI, and shows a success or failure notification. The dialog is shown on the main thread, but network calls run in background threads.
-
-        Parameters:
-            e: The triggering event (e.g., button click). The value is accepted but not used by this method.
         """
+        print("DEBUG: _start_github_login ENTERED", flush=True)
         logger.info("GitHub login button clicked, starting device flow...")
 
         # Store original button state for restoration
@@ -779,7 +838,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
             original_icon = self.login_btn.icon
             self.login_btn.icon = ft.Icons.HOURGLASS_EMPTY
-            self.login_btn.update()
+            if self.page:
+                self.login_btn.update()
 
         # Show loading dialog immediately on main thread using safe dialog opening
         loading_dlg = ft.AlertDialog(
@@ -803,7 +863,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     else:
                         self.login_btn.content = original_text
                     self.login_btn.icon = original_icon
-                    self.login_btn.update()
+                    if self.page:
+                        self.login_btn.update()
                 return
         except Exception as ex:
             logger.exception(f"Error opening loading dialog: {ex}")
@@ -822,8 +883,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     # Marshal UI updates to main thread
                     # Capture original button state in closure using default parameter to avoid scope issues
                     def _handle_no_flow(orig_text=original_text, orig_icon=original_icon):
-                        loading_dlg.open = False
-                        self.app_page.update()
+                        self._close_dialog(loading_dlg)
                         self._show_snack("Login init failed", "RED")
                         # Restore button state
                         if hasattr(self, 'login_btn'):
@@ -832,7 +892,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                             else:
                                 self.login_btn.content = orig_text
                             self.login_btn.icon = orig_icon
-                            self.login_btn.update()
+                            if self.page:
+                                self.login_btn.update()
                     self._run_task_with_fallback(_handle_no_flow, error_msg="Failed to initialize login flow")
                     return None
                 return flow
@@ -842,8 +903,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 error_msg = f"Failed to initiate login flow: {ex}"
                 # Capture error_msg and original button state in closure using default parameter to avoid scope issues
                 def _handle_error(msg=error_msg, orig_text=original_text, orig_icon=original_icon):
-                    loading_dlg.open = False
-                    self.app_page.update()
+                    self._close_dialog(loading_dlg)
                     self._show_snack(f"Login error: {msg}", "RED")
                     # Restore button state
                     if hasattr(self, 'login_btn'):
@@ -852,7 +912,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         else:
                             self.login_btn.content = orig_text
                         self.login_btn.icon = orig_icon
-                        self.login_btn.update()
+                        if self.page:
+                            self.login_btn.update()
                 self._run_task_with_fallback(_handle_error, error_msg=error_msg)
                 return None
 
@@ -861,21 +922,16 @@ class ModernSettingsView(ft.Column, ViewMixin):
             if not flow:
                 return
 
-            def close_dlg(e):
-                self.app_page.dialog.open = False
-                self.app_page.update()
-
             def copy_code(e):
                 try:
                     import pyperclip
                     pyperclip.copy(flow.get("user_code"))
                 except Exception as e:
                     logger.debug(f"Failed to copy user code to clipboard: {e}")
-                import webbrowser
-                webbrowser.open(flow.get("verification_uri"))
+                self._launch_url(flow.get("verification_uri"))
 
             btn_copy = ft.TextButton("Copy & Open", on_click=copy_code)
-            btn_cancel = ft.TextButton("Cancel", on_click=close_dlg)
+            btn_cancel = ft.TextButton("Cancel", on_click=lambda e: self._close_dialog(dlg))
 
             dlg = ft.AlertDialog(
                 title=ft.Text(i18n.get("github_login") or "GitHub Login"),
@@ -889,25 +945,16 @@ class ModernSettingsView(ft.Column, ViewMixin):
             )
 
             # Close loading dialog first
-            try:
-                if hasattr(self.app_page, 'dialog') and self.app_page.dialog:
-                    self.app_page.dialog.open = False
-                    self.app_page.update()
-            except Exception:
-                pass
+            self._close_dialog(loading_dlg)
 
             # Show dialog on main thread
+            print(f"DEBUG: Opening device flow dialog for code {flow.get('user_code')}", flush=True)
             logger.info("Showing GitHub login dialog...")
-            # Use _open_dialog_safe for consistent dialog handling
-            if not self._open_dialog_safe(dlg):
-                logger.error("Failed to open GitHub login dialog")
-                self._show_snack("Failed to show login dialog", "RED")
-                return
-            logger.info(f"Dialog opened successfully. open={dlg.open}, page.dialog={self.app_page.dialog is not None}")
 
-            # Verify dialog state (if not open after attempts, log warning but don't force)
-            if not dlg.open:
-                logger.warning("Dialog open flag is False after all attempts. This may indicate a race condition or dialog opening issue.")
+            self.app_page.dialog = dlg
+            dlg.open = True
+            self.app_page.update()
+            print("DEBUG: Device flow dialog should be visible now", flush=True)
 
             # Poll for token in background thread
             def _poll_token():
@@ -916,8 +963,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
                     # Close dialog and show result on main thread
                     async def _close_and_result():
-                        dlg.open = False
-                        self.app_page.update()
+                        self._close_dialog(dlg)
                         # Restore button state
                         if hasattr(self, 'login_btn'):
                             self.login_btn.text = original_text

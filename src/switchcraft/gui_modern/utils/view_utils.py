@@ -153,6 +153,42 @@ class ViewMixin:
             except Exception as e2:
                 self._show_snack(f"Failed to open path: {path}", "RED")
                 logger.error(f"Failed to open path: {e2}")
+    def _launch_url(self, url: str):
+        """
+        Launches a URL using the best available method for the environment.
+        In Web/WASM, uses page.launch_url. Otherwise falls back to webbrowser.
+        """
+        if not url:
+            return
+
+        logger.info(f"ENTERING _launch_url: {url}")
+        self._show_snack(f"Opening browser link...", "BLUE")
+
+        page = getattr(self, "app_page", None)
+        if not page:
+            try:
+                page = self.page
+            except (RuntimeError, AttributeError):
+                pass
+
+        if page:
+            try:
+                # Flet's launch_url is the most reliable for Web client
+                logger.info(f"Using page.launch_url for: {url}")
+                page.launch_url(url)
+                return
+            except Exception as e:
+                logger.debug(f"page.launch_url failed: {e}")
+
+        # Fallback to webbrowser (works on local desktop)
+        try:
+            import webbrowser
+            logger.info(f"Using webbrowser.open fallback for: {url}")
+            webbrowser.open(url)
+        except Exception as e:
+            logger.error(f"Failed to launch URL in any mode: {e}")
+            self._show_snack(f"Could not open URL: {e}", "RED")
+
     def _run_task_safe(self, func):
         """
         Safely run a function via page.run_task, wrapping sync functions in async wrappers.
@@ -277,9 +313,9 @@ class ViewMixin:
                 return False
 
     def _open_dialog_safe(self, dlg):
-
         """
-        Open a dialog safely across Flet versions.
+        Open a dialog safely across Flet versions and environments.
+        Uses the legacy page.dialog pattern as it is more reliable in some environments.
         """
         page = getattr(self, "app_page", None)
         if not page:
@@ -289,19 +325,30 @@ class ViewMixin:
                 pass
 
         if not page:
+             logger.warning("Cannot open dialog: Page not found")
              return False
 
-        if hasattr(page, 'open'):
-            # Force legacy mode even if open exists, due to Docker issues
-             page.dialog = dlg
-             dlg.open = True
-             page.update()
-        else:
+        try:
+            # Method 1: Legacy API (Highly compatible)
+            # We try this first as it works reliably in this app's environment
             page.dialog = dlg
-            dlg.open = True
+            if hasattr(dlg, 'open'):
+                dlg.open = True
+
+            # Explicit update to trigger popup
             page.update()
-        return True
-        return True
+
+            # Additional fallback: Method 2 Modern API (if legacy didn't seem to work)
+            if hasattr(page, 'open'):
+                try:
+                    page.open(dlg)
+                except Exception as e:
+                    logger.debug(f"page.open(dlg) fallback failed: {e}")
+
+            return True
+        except Exception as e:
+            logger.error(f"Failed to open dialog in any mode: {e}", exc_info=True)
+            return False
 
     def _close_dialog(self, dialog=None):
         """Close a dialog on the page."""
@@ -317,24 +364,26 @@ class ViewMixin:
 
             if dialog:
                 dialog.open = False
-                dialog.update()
+                try:
+                    dialog.update()
+                except:
+                    pass
 
-            # Fallback for older Flet or to ensure it's removed from overlay
-            if hasattr(page, "close"):
+            # Use modern API if available
+            if hasattr(page, "close") and dialog:
                 try:
                     page.close(dialog)
                 except Exception as e:
-                    logger.warning(f"Failed to close dialog via page.close(): {e}", exc_info=True)
-            elif hasattr(page, "close_dialog"):
-                try:
-                    page.close_dialog()
-                except Exception as e:
-                    logger.warning(f"Failed to close dialog via page.close_dialog(): {e}", exc_info=True)
+                    logger.warning(f"Failed to close dialog via page.close(): {e}")
+
+            # Legacy logic or fallback
+            if hasattr(page, "dialog") and page.dialog == dialog:
+                page.dialog = None
 
             try:
                 page.update()
             except Exception as e:
-                logger.warning(f"Failed to update page after closing dialog: {e}", exc_info=True)
+                logger.debug(f"Page update after dialog close failed (ignored): {e}")
         except Exception as e:
             logger.warning(f"Failed to close dialog: {e}", exc_info=True)
 

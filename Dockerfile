@@ -1,5 +1,5 @@
 # Dockerfile for SwitchCraft Web App Verification
-FROM python:3.14-rc-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
@@ -43,4 +43,4 @@ ENV SC_DISABLE_WINGET_INSTALL=1
 RUN ln -s /app/src/switchcraft/assets /app/assets
 
 # Command to run the application in web mode
-CMD ["flet", "run", "--web", "--port", "8080", "--host", "0.0.0.0", "src/switchcraft/modern_main.py"]
+CMD ["flet", "run", "--web", "--port", "8080", "--host", "0.0.0.0", "src/switchcraft/main.py"]

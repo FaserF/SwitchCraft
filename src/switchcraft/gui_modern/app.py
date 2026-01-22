@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 import json
-import webbrowser
+
 import flet as ft
 from switchcraft import __version__
 from switchcraft.utils.config import SwitchCraftConfig
@@ -1931,7 +1931,7 @@ class ModernApp:
                     def open_download(e):
                         dlg.open = False
                         self.page.update()
-                        webbrowser.open("https://github.com/FaserF/SwitchCraft/releases")
+                        self.page.launch_url("https://github.com/FaserF/SwitchCraft/releases")
 
                     dlg = ft.AlertDialog(
                         title=ft.Text(i18n.get("demo_error_title") or "Download Error"),

@@ -42,7 +42,15 @@ def test_exchange_e2e_flow():
         mock_secure.return_value = "dummy"
 
         view = ExchangeView(mock_page)
-        view.update = MagicMock()
+        # Wrap update to track calls effectively
+        original_update = view.update
+        view.update = MagicMock(side_effect=original_update)
+
+        # Properly add to page (this sets internal page reference in mock)
+        mock_page.add(view)
+
+        # Trigger did_mount manually to start data loading
+        view.did_mount()
 
         # 2. Verify Initial Data Load
         # Check Stats Cards

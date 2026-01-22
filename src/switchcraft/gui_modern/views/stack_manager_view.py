@@ -213,7 +213,7 @@ class StackManagerView(ft.Column, ViewMixin):
                         )
                     )
                 )
-        if self._page:
+        if self.page:
             self.update()
 
     def _add_stack(self, e):

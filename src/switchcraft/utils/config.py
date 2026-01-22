@@ -38,10 +38,16 @@ class ConfigBackend(ABC):
     def export_all(self) -> Dict[str, Any]:
         pass
 
+    @abstractmethod
+    def get_value_with_source(self, value_name: str) -> Optional[Dict[str, Any]]:
+        """Returns { 'value': any, 'source': str } or None."""
+        pass
+
 class RegistryBackend(ConfigBackend):
     """Windows Registry Backend for Desktop App"""
     POLICY_PATH = r"Software\Policies\FaserF\SwitchCraft"
     PREFERENCE_PATH = r"Software\FaserF\SwitchCraft"
+    INTUNE_OMA_PATH = r"Software\Microsoft\PolicyManager\current\device\FaserF~SwitchCraft"
 
     def get_value(self, value_name: str, default: Any = None) -> Any:
         # Alias mapping for GPO
@@ -77,6 +83,37 @@ class RegistryBackend(ConfigBackend):
         if val is not None: return val
 
         return default
+
+    def get_value_with_source(self, value_name: str) -> Optional[Dict[str, Any]]:
+        if sys.platform != 'win32':
+            return None
+
+        try:
+            import winreg
+        except ImportError:
+            return None
+
+        # 1. HKLM Policy (GPO)
+        val = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.POLICY_PATH, value_name)
+        if val is not None: return {"value": val, "source": "GPO (Local Machine)"}
+
+        # 2. HKCU Policy (GPO)
+        val = self._read_registry(winreg.HKEY_CURRENT_USER, self.POLICY_PATH, value_name)
+        if val is not None: return {"value": val, "source": "GPO (Current User)"}
+
+        # 3. Intune OMA-URI
+        val = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.INTUNE_OMA_PATH, value_name)
+        if val is not None: return {"value": val, "source": "Intune OMA-URI"}
+
+        # 4. HKCU Preference (User Registry)
+        val = self._read_registry(winreg.HKEY_CURRENT_USER, self.PREFERENCE_PATH, value_name)
+        if val is not None: return {"value": val, "source": "User Registry (HKCU)"}
+
+        # 5. HKLM Preference (System Registry)
+        val = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.PREFERENCE_PATH, value_name)
+        if val is not None: return {"value": val, "source": "System Registry (HKLM)"}
+
+        return None
 
     def is_managed(self, key: str = None) -> bool:
         """Check if a specific key (or any key) is managed by GPO."""
@@ -283,6 +320,12 @@ class EnvBackend(ConfigBackend):
     def export_all(self) -> Dict[str, Any]:
         return {k: v for k, v in os.environ.items() if k.startswith("SC_")}
 
+    def get_value_with_source(self, value_name: str) -> Optional[Dict[str, Any]]:
+        val = self.get_value(value_name)
+        if val is not None:
+            return {"value": val, "source": "Environment Variable"}
+        return None
+
 class SessionStoreBackend(ConfigBackend):
     """In-Memory Backend for Web Sessions (isolated per user)."""
     def __init__(self, page_session):
@@ -322,6 +365,12 @@ class SessionStoreBackend(ConfigBackend):
     def export_all(self) -> Dict[str, Any]:
         # Not easily exportable from Flet session without iteration keys
         return self.store
+
+    def get_value_with_source(self, value_name: str) -> Optional[Dict[str, Any]]:
+        val = self.get_value(value_name)
+        if val is not None:
+            return {"value": val, "source": "Web Session"}
+        return None
 
 # --- Context Logic ---
 
@@ -401,6 +450,11 @@ class SwitchCraftConfig:
     @classmethod
     def export_preferences(cls) -> dict:
         return cls._get_active_backend().export_all()
+
+    @classmethod
+    def get_value_with_source(cls, value_name: str) -> Optional[Dict[str, Any]]:
+        """Returns the value and its source (GPO, Registry, etc.)."""
+        return cls._get_active_backend().get_value_with_source(value_name)
 
     @classmethod
     def import_preferences(cls, data: dict):

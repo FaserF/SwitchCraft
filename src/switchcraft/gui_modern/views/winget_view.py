@@ -1,7 +1,7 @@
 import flet as ft
 import threading
 import logging
-import webbrowser
+
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.services.addon_service import AddonService
 from switchcraft.utils.i18n import i18n
@@ -807,7 +807,7 @@ class ModernWingetView(ft.Row, ViewMixin):
     def _open_url(self, url: str):
         """Open URL in default browser."""
         try:
-            webbrowser.open(url)
+            self._launch_url(url)
         except Exception as ex:
             logger.error(f"Failed to open URL: {ex}")
 
@@ -873,7 +873,7 @@ class ModernWingetView(ft.Row, ViewMixin):
 
     def _deploy_wau(self, info):
         import webbrowser
-        webbrowser.open("https://github.com/Romanitho/Winget-AutoUpdate")
+        self._launch_url("https://github.com/Romanitho/Winget-AutoUpdate")
         self._show_snack("WAU info opened in browser.")
 
 

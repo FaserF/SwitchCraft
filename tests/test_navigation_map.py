@@ -117,6 +117,8 @@ def test_sidebar_navigation_consistency(app_instance):
                           if idx == 2:
                               assert view_instance.initial_tab_index == 2, f"Index {idx} should be Settings Tab 2"
                           if idx == 3:
+                              assert view_instance.initial_tab_index == 4, f"Index {idx} should be Settings Tab 4"
+                          if idx == 21:
                               assert view_instance.initial_tab_index == 3, f"Index {idx} should be Settings Tab 3"
                           if idx == 12:
                               assert view_instance.initial_tab_index == 0, f"Index {idx} should be Settings Tab 0"

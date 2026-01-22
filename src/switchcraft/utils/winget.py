@@ -1,6 +1,7 @@
+import re
 import subprocess
 import logging
-import re
+from switchcraft.utils.shell_utils import ShellUtils
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +32,11 @@ class WingetHelper:
                 "--accept-source-agreements", "--disable-interactivity"
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=30)
-            if result.returncode != 0:
-                logger.error(f"Winget search failed: {result.stderr}")
+            result = ShellUtils.run_command(cmd, timeout=30, silent=True)
+            if not result or result.returncode != 0:
+                stdout = getattr(result, 'stdout', '')
+                stderr = getattr(result, 'stderr', '')
+                logger.error(f"Winget search failed (code {getattr(result, 'returncode', 'N/A')}): {stderr or stdout or 'No output'}")
                 return []
 
             return self._parse_table(result.stdout)
@@ -52,8 +55,8 @@ class WingetHelper:
                 "--accept-source-agreements", "--disable-interactivity"
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=20)
-            if result.returncode != 0:
+            result = ShellUtils.run_command(cmd, timeout=20, silent=True)
+            if not result or result.returncode != 0:
                 return {}
 
             return self._parse_details(result.stdout)
@@ -62,6 +65,7 @@ class WingetHelper:
             return {}
 
     def _parse_table(self, output):
+        if not output: return []
         lines = output.splitlines()
         results = []
 
@@ -90,6 +94,7 @@ class WingetHelper:
     def _parse_details(self, output):
         """Parse 'winget show' output into a dictionary."""
         details = {}
+        if not output: return details
         for line in output.splitlines():
             if ":" in line:
                 key, val = line.split(":", 1)
@@ -108,8 +113,6 @@ class WingetHelper:
             "--accept-source-agreements"
         ]
         try:
-            return subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=300)
-        except subprocess.TimeoutExpired:
-            raise Exception("Install timed out (5 minutes)")
-        except subprocess.CalledProcessError as e:
-            raise Exception(f"Install failed: {e.stdout} {e.stderr}")
+            return ShellUtils.run_command(cmd, check=True, timeout=300)
+        except Exception as e:
+            raise Exception(f"Install failed: {e}")
