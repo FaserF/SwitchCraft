@@ -124,13 +124,42 @@ def generate_splash(version=None):
                 width=2
             )
 
+    # Backup original splash if it exists and backup doesn't
+    backup_path = output_path.with_suffix(".png.bak")
+    if output_path.exists() and not backup_path.exists():
+        import shutil
+        shutil.copy2(output_path, backup_path)
+        print(f"Backed up original splash to: {backup_path}")
+
     # Save
     img.save(output_path)
     print(f"Splash screen generated at: {output_path}")
 
+def restore_splash():
+    base_dir = Path(__file__).resolve().parent.parent
+    splash_path = base_dir / "src" / "switchcraft" / "assets" / "splash.png"
+    backup_path = splash_path.with_suffix(".png.bak")
+
+    if backup_path.exists():
+        import shutil
+        shutil.copy2(backup_path, splash_path)
+        print(f"Restored original splash from: {backup_path}")
+        # Optional: Delete backup? User might want to keep it safe.
+        # But if we want to ensure 'git status' is clean, we should keep the original 'splash.png'
+        # intact. The backup file is untracked usually.
+        # Let's remove the backup to keep folder clean.
+        os.remove(backup_path)
+        print("Removed backup file.")
+    else:
+        print("No backup found to restore.")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", help="Version string to display", default=None)
+    parser.add_argument("--restore", help="Restore original splash screen", action="store_true")
     args = parser.parse_args()
 
-    generate_splash(args.version)
+    if args.restore:
+        restore_splash()
+    else:
+        generate_splash(args.version)

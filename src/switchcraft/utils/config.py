@@ -330,18 +330,26 @@ class SessionStoreBackend(ConfigBackend):
     """In-Memory Backend for Web Sessions (isolated per user)."""
     def __init__(self, page_session):
         self.session = page_session # Reference to Flet page.session (dict-like)
-        self.store = {} # Local fallback if session unimplemented
+        self.store = {} # Local fallback if session unimplemented or blocked
 
     def get_value(self, value_name: str, default: Any = None) -> Any:
         # Check session store
-        if hasattr(self.session, 'get'):
-             val = self.session.get(f"sc_conf_{value_name}")
-             if val is not None: return val
+        try:
+            if hasattr(self.session, 'get'):
+                 val = self.session.get(f"sc_conf_{value_name}")
+                 if val is not None: return val
+        except Exception:
+            pass # Session access blocked (e.g. tracking prevention)
+
         return self.store.get(value_name, default)
 
     def set_value(self, value_name: str, value: Any, value_type: int = None):
-        if hasattr(self.session, 'set'):
-             self.session.set(f"sc_conf_{value_name}", value)
+        try:
+            if hasattr(self.session, 'set'):
+                 self.session.set(f"sc_conf_{value_name}", value)
+        except Exception:
+            pass # Session access blocked
+
         self.store[value_name] = value
 
     def get_secure_value(self, value_name: str) -> Optional[str]:
@@ -353,9 +361,13 @@ class SessionStoreBackend(ConfigBackend):
 
     def delete_secure_value(self, value_name: str):
         key = f"SECURE_{value_name}"
-        if hasattr(self.session, 'remove'):
-            try: self.session.remove(f"sc_conf_{key}")
-            except: pass
+        try:
+            if hasattr(self.session, 'remove'):
+                try: self.session.remove(f"sc_conf_{key}")
+                except: pass
+        except Exception:
+            pass
+
         if key in self.store:
             del self.store[key]
 

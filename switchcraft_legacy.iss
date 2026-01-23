@@ -159,12 +159,41 @@ end;
 
 // Write debug mode registry value based on command line param (for silent install)
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  UninstallKey: String;
+  UninstallString: String;
+  RootKey: Integer;
 begin
   if CurStep = ssPostInstall then
   begin
+    // Determine the correct registry root based on install mode
+    if IsAdminInstallMode then
+      RootKey := HKEY_LOCAL_MACHINE
+    else
+      RootKey := HKEY_CURRENT_USER;
+
     if DebugModeParam then
     begin
-      RegWriteDWordValue(HKEY_CURRENT_USER, 'Software\{#MyAppPublisher}\{#MyAppName}', 'DebugMode', 1);
+       // We write to the same location HKA would pick
+       RegWriteDWordValue(RootKey, 'Software\{#MyAppPublisher}\{#MyAppName}', 'DebugMode', 1);
+    end;
+
+    // Force Silent Uninstall String for Legacy too
+    // The key is AppId_Legacy_is1. Note: Preprocessor handles {{ -> {
+    UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{F4A53RF0-5W1T-CH3R-AFTF-ASE3RF453RF0}_Legacy_is1';
+
+    // Read existing UninstallString
+    if RegQueryStringValue(RootKey, UninstallKey, 'UninstallString', UninstallString) then
+    begin
+      // Check if flags are already present (avoid duplication)
+      if Pos('/VERYSILENT', UninstallString) = 0 then
+      begin
+        UninstallString := UninstallString + ' /VERYSILENT /SUPPRESSMSGBOXES /NORESTART';
+        if RegWriteStringValue(RootKey, UninstallKey, 'UninstallString', UninstallString) then
+        begin
+          Log('Successfully updated UninstallString to be silent.');
+        end;
+      end;
     end;
   end;
 end;

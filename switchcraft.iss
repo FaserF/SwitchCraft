@@ -107,6 +107,7 @@ Root: HKA; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: string;
 Root: HKA; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: string; ValueName: "Version"; ValueData: "{#MyAppVersion}"; Flags: uninsdeletekey
 
 ; Debug mode flag - set based on task selection or command line parameter
+; We use HKA to ensure it goes to HKLM for Admin installs (visible to all users) vs HKCU for User installs
 Root: HKA; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: dword; ValueName: "DebugMode"; ValueData: "1"; Tasks: debugmode; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: dword; ValueName: "DebugMode"; ValueData: "0"; Tasks: not debugmode; Flags: uninsdeletevalue
 
@@ -169,19 +170,21 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    // 1. Handle Debug Mode Registry
-    if DebugModeParam then
-    begin
-      RegWriteDWordValue(HKEY_CURRENT_USER, 'Software\{#MyAppPublisher}\{#MyAppName}', 'DebugMode', 1);
-    end;
-
-    // 2. Force Silent Uninstall String
     // Determine the correct registry root based on install mode
     if IsAdminInstallMode then
       RootKey := HKEY_LOCAL_MACHINE
     else
       RootKey := HKEY_CURRENT_USER;
 
+    // 1. Handle Debug Mode Registry (Explicitly using correct RootKey)
+    // Note: The [Registry] section now handles this via HKA, but if we need to enforce it from parameter:
+    if DebugModeParam then
+    begin
+       // We write to the same location HKA would pick
+       RegWriteDWordValue(RootKey, 'Software\{#MyAppPublisher}\{#MyAppName}', 'DebugMode', 1);
+    end;
+
+    // 2. Force Silent Uninstall String
     // The key is AppId_is1. Note: Preprocessor handles {{ -> {
     UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{F4A53RF0-5W1T-CH3R-AFTF-ASE3RF453RF0}_is1';
 
@@ -201,6 +204,13 @@ begin
           Log('Failed to update UninstallString.');
         end;
       end;
+    end
+    else
+    begin
+       // Try 64-bit wrapper check - Inno Setup x64 mode should handle this partially,
+       // but sometimes keys end up in WOW6432Node if ArchitecturesInstallIn64BitMode isn't fully respected or mixed.
+       // However, since we defined ArchitecturesInstallIn64BitMode=x64, RootKey should be correct for native 64-bit key.
+       Log('Could not find UninstallString key to update. Checked Root: ' + IntToStr(RootKey) + ' Key: ' + UninstallKey);
     end;
   end;
 end;

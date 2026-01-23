@@ -920,187 +920,118 @@ class ModernSettingsView(ft.Column, ViewMixin):
         # Force update to show loading dialog
         self.app_page.update()
 
-        # Start device flow in background (network call)
-
-        def _init_flow():
+        # Start device flow in background (using run_task for async compatibility)
+        async def _run_login_flow():
             try:
-                flow = AuthService.initiate_device_flow()
+                # 1. Init Flow (Network IO)
+                # We run this in a thread executor if it's synchronous, or directly if async
+                # AuthService.initiate_device_flow is likely sync (requests), so we wrap it
+                import asyncio
+
+                logger.debug("Starting GitHub login flow (Async)...")
+
+                # Helper to run sync blocking IO in a thread executor (safe for async loop)
+                flow = await asyncio.to_thread(AuthService.initiate_device_flow)
+
                 if not flow:
-                    # Marshal UI updates to main thread
-                    # Capture original button state in closure using default parameter to avoid scope issues
-                    def _handle_no_flow(orig_text=original_text, orig_icon=original_icon):
-                        self._close_dialog(loading_dlg)
-                        self._show_snack("Login init failed", "RED")
-                        # Restore button state
-                        if hasattr(self, 'login_btn'):
-                            if hasattr(self.login_btn, 'text'):
-                                self.login_btn.text = orig_text
-                            else:
-                                self.login_btn.content = orig_text
-                            self.login_btn.icon = orig_icon
-                            if self.page:
-                                self.login_btn.update()
-                    self._run_task_with_fallback(_handle_no_flow, error_msg="Failed to initialize login flow")
-                    return None
-                return flow
-            except Exception as ex:
-                logger.exception(f"Error initiating device flow: {ex}")
-                # Marshal UI updates to main thread
-                error_msg = f"Failed to initiate login flow: {ex}"
-                # Capture error_msg and original button state in closure using default parameter to avoid scope issues
-                def _handle_error(msg=error_msg, orig_text=original_text, orig_icon=original_icon):
                     self._close_dialog(loading_dlg)
-                    self._show_snack(f"Login error: {msg}", "RED")
-                    # Restore button state
-                    if hasattr(self, 'login_btn'):
-                        if hasattr(self.login_btn, 'text'):
-                            self.login_btn.text = orig_text
-                        else:
-                            self.login_btn.content = orig_text
-                        self.login_btn.icon = orig_icon
-                        if self.page:
-                            self.login_btn.update()
-                self._run_task_with_fallback(_handle_error, error_msg=error_msg)
-                return None
+                    self._show_snack("Login init failed", "RED")
+                    self._restore_login_button(original_text, original_icon)
+                    return
 
-        # Show dialog with flow data on main thread
-        def _show_dialog_with_flow(flow):
-            if not flow:
-                return
-
-            def copy_code(e):
-                try:
-                    import pyperclip
-                    pyperclip.copy(flow.get("user_code"))
-                except Exception as e:
-                    logger.debug(f"Failed to copy user code to clipboard: {e}")
-                self._launch_url(flow.get("verification_uri"))
-
-            btn_copy = ft.TextButton("Copy & Open", on_click=copy_code)
-            btn_cancel = ft.TextButton("Cancel", on_click=lambda e: self._close_dialog(dlg))
-
-            dlg = ft.AlertDialog(
-                title=ft.Text(i18n.get("github_login") or "GitHub Login"),
-                content=ft.Column([
-                    ft.Text(i18n.get("please_visit") or "Please visit:"),
-                    ft.Text(flow.get("verification_uri"), color="BLUE", selectable=True),
-                    ft.Text(i18n.get("and_enter_code") or "And enter code:"),
-                    ft.Text(flow.get("user_code"), size=24, weight=ft.FontWeight.BOLD, selectable=True),
-                ], height=150, scroll=ft.ScrollMode.AUTO),
-                actions=[btn_copy, btn_cancel]
-            )
-
-            # Close loading dialog first
-            self._close_dialog(loading_dlg)
-
-            # Show dialog on main thread
-            logger.debug(f"Opening device flow dialog for code {flow.get('user_code')}")
-            logger.info("Showing GitHub login dialog...")
-
-            # Use safe opener instead of manual property setting
-            self._open_dialog_safe(dlg)
-            logger.debug("Device flow dialog opened")
-
-            # Poll for token in background thread
-            def _poll_token():
-                try:
-                    token = AuthService.poll_for_token(flow.get("device_code"), flow.get("interval"), flow.get("expires_in"))
-
-                    # Close dialog and show result on main thread
-                    async def _close_and_result():
-                        self._close_dialog(dlg)
-                        # Restore button state
-                        if hasattr(self, 'login_btn'):
-                            self.login_btn.text = original_text
-                            self.login_btn.icon = original_icon
-                            self.login_btn.update()
-                        if token:
-                            AuthService.save_token(token)
-                            self._update_sync_ui()
-                            self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
-                        else:
-                            self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
-
-                    if hasattr(self.app_page, 'run_task'):
-                        self.app_page.run_task(_close_and_result)
-                    else:
-                        # Fallback: execute synchronously if run_task not available
-                        # Note: This is not ideal but provides backward compatibility
-                        import asyncio
-                        try:
-                            # In a background thread, there's no running loop, so go directly to asyncio.run
-                            asyncio.run(_close_and_result())
-                        except Exception as e:
-                            logger.warning(f"Failed to run async close_and_result: {e}", exc_info=True)
-                            # Last resort: try to execute the logic directly
-                            dlg.open = False
-                            self.app_page.update()
-                            if token:
-                                AuthService.save_token(token)
-                                self._update_sync_ui()
-                                self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
-                            else:
-                                self._show_snack(i18n.get("login_failed") or "Login Failed or Timed out", "RED")
-                except Exception as e:
-                    # Catch all exceptions including KeyboardInterrupt to prevent unhandled thread exceptions
-                    logger.exception(f"Unexpected error in token polling background thread: {e}")
-
-            threading.Thread(target=_poll_token, daemon=True).start()
-
-        # Start flow initiation in background, then show dialog on main thread
-        def _flow_complete():
-            flow = _init_flow()
-            if flow:
-                # Create a wrapper function that binds the flow argument
-                # This avoids lambda and ensures proper integration with run_task
-                def _show_dialog_wrapper():
-                    _show_dialog_with_flow(flow)
-
-                def _fallback_show_dialog():
+                # 2. Show Dialog
+                def copy_code(e):
                     try:
-                        _show_dialog_with_flow(flow)
-                    except Exception as ex2:
-                        logger.exception(f"Error showing dialog directly: {ex2}")
-                        loading_dlg.open = False
-                        self.app_page.update()
-                        raise  # Re-raise to trigger error handling in helper
+                        import pyperclip
+                        pyperclip.copy(flow.get("user_code"))
+                    except Exception as e:
+                        logger.debug(f"Failed to copy user code: {e}")
+                    self._launch_url(flow.get("verification_uri"))
 
-                # Use shared helper for run_task with fallback
-                self._run_task_with_fallback(
-                    _show_dialog_wrapper,
-                    fallback_func=_fallback_show_dialog,
-                    error_msg="Failed to show login dialog"
+                btn_copy = ft.TextButton("Copy & Open", on_click=copy_code)
+                # We need a way to cancel the polling loop
+                cancel_event = asyncio.Event()
+
+                def on_cancel(e):
+                    cancel_event.set()
+                    self._close_dialog(dlg)
+                    self._restore_login_button(original_text, original_icon)
+
+                btn_cancel = ft.TextButton("Cancel", on_click=on_cancel)
+
+                dlg = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text(i18n.get("github_login") or "GitHub Login"),
+                    content=ft.Column([
+                        ft.Text(i18n.get("please_visit") or "Please visit:"),
+                        ft.Text(flow.get("verification_uri"), color="BLUE", selectable=True),
+                        ft.Text(i18n.get("and_enter_code") or "And enter code:"),
+                        ft.Text(flow.get("user_code"), size=24, weight=ft.FontWeight.BOLD, selectable=True),
+                    ], height=150, scroll=ft.ScrollMode.AUTO),
+                    actions=[btn_copy, btn_cancel]
                 )
 
-        def _bg_wrapper():
-            try:
-                logger.debug("Starting GitHub login background task...")
-                _flow_complete()
-            except Exception as e:
-                 logger.exception(f"CRITICAL ERROR in GitHub Login background thread: {e}")
-                 # Ensure UI is restored even on critical thread crash
-                 def restore_ui():
-                     try:
-                        if hasattr(self, 'login_btn'):
-                            if hasattr(self.login_btn, 'text'):
-                                self.login_btn.text = original_text
-                            else:
-                                self.login_btn.content = original_text
-                            self.login_btn.icon = original_icon
-                            self.login_btn.update()
-                     except Exception as ex:
-                         logger.error(f"Failed to restore button state: {ex}")
+                self._close_dialog(loading_dlg)
+                self._open_dialog_safe(dlg)
 
-                     try:
-                        loading_dlg.open = False
-                        self.app_page.update()
-                     except Exception as ex:
-                        logger.error(f"Failed to close loading dialog: {ex}")
+                # 3. Poll for Token (Async Loop)
+                device_code = flow.get("device_code")
+                interval = flow.get("interval", 5)
+                expires_in = flow.get("expires_in", 900)
+                start_time = asyncio.get_event_loop().time()
 
-                     self._show_snack(f"Critical Login Error: {e}", "RED")
-                 self._run_task_safe(restore_ui)
+                while not cancel_event.is_set():
+                    # Check timeout
+                    if asyncio.get_event_loop().time() - start_time > expires_in:
+                        self._close_dialog(dlg)
+                        self._show_snack("Login timed out", "RED")
+                        self._restore_login_button(original_text, original_icon)
+                        return
 
-        threading.Thread(target=_bg_wrapper, daemon=True).start()
+                    # Poll
+                    # AuthService.poll_for_token is usually blocking with its own sleep,
+                    # but we want to control the sleep here for cancellation.
+                    # We'll use a modified poll check that strictly checks ONCE.
+                    # Use to_thread to keep UI responsive
+                    token = await asyncio.to_thread(AuthService.check_token_once, device_code)
+
+                    if token:
+                        self._close_dialog(dlg)
+                        AuthService.save_token(token)
+                        self._update_sync_ui()
+                        self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
+                        self._restore_login_button(original_text, original_icon)
+                        return
+
+                    # Wait for interval
+                    try:
+                        await asyncio.wait_for(cancel_event.wait(), timeout=interval)
+                        if cancel_event.is_set():
+                            logger.info("Login cancelled by user")
+                            return
+                    except asyncio.TimeoutError:
+                        continue # Interval passed, poll again
+
+            except Exception as ex:
+                logger.exception(f"Error in GitHub Login Flow: {ex}")
+                self._close_dialog(loading_dlg)
+                # Ensure dlg is closed if open
+                if 'dlg' in locals():
+                    self._close_dialog(dlg)
+
+                self._show_snack(f"Login Error: {ex}", "RED")
+                self._restore_login_button(original_text, original_icon)
+
+        self._run_task_safe(_run_login_flow)
+
+    def _restore_login_button(self, text, icon):
+        if hasattr(self, 'login_btn'):
+            if hasattr(self.login_btn, 'text'):
+                self.login_btn.text = text
+            else:
+                self.login_btn.content = text
+            self.login_btn.icon = icon
+            self.login_btn.update()
 
     def _logout_github(self, e):
         """

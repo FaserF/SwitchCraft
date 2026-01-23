@@ -491,6 +491,22 @@ if ($Legacy -and $IsWinBuild) {
     }
 }
 
+# --- 7. CLEANUP / RESTORE SPLASH ---
+Write-Host "`nRestoring original Splash Screen..." -ForegroundColor Cyan
+try {
+    $SplashScript = Join-Path $RepoRoot "scripts/generate_splash.py"
+    if (Test-Path $SplashScript) {
+        if ($IsWinBuild) {
+            python $SplashScript --restore
+        }
+        else {
+            python3 $SplashScript --restore
+        }
+    }
+} catch {
+    Write-Warning "Failed to restore splash screen: $_"
+}
+
 # --- Capture Build End Time and Calculate Duration ---
 $BuildEndTime = Get-Date
 $BuildEndTimeString = $BuildEndTime.ToString("yyyy-MM-dd HH:mm:ss")

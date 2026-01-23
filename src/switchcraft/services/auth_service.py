@@ -46,6 +46,45 @@ class AuthService:
             return None
 
     @classmethod
+    def check_token_once(cls, device_code: str) -> Optional[str]:
+        """
+        Performs a single check for the access token.
+        Returns token if successful, None otherwise.
+        Used by async loops that manage their own sleeping.
+        """
+        headers = {"Accept": "application/json"}
+        data = {
+            "client_id": cls.CLIENT_ID,
+            "device_code": device_code,
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
+        }
+
+        try:
+            response = requests.post(cls.TOKEN_URL, headers=headers, data=data, timeout=10)
+            response.raise_for_status()
+            resp_data = response.json()
+
+            if "access_token" in resp_data:
+                return resp_data["access_token"]
+
+            error = resp_data.get("error")
+            if error in ["authorization_pending", "slow_down"]:
+                return None
+            elif error == "expired_token":
+                logger.error("Device code expired.")
+                return None
+            elif error == "access_denied":
+                logger.error("User denied access.")
+                return None
+            else:
+                logger.debug(f"Polling error: {error}")
+                return None
+
+        except Exception as e:
+            logger.debug(f"Token check failed (network): {e}")
+            return None
+
+    @classmethod
     def poll_for_token(cls, device_code: str, interval: int = 5, expires_in: int = 900) -> Optional[str]:
         """
         Step 2: Poll GitHub for the access token until the user authorizes or the code expires.
