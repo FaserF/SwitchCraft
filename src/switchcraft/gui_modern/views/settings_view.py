@@ -72,10 +72,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
         """
         try:
             from switchcraft.utils.config import SwitchCraftConfig
-            if hasattr(self.app_page, 'web') and self.app_page.web:
-                if hasattr(self.app_page, 'sc_backend'):
-                    # Restore the backend explicitly for this thread/context
-                    SwitchCraftConfig.set_backend(self.app_page.sc_backend)
+            # UNIVERSAL FIX: Always restore backend if available (Desktop & Web)
+            # Flet threads lose ContextVars on all platforms.
+            if hasattr(self.app_page, 'sc_backend') and self.app_page.sc_backend:
+                # Restore the backend explicitly for this thread/context
+                SwitchCraftConfig.set_backend(self.app_page.sc_backend)
         except Exception as e:
             logger.error(f"Failed to ensure backend context: {e}")
 

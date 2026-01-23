@@ -47,7 +47,10 @@ class AuthService:
         """
         cid = cls.get_client_id()
         if not cid:
-             return None
+             # Try fallback hardcoded ID for Desktop App (where Env/Config might be missing context)
+             cid = "Ov23liFQxD8H5In5LqBM"
+             if not cid:
+                return None
 
         headers = {"Accept": "application/json"}
         data = {

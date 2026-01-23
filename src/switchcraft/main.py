@@ -297,9 +297,14 @@ def main(page: ft.Page):
             # DESKTOP MODE: Use Registry (Windows) or Env (Linux Local)
             # Default logic in SwitchCraftConfig handles this, but we can set explicitly to be safe
             if sys.platform == "win32":
-                SwitchCraftConfig.set_backend(RegistryBackend())
+                desktop_backend = RegistryBackend()
             else:
-                SwitchCraftConfig.set_backend(EnvBackend())
+                desktop_backend = EnvBackend()
+
+            SwitchCraftConfig.set_backend(desktop_backend)
+            # CRITICAL: Attach backend to page so we can restore it in callbacks (fixing threading issues)
+            page.sc_backend = desktop_backend
+
             print(f"Config Backend: {'RegistryBackend' if sys.platform == 'win32' else 'EnvBackend'} (Desktop)")
 
     except Exception as e:
