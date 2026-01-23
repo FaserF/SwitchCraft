@@ -2,11 +2,6 @@ import sys
 import os
 
 if getattr(sys, 'frozen', False):
-    # RUNTIME SHADOWING FIX + BUNDLING HINT
-    # 1. We import 'switchcraft.gui.app' here to force PyInstaller to bundle it
-    #    (Static Analysis sees this import).
-    # 2. We import it at runtime to populate sys.modules, bypassing any
-    #    shadowing 'switchcraft' folder that might exist in _MEIPASS.
     try:
         import switchcraft.gui.app # noqa: F401
     except ImportError:
