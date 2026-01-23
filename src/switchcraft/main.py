@@ -57,16 +57,14 @@ def flexible_run(*args, **kwargs):
     if not target and args:
         target = args[0]
 
-    if target:
-        kwargs["target"] = target
-
     # Use run() if available (Flet 0.80.0+), else app()
-    if hasattr(ft, "_original_run"):
-        return ft._original_run(**kwargs)
+    clean_kwargs = {k: v for k, v in kwargs.items() if k != "target"}
+    if hasattr(ft, "_original_run") and ft._original_run:
+        return ft._original_run(target, **clean_kwargs)
     elif hasattr(ft, "run") and ft.run != flexible_run:
-        return ft.run(**kwargs)
+        return ft.run(target, **clean_kwargs)
 
-    return ft.app(**kwargs)
+    return ft.app(target=target, **clean_kwargs)
 
 # Save original run and override
 if not hasattr(ft, "_original_run"):
