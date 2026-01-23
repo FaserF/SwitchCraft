@@ -38,14 +38,10 @@ jobs:
 
       - name: Build Web Demo
         run: |
-          # Bake translations for WASM (prevents file loading issues in Pyodide filesystem)
-          echo "Baking translations..."
-          python -c "import json, os; \
-            d = {l: json.load(open(f'src/switchcraft/assets/lang/{l}.json')) for l in ['en', 'de']}; \
-            open('src/switchcraft/utils/wasm_translations.py', 'w').write(f'TRANSLATIONS = {repr(d)}')"
+          # Bake translations for WASM
+          python scripts/prepare_web_dist.py --bake
 
           # Create an isolated build directory
-          # This prevents 'flet publish' from auto-detecting the root 'pyproject.toml'
           mkdir -p build_web
           cp -r src/switchcraft build_web/
 
@@ -55,7 +51,7 @@ jobs:
           import sys
 
           print("DEBUG: WEB ENTRY RELOADED (Version 2026.1.24-FIXED-V5)")
-          print(f"BUILD_TIME: $(date)")
+          print(f"BUILD_TIME: \$(date)")
 
           # ============================================================
           # CRITICAL: Patch ssl module BEFORE any urllib3 import
@@ -68,7 +64,7 @@ jobs:
               should_patch_ssl = "ssl" not in sys.modules
               if not should_patch_ssl:
                   ssl_mod = sys.modules["ssl"]
-                  # Check if it's a MagicMock (often has __class__.__name__ == 'MagicMock' or 'Mock')
+                  # Check if it's a MagicMock
                   if "Mock" in str(type(ssl_mod)) or not hasattr(ssl_mod, "OPENSSL_VERSION_INFO"):
                       should_patch_ssl = True
                   else:
@@ -116,15 +112,12 @@ jobs:
               ft.run(switchcraft.main.main, assets_dir="assets")
           EOF
 
-          # Generate dynamic splash screen with version (DIRECTLY into build_web)
-          # using the current version from source
-          # We need to extract the version first
+          # Generate dynamic splash screen
           VERSION=$(python -c "import src.switchcraft as s; print(s.__version__)")
-          echo "Generating Splash for Version: $VERSION"
-          python scripts/generate_splash.py --version "$VERSION" --output "build_web/switchcraft/assets/splash.png"
+          echo "Generating Splash for Version: \$VERSION"
+          python scripts/generate_splash.py --version "\$VERSION" --output "build_web/switchcraft/assets/splash.png"
 
-          # Manually create requirements.txt inside build_web
-          # This ONLY contains safe, web-compatible dependencies
+          # Manually create requirements.txt
           cat > build_web/requirements.txt <<EOF
           flet==0.80.3
           pyodide-http
@@ -139,46 +132,23 @@ jobs:
           anyio>=4.12.1
           EOF
 
-          # Publish from WITHIN the build_web directory
+          # Publish
           cd build_web
-          # Save our patched web_entry.py for later use
           cp web_entry.py ../web_entry.py.patched
-
           flet publish web_entry.py --app-name "SwitchCraft Demo" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath ../dist --assets switchcraft/assets
 
-          # CRITICAL: Overwrite the Flet-generated web_entry.py in dist with our patched version
-          echo "Applying SSL patch to generated dist/web_entry.py..."
-          cp ../web_entry.py.patched ../dist/web_entry.py
-
-          # Move build to docs public folder
+          # Overwrite with patched entry
           cd ..
+          cp web_entry.py.patched dist/web_entry.py
 
-          # CRITICAL: Replace Flet's default "Working..." loading screen with SwitchCraft Splash
-          echo "Customizing Flet loading screen..."
-          # We use a simple python script to inject our own CSS/HTML into index.html
-          python -c " \
-import os; \
-path = 'dist/index.html'; \
-if os.path.exists(path): \
-    with open(path, 'r', encoding='utf-8') as f: \
-        content = f.read(); \
-    # Replace the loading div content \
-    content = content.replace('<p>Working...</p>', '<p style=\"color: #95a5a6; font-family: Segoe UI, sans-serif; font-size: 14px;\">Initializing SwitchCraft...</p>'); \
-    # Improve the loader style if possible \
-    content = content.replace('border: 16px solid #f3f3f3;', 'border: 8px solid #34495e;'); \
-    content = content.replace('border-top: 16px solid #3498db;', 'border-top: 8px solid #3498db;'); \
-    with open(path, 'w', encoding='utf-8') as f: \
-        f.write(content); \
-"
-
-          # CRITICAL: Overwrite Flet default icons with SwitchCraft icons
-          echo "Overwriting PWA Icons..."
+          # Customize Flet loading screen and Overwrite Icons
+          python scripts/prepare_web_dist.py --patch dist
           cp src/switchcraft/assets/icon-192.png dist/icons/icon-192.png
           cp src/switchcraft/assets/icon-512.png dist/icons/icon-512.png
           cp src/switchcraft/assets/favicon.png dist/favicon.png
           cp src/switchcraft/assets/apple-touch-icon.png dist/apple-touch-icon.png || true
 
-          # CRITICAL: Delete existing demo folder to ensure no stale files from repo or previous steps
+          # Deploy to docs public
           rm -rf docs/public/demo
           mkdir -p docs/public/demo
           cp -r dist/* docs/public/demo/
@@ -186,6 +156,8 @@ if os.path.exists(path): \
           # Clean up
           rm -rf dist
           rm -rf build_web
+          rm -f web_entry.py.patched
+        shell: bash
         shell: bash
 
       - name: Setup Node
