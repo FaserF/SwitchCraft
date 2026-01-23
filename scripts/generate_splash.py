@@ -2,12 +2,20 @@ from PIL import Image, ImageDraw, ImageFont
 import os
 from pathlib import Path
 import argparse
+import re
 
-def generate_splash(version=None):
+def generate_splash(version=None, output_path=None):
     # Paths
     base_dir = Path(__file__).resolve().parent.parent
     logo_path = base_dir / "src" / "switchcraft" / "assets" / "switchcraft_logo.png"
-    output_path = base_dir / "src" / "switchcraft" / "assets" / "splash.png"
+
+    if output_path:
+        target_path = Path(output_path)
+    else:
+        target_path = base_dir / "src" / "switchcraft" / "assets" / "splash.png"
+
+    # Ensure directory exists
+    target_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Fonts (Windows standard)
     font_dir = Path("C:/Windows/Fonts")
@@ -71,15 +79,17 @@ def generate_splash(version=None):
         text_ver = f"{version}"
         draw.text((20, height - 30), text_ver, font=font_ver, fill=(100, 100, 100))
 
-        # Check for Beta/Dev and add banner
+        # Check for Beta/Dev/Alpha and add banner
         v_lower = version.lower()
         banner_text = ""
         banner_color = (0, 0, 0)
 
-        if "dev" in v_lower:
+        # Improved matching logic
+        if "dev" in v_lower or "alpha" in v_lower:
             banner_text = "DEV BUILD"
             banner_color = (255, 50, 50) # Red
-        elif "beta" in v_lower:
+        elif "beta" in v_lower or "rc" in v_lower or re.search(r'b\d+$', v_lower):
+            # Matches 'beta', 'rc', or 'b1', 'b2' etc ending
             banner_text = "BETA RELEASE"
             banner_color = (255, 140, 0) # Dark Orange
 
@@ -100,23 +110,10 @@ def generate_splash(version=None):
             x_banner = width - w_banner - margin
             y_banner = margin
 
-            # Optional: Add a slight background or border for the banner?
-            # Request asked for "Warnbanner", let's make it text for now but perhaps with a rectangle behind it?
-            # User said "Beta in auffälligem dunklen Orange, dev in rotem Text" (Beta in striking dark orange, dev in red text)
-            # Just changing text color might be enough as per specifically "text" request, but lets add a small border/box for "Banner" feel if needed.
-            # "Warnbanner steht" implies a banner. Let's do a simple rounded rect background maybe?
-            # Actually, "dev in rotem Text" suggests the text itself is colored.
-            # Let's stick to colored text with a small background pill for better visibility against dark bg.
-
-            # Draw semi-transparent background for the banner?
-            # The background is (30, 30, 40).
-            # Let's just draw the text clearly.
-
             # Draw text
             draw.text((x_banner, y_banner), banner_text, font=font_banner, fill=banner_color)
 
-            # Add a small line/box under/around it?
-            # Let's add a rectangle border with the same color
+            # Add a small line/box under/around it
             padding = 5
             draw.rectangle(
                 (x_banner - padding, y_banner - padding, x_banner + w_banner + padding, y_banner + h_banner + padding + 5),
@@ -124,16 +121,17 @@ def generate_splash(version=None):
                 width=2
             )
 
-    # Backup original splash if it exists and backup doesn't
-    backup_path = output_path.with_suffix(".png.bak")
-    if output_path.exists() and not backup_path.exists():
-        import shutil
-        shutil.copy2(output_path, backup_path)
-        print(f"Backed up original splash to: {backup_path}")
-
     # Save
-    img.save(output_path)
-    print(f"Splash screen generated at: {output_path}")
+    # Only backup if no custom output path is specified (overwriting source logic)
+    if not output_path:
+        backup_path = target_path.with_suffix(".png.bak")
+        if target_path.exists() and not backup_path.exists():
+            import shutil
+            shutil.copy2(target_path, backup_path)
+            print(f"Backed up original splash to: {backup_path}")
+
+    img.save(target_path)
+    print(f"Splash screen generated at: {target_path}")
 
 def restore_splash():
     base_dir = Path(__file__).resolve().parent.parent
@@ -144,10 +142,6 @@ def restore_splash():
         import shutil
         shutil.copy2(backup_path, splash_path)
         print(f"Restored original splash from: {backup_path}")
-        # Optional: Delete backup? User might want to keep it safe.
-        # But if we want to ensure 'git status' is clean, we should keep the original 'splash.png'
-        # intact. The backup file is untracked usually.
-        # Let's remove the backup to keep folder clean.
         os.remove(backup_path)
         print("Removed backup file.")
     else:
@@ -156,10 +150,11 @@ def restore_splash():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", help="Version string to display", default=None)
+    parser.add_argument("--output", help="Specific output path. If not set, modifies src asset.", default=None)
     parser.add_argument("--restore", help="Restore original splash screen", action="store_true")
     args = parser.parse_args()
 
     if args.restore:
         restore_splash()
     else:
-        generate_splash(args.version)
+        generate_splash(args.version, args.output)
