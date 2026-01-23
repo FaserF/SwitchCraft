@@ -20,10 +20,11 @@ def generate_splash(version=None, output_path=None):
     # Fonts (Windows standard)
     font_dir = Path("C:/Windows/Fonts")
     try:
-        font_main = ImageFont.truetype(str(font_dir / "segoeuib.ttf"), 60) # Segoe UI Bold
-        font_sub = ImageFont.truetype(str(font_dir / "segoeui.ttf"), 22)   # Segoe UI
-        font_hint = ImageFont.truetype(str(font_dir / "segoeui.ttf"), 16)  # Segoe UI
-        font_ver = ImageFont.truetype(str(font_dir / "consola.ttf"), 14)   # Consolas (Monospace)
+        # Reduced font sizes by 20%
+        font_main = ImageFont.truetype(str(font_dir / "segoeuib.ttf"), 48) # Reduced from 60
+        font_sub = ImageFont.truetype(str(font_dir / "segoeui.ttf"), 18)   # Reduced from 22
+        font_hint = ImageFont.truetype(str(font_dir / "segoeui.ttf"), 13)  # Reduced from 16
+        font_ver = ImageFont.truetype(str(font_dir / "consola.ttf"), 11)   # Reduced from 14
     except Exception:
         # Fallback to default if fonts not found
         font_main = ImageFont.load_default()
@@ -32,7 +33,8 @@ def generate_splash(version=None, output_path=None):
         font_ver = ImageFont.load_default()
 
     # Create background (Modern Dark Gray/Blue)
-    width, height = 800, 500
+    # Reduced image dimensions by 20%
+    width, height = 640, 400 # Reduced from 800, 500
     background_color = (30, 30, 40) # Dark Navy Gray
     img = Image.new('RGB', (width, height), color=background_color)
     draw = ImageDraw.Draw(img)
@@ -40,13 +42,13 @@ def generate_splash(version=None, output_path=None):
     # Load and scale logo
     if logo_path.exists():
         logo = Image.open(logo_path).convert("RGBA")
-        # Resize logo to fit well
-        logo_size = 200
+        # Resize logo to fit well (Reduced from 200 to 160)
+        logo_size = 160
         logo.thumbnail((logo_size, logo_size), Image.Resampling.LANCZOS)
 
         # Center logo horizontally, slightly above middle
         logo_x = (width - logo.width) // 2
-        logo_y = height // 2 - logo.height - 50
+        logo_y = height // 2 - logo.height - 40 # Reduced offset
         img.paste(logo, (logo_x, logo_y), logo)
 
     # Add Text
@@ -54,30 +56,30 @@ def generate_splash(version=None, output_path=None):
     text_main = "SwitchCraft"
     bbox_main = draw.textbbox((0, 0), text_main, font=font_main)
     w_main = bbox_main[2] - bbox_main[0]
-    draw.text(((width - w_main) // 2, height // 2), text_main, font=font_main, fill=(255, 255, 255))
+    draw.text(((width - w_main) // 2, height // 2 - 10), text_main, font=font_main, fill=(255, 255, 255))
 
     # Tagline
     text_sub = "The Ultimate Packaging Suite for IT Professionals"
     bbox_sub = draw.textbbox((0, 0), text_sub, font=font_sub)
     w_sub = bbox_sub[2] - bbox_sub[0]
-    draw.text(((width - w_sub) // 2, height // 2 + 70), text_sub, font=font_sub, fill=(200, 200, 200))
+    draw.text(((width - w_sub) // 2, height // 2 + 55), text_sub, font=font_sub, fill=(200, 200, 200))
 
     # Hint
     text_hint = "Starting..."
     bbox_hint = draw.textbbox((0, 0), text_hint, font=font_hint)
     w_hint = bbox_hint[2] - bbox_hint[0]
-    draw.text(((width - w_hint) // 2, height - 50), text_hint, font=font_hint, fill=(150, 150, 150))
+    draw.text(((width - w_hint) // 2, height - 40), text_hint, font=font_hint, fill=(150, 150, 150))
 
     # Footer
     text_footer = "Brought to you by FaserF"
     bbox_footer = draw.textbbox((0, 0), text_footer, font=font_hint)
     w_footer = bbox_footer[2] - bbox_footer[0]
-    draw.text((width - w_footer - 20, height - 30), text_footer, font=font_hint, fill=(100, 100, 100))
+    draw.text((width - w_footer - 15, height - 25), text_footer, font=font_hint, fill=(100, 100, 100))
 
     # Version (if provided) - Bottom Left
     if version:
         text_ver = f"{version}"
-        draw.text((20, height - 30), text_ver, font=font_ver, fill=(100, 100, 100))
+        draw.text((15, height - 25), text_ver, font=font_ver, fill=(100, 100, 100))
 
         # Check for Beta/Dev/Alpha and add banner
         v_lower = version.lower()

@@ -38,19 +38,16 @@ class LegacySplash:
         self.root.attributes("-topmost", True)
 
         # Fallback font handling
-        self.header_font = ("Segoe UI", 32, "bold")
-        self.sub_font = ("Segoe UI", 12)
-        self.status_font = ("Segoe UI", 9)
-
-        # Basic fallback check (Tkinter doesn't robustly support family lists in tuples)
-        # Assuming Windows mostly due to Segoe UI, but on Linux usually ignored or defaulted.
-        # We keep it simple as requested but acknowledge fallback.
+        self.header_font = ("Segoe UI", 24, "bold") # Reduced from 32
+        self.sub_font = ("Segoe UI", 10)            # Reduced from 12
+        self.status_font = ("Segoe UI", 8)             # Reduced from 9
 
         # UI Setup
         self.root.configure(bg="#2c3e50")
 
-        width = 450
-        height = 250
+        # Dimensions reduced by 20%
+        width = 360  # Reduced from 450
+        height = 200 # Reduced from 250
 
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
@@ -70,12 +67,12 @@ class LegacySplash:
             font=self.header_font,
             bg="#2c3e50",
             fg="#ecf0f1"
-        ).pack(pady=(40, 10))
+        ).pack(pady=(30, 5)) # Reduced padding
 
         tk.Label(
             main_frame,
             text="Packaging Assistant for IT Professionals",
-            font=self.status_font, # Use smaller font for longer text
+            font=self.status_font,
             bg="#2c3e50",
             fg="#bdc3c7"
         ).pack()
@@ -87,10 +84,10 @@ class LegacySplash:
             bg="#2c3e50",
             fg="#95a5a6"
         )
-        self.status_label.pack(side="bottom", pady=20)
+        self.status_label.pack(side="bottom", pady=15) # Reduced padding
 
-        self.progress = ttk.Progressbar(main_frame, mode="indeterminate", length=300)
-        self.progress.pack(pady=10)
+        self.progress = ttk.Progressbar(main_frame, mode="indeterminate", length=240) # Reduced from 300
+        self.progress.pack(pady=5) # Reduced padding
         self.progress.start(10)
 
         # Safety Timeout: Close after 60 seconds automatically if app hangs

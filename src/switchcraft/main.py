@@ -51,22 +51,26 @@ import flet as ft # noqa: E402
 
 # --- MONKEY PATCH: Fix web_entry.py legacy ft.run call ---
 # web_entry.py (generated) calls ft.run(target=...) but Pyodide flet might expect ft.app or different sig.
-# We force ft.run to route to ft.app with correct args.
 def flexible_run(*args, **kwargs):
     # Extract target from kwargs or args
     target = kwargs.get("target")
     if not target and args:
         target = args[0]
 
-    # Delegate to ft.app which handles the modern run logic
-    # Filter kwargs to only what ft.app accepts if needed, but passing through is usually safe for **kwargs
-    # If target is missing, app() usually fails, but flexible_run wrappers tries its best.
     if target:
         kwargs["target"] = target
 
+    # Use run() if available (Flet 0.80.0+), else app()
+    if hasattr(ft, "_original_run"):
+        return ft._original_run(**kwargs)
+    elif hasattr(ft, "run") and ft.run != flexible_run:
+        return ft.run(**kwargs)
+
     return ft.app(**kwargs)
 
-# Always override run to be safe
+# Save original run and override
+if not hasattr(ft, "_original_run"):
+    ft._original_run = getattr(ft, "run", None)
 ft.run = flexible_run
 # ---------------------------------------------------------
 
@@ -449,16 +453,37 @@ def main(page: ft.Page):
 
     # Show loading screen IMMEDIATELY - FIRST THING, before ANY other operations
     # This must be the very first thing we do to ensure it's visible
+
+    # Check if splash image exists (usually assets/splash.png)
+    splash_image = None
+    try:
+        from pathlib import Path
+        assets_dir = Path(__file__).parent / "assets"
+        if (assets_dir / "splash.png").exists():
+            splash_image = ft.Image(src="splash.png", width=400, border_radius=10)
+    except Exception:
+        pass
+
+    loading_content = []
+    if splash_image:
+        loading_content = [
+            splash_image,
+            ft.Container(height=10),
+            ft.ProgressRing(width=30, height=30, stroke_width=3, color="BLUE_400"),
+        ]
+    else:
+        loading_content = [
+            ft.Icon(ft.Icons.INSTALL_DESKTOP, size=64, color="BLUE_400"), # Reduced from 80
+            ft.Text(i18n.get("app_title") or "SwitchCraft", size=26, weight=ft.FontWeight.BOLD), # Reduced from 32
+            ft.Container(height=15),
+            ft.ProgressRing(width=40, height=40, stroke_width=3, color="BLUE_400"), # Reduced from 50
+            ft.Container(height=10),
+            ft.Text(i18n.get("loading_switchcraft") or "Loading SwitchCraft...", size=14, color="GREY_400"), # Reduced from 18
+        ]
+
     loading_container = ft.Container(
         content=ft.Column(
-            controls=[
-                ft.Icon(ft.Icons.INSTALL_DESKTOP, size=80, color="BLUE_400"),
-                ft.Text(i18n.get("app_title") or "SwitchCraft", size=32, weight=ft.FontWeight.BOLD),
-                ft.Container(height=20),
-                ft.ProgressRing(width=50, height=50, stroke_width=4, color="BLUE_400"),
-                ft.Container(height=10),
-                ft.Text(i18n.get("loading_switchcraft") or "Loading SwitchCraft...", size=18, color="GREY_400"),
-            ],
+            controls=loading_content,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             alignment=ft.MainAxisAlignment.CENTER,
             spacing=10,

@@ -38,6 +38,12 @@ jobs:
 
       - name: Build Web Demo
         run: |
+          # Bake translations for WASM (prevents file loading issues in Pyodide filesystem)
+          echo "Baking translations..."
+          python -c "import json, os; \
+            d = {l: json.load(open(f'src/switchcraft/assets/lang/{l}.json')) for l in ['en', 'de']}; \
+            open('src/switchcraft/utils/wasm_translations.py', 'w').write(f'TRANSLATIONS = {repr(d)}')"
+
           # Create an isolated build directory
           # This prevents 'flet publish' from auto-detecting the root 'pyproject.toml'
           mkdir -p build_web
@@ -48,7 +54,7 @@ jobs:
           import os
           import sys
 
-          print("DEBUG: WEB ENTRY RELOADED (Version 2026.1.6-FIXED-V3)")
+          print("DEBUG: WEB ENTRY RELOADED")
 
           # ============================================================
           # CRITICAL: Patch ssl module BEFORE any urllib3 import
@@ -56,13 +62,20 @@ jobs:
           # ============================================================
           if sys.platform == "emscripten":
               import types
+
+              # Force patch if 'ssl' is a MagicMock or missing version info
               should_patch_ssl = "ssl" not in sys.modules
               if not should_patch_ssl:
-                  try:
-                      if not isinstance(sys.modules["ssl"].OPENSSL_VERSION_INFO, tuple):
-                          should_patch_ssl = True
-                  except (AttributeError, TypeError):
+                  ssl_mod = sys.modules["ssl"]
+                  # Check if it's a MagicMock (often has __class__.__name__ == 'MagicMock' or 'Mock')
+                  if "Mock" in str(type(ssl_mod)) or not hasattr(ssl_mod, "OPENSSL_VERSION_INFO"):
                       should_patch_ssl = True
+                  else:
+                      try:
+                          if not isinstance(ssl_mod.OPENSSL_VERSION_INFO, tuple):
+                              should_patch_ssl = True
+                      except (AttributeError, TypeError):
+                          should_patch_ssl = True
 
               if should_patch_ssl:
                   ssl_mock = types.ModuleType("ssl")
@@ -75,7 +88,7 @@ jobs:
                   ssl_mock.CERT_OPTIONAL = 1
                   ssl_mock.CERT_REQUIRED = 2
                   ssl_mock.OPENSSL_VERSION_NUMBER = 0x101010CF
-                  ssl_mock.OPENSSL_VERSION = "OpenSSL 3.5.4 (Pyodide Mock)"
+                  ssl_mock.OPENSSL_VERSION = "OpenSSL 1.1.1 (Pyodide Mock)"
                   ssl_mock.OPENSSL_VERSION_INFO = (1, 1, 1, 15, 15)
                   ssl_mock.HAS_NEVER_CHECK_COMMON_NAME = True
                   sys.modules["ssl"] = ssl_mock
@@ -98,8 +111,8 @@ jobs:
           import switchcraft.main
 
           if __name__ == "__main__":
-              # Use ft.app for web (flet publish)
-              ft.app(target=switchcraft.main.main, assets_dir="switchcraft/assets")
+              # Use ft.run for modern Flet (0.80.0+)
+              ft.run(target=switchcraft.main.main, assets_dir="assets")
           EOF
 
           # Generate dynamic splash screen with version (DIRECTLY into build_web)

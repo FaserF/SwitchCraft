@@ -102,7 +102,16 @@ class I18n:
                 base_path = Path(sys._MEIPASS)
                 lang_dir = base_path / "assets" / "lang"
             elif sys.platform == "emscripten":
-                # Pyodide/WASM: Try multiple possible locations
+                # Pyodide/WASM: Try to import baked-in translations first (generated during CI)
+                try:
+                    from switchcraft.utils import wasm_translations
+                    self.translations = wasm_translations.TRANSLATIONS
+                    logger.info("Loaded baked-in translations for WASM")
+                    return
+                except ImportError:
+                    pass
+
+                # Fallback: Try multiple possible locations
                 possible_paths = [
                     Path("switchcraft/assets/lang"),
                     Path("assets/lang"),

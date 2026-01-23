@@ -57,4 +57,5 @@ sys.path.insert(0, os.getcwd())
 import switchcraft.main
 
 if __name__ == "__main__":
-    ft.app(target=switchcraft.main.main, assets_dir="switchcraft/assets")
+    # Use ft.run for modern Flet (0.80.0+)
+    ft.run(target=switchcraft.main.main, assets_dir="assets")
