@@ -36,7 +36,9 @@ DESCRIPTION_MAP = {
     "Gruppen-Manager": "desc_groups",
     "Winget Creator": "desc_wingetcreate",
     "Help & Resources": "desc_help",
-    "Hilfe & Ressourcen": "desc_help"
+    "Hilfe & Ressourcen": "desc_help",
+    "Policies": "desc_policies",
+    "Richtlinien": "desc_policies"
 }
 
 class CategoryView(ft.Container):

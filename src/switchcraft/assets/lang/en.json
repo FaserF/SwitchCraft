@@ -61,6 +61,8 @@
     "settings_policies": "Policies",
     "active_policies_title": "Active Policies",
     "no_policies_found": "No active policies found.",
+    "policies_enforced_msg": "The following settings are enforced by your organization (GPO/Intune) and cannot be changed.",
+    "policies_no_gpo_msg": "No GPO or Intune policies are currently enforced. Settings can be freely modified.",
     "sync_desc": "Sync your settings across devices.",
     "ex_dash_filters": "Filters",
     "ex_mail_traffic": "Mail Traffic Statistics",

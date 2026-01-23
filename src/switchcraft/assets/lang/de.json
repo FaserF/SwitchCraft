@@ -61,6 +61,8 @@
     "settings_policies": "Richtlinien",
     "active_policies_title": "Aktive Richtlinien",
     "no_policies_found": "Keine aktiven Richtlinien gefunden.",
+    "policies_enforced_msg": "Die folgenden Einstellungen werden von Ihrer Organisation (GPO/Intune) erzwungen und können nicht geändert werden.",
+    "policies_no_gpo_msg": "Es sind derzeit keine GPO- oder Intune-Richtlinien aktiv. Die Einstellungen können frei angepasst werden.",
     "sync_desc": "Synchronisiere deine Einstellungen über Geräte hinweg.",
     "generate_intune_script": "Intune Skript generieren",
     "manual_select": "Datei auswählen",

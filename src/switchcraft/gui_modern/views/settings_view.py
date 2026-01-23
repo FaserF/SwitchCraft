@@ -108,7 +108,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         return control
 
     def _build_policies_tab(self):
-        """Builds a read-only view of all managed settings."""
+        """Builds a read-only view of managed settings (GPO/Intune only, not user preferences)."""
         managed_settings = []
         # List of known keys to check
         known_keys = [
@@ -116,28 +116,44 @@ class ModernSettingsView(ft.Column, ViewMixin):
             "GraphTenantId", "GraphClientId", "IntuneToolPath",
             "GitRepoPath", "CustomTemplatePath", "SignScripts",
             "CodeSigningCertThumbprint", "CodeSigningCertPath",
-            "AIProvider", "DebugMode"
+            "AIProvider", "DebugMode", "GraphClientSecret", "AIKey"
+        ]
+
+        # Keys that contain secrets - these should be masked
+        secret_keys = ["GraphClientSecret", "AIKey", "IntuneClientSecret"]
+
+        # Sources that indicate organizational management (NOT user preferences)
+        managed_sources = [
+            "GPO (Local Machine)",
+            "GPO (Current User)",
+            "Intune OMA-URI",
+            "System Registry (HKLM)"
         ]
 
         # Scan for managed keys
         for key in known_keys:
             res = SwitchCraftConfig.get_value_with_source(key)
             if res:
-                # If managed, the source will be one of the GPO or Intune ones
-                # But even if it's just 'System Registry', we show it if it's considered 'managed' or if we want to show all sources
-                # The user specifically asked to show GPO, Systemregistry, Userregistry, Intune OMA URI
-                managed_settings.append({
-                    "Setting": key,
-                    "Value": str(res["value"]),
-                    "Source": res["source"]
-                })
+                source = res["source"]
+                # Only include if it's from a managed source (not user registry)
+                if source in managed_sources:
+                    # Mask secret values
+                    value = str(res["value"])
+                    if key in secret_keys and value:
+                        value = "**** hidden ****"
+
+                    managed_settings.append({
+                        "Setting": key,
+                        "Value": value,
+                        "Source": source
+                    })
 
         if not managed_settings:
             return ft.Container(
                 content=ft.Column([
                     ft.Icon(ft.Icons.POLICY, size=50, color="GREEN"),
                     ft.Text(i18n.get("no_policies_found") or "No active policies found.", size=20),
-                    ft.Text("Settings can be freely modified.", color="ON_SURFACE_VARIANT")
+                    ft.Text(i18n.get("policies_no_gpo_msg") or "No GPO or Intune policies are currently enforced. Settings can be freely modified.", color="ON_SURFACE_VARIANT")
                 ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 expand=True,
                 alignment=ft.Alignment(0, 0)
@@ -165,7 +181,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         return ft.ListView([
             ft.Text(i18n.get("active_policies_title") or "Active Policies", size=24, weight=ft.FontWeight.BOLD),
-            ft.Text("The following settings are enforced by your organization and cannot be changed.", color="ON_SURFACE_VARIANT"),
+            ft.Text(i18n.get("policies_enforced_msg") or "The following settings are enforced by your organization (GPO/Intune) and cannot be changed.", color="ON_SURFACE_VARIANT"),
             ft.Divider(),
             dt
         ], padding=20)
@@ -490,7 +506,11 @@ class ModernSettingsView(ft.Column, ViewMixin):
         client.on_change=lambda e: SwitchCraftConfig.set_user_preference("GraphClientId", e.control.value)
         client_ctrl = self._create_managed_control(client, "GraphClientId")
 
-        secret = ft.TextField(label=i18n.get("settings_entra_secret") or "Entra Client Secret", value=SwitchCraftConfig.get_secure_value("GraphClientSecret") or "", password=True, can_reveal_password=True)
+        # Debug: Log what we get from secure storage
+        secret_value = SwitchCraftConfig.get_secure_value("GraphClientSecret")
+        logger.debug(f"Loading GraphClientSecret from config: {repr(secret_value[:4] + '***' if secret_value else None)}")
+
+        secret = ft.TextField(label=i18n.get("settings_entra_secret") or "Entra Client Secret", value=secret_value or "", password=True, can_reveal_password=True)
         secret.on_change=lambda e: SwitchCraftConfig.set_secret("GraphClientSecret", e.control.value)
 
         self.raw_tenant_field = tenant

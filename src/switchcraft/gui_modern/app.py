@@ -980,6 +980,9 @@ class ModernApp:
                 ft.NavigationRailDestination(
                     icon=ft.Icons.EMAIL_OUTLINED, selected_icon=ft.Icons.EMAIL, label=i18n.get("exchange_title") or "Exchange"
                 ),  # 20 Exchange
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.POLICY_OUTLINED, selected_icon=ft.Icons.POLICY, label=i18n.get("settings_policies") or "Policies"
+                ),  # 21 Policies
             ]
 
 
