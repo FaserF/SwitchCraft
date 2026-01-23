@@ -1,7 +1,7 @@
 import os
 import sys
 
-print("DEBUG: WEB ENTRY RELOADED (Version 2026.1.24-FIXED-V4)")
+print("DEBUG: WEB ENTRY RELOADED (Version 2026.1.24-FIXED-V5)")
 
 # ============================================================
 # CRITICAL: Patch ssl module BEFORE any urllib3 import
