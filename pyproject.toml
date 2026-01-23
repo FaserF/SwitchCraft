@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "switchcraft"
-version = "2026.1.4"
+version = "2026.1.5.dev0+a6c7e67"
 description = "A universal silent switch finder and installer analyzer."
 readme = "README.md"
 authors = [{ name = "FaserF" }]

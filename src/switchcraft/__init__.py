@@ -1,4 +1,4 @@
-__version__ = "2026.1.4"
+__version__ = "2026.1.5.dev0+a6c7e67"
 
 import sys
 # --- WEB / PYODIDE PATCHES (run immediately on package import) ---
