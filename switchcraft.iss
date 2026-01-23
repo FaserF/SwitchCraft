@@ -94,11 +94,11 @@ Source: "src\switchcraft\assets\switchcraft_logo.png"; DestDir: "{app}"; Flags: 
 
 [Icons]
 ; Start Menu
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "{#MyAppDescription}"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "{#MyAppDescription}"; AppUserModelID: "FaserF.SwitchCraft.Modern.Release"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 
 ; Desktop (optional)
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; Comment: "{#MyAppDescription}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; Comment: "{#MyAppDescription}"; AppUserModelID: "FaserF.SwitchCraft.Modern.Release"
 
 [Registry]
 ; Add to Add/Remove Programs with additional info

@@ -860,7 +860,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                 ft.Text("Please wait, performing magic...", key="status_txt")
             ], height=100, tight=True),
             modal=True,
-            on_dismiss=lambda e: print("Autopilot finished")
+            on_dismiss=lambda e: logger.debug("Autopilot finished")
         )
         if hasattr(self.app_page, "open"):
             self.app_page.open(self.autopilot_dlg)
