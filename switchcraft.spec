@@ -71,6 +71,14 @@ datas = [
     ('src/switchcraft/assets', 'assets'),
 ]
 
+# Collect Flet data files (icons.json, etc.)
+from PyInstaller.utils.hooks import collect_data_files
+try:
+    flet_datas = collect_data_files('flet', include_py_files=False)
+    datas += flet_datas
+except Exception as e:
+    print(f"WARNING: Failed to collect Flet data files: {e}")
+
 # Analysis for Modern (Flet)
 a = Analysis(
     ['src/switchcraft/main.py'],
