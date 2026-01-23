@@ -135,15 +135,15 @@ or
 
 | Policy | Complete OMA-URI |
 |--------|----------------------|
-| `SignScripts_Enf` | `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Security_Enf/SignScripts_Enf` |
-| `UpdateChannel_Enf` | `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Updates_Enf/UpdateChannel_Enf` |
-| `EnableWinget_Enf` | `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~General_Enf/EnableWinget_Enf` |
-| `AIProvider_Enf` | `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~AI_Enf/AIProvider_Enf` |
-| `GraphTenantId_Enf` | `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/GraphTenantId_Enf` |
-| `CompanyName_Enf` | `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~General_Enf/CompanyName_Enf` |
-| `GraphClientId_Enf` | `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/GraphClientId_Enf` |
-| `IntuneTestGroups_Enf` | `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/IntuneTestGroups_Enf` |
-| `GraphClientSecret_Enf` | `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/GraphClientSecret_Enf` |
+| `SignScripts_Enf` | `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Security_Enf/SignScripts_Enf` |
+| `UpdateChannel_Enf` | `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Updates_Enf/UpdateChannel_Enf` |
+| `EnableWinget_Enf` | `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~General_Enf/EnableWinget_Enf` |
+| `AIProvider_Enf` | `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~AI_Enf/AIProvider_Enf` |
+| `GraphTenantId_Enf` | `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Intune_Enf/GraphTenantId_Enf` |
+| `CompanyName_Enf` | `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~General_Enf/CompanyName_Enf` |
+| `GraphClientId_Enf` | `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Intune_Enf/GraphClientId_Enf` |
+| `IntuneTestGroups_Enf` | `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Intune_Enf/IntuneTestGroups_Enf` |
+| `GraphClientSecret_Enf` | `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Intune_Enf/GraphClientSecret_Enf` |
 
 **IMPORTANT Rules**:
 - Use `~` (tilde) to separate namespace parts, NOT `/` (slash)
@@ -236,47 +236,47 @@ Compare each OMA-URI path character by character with the table above.
 Here is a complete, correct configuration for all failed policies:
 
 ### 1. SignScripts_Enf
-- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Security_Enf/SignScripts_Enf`
+- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Security_Enf/SignScripts_Enf`
 - **Data Type**: `String`
 - **Value**: `<enabled/>`
 
 ### 2. UpdateChannel_Enf
-- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Updates_Enf/UpdateChannel_Enf`
+- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Updates_Enf/UpdateChannel_Enf`
 - **Data Type**: `String`
 - **Value**: `<enabled/><data id="UpdateChannelDropdown" value="stable"/>`
 
 ### 3. EnableWinget_Enf
-- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~General_Enf/EnableWinget_Enf`
+- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~General_Enf/EnableWinget_Enf`
 - **Data Type**: `String`
 - **Value**: `<enabled/>`
 
 ### 4. AIProvider_Enf
-- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~AI_Enf/AIProvider_Enf`
+- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~AI_Enf/AIProvider_Enf`
 - **Data Type**: `String`
 - **Value**: `<enabled/><data id="AIProviderDropdown" value="local"/>`
 
 ### 5. GraphTenantId_Enf
-- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/GraphTenantId_Enf`
+- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Intune_Enf/GraphTenantId_Enf`
 - **Data Type**: `String`
 - **Value**: `<enabled/><data id="GraphTenantIdBox" value="YOUR-TENANT-ID"/>`
 
 ### 6. CompanyName_Enf
-- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~General_Enf/CompanyName_Enf`
+- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~General_Enf/CompanyName_Enf`
 - **Data Type**: `String`
 - **Value**: `<enabled/><data id="CompanyNameBox" value="Your Company Name"/>`
 
 ### 7. GraphClientId_Enf
-- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/GraphClientId_Enf`
+- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Intune_Enf/GraphClientId_Enf`
 - **Data Type**: `String`
 - **Value**: `<enabled/><data id="GraphClientIdBox" value="YOUR-CLIENT-ID"/>`
 
 ### 8. IntuneTestGroups_Enf
-- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/IntuneTestGroups_Enf`
+- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Intune_Enf/IntuneTestGroups_Enf`
 - **Data Type**: `String`
 - **Value**: `<enabled/><data id="IntuneTestGroupsBox" value="GroupID1,GroupID2"/>`
 
 ### 9. GraphClientSecret_Enf
-- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/switchcraft~Policy~FaserF~SwitchCraft~Enforced~Intune_Enf/GraphClientSecret_Enf`
+- **OMA-URI**: `./User/Vendor/MSFT/Policy/Config/SwitchCraft~Policy~FaserF~SwitchCraft~SwitchCraft~Enforced~Intune_Enf/GraphClientSecret_Enf`
 - **Data Type**: `String`
 - **Value**: `<enabled/><data id="GraphClientSecretBox" value="YOUR-CLIENT-SECRET"/>`
 

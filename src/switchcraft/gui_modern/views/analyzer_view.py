@@ -363,9 +363,9 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
     def _go_to_settings(self, e):
         # Redirect to Addon Manager (Settings -> Help)
-        if hasattr(self.page, 'switchcraft_app') and hasattr(self.page.switchcraft_app, 'goto_tab'):
+        if hasattr(self.app_page, 'switchcraft_app') and hasattr(self.app_page.switchcraft_app, 'goto_tab'):
             from switchcraft.gui_modern.nav_constants import NavIndex
-            self.page.switchcraft_app.goto_tab(NavIndex.SETTINGS_HELP)
+            self.app_page.switchcraft_app.goto_tab(NavIndex.SETTINGS_HELP)
         else:
             self._show_snack("Please go to Settings > Help manually.", "ORANGE")
 
@@ -411,8 +411,8 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         self.results_column.controls.clear()
 
         # Sync with global progress
-        if hasattr(self.page, "switchcraft_app"):
-            self.page.switchcraft_app.set_progress(value=0, visible=True)
+        if hasattr(self.app_page, "switchcraft_app"):
+            self.app_page.switchcraft_app.set_progress(value=0, visible=True)
         else:
             self.update()
 
@@ -422,8 +422,8 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 def on_progress(pct, msg, eta=None):
                     self.status_text.value = f"{msg} ({int(pct*100)}%)"
                     self.progress_bar.value = pct
-                    if hasattr(self.page, "switchcraft_app"):
-                        self.page.switchcraft_app.set_progress(value=pct, visible=True)
+                    if hasattr(self.app_page, "switchcraft_app"):
+                        self.app_page.switchcraft_app.set_progress(value=pct, visible=True)
                     else:
                         self.update()
 
@@ -433,8 +433,8 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 self.analyzing = False
 
                 # Update global progress
-                if hasattr(self.page, "switchcraft_app"):
-                    self.page.switchcraft_app.set_progress(visible=False)
+                if hasattr(self.app_page, "switchcraft_app"):
+                    self.app_page.switchcraft_app.set_progress(visible=False)
 
                 self._show_results(result)
             except Exception as ex:
@@ -444,8 +444,8 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 self.progress_bar.visible = False
                 self.analyzing = False
 
-                if hasattr(self.page, "switchcraft_app"):
-                    self.page.switchcraft_app.set_progress(visible=False)
+                if hasattr(self.app_page, "switchcraft_app"):
+                    self.app_page.switchcraft_app.set_progress(visible=False)
                 else:
                     self.update()
 
