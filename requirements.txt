@@ -6,4 +6,4 @@ defusedxml
 PyJWT
 click
 rich
-urllib3>=1.26.18,<2
+urllib3>=1.26.20,<2
