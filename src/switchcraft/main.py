@@ -243,6 +243,7 @@ def main(page: ft.Page):
     """
 
     # --- Config Backend Initialization ---
+    import sys  # Ensure sys is available for platform checks below
     try:
         from switchcraft.utils.config import SwitchCraftConfig, SessionStoreBackend, RegistryBackend, EnvBackend
 
@@ -298,7 +299,6 @@ def main(page: ft.Page):
         # Continue... fallback defaults might work or fail gracefully later
 
     # --- Handle Command Line Arguments FIRST ---
-    import sys
 
 
     # Check for help/version flags (before UI initialization)
