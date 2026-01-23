@@ -21,6 +21,9 @@ hero:
     - theme: alt
       text: GPO / Registry
       link: /Registry
+    - theme: alt
+      text: Install App (PWA)
+      link: /pwa_installation
 
 features:
   - icon: 🔍
