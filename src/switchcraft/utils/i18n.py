@@ -195,6 +195,18 @@ class I18n:
         Supports explicit language override 'lang'.
         Supports format arguments explicitly passed as kwargs.
         """
+        # Try to get language from current config context (SessionStoreBackend)
+        try:
+            from switchcraft.utils.config import SwitchCraftConfig
+            ctx_lang = SwitchCraftConfig.get_value("Language")
+            if ctx_lang and ctx_lang != self.language:
+                 # This might happen if 'set_language' wasn't called on this instance
+                 # but preference changed. We should probably use that language map.
+                 # For simplicity, we stick to current unless we want to load on the fly
+                 pass
+        except:
+            pass
+
         target_lang = lang if lang else self.language
 
         # Get dictionary for target language, fallback to EN

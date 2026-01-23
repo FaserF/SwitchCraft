@@ -64,6 +64,21 @@ class ModernSettingsView(ft.Column, ViewMixin):
             logger.error(f"Failed to build initial tab: {e}")
             self.current_content.content = ft.Text(f"Error loading settings: {e}", color="red")
 
+    def _ensure_backend(self):
+        """
+        CRITICAL FIX for Web/Threading Context Loss:
+        Flet callbacks often run in threads where ContextVars (like our active config backend)
+        are lost. This helper restores the session-specific backend if we are in web mode.
+        """
+        try:
+            from switchcraft.utils.config import SwitchCraftConfig
+            if hasattr(self.app_page, 'web') and self.app_page.web:
+                if hasattr(self.app_page, 'sc_backend'):
+                    # Restore the backend explicitly for this thread/context
+                    SwitchCraftConfig.set_backend(self.app_page.sc_backend)
+        except Exception as e:
+            logger.error(f"Failed to ensure backend context: {e}")
+
     def did_mount(self):
         # Trigger async checks after mount IF NOT cached
         cached = getattr(self.app_page, "update_check_result", None)
@@ -747,6 +762,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self.app_page.update()
 
     def _on_channel_change(self, val):
+        self._ensure_backend()
         SwitchCraftConfig.set_user_preference("UpdateChannel", val)
         # Clear current latest if switching
         self.latest_version_text.value = i18n.get("unknown") or "Unknown"
@@ -759,6 +775,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
 
     def _on_lang_change(self, val):
+        self._ensure_backend()
         SwitchCraftConfig.set_user_preference("Language", val)
         i18n.load_language(val)
         self._show_snack(f"Language set to {val}. Please restart app to apply fully.", "BLUE")
@@ -769,6 +786,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self.app_page.update()
 
     def _check_updates(self, e, only_changelog=False):
+        self._ensure_backend()
         def _run():
             try:
                 channel = SwitchCraftConfig.get_value("UpdateChannel", "stable")
@@ -799,6 +817,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     def _on_github_login_click(self, e):
         """Handle GitHub login button click."""
+        self._ensure_backend()
         try:
             logger.debug("_on_github_login_click STARTED")
             # Visual feedback
