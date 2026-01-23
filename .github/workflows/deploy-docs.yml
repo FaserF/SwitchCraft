@@ -54,7 +54,7 @@ jobs:
           import os
           import sys
 
-          print("DEBUG: WEB ENTRY RELOADED")
+          print("DEBUG: WEB ENTRY RELOADED (Version 2026.1.24-FIXED-V4)")
 
           # ============================================================
           # CRITICAL: Patch ssl module BEFORE any urllib3 import
@@ -151,6 +151,24 @@ jobs:
 
           # Move build to docs public folder
           cd ..
+
+          # CRITICAL: Replace Flet's default "Working..." loading screen with SwitchCraft Splash
+          echo "Customizing Flet loading screen..."
+          # We use a simple python script to inject our own CSS/HTML into index.html
+          python -c " \
+import os; \
+path = 'dist/index.html'; \
+if os.path.exists(path): \
+    with open(path, 'r', encoding='utf-8') as f: \
+        content = f.read(); \
+    # Replace the loading div content \
+    content = content.replace('<p>Working...</p>', '<p style=\"color: #95a5a6; font-family: Segoe UI, sans-serif; font-size: 14px;\">Initializing SwitchCraft...</p>'); \
+    # Improve the loader style if possible \
+    content = content.replace('border: 16px solid #f3f3f3;', 'border: 8px solid #34495e;'); \
+    content = content.replace('border-top: 16px solid #3498db;', 'border-top: 8px solid #3498db;'); \
+    with open(path, 'w', encoding='utf-8') as f: \
+        f.write(content); \
+"
 
           # CRITICAL: Overwrite Flet default icons with SwitchCraft icons
           echo "Overwriting PWA Icons..."
