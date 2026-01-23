@@ -53,8 +53,9 @@ if __name__ == "__main__":
     # Splash Generation
     print("Generating Splash Screen...")
     try:
-        # Get Version
-        import src.switchcraft as s
+        # Get Version - add src to path first
+        sys.path.insert(0, os.path.join(root_dir, "src"))
+        import switchcraft as s
         version = s.__version__
         print(f"Detected version: {version}")
 
@@ -88,8 +89,8 @@ anyio>=4.12.1
     original_cwd = os.getcwd()
     os.chdir(build_dir)
     try:
-        # Locate flet.exe logic (simplified for local run)
-        cmd = [sys.executable, "-m", "flet", "publish", "web_entry.py"]
+        # Find flet executable using shutil.which
+        flet_exe = shutil.which("flet")
 
         # PWA Arguments
         pwa_args = [
@@ -101,11 +102,17 @@ anyio>=4.12.1
             "--assets", "switchcraft/assets"
         ]
 
-        subprocess.check_call(cmd + pwa_args)
+        if flet_exe:
+            print(f"Using flet executable: {flet_exe}")
+            subprocess.check_call([flet_exe, "publish", "web_entry.py"] + pwa_args)
+        else:
+            # Fallback: try calling flet directly (might work on Linux/Mac if in PATH)
+            print("Trying 'flet' command directly...")
+            subprocess.check_call(["flet", "publish", "web_entry.py"] + pwa_args)
 
     except subprocess.CalledProcessError as e:
         print(f"Error running flet publish: {e}")
-        # sys.exit(1) # Continue to copy check
+        raise  # Re-raise to fail the build
     finally:
         os.chdir(original_cwd)
 

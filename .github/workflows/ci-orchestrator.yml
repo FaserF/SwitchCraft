@@ -118,9 +118,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.14'
-      - name: Install Flet
-        run: pip install flet==0.80.3
+          python-version: '3.13'
+      - name: Install Dependencies
+        run: |
+          pip install .
+          pip install flet==0.80.3
+          pip install Pillow
       - name: Run Web Demo Build
         run: python scripts/build_web_demo.py
 
