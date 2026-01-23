@@ -44,8 +44,9 @@ jobs:
 
           # Create entry point inside build_web
           cat > build_web/web_entry.py <<EOF
-          import sys
           import os
+
+          print("DEBUG: WEB ENTRY RELOADED (Version 2026.1.6-FIXED)")
 
           # SSL and Request patching is handled in switchcraft/__init__.py
 
