@@ -83,6 +83,8 @@ jobs:
 
           # Move build to docs public folder
           cd ..
+          # CRITICAL: Delete existing demo folder to ensure no stale files from repo or previous steps
+          rm -rf docs/public/demo
           mkdir -p docs/public/demo
           cp -r dist/* docs/public/demo/
 
