@@ -6,3 +6,4 @@ defusedxml
 PyJWT
 click
 rich
+urllib3<2

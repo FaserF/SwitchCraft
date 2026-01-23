@@ -4,7 +4,18 @@ import sys
 # --- WEB / PYODIDE PATCHES (run immediately on package import) ---
 if sys.platform == "emscripten":
     import types
-    if "ssl" not in sys.modules:
+    # Check if ssl module needs patching (missing or is a broken mock)
+    # Pyodide environments sometimes have a MagicMock injected for ssl, which urllib3 hates.
+    should_patch_ssl = "ssl" not in sys.modules
+    if not should_patch_ssl:
+        try:
+            # If OPENSSL_VERSION_INFO is not a tuple (e.g. it's a MagicMock), urllib3 will crash
+            if not isinstance(sys.modules["ssl"].OPENSSL_VERSION_INFO, tuple):
+                should_patch_ssl = True
+        except (AttributeError, TypeError):
+             should_patch_ssl = True
+
+    if should_patch_ssl:
         ssl_mock = types.ModuleType("ssl")
         # Add minimal ssl module attributes that might be checked by urllib3
         ssl_mock.SSLContext = type("SSLContext", (), {"__init__": lambda *a, **kw: None})
