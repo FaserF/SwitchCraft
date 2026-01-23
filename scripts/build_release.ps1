@@ -220,6 +220,22 @@ if (Test-Path $PyProjectFile) {
     Write-Warning "pyproject.toml not found, using fallback version: $AppVersion"
 }
 
+# --- Local Dev Versioning ---
+$IsCI = $env:CI -or $env:GITHUB_ACTIONS
+if (-not $IsCI -and (Test-Path (Join-Path $RepoRoot ".git"))) {
+    try {
+        $GitCommit = (git rev-parse --short HEAD).Trim()
+        if ($GitCommit) {
+            # Append local dev suffix
+            $AppVersion = "$AppVersion.dev0+$GitCommit"
+            Write-Host "Local Dev Build Detected: Appending commit hash $GitCommit" -ForegroundColor Cyan
+            Write-Host "New Version: $AppVersion" -ForegroundColor Cyan
+        }
+    } catch {
+        Write-Warning "Failed to get git commit hash: $_"
+    }
+}
+
 
 # Setup Dist dir
 $DistDir = Join-Path $RepoRoot "dist"

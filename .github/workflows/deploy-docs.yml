@@ -33,7 +33,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install .
-          pip install flet
+          pip install flet==0.80.3
           pip install Pillow
 
       - name: Build Web Demo
@@ -46,8 +46,9 @@ jobs:
           # Create entry point inside build_web
           cat > build_web/web_entry.py <<EOF
           import os
+          import sys
 
-          print("DEBUG: WEB ENTRY RELOADED (Version 2026.1.6-FIXED)")
+          print("DEBUG: WEB ENTRY RELOADED (Version 2026.1.6-FIXED-V2)")
 
           # SSL and Request patching is handled in switchcraft/__init__.py
 
@@ -73,7 +74,7 @@ jobs:
           # Manually create requirements.txt inside build_web
           # This ONLY contains safe, web-compatible dependencies
           cat > build_web/requirements.txt <<EOF
-          flet
+          flet==0.80.3
           pyodide-http
           pefile
           olefile

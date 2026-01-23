@@ -133,46 +133,76 @@ class IntuneService:
         """
         Checks GitHub for the latest release of the Content Prep Tool.
         If a newer version is available, downloads it and notifies the user.
+        Uses a sidecar .version file to track the actual installed TAG, preventing infinite update loops
+        due to mismatch between GitHub Tag (v1.8.5) and internal FileVersion (1.8.4.0).
         """
         try:
             from switchcraft.services.notification_service import NotificationService
             from packaging import version
 
-            # 1. Get current version
-            current_ver_str = self.get_tool_version()
-            if not current_ver_str or current_ver_str == "Unknown" or current_ver_str == "Error":
-                 # If we can't determine local version, we probably shouldn't blindly overwrite
-                 # unless the file is missing (handled by is_tool_available).
-                 # Or we treat "Unknown" as 0.0.0
-                 current_ver_str = "0.0.0.0"
+            # Path to sidecar version file
+            version_file = self.tools_dir / (self.TOOL_FILENAME + ".version")
+            current_tag = None
 
-            # Clean current version (Windows file version might be 1.8.4.0, GitHub tag v1.8.4)
-            # GitHub releases for this tool usually utilize tags like 'v1.8.2'
+            # 1. Try to read installed TAG from sidecar file
+            if version_file.exists():
+                try:
+                    current_tag = version_file.read_text("utf-8").strip()
+                except Exception:
+                    pass
+
+            # If no sidecar, fall back to file version, but treat it as potentially "old" format
+            if not current_tag:
+                current_tag = self.get_tool_version()
+                # If unknown, we can't compare reliably, so we might force update or assume 0.0.0
+                if not current_tag or current_tag in ["Unknown", "Error"]:
+                    current_tag = "0.0.0.0"
 
             api_url = "https://api.github.com/repos/microsoft/Microsoft-Win32-Content-Prep-Tool/releases/latest"
 
             # Short timeout to not block app startup
-            resp = requests.get(api_url, timeout=5)
+            try:
+                resp = requests.get(api_url, timeout=5)
+            except requests.exceptions.RequestException:
+                # Offline or timeout - just return silently
+                return
+
             if resp.status_code != 200:
                 logger.warning(f"Failed to check for updates: {resp.status_code}")
                 return
 
             j = resp.json()
             remote_tag = j.get("tag_name", "").lstrip("v") # e.g. 1.8.4
+            remote_tag_raw = j.get("tag_name", "") # v1.8.4
 
             if not remote_tag:
                 return
 
             # Compare
             try:
-                # Windows File Version often has 4 parts: 1.8.4.0
-                curr = version.parse(current_ver_str)
+                # If we have a stored sidecar tag, we can do a direct string/tag comparison first
+                # to avoid parsing issues if the stored tag matches exactly.
+                if current_tag == remote_tag or current_tag == remote_tag_raw:
+                     # Already on this tag
+                     return
+
+                curr = version.parse(current_tag)
                 rem = version.parse(remote_tag)
 
                 if rem > curr:
                     logger.info(f"Update available: {rem} > {curr}. Downloading...")
 
                     if self.download_tool():
+                        # Update successful - WRITE THE SIDECAR FILE
+                        try:
+                            # Verify we actually downloaded the tool
+                            if self.tool_path.exists():
+                                # Save the RAW remote tag (e.g. v1.8.5) or processed one
+                                # Storing the processed one (1.8.5) is usually safer for packaging.version comparison
+                                version_file.write_text(remote_tag, encoding="utf-8")
+                        except Exception as e:
+                            logger.warning(f"Failed to write sidecar version file: {e}")
+
                         msg = f"IntuneWinAppUtil updated to version {remote_tag}"
                         logger.info(msg)
 
@@ -183,6 +213,23 @@ class IntuneService:
                                 type="success",
                                 notify_system=True # Trigger Windows Toast
                             )
+                else:
+                    # Remote is NOT newer.
+                    # BUT, if we are using fallback FileVersion (e.g. 1.8.4.0) and Remote is 1.8.4
+                    # they might parse as equal. If so, and we don't have a sidecar,
+                    # we should probably write the sidecar to indicate "we are consistent with this remote tag".
+                    # However, if 1.8.4.0 (File) > 1.8.4 (Tag), we definitely want to record that we are "current".
+                    if rem <= curr and not version_file.exists() and self.tool_path.exists():
+                         # We are up to date (or newer), but have no sidecar.
+                         # Write the CURRENT remote tag to sidecar to prevent future queries from using FileVersion
+                         # if FileVersion is lagging behind Tag.
+                         # CAREFUL: Only do this if we are reasonable sure it IS that version.
+                         # If FileVersion is 1.8.4.0 and Remote is 1.8.5, we update.
+                         # If FileVersion is 1.8.4.0 and Remote is 1.8.4, we write 1.8.4 to sidecar.
+                         try:
+                             version_file.write_text(remote_tag, encoding="utf-8")
+                         except: pass
+
             except Exception as e:
                 logger.debug(f"Version comparison failed: {e}")
 

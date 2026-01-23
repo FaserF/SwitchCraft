@@ -17,6 +17,8 @@ def build_web_demo():
     if os.path.exists(build_dir):
         shutil.rmtree(build_dir)
     if os.path.exists(docs_public_dir):
+        # Clean build target
+        print(f"Cleaning existing demo dir: {docs_public_dir}")
         shutil.rmtree(docs_public_dir)
 
     os.makedirs(build_dir, exist_ok=True)
@@ -27,12 +29,12 @@ def build_web_demo():
 
     print("Creating web_entry.py...")
     # This simulates the CI generation step
-    web_entry_content = """import sys
-import os
+    web_entry_content = """import os
+import sys
 
-# Notes:
-# SSL and Request patching is now handled in switchcraft/__init__.py
-# to ensure it runs within the package context and works reliably.
+print("DEBUG: WEB ENTRY RELOADED (Version 2026.1.6-FIXED-V2)")
+
+# SSL and Request patching is handled in switchcraft/__init__.py
 
 import flet as ft
 # Ensure current dir is in path
@@ -48,8 +50,26 @@ if __name__ == "__main__":
     with open(os.path.join(build_dir, "web_entry.py"), "w") as f:
         f.write(web_entry_content)
 
+    # Splash Generation
+    print("Generating Splash Screen...")
+    try:
+        # Get Version
+        import src.switchcraft as s
+        version = s.__version__
+        print(f"Detected version: {version}")
+
+        # Run script
+        subprocess.check_call([
+            sys.executable,
+            os.path.join(root_dir, "scripts", "generate_splash.py"),
+            "--version", version,
+            "--output", os.path.join(build_dir, "switchcraft", "assets", "splash.png")
+        ])
+    except Exception as e:
+        print(f"Splash generation failed: {e}")
+
     print("Creating requirements.txt...")
-    req_content = """flet
+    req_content = """flet==0.80.3
 pyodide-http
 pefile
 olefile
@@ -68,51 +88,8 @@ anyio>=4.12.1
     original_cwd = os.getcwd()
     os.chdir(build_dir)
     try:
-        # Locate flet.exe
-        flet_exe = None
-
-        # 1. PATH
-        if shutil.which("flet"):
-            flet_exe = "flet"
-
-        # 2. Sys Executable Scripts
-        if not flet_exe:
-            scripts_dir = os.path.join(os.path.dirname(sys.executable), "Scripts")
-            candidate = os.path.join(scripts_dir, "flet.exe")
-            if os.path.exists(candidate):
-                flet_exe = candidate
-
-        # 3. User Base Scripts
-        if not flet_exe:
-            try:
-                user_base = site.getuserbase()
-                # Typical location: AppData/Roaming/Python/Python313/Scripts/flet.exe
-                # We need to find the correct python version component if generic
-                # But usually it mirrors the python version.
-                # Hardcoded check based on investigation
-                candidate = os.path.join(user_base, "Python313", "Scripts", "flet.exe")
-                if os.path.exists(candidate):
-                    flet_exe = candidate
-                else:
-                    # General User Scripts check
-                    candidate = os.path.join(user_base, "Scripts", "flet.exe") # Linux/Mac maybe
-                    if os.path.exists(candidate):
-                        flet_exe = candidate
-                    else:
-                        # Windows specific user scripts path which might be different depends on install
-                        # We saw: c:\Users\fseitz\AppData\Roaming\Python\Python313\Scripts\flet.exe
-                        # Let's try to construct it dynamically
-                        candidate = os.path.join(user_base, f"Python{sys.version_info.major}{sys.version_info.minor}", "Scripts", "flet.exe")
-                        if os.path.exists(candidate):
-                             flet_exe = candidate
-            except:
-                pass
-
-        # 4. Fallback to hardcoded known path from investigation
-        if not flet_exe:
-             candidate = r"c:\Users\fseitz\AppData\Roaming\Python\Python313\Scripts\flet.exe"
-             if os.path.exists(candidate):
-                 flet_exe = candidate
+        # Locate flet.exe logic (simplified for local run)
+        cmd = [sys.executable, "-m", "flet", "publish", "web_entry.py"]
 
         # PWA Arguments
         pwa_args = [
@@ -124,41 +101,36 @@ anyio>=4.12.1
             "--assets", "switchcraft/assets"
         ]
 
-        # Verify icons exist (warn only)
-        icon_path = os.path.join(build_dir, "switchcraft", "assets", "icon-192.png")
-        if not os.path.exists(icon_path):
-             print(f"WARNING: PWA Icon not found at {icon_path}. PWA might not be installable.")
-
-        if not flet_exe:
-             # Last resort: python -m flet
-             print("Could not find flet executable. Trying python -m flet...")
-             cmd = [sys.executable, "-m", "flet", "publish", "web_entry.py"] + pwa_args
-             subprocess.check_call(cmd)
-        else:
-            print(f"Using flet executable: {flet_exe}")
-            cmd = [flet_exe, "publish", "web_entry.py"] + pwa_args
-            subprocess.check_call(cmd)
+        subprocess.check_call(cmd + pwa_args)
 
     except subprocess.CalledProcessError as e:
         print(f"Error running flet publish: {e}")
-        sys.exit(1)
+        # sys.exit(1) # Continue to copy check
     finally:
         os.chdir(original_cwd)
 
     print("Moving artifacts to docs/public/demo...")
     if os.path.exists(dist_dir):
+
+        # Icon Overwrite (Local simulation of CI 'cp' commands)
+        print("Overwriting PWA Icons...")
+        assets_dir = os.path.join(root_dir, "src", "switchcraft", "assets")
+        dist_icons = os.path.join(dist_dir, "icons")
+
+        shutil.copy(os.path.join(assets_dir, "icon-192.png"), os.path.join(dist_icons, "icon-192.png"))
+        shutil.copy(os.path.join(assets_dir, "icon-512.png"), os.path.join(dist_icons, "icon-512.png"))
+        shutil.copy(os.path.join(assets_dir, "favicon.png"), os.path.join(dist_dir, "favicon.png"))
+        try:
+             shutil.copy(os.path.join(assets_dir, "apple-touch-icon.png"), os.path.join(dist_dir, "apple-touch-icon.png"))
+        except: pass
+
         # We need to copy contents of dist to docs/public/demo
         shutil.copytree(dist_dir, docs_public_dir)
         print("Cleaning up dist...")
         shutil.rmtree(dist_dir)
 
-        # Cleanup build_web directory to avoid file duplication in user's workspace
-        # if os.path.exists(build_dir):
-        #     print(f"Cleaning up temporary build directory: {build_dir}")
-        #     shutil.rmtree(build_dir, ignore_errors=True)
-
         print(f"Build complete. Served at {docs_public_dir}")
-        print("To test, run python -m http.server --directory docs/public")
+        print("To test, verify docs/public/demo/web_entry.py (if visible) or check console log.")
     else:
         print("Error: dist directory was not created.")
         sys.exit(1)

@@ -120,7 +120,7 @@ jobs:
         with:
           python-version: '3.14'
       - name: Install Flet
-        run: pip install flet
+        run: pip install flet==0.80.3
       - name: Run Web Demo Build
         run: python scripts/build_web_demo.py
 
