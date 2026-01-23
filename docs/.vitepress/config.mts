@@ -75,6 +75,20 @@ export default defineConfig({
                     ]
                 },
                 {
+                    text: 'Application Views',
+                    collapsed: true,
+                    items: [
+                        { text: 'Home / Dashboard', link: '/views/home' },
+                        { text: 'Analyzer', link: '/views/analyzer' },
+                        { text: 'Intune Packager', link: '/views/intune' },
+                        { text: 'Winget Explorer', link: '/views/winget' },
+                        { text: 'Script Manager', link: '/views/scripts' },
+                        { text: 'Detection Tester', link: '/views/tester' },
+                        { text: 'AI Helper', link: '/views/helper' },
+                        { text: 'Settings', link: '/views/settings' }
+                    ]
+                },
+                {
                     text: 'Enterprise & IT Pro',
                     collapsed: false,
                     items: [

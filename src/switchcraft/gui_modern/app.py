@@ -184,6 +184,11 @@ class ModernApp:
             bgcolor="SURFACE_VARIANT",
             actions=[
                 self.back_btn,
+                ft.IconButton(
+                    icon=ft.Icons.HELP_OUTLINE,
+                    tooltip="Context Help",
+                    on_click=self._open_help
+                ),
                 self.notif_btn,
                 self.theme_icon,
                 ft.Container(width=10)
@@ -205,6 +210,54 @@ class ModernApp:
 
         # Now that UI is built, shutdown splash screen
         self._terminate_splash()
+
+    def _get_help_url(self, index):
+        """Returns the GitHub Pages documentation URL for the given view index."""
+        base_url = "https://faserf.github.io/SwitchCraft/views/"
+        from switchcraft.gui_modern.nav_constants import NavIndex
+
+        mapping = {
+            NavIndex.HOME: "home",
+            NavIndex.SETTINGS_UPDATES: "settings",
+            NavIndex.SETTINGS_GRAPH: "settings",
+            NavIndex.SETTINGS_HELP: "help",
+            NavIndex.ADDON_MANAGER: "help",
+            NavIndex.WINGET: "winget",
+            NavIndex.ANALYZER: "analyzer",
+            NavIndex.HELPER: "helper",
+            NavIndex.INTUNE: "intune",
+            NavIndex.INTUNE_STORE: "intune_store",
+            NavIndex.SCRIPTS: "scripts",
+            NavIndex.MACOS: "macos",
+            NavIndex.HISTORY: "history",
+            NavIndex.SETTINGS: "settings",
+            NavIndex.PACKAGING_WIZARD: "wizard",
+            NavIndex.DETECTION_TESTER: "tester",
+            NavIndex.STACK_MANAGER: "stacks",
+            NavIndex.DASHBOARD: "dashboard",
+            NavIndex.LIBRARY: "library",
+            NavIndex.GROUP_MANAGER: "groups",
+            NavIndex.WINGET_CREATE: "winget_create",
+            NavIndex.EXCHANGE: "exchange",
+            NavIndex.SETTINGS_POLICIES: "policies"
+        }
+
+        page_name = mapping.get(index, "home") # Default to home
+        return f"{base_url}{page_name}"
+
+    def _open_help(self, e):
+        """Opens the context-sensitive help page for the current view."""
+        try:
+            current_idx = getattr(self, '_current_tab_index', 0)
+            url = self._get_help_url(current_idx)
+            logger.info(f"Opening help for index {current_idx}: {url}")
+            import webbrowser
+            webbrowser.open(url)
+        except Exception as ex:
+            logger.error(f"Failed to open help: {ex}")
+            self.page.snack_bar = ft.SnackBar(ft.Text(f"Failed to open help: {ex}"), bgcolor="RED")
+            self.page.snack_bar.open = True
+            self.page.update()
 
     def _terminate_splash(self):
         """
