@@ -156,14 +156,15 @@ class ViewMixin:
     def _launch_url(self, url: str):
         """
         Launches a URL using the best available method for the environment.
-        In Web/WASM, uses page.launch_url. Otherwise falls back to webbrowser.
+        On Desktop, prefers webbrowser.open for better OS integration.
+        In Web/WASM, uses page.launch_url.
         """
         if not url:
             return
 
-        logger.info(f"ENTERING _launch_url: {url}")
-        self._show_snack(f"Opening browser link...", "BLUE")
+        logger.info(f"Launching URL: {url}")
 
+        # Determine environment
         page = getattr(self, "app_page", None)
         if not page:
             try:
@@ -171,19 +172,32 @@ class ViewMixin:
             except (RuntimeError, AttributeError):
                 pass
 
+        is_web = getattr(page, "web", False) if page else False
+
+        # On Desktop, webbrowser.open is usually more reliable than page.launch_url
+        if not is_web:
+            try:
+                import webbrowser
+                logger.info(f"Desktop mode: Using webbrowser.open for: {url}")
+                if webbrowser.open(url):
+                    return
+                logger.warning("webbrowser.open returned False, trying page.launch_url fallback")
+            except Exception as e:
+                logger.debug(f"webbrowser.open failed: {e}")
+
         if page:
             try:
-                # Flet's launch_url is the most reliable for Web client
+                # Flet's launch_url
                 logger.info(f"Using page.launch_url for: {url}")
                 page.launch_url(url)
                 return
             except Exception as e:
-                logger.debug(f"page.launch_url failed: {e}")
+                logger.error(f"page.launch_url failed: {e}")
 
-        # Fallback to webbrowser (works on local desktop)
+        # Final fallback for any case where previous attempts failed
         try:
             import webbrowser
-            logger.info(f"Using webbrowser.open fallback for: {url}")
+            logger.info(f"Final fallback: Using webbrowser.open for: {url}")
             webbrowser.open(url)
         except Exception as e:
             logger.error(f"Failed to launch URL in any mode: {e}")

@@ -1074,3 +1074,63 @@ class IntuneService:
         except Exception as e:
             logger.error(f"Failed to search users: {e}")
             raise
+
+    _news_cache = None
+
+    def get_intune_news(self, force_refresh=False):
+        """
+        Fetches the latest Intune news from Microsoft Docs GitHub.
+        Returns a list of news items.
+        """
+        if IntuneService._news_cache and not force_refresh:
+            return IntuneService._news_cache
+
+        url = "https://raw.githubusercontent.com/MicrosoftDocs/memdocs/main/intune/intune-service/fundamentals/whats-new.md"
+        try:
+            resp = requests.get(url, timeout=15)
+            resp.raise_for_status()
+            content = resp.text
+
+            # Simple Markdown Parsing for Latest Entries
+            # We look for ## Week of ... and extract items below it
+            news_items = []
+            lines = content.split('\n')
+            current_week = "General"
+            current_category = "General"
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                if line.startswith('## Week of'):
+                    current_week = line.replace('##', '').strip()
+                elif line.startswith('### '):
+                    current_category = line.replace('###', '').strip()
+                elif line.startswith('#### '):
+                    # This is a news item title
+                    title_parts = line.replace('####', '').split('<!--')
+                    title = title_parts[0].strip()
+                    news_items.append({
+                        "title": title,
+                        "week": current_week,
+                        "category": current_category,
+                        "description": "", # Will be filled by next lines
+                        "link": "https://learn.microsoft.com/en-us/mem/intune/fundamentals/whats-new"
+                    })
+                elif news_items and not line.startswith('#'):
+                    # Append description text to the last item
+                    if len(news_items[-1]["description"]) < 300: # Limit length
+                        news_items[-1]["description"] += line + " "
+
+            # Cleanup descriptions
+            for item in news_items:
+                item["description"] = item["description"].strip()
+                if len(item["description"]) > 250:
+                    item["description"] = item["description"][:247] + "..."
+
+            IntuneService._news_cache = news_items[:10] # Keep latest 10
+            return IntuneService._news_cache
+        except Exception as e:
+            logger.error(f"Failed to fetch Intune news: {e}")
+            raise RuntimeError(f"Could not fetch news: {str(e)}")

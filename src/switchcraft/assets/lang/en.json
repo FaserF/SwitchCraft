@@ -1023,6 +1023,7 @@
     "desc_wingetcreate": "Create or update Winget package manifests.",
     "desc_macos": "Deploy MacOS apps via Intune shell scripts.",
     "desc_history": "View your recent actions and command history.",
+    "desc_policies": "View and manage active system and user policies (GPO/Intune).",
     "desc_settings": "Configure application preferences and integrations.",
     "auto_detect": "Auto-Detect",
     "deploy_app_title": "Deploy App",
@@ -1070,5 +1071,10 @@
     "sent": "Sent",
     "received": "Received",
     "blocked": "Blocked",
-    "mail_flow_stats": "Mail Flow Statistics"
+    "mail_flow_stats": "Mail Flow Statistics",
+    "no_news_available": "No news available at the moment.",
+    "news_error": "Could not load news",
+    "loading_news": "Loading latest Intune news...",
+    "read_more": "Read more",
+    "intune_news": "Intune News"
 }

@@ -10,7 +10,7 @@ class TestI18nIntegrity(unittest.TestCase):
         # tests/test_i18n_integrity.py -> ../src/switchcraft/assets/lang
         base_dir = Path(__file__).parent.parent
         self.lang_dir = base_dir / "src" / "switchcraft" / "assets" / "lang"
-        self.src_dir = base_dir / "src" / "switchcraft"
+        self.src_dir = base_dir / "src" # Broaden to all src, including addons
 
         with open(self.lang_dir / "en.json", "r", encoding="utf-8") as f:
             self.en = json.load(f)
@@ -74,11 +74,19 @@ class TestI18nIntegrity(unittest.TestCase):
 
     def test_codebase_keys_exist(self):
         """Scan codebase for i18n.get usage and verify keys exist in JSON."""
-        # Regex to find i18n.get("key")
-        # Supports ' and "
-        pattern = re.compile(r'i18n\.get\s*\(\s*[\'"]([^\'"]+)[\'"]')
+        # Pattern to find i18n.get("key")
+        get_pattern = re.compile(r'i18n\.get\s*\(\s*[\'"]([^\'"]+)[\'"]')
+        # Heuristic pattern to find potential keys in string literals: "prefix_something"
+        # We look for common prefixes like desc_, nav_, cat_, etc.
+        heuristic_pattern = re.compile(r'[\'"]([a-z0-9]+_[a-z0-9_.-]+)[\'"]')
 
         found_keys = set()
+
+        # Build a set of known prefixes from existing keys to refine heuristic
+        known_prefixes = set()
+        for k in self.en.keys():
+            if "_" in k:
+                known_prefixes.add(k.split("_")[0] + "_")
 
         for root, _, files in os.walk(self.src_dir):
             for file in files:
@@ -87,30 +95,43 @@ class TestI18nIntegrity(unittest.TestCase):
                     try:
                         with open(path, "r", encoding="utf-8") as f:
                             content = f.read()
-                            matches = pattern.findall(content)
-                            for m in matches:
+                            # 1. Catch explicit i18n.get calls
+                            for m in get_pattern.findall(content):
                                 found_keys.add(m)
+
+                            # 2. Heuristic: catch things that look like keys in any string literal
+                            for m in heuristic_pattern.findall(content):
+                                # Only add if it starts with a known prefix
+                                match_prefix = m.split("_")[0] + "_"
+                                if match_prefix in known_prefixes:
+                                    found_keys.add(m)
                     except Exception as e:
                         print(f"Could not read {path}: {e}")
 
         # Check validity
-        # Some keys might be dynamic, so we might need a whitelist of allowed failures or strict check
-        # For now, let's report missing ones
         missing = []
+        # Keys to ignore (false positives that look like translation keys but are internal variables or attributes)
+        SKIP_KEYS = {
+            'temp_dir', 'uninstall_cmd_field', 'show_snack_bar', 'login_btn', 'cert_copy_btn',
+            'notif_btn', 'loading_frame', 'install_cmd_field', 'winget_load_error', 'uninstall_switches',
+            'app_page', 'cert_path_entry', 'config_context', 'start_analysis', 'intune_view',
+            'manifest_url', 'status_txt', 'install_path', 'product_code', 'ai_provider', 'run_task',
+            'ask_manual_zip', 'update_check_result', 'detected_type', 'package_ids',
+            'generate_install_script', 'analyzer_view', 'current_metadata', 'lang_menu',
+            'product_version', 'brute_force_output', 'search_by_name', 'sync_section_container',
+            'all_attempts', 'product_name', 'winget_url', 'file_path', 'history_view', 'bundle_id',
+            'winget_switch', 'packaging_wizard_view', 'setup_file', 'first_dynamic_index',
+            'install_switches', 'ask_browser', 'history_service', 'silent_args', 'all_temp_dirs',
+            'install_silent'
+        }
+
         for k in found_keys:
-
-            if k not in self.en:
-                # Improve heuristic: keys usually are lowercase/snake_case/kebab-case.
-                # If they contain spaces or look like a full sentence, they might be dynamic content or default values.
-                # Also if it looks like a variable concatenation (e.g. f"{var}"), regex might not catch it but
-                # we are looking at literal strings passed to single argument.
-
-                # Check if it is a valid identifier-like string
+            if k not in self.en and k not in SKIP_KEYS:
+                # Filter out obvious false positives (not following identifier pattern)
                 if re.match(r'^[a-z0-9_.-]+$', k):
-                     missing.append(k)
-                else:
-                     # Likely dynamic content or sentence used as default fallback in some legacy calls
-                     pass
+                     # Additional check: avoid things that are likely filenames or paths
+                     if not (k.endswith(".exe") or k.endswith(".msi") or k.endswith(".intunewin") or "/" in k or "\\" in k):
+                        missing.append(k)
 
         # We know some keys might be constructed dynamically, so we filter out known false positives checks if needed
         # But user asked to "Detect missing translations".

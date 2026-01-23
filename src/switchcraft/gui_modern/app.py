@@ -130,6 +130,9 @@ class ModernApp:
 
         self.setup_page()
 
+        # Route handler for browser back/forward buttons
+        self.page.on_route_change = self._on_route_change
+
         # Build Actions (Theme Toggle + Notifications)
         self.theme_icon = ft.IconButton(
             ft.Icons.DARK_MODE if self.page.theme_mode == ft.ThemeMode.LIGHT else ft.Icons.LIGHT_MODE,
@@ -1200,6 +1203,10 @@ class ModernApp:
             if not self._navigation_history or self._navigation_history[-1] != index:
                 self._navigation_history.append(index)
                 self._update_back_btn_visibility()
+                # Update route for browser history
+                if self.page.route != f"/{index}":
+                    self.page.route = f"/{index}"
+                    self.page.update()
 
     def _go_back_handler(self, e):
         """Handle back button click to navigate to previous view."""
@@ -1227,6 +1234,38 @@ class ModernApp:
                 self.page.update()
             except Exception:
                 pass
+
+    def _on_route_change(self, e):
+        """Handle browser back/forward navigation via route changes."""
+        try:
+            route = self.page.route
+            logger.debug(f"Route changed to: {route}")
+
+            if not route or route == "/":
+                index = 0 # Default to Home
+            else:
+                try:
+                    index = int(route.lstrip("/"))
+                except ValueError:
+                    logger.warning(f"Invalid route: {route}")
+                    return
+
+            # Only switch if we're not already there
+            if getattr(self, '_current_tab_index', -1) != index:
+                logger.info(f"Navigating to index {index} from route change")
+                # Update sidebar UI
+                if hasattr(self, 'sidebar'):
+                    self.sidebar.set_selected_index(index)
+
+                # Switch tab without adding to history (since route change IS the history action)
+                self._switch_to_tab(index)
+
+                # Update our internal history track to stay in sync
+                if not self._navigation_history or self._navigation_history[-1] != index:
+                    self._navigation_history.append(index)
+                    self._update_back_btn_visibility()
+        except Exception as ex:
+            logger.exception(f"Error handling route change: {ex}")
 
     def _update_back_btn_visibility(self):
         """Show/hide back button based on navigation history."""
@@ -1396,6 +1435,10 @@ class ModernApp:
             if not self._navigation_history or self._navigation_history[-1] != idx:
                 self._navigation_history.append(idx)
                 self._update_back_btn_visibility()
+                # Update route for browser history
+                if self.page.route != f"/{idx}":
+                    self.page.route = f"/{idx}"
+                    self.page.update()
 
     def handle_window_drop(self, e):
         """Global drop handler - switches to analyzer if file is dropped anywhere."""
@@ -1937,7 +1980,11 @@ class ModernApp:
                     def open_download(e):
                         dlg.open = False
                         self.page.update()
-                        self.page.launch_url("https://github.com/FaserF/SwitchCraft/releases")
+                        try:
+                            import webbrowser
+                            webbrowser.open("https://github.com/FaserF/SwitchCraft/releases")
+                        except Exception:
+                            self.page.launch_url("https://github.com/FaserF/SwitchCraft/releases")
 
                     dlg = ft.AlertDialog(
                         title=ft.Text(i18n.get("demo_error_title") or "Download Error"),

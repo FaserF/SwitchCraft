@@ -17,7 +17,7 @@ hero:
       link: https://github.com/FaserF/SwitchCraft/releases/latest
     - theme: alt
       text: Try Web Demo
-      link: /demo/
+      link: https://faserf.github.io/SwitchCraft/demo/
     - theme: alt
       text: GPO / Registry
       link: /Registry

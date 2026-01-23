@@ -1025,6 +1025,7 @@
     "desc_wingetcreate": "Erstelle oder aktualisiere Winget Paket-Manifeste.",
     "desc_macos": "Verteile MacOS Apps über Intune Shell Skripte.",
     "desc_history": "Sieh dir deine letzten Aktionen und den Befehlsverlauf an.",
+    "desc_policies": "Anzeige und Verwaltung aktiver System- und Benutzerrichtlinien (GPO/Intune).",
     "deploy_app_title": "App bereitstellen",
     "btn_deploy_assignment": "Bereitstellen / Zuweisen...",
     "btn_open_in_intune": "In Intune öffnen",
@@ -1070,5 +1071,10 @@
     "sent": "Gesendet",
     "received": "Empfangen",
     "blocked": "Blockiert",
-    "mail_flow_stats": "E-Mail-Statistiken"
+    "mail_flow_stats": "E-Mail-Statistiken",
+    "no_news_available": "Keine Neuigkeiten verfügbar.",
+    "news_error": "Fehler beim Laden der Neuigkeiten",
+    "loading_news": "Lade aktuelle Intune-Neuigkeiten...",
+    "read_more": "Mehr lesen",
+    "intune_news": "Intune Neuigkeiten"
 }

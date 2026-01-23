@@ -3,8 +3,12 @@ import datetime
 import random
 from switchcraft.gui_modern.nav_constants import NavIndex
 from switchcraft.utils.i18n import i18n
+from switchcraft.services.intune_service import IntuneService
+import threading
 
-class ModernHomeView(ft.Container):
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
+
+class ModernHomeView(ft.Container, ViewMixin):
     """Enhanced Modern Dashboard with Quick Actions and Recents."""
 
     def __init__(self, page: ft.Page, on_navigate=None):
@@ -13,7 +17,11 @@ class ModernHomeView(ft.Container):
         self.on_navigate = on_navigate
         self.expand = True
         self.padding = 30
+        self.news_container = ft.Column(spacing=10)
         self.content = self._build_content()
+
+        # Start background news loading
+        threading.Thread(target=self._load_news, daemon=True).start()
 
     def _create_action_card(self, title, subtitle, icon, target_idx, color="BLUE"):
         return ft.Container(
@@ -172,7 +180,13 @@ class ModernHomeView(ft.Container):
 
             # Recent Activity Section (Real data from history service)
             ft.Text(i18n.get("recent_activity") or "Recent Activity", size=20, weight=ft.FontWeight.BOLD),
-            self._build_recent_activity_section()
+            self._build_recent_activity_section(),
+
+            ft.Divider(height=20, color="TRANSPARENT"),
+
+            # Intune News Section
+            ft.Text(i18n.get("intune_news") or "Intune News", size=20, weight=ft.FontWeight.BOLD),
+            self.news_container
 
         ], scroll=ft.ScrollMode.AUTO, expand=True)
 
@@ -225,3 +239,80 @@ class ModernHomeView(ft.Container):
             border_radius=10,
             padding=10
         )
+
+    def _load_news(self):
+        """Fetch and display Intune news in background."""
+        # Initial loading state
+        self.news_container.controls = [
+            ft.Container(
+                content=ft.Row([
+                    ft.ProgressRing(width=20, height=20, stroke_width=2),
+                    ft.Text(i18n.get("loading_news") or "Loading latest Intune news...", italic=True)
+                ], spacing=10),
+                padding=20,
+                bgcolor="WHITE,0.05",
+                border_radius=10
+            )
+        ]
+        try:
+            self.update()
+        except Exception:
+            pass
+
+        try:
+            service = IntuneService()
+            news = service.get_intune_news()
+
+            controls = []
+            if not news:
+                controls.append(ft.Text(i18n.get("no_news_available") or "No news available at the moment.", italic=True))
+            else:
+                for item in news[:5]: # Show top 5
+                    controls.append(
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Row([
+                                    ft.Text(item["title"], weight=ft.FontWeight.BOLD, size=14, color="PRIMARY_LIGHT"),
+                                    ft.Container(
+                                        content=ft.Text(item["category"], size=10, color="WHITE"),
+                                        bgcolor="PRIMARY",
+                                        padding=ft.padding.symmetric(horizontal=8, vertical=2),
+                                        border_radius=5
+                                    )
+                                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                                ft.Text(item["description"], size=12, color="WHITE70", max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
+                                ft.Row([
+                                    ft.Text(item["week"], size=10, color="SECONDARY"),
+                                    ft.TextButton(
+                                        content=ft.Text(i18n.get("read_more") or "Read more", size=10),
+                                        on_click=lambda _, url=item["link"]: self._launch_url(url)
+                                    )
+                                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+                            ], spacing=5),
+                            padding=15,
+                            bgcolor="WHITE,0.05",
+                            border_radius=10,
+                            border=ft.Border.all(1, "WHITE,0.1")
+                        )
+                    )
+
+            self.news_container.controls = controls
+        except Exception as e:
+            error_msg = str(e) or "Unknown error"
+            self.news_container.controls = [
+                ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.ERROR_OUTLINE, color="ERROR"),
+                        ft.Text(f"{i18n.get('news_error') or 'Could not load news'}: {error_msg}", color="ERROR", size=12)
+                    ], spacing=10),
+                    padding=20,
+                    bgcolor="ERROR,0.1",
+                    border_radius=10,
+                    border=ft.Border.all(1, "ERROR,0.2")
+                )
+            ]
+
+        try:
+            self.update()
+        except Exception:
+            pass

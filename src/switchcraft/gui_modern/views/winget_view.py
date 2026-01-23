@@ -874,7 +874,6 @@ class ModernWingetView(ft.Row, ViewMixin):
         self.app_page.update()
 
     def _deploy_wau(self, info):
-        import webbrowser
         self._launch_url("https://github.com/Romanitho/Winget-AutoUpdate")
         self._show_snack("WAU info opened in browser.")
 
