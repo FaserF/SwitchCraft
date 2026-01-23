@@ -384,7 +384,62 @@ class SessionStoreBackend(ConfigBackend):
             return {"value": val, "source": "Web Session"}
         return None
 
-# --- Context Logic ---
+class ClientStorageBackend(ConfigBackend):
+    """Persistent Web Backend using Flet Client Storage (Cookies/LocalStorage)."""
+    def __init__(self, page):
+        self.page = page
+        self.cleanup_keys = []
+
+    def get_value(self, value_name: str, default: Any = None) -> Any:
+        try:
+            # Add prefix to avoid collision with other apps on localhost
+            key = f"sc_{value_name}"
+            if hasattr(self.page, 'client_storage'):
+                val = self.page.client_storage.get(key)
+                if val is not None:
+                    # Flet stores as strings usually, but supports JSON types if natively handled?
+                    # client_storage.get returns parsed JSON usually.
+                    return val
+        except Exception:
+            pass
+        return default
+
+    def set_value(self, value_name: str, value: Any, value_type: int = None):
+        try:
+            key = f"sc_{value_name}"
+            if hasattr(self.page, 'client_storage'):
+                self.page.client_storage.set(key, value)
+        except Exception:
+            pass
+
+    def get_secure_value(self, value_name: str) -> Optional[str]:
+        # Web storage is NOT secure, but it's isolated by origin.
+        # We perform simple obfuscation if needed, or just store plainly.
+        # For a demo, plain storage is acceptable given HTTPS.
+        return self.get_value(f"SECURE_{value_name}")
+
+    def set_secure_value(self, value_name: str, value: str):
+        self.set_value(f"SECURE_{value_name}", value)
+
+    def delete_secure_value(self, value_name: str):
+        key = f"sc_SECURE_{value_name}"
+        try:
+             if hasattr(self.page, 'client_storage'):
+                 self.page.client_storage.remove(key)
+        except Exception:
+            pass
+
+    def is_managed(self, key: str = None) -> bool:
+        return False
+
+    def export_all(self) -> Dict[str, Any]:
+        return {} # Hard to enumerate client storage without known keys
+
+    def get_value_with_source(self, value_name: str) -> Optional[Dict[str, Any]]:
+        val = self.get_value(value_name)
+        if val is not None:
+             return {"value": val, "source": "Browser Storage"}
+        return None
 
 # Global context variable to hold the active backend logic
 # If None, falls back to default logic (Registry on Win, Env on Linux)

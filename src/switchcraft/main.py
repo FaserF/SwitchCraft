@@ -249,16 +249,19 @@ def main(page: ft.Page):
 
         # Determine Backend Mode
         if page.web:
-            # WEB MODE: Isolate sessions!
-            # Use SessionStoreBackend backed by Flet's page.session
-            session_backend = SessionStoreBackend(page.session)
-            SwitchCraftConfig.set_backend(session_backend)
+            # WEB MODE: Use ClientStorage for persistence across reloads!
+            # SessionStoreBackend was ephemeral (RAM only).
+            from switchcraft.utils.config import ClientStorageBackend
+
+            # Switch to ClientStorageBackend
+            storage_backend = ClientStorageBackend(page)
+            SwitchCraftConfig.set_backend(storage_backend)
 
             # CRITICAL: Attach backend to page so we can restore it in callbacks
             # Flet callbacks in other threads/contexts might lose the ContextVar
-            page.sc_backend = session_backend
+            page.sc_backend = storage_backend
 
-            print("Config Backend: SessionStoreBackend (Web/Combined)")
+            print("Config Backend: ClientStorageBackend (Web/Persistent)")
 
             # --- WEB AUTHENTICATION (SSO) ---
             # Basic OAuth flow for Entra / GitHub
