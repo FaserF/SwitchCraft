@@ -40,7 +40,30 @@ def setup_logging():
 @click.option('--version', is_flag=True, help="Show version info")
 @click.pass_context
 def cli(ctx, output_json, version):
-    """SwitchCraft: Analyze installers/packages or manage configuration."""
+    """
+    SwitchCraft - The Ultimate Packaging Assistant CLI
+
+    \b
+    DESCRIPTION:
+        Analyze installers, manage Intune packages, interact with Winget,
+        manage Entra ID groups, and automate deployment workflows.
+
+    \b
+    USAGE:
+        switchcraft [OPTIONS] COMMAND [ARGS]...
+        switchcraft analyze <file>       Analyze an installer
+        switchcraft intune package ...   Create .intunewin package
+        switchcraft winget search ...    Search Winget packages
+
+    \b
+    GETTING STARTED:
+        switchcraft --help               Show this help
+        switchcraft <command> --help     Show command help
+
+    \b
+    DOCUMENTATION:
+        https://faserf.github.io/SwitchCraft/CLI_Reference
+    """
     from switchcraft.utils.logging_handler import setup_session_logging
     setup_logging()
     setup_session_logging()
@@ -67,19 +90,65 @@ def cli(ctx, output_json, version):
 @click.argument('filepath', type=click.Path(exists=True), required=True)
 @click.option('--json', 'output_json', is_flag=True, help="Output in JSON format")
 def analyze(filepath, output_json):
-    """Analyze an installer file (MSI, EXE, DMG, etc)."""
+    """
+    Analyze an installer file to detect silent switches and metadata.
+
+    \b
+    DESCRIPTION:
+        Analyzes MSI, EXE, DMG, and PKG installers to extract:
+        - Product name and version
+        - Silent install/uninstall switches
+        - Installer type and confidence level
+        - Winget package match (if available)
+
+    \b
+    ARGUMENTS:
+        FILEPATH    Path to the installer file
+
+    \b
+    EXAMPLES:
+        switchcraft analyze installer.msi
+        switchcraft analyze setup.exe --json
+        switchcraft analyze app.dmg
+    """
     _run_analysis(filepath, output_json)
 
 # --- Configuration Group ---
 @cli.group()
 def config():
-    """Manage SwitchCraft configuration."""
+    """
+    Manage SwitchCraft configuration values and secrets.
+
+    \b
+    SUBCOMMANDS:
+        get         Read a configuration value
+        set         Set a configuration value
+        set-secret  Securely store a secret (Credential Manager)
+        encrypt     Encrypt a value for Registry/GPO usage
+
+    \b
+    EXAMPLES:
+        switchcraft config get Language
+        switchcraft config set IntuneTenantId <id>
+        switchcraft config set-secret IntuneClientSecret
+    """
     pass
 
 @config.command('get')
 @click.argument('key')
 def config_get(key):
-    """Get a configuration value."""
+    """
+    Read a configuration value.
+
+    \b
+    ARGUMENTS:
+        KEY    Configuration key to read (e.g., Language, IntuneTenantId)
+
+    \b
+    EXAMPLES:
+        switchcraft config get Language
+        switchcraft config get IntuneTenantId
+    """
     val = SwitchCraftConfig.get_value(key)
     print(f"{key}: {val}")
 
@@ -87,20 +156,71 @@ def config_get(key):
 @click.argument('key')
 @click.argument('value')
 def config_set(key, value):
-    """Set a configuration value."""
+    """
+    Set a configuration value.
+
+    \b
+    ARGUMENTS:
+        KEY      Configuration key to set
+        VALUE    Value to assign
+
+    \b
+    COMMON KEYS:
+        Language           UI language (e.g., en-US, de-DE)
+        IntuneTenantId     Azure/Intune Tenant ID
+        IntuneClientId     Azure App Client ID
+        UpdateChannel      Update channel (stable, beta, nightly)
+
+    \b
+    EXAMPLES:
+        switchcraft config set Language de-DE
+        switchcraft config set IntuneTenantId abc123-...
+    """
     SwitchCraftConfig.set_user_preference(key, value)
     print(f"Set {key} = {value}")
 
 # --- Winget Group ---
 @cli.group()
 def winget():
-    """Interact with Winget (Microsoft Store)."""
+    """
+    Interact with Windows Package Manager (Winget).
+
+    \b
+    DESCRIPTION:
+        Search, install, and manage packages via Winget.
+        Requires the 'winget' addon to be installed.
+
+    \b
+    SUBCOMMANDS:
+        search          Search for packages
+        install         Install a package
+        info            Show package details
+        list-installed  List installed packages
+
+    \b
+    EXAMPLES:
+        switchcraft winget search "Visual Studio Code"
+        switchcraft winget install Microsoft.VisualStudioCode
+        switchcraft winget info Mozilla.Firefox
+    """
     pass
 
 @winget.command('search')
 @click.argument('query')
 def winget_search(query):
-    """Search for packages in Winget."""
+    """
+    Search for packages in the Winget repository.
+
+    \b
+    ARGUMENTS:
+        QUERY    Search term (package name or ID)
+
+    \b
+    EXAMPLES:
+        switchcraft winget search "Visual Studio Code"
+        switchcraft winget search chrome
+        switchcraft winget search 7zip
+    """
     from switchcraft.services.addon_service import AddonService
     winget_mod = AddonService().import_addon_module("winget", "utils.winget")
     if not winget_mod:
@@ -126,7 +246,23 @@ def winget_search(query):
 @click.argument('pkg_id')
 @click.option('--scope', default='machine', type=click.Choice(['user', 'machine']), help="Install scope")
 def winget_install(pkg_id, scope):
-    """Install a package via Winget."""
+    """
+    Install a package via Winget.
+
+    \b
+    ARGUMENTS:
+        PKG_ID    Package identifier (e.g., Microsoft.VisualStudioCode)
+
+    \b
+    OPTIONS:
+        --scope   Install scope: 'user' or 'machine' (default: machine)
+
+    \b
+    EXAMPLES:
+        switchcraft winget install Microsoft.VisualStudioCode
+        switchcraft winget install Google.Chrome --scope user
+        switchcraft winget install Git.Git
+    """
     from switchcraft.services.addon_service import AddonService
     winget_mod = AddonService().import_addon_module("winget", "utils.winget")
     if not winget_mod:
@@ -143,12 +279,47 @@ def winget_install(pkg_id, scope):
 # --- Intune Group ---
 @cli.group()
 def intune():
-    """Intune packaging and upload tools."""
+    """
+    Microsoft Intune packaging and upload tools.
+
+    \b
+    DESCRIPTION:
+        Create .intunewin packages and upload them directly to Intune.
+        Includes tools for managing the IntuneWinAppUtil.
+
+    \b
+    SUBCOMMANDS:
+        tool      Check/download IntuneWinAppUtil
+        package   Create .intunewin package
+        upload    Upload package to Intune
+
+    \b
+    PREREQUISITES (for upload):
+        switchcraft config set IntuneTenantId <id>
+        switchcraft config set IntuneClientId <id>
+        switchcraft config set-secret IntuneClientSecret
+
+    \b
+    EXAMPLES:
+        switchcraft intune tool
+        switchcraft intune package setup.exe -o dist -s .
+    """
     pass
 
 @intune.command('tool')
 def intune_tool():
-    """Check or download the IntuneWinAppUtil."""
+    """
+    Check or download the Microsoft IntuneWinAppUtil.
+
+    \b
+    DESCRIPTION:
+        Verifies if IntuneWinAppUtil is available locally.
+        If not found, downloads it automatically from Microsoft.
+
+    \b
+    EXAMPLES:
+        switchcraft intune tool
+    """
     from switchcraft.services.intune_service import IntuneService
     svc = IntuneService()
     if svc.is_tool_available():
@@ -167,7 +338,30 @@ def intune_tool():
 @click.option('-s', '--source', required=True, type=click.Path(exists=True), help="Source folder")
 @click.option('--quiet/--verbose', default=True, help="Suppress tool output")
 def intune_package(setup_file, output, source, quiet):
-    """Create an .intunewin package."""
+    """
+    Create an .intunewin package for Intune deployment.
+
+    \b
+    DESCRIPTION:
+        Wraps your installer into an encrypted .intunewin format
+        required for Intune Win32 app deployment.
+
+    \b
+    ARGUMENTS:
+        SETUP_FILE    Path to the setup file (e.g., setup.exe, installer.msi)
+
+    \b
+    OPTIONS:
+        -o, --output    Output folder for the .intunewin file (required)
+        -s, --source    Source folder containing the installer (required)
+        --quiet         Suppress IntuneWinAppUtil output (default)
+        --verbose       Show IntuneWinAppUtil output
+
+    \b
+    EXAMPLES:
+        switchcraft intune package setup.exe -o dist -s .
+        switchcraft intune package installer.msi -o C:\\Packages -s C:\\Source --verbose
+    """
     from switchcraft.services.intune_service import IntuneService
     svc = IntuneService()
 
@@ -193,7 +387,41 @@ def intune_package(setup_file, output, source, quiet):
 @click.option('--uninstall-cmd', required=True, help="Uninstall Command")
 @click.option('--description', default="", help="App Description")
 def intune_upload(intunewin, name, publisher, install_cmd, uninstall_cmd, description):
-    """Upload an .intunewin package to Intune."""
+    """
+    Upload an .intunewin package to Microsoft Intune.
+
+    \b
+    DESCRIPTION:
+        Uploads a packaged .intunewin file directly to your Intune tenant.
+        The app will be created as a Win32 LOB app in the Intune portal.
+
+    \b
+    PREREQUISITES:
+        Configure credentials first:
+        $ switchcraft config set IntuneTenantId <your-tenant-id>
+        $ switchcraft config set IntuneClientId <your-client-id>
+        $ switchcraft config set-secret IntuneClientSecret
+
+    \b
+    ARGUMENTS:
+        INTUNEWIN    Path to the .intunewin file
+
+    \b
+    OPTIONS:
+        --name           App display name (required)
+        --publisher      App publisher name (required)
+        --install-cmd    Install command line (required)
+        --uninstall-cmd  Uninstall command line (required)
+        --description    App description (optional)
+
+    \b
+    EXAMPLES:
+        switchcraft intune upload myapp.intunewin \
+            --name "My Application" \
+            --publisher "Contoso Ltd" \
+            --install-cmd "setup.exe /S" \
+            --uninstall-cmd "uninstall.exe /S"
+    """
     from switchcraft.services.intune_service import IntuneService
 
     # Auth credentials from config/secrets
@@ -239,13 +467,48 @@ def intune_upload(intunewin, name, publisher, install_cmd, uninstall_cmd, descri
 # --- Addons Group ---
 @cli.group()
 def addons():
-    """Manage SwitchCraft addons."""
+    """
+    Manage SwitchCraft extension addons.
+
+    \b
+    DESCRIPTION:
+        SwitchCraft addons extend functionality with additional features.
+        Install addons to unlock extra capabilities.
+
+    \b
+    AVAILABLE ADDONS:
+        advanced    Advanced analyzer features
+        winget      Winget integration
+        ai          AI-powered assistance
+        all         Install all addons
+
+    \b
+    SUBCOMMANDS:
+        list        List installed addons
+        install     Install an addon
+
+    \b
+    EXAMPLES:
+        switchcraft addons list
+        switchcraft addons install winget
+        switchcraft addons install all
+    """
     pass
 
 
 @addons.command('list')
 def addons_list():
-    """List available addons and installation status."""
+    """
+    List installed addons and their status.
+
+    \b
+    DESCRIPTION:
+        Shows all installed SwitchCraft addons with their IDs and names.
+
+    \b
+    EXAMPLES:
+        switchcraft addons list
+    """
     from switchcraft.services.addon_service import AddonService
     table = Table(title="SwitchCraft Addons")
     table.add_column("ID")
@@ -274,7 +537,26 @@ def addons_list():
 @addons.command('install')
 @click.argument('addon_id')
 def addons_install(addon_id):
-    """Install an addon (or 'all')."""
+    """
+    Install an addon by ID.
+
+    \b
+    ARGUMENTS:
+        ADDON_ID    ID of addon to install (advanced, winget, ai, all)
+
+    \b
+    AVAILABLE ADDONS:
+        advanced    Advanced analyzer features
+        winget      Winget integration for package management
+        ai          AI-powered assistance and suggestions
+        all         Install all available addons
+
+    \b
+    EXAMPLES:
+        switchcraft addons install winget
+        switchcraft addons install ai
+        switchcraft addons install all
+    """
     from switchcraft.services.addon_service import AddonService
 
     # Validation via ADDONS list removed as it does not exist
@@ -310,14 +592,61 @@ def addons_install(addon_id):
 @click.argument('key')
 @click.option('--value', '-v', prompt=True, hide_input=True, help="Secret value")
 def config_set_secret(key, value):
-    """Set a secure configuration value (keyring)."""
+    """
+    Securely store a secret in Windows Credential Manager.
+
+    \b
+    DESCRIPTION:
+        Stores sensitive values (API keys, passwords) securely using
+        Windows Credential Manager. Values are never stored in plain text.
+
+    \b
+    ARGUMENTS:
+        KEY    Key name for the secret (e.g., IntuneClientSecret)
+
+    \b
+    OPTIONS:
+        -v, --value    Secret value (prompted securely if not provided)
+
+    \b
+    COMMON KEYS:
+        IntuneClientSecret     Azure App Client Secret for Intune
+        GraphClientSecret      Microsoft Graph API secret
+
+    \b
+    EXAMPLES:
+        switchcraft config set-secret IntuneClientSecret
+        switchcraft config set-secret GraphApiKey -v "my-secret-key"
+    """
     SwitchCraftConfig.set_secret(key, value)
     print(f"Secret {key} saved securely.")
 
 @config.command('encrypt')
 @click.option('--plaintext', prompt=True, hide_input=True, help="Value to encrypt")
 def config_encrypt(plaintext):
-    """Encrypt a value for Registry usage (Obfuscation)."""
+    """
+    Encrypt a value for Registry/GPO deployment.
+
+    \b
+    DESCRIPTION:
+        Encrypts a plain text value using AES encryption for use in
+        Registry or Group Policy deployments. Store the output with
+        a _ENC suffix in the registry.
+
+    \b
+    OPTIONS:
+        --plaintext    Value to encrypt (prompted securely if not provided)
+
+    \b
+    OUTPUT:
+        Encrypted string (e.g., gAAAAABk...) for Registry use.
+
+    \b
+    EXAMPLES:
+        switchcraft config encrypt
+        # Enter plaintext at prompt...
+        # Output: gAAAAABk... (Use this in Registry as KeyName_ENC)
+    """
     from switchcraft.utils.crypto import SimpleCrypto
     encrypted = SimpleCrypto.encrypt(plaintext)
     print(f"Encrypted Value: {encrypted}")
@@ -327,13 +656,41 @@ def config_encrypt(plaintext):
 # --- Logs Group ---
 @cli.group()
 def logs():
-    """Manage session logs."""
+    """
+    Manage session logging and diagnostics.
+
+    \b
+    SUBCOMMANDS:
+        export    Export session logs to a file
+
+    \b
+    EXAMPLES:
+        switchcraft logs export
+        switchcraft logs export -o debug.log
+    """
     pass
 
 @logs.command('export')
 @click.option('--output', '-o', default="switchcraft_session.log", help="Output file path")
 def logs_export(output):
-    """Export the current session logs to a file."""
+    """
+    Export session logs to a file.
+
+    \b
+    DESCRIPTION:
+        Exports all logs from the current session to a file.
+        Useful for debugging and support requests.
+
+    \b
+    OPTIONS:
+        -o, --output    Output file path (default: switchcraft_session.log)
+
+    \b
+    EXAMPLES:
+        switchcraft logs export
+        switchcraft logs export -o debug_session.log
+        switchcraft logs export -o C:\\Logs\\switchcraft.log
+    """
     # Since CLI is stateless per command run, this will mostly capture the current command's startup logs
     # and whatever happened during this execution. It won't capture "previous" sessions.
     from switchcraft.utils.logging_handler import get_session_handler
@@ -351,14 +708,45 @@ def logs_export(output):
 # --- History Group ---
 @cli.group()
 def history():
-    """Manage analysis history."""
+    """
+    Manage analysis history.
+
+    \b
+    DESCRIPTION:
+        View, export, and clear the history of analyzed installers.
+
+    \b
+    SUBCOMMANDS:
+        list      Show recent analysis history
+        clear     Delete all history entries
+        export    Export history to JSON file
+
+    \b
+    EXAMPLES:
+        switchcraft history list
+        switchcraft history list -n 50 --json
+        switchcraft history export -o backup.json
+    """
     pass
 
 @history.command('list')
 @click.option('--json', 'output_json', is_flag=True, help="Output in JSON format")
 @click.option('--limit', '-n', default=20, help="Number of entries to show")
 def history_list(output_json, limit):
-    """List analysis history."""
+    """
+    List analysis history entries.
+
+    \b
+    OPTIONS:
+        --json     Output in JSON format for scripting
+        -n LIMIT   Number of entries to show (default: 20)
+
+    \b
+    EXAMPLES:
+        switchcraft history list
+        switchcraft history list -n 50
+        switchcraft history list --json
+    """
     from switchcraft.services.history_service import HistoryService
     svc = HistoryService()
     items = svc.get_history()[:limit]
@@ -388,7 +776,18 @@ def history_list(output_json, limit):
 @history.command('clear')
 @click.confirmation_option(prompt="Are you sure you want to clear all history?")
 def history_clear():
-    """Clear all analysis history."""
+    """
+    Clear all analysis history.
+
+    \b
+    DESCRIPTION:
+        Permanently deletes all stored analysis history entries.
+        Requires confirmation before proceeding.
+
+    \b
+    EXAMPLES:
+        switchcraft history clear
+    """
     from switchcraft.services.history_service import HistoryService
     HistoryService().clear()
     print("[green]History cleared.[/green]")
@@ -396,7 +795,22 @@ def history_clear():
 @history.command('export')
 @click.option('--output', '-o', required=True, type=click.Path(), help="Output file path")
 def history_export(output):
-    """Export analysis history to a file."""
+    """
+    Export analysis history to a JSON file.
+
+    \b
+    DESCRIPTION:
+        Exports all history entries to a JSON file for backup or analysis.
+
+    \b
+    OPTIONS:
+        -o, --output    Output file path (required)
+
+    \b
+    EXAMPLES:
+        switchcraft history export -o history_backup.json
+        switchcraft history export -o C:\\Backups\\history.json
+    """
     from switchcraft.services.history_service import HistoryService
     items = HistoryService().get_history()
     with open(output, 'w', encoding='utf-8') as f:
@@ -407,7 +821,31 @@ def history_export(output):
 # --- Detection Group ---
 @cli.group()
 def detection():
-    """Test Intune detection rules locally."""
+    """
+    Test Intune detection rules locally before deployment.
+
+    \b
+    DESCRIPTION:
+        Validates detection rules on your local machine to ensure
+        they will work correctly when deployed via Intune.
+
+    \b
+    DETECTION TYPES:
+        registry    Test registry key/value existence
+        msi         Test MSI product code installation
+        file        Test file existence and version
+        script      Run PowerShell detection script
+
+    \b
+    SUBCOMMANDS:
+        test        Test a detection rule
+
+    \b
+    EXAMPLES:
+        switchcraft detection test --type registry --key "HKLM\\SOFTWARE\\MyApp" --value "Version"
+        switchcraft detection test --type msi --product-code "{GUID}"
+        switchcraft detection test --type file --path "C:\\App\\app.exe" --version "2.0"
+    """
     pass
 
 @detection.command('test')
@@ -423,7 +861,48 @@ def detection():
 @click.option('--version', 'target_version', help="Target version (for file type)")
 @click.option('--script', 'script_file', type=click.Path(exists=True), help="PowerShell script file (for script type)")
 def detection_test(rule_type, key, value_name, expected, product_code, file_path, operator, target_version, script_file):
-    """Test a detection rule locally."""
+    """
+    Test a detection rule locally before Intune deployment.
+
+    \b
+    DESCRIPTION:
+        Runs detection rule logic on your local machine to verify
+        it will work correctly when deployed.
+
+    \b
+    DETECTION TYPES:
+        registry    Test registry key/value
+        msi         Test MSI product installation
+        file        Test file existence/version
+        script      Run PowerShell detection script
+
+    \b
+    REGISTRY OPTIONS:
+        --key        Registry path (e.g., HKLM\\SOFTWARE\\MyApp)
+        --value      Value name to check
+        --expected   Optional expected value
+
+    \b
+    MSI OPTIONS:
+        --product-code   MSI Product Code GUID
+
+    \b
+    FILE OPTIONS:
+        --path       File path to check
+        --version    Expected version
+        --operator   Comparison: eq, ge, le, gt, lt (default: ge)
+
+    \b
+    SCRIPT OPTIONS:
+        --script     Path to PowerShell detection script
+
+    \b
+    EXAMPLES:
+        switchcraft detection test --type registry --key "HKLM\\SOFTWARE\\MyApp" --value "Version"
+        switchcraft detection test --type msi --product-code "{GUID}"
+        switchcraft detection test --type file --path "C:\\App\\app.exe" --version "2.0"
+        switchcraft detection test --type script --script detect.ps1
+    """
     import subprocess
 
     if rule_type == 'registry':
@@ -597,7 +1076,35 @@ def _test_script(script_file):
 # --- Groups Group (Entra ID) ---
 @cli.group()
 def groups():
-    """Manage Entra ID (Azure AD) groups."""
+    """
+    Manage Entra ID (Azure AD) groups via Microsoft Graph API.
+
+    \b
+    DESCRIPTION:
+        Create, list, and manage Entra ID groups and their members.
+        Uses Microsoft Graph API for all operations.
+
+    \b
+    PREREQUISITES:
+        switchcraft config set IntuneTenantId <id>
+        switchcraft config set IntuneClientId <id>
+        switchcraft config set-secret IntuneClientSecret
+
+    \b
+    SUBCOMMANDS:
+        list          List groups
+        create        Create new group
+        delete        Delete a group
+        members       List group members
+        add-member    Add user to group
+        remove-member Remove user from group
+
+    \b
+    EXAMPLES:
+        switchcraft groups list
+        switchcraft groups create -n "IT Department" --type security
+        switchcraft groups members --id <group-id>
+    """
     pass
 
 def _get_graph_token():
@@ -622,7 +1129,20 @@ def _get_graph_token():
 @click.option('--search', '-s', help="Search query")
 @click.option('--json', 'output_json', is_flag=True, help="Output in JSON format")
 def groups_list(search, output_json):
-    """List Entra ID groups."""
+    """
+    List Entra ID groups.
+
+    \b
+    OPTIONS:
+        -s, --search    Filter groups by name
+        --json          Output in JSON format
+
+    \b
+    EXAMPLES:
+        switchcraft groups list
+        switchcraft groups list -s "IT Department"
+        switchcraft groups list --json
+    """
     from switchcraft.services.intune_service import IntuneService
     token = _get_graph_token()
     svc = IntuneService()
@@ -652,7 +1172,20 @@ def groups_list(search, output_json):
 @click.option('--description', '-d', default="", help="Group description")
 @click.option('--type', 'group_type', type=click.Choice(['security', 'm365']), default='security', help="Group type")
 def groups_create(name, description, group_type):
-    """Create a new Entra ID group."""
+    """
+    Create a new Entra ID group.
+
+    \b
+    OPTIONS:
+        -n, --name         Group display name (required)
+        -d, --description  Group description
+        --type             Group type: 'security' or 'm365' (default: security)
+
+    \b
+    EXAMPLES:
+        switchcraft groups create -n "App Testers" -d "Beta testing group"
+        switchcraft groups create -n "Project Team" --type m365
+    """
     from switchcraft.services.intune_service import IntuneService
     token = _get_graph_token()
     svc = IntuneService()
@@ -749,7 +1282,32 @@ def groups_remove_member(group_id, user_id):
 # --- Exchange Group ---
 @cli.group()
 def exchange():
-    """Exchange Online management via Graph API."""
+    """
+    Exchange Online management via Microsoft Graph API.
+
+    \b
+    DESCRIPTION:
+        Manage Exchange Online settings including Out of Office,
+        mailbox delegates, and mail search.
+
+    \b
+    PREREQUISITES:
+        Same credentials as 'groups' command.
+        switchcraft config set IntuneTenantId <id>
+        switchcraft config set IntuneClientId <id>
+        switchcraft config set-secret IntuneClientSecret
+
+    \b
+    SUBCOMMANDS:
+        oof          Get/set Out of Office settings
+        delegates    List mailbox delegates
+        mail-search  Search mailbox messages
+
+    \b
+    EXAMPLES:
+        switchcraft exchange oof get -u john@contoso.com
+        switchcraft exchange oof set -u john@contoso.com --enabled -m "I'm away"
+    """
     pass
 
 @exchange.command('oof')
@@ -884,7 +1442,30 @@ def exchange_mail_search(user, query, output_json):
 # --- Stacks Group ---
 @cli.group()
 def stacks():
-    """Manage deployment stacks (batch installations)."""
+    """
+    Manage deployment stacks for batch installations.
+
+    \b
+    DESCRIPTION:
+        Create named collections of packages (stacks) and deploy
+        them all at once. Great for setting up new workstations.
+
+    \b
+    SUBCOMMANDS:
+        list      Show all stacks
+        create    Create a new stack
+        delete    Remove a stack
+        add       Add package to stack
+        show      View stack contents
+        deploy    Install all packages in stack
+
+    \b
+    EXAMPLES:
+        switchcraft stacks create -n "Developer Workstation"
+        switchcraft stacks add -n "Developer Workstation" -i "Microsoft.VisualStudioCode"
+        switchcraft stacks add -n "Developer Workstation" -i "Git.Git"
+        switchcraft stacks deploy -n "Developer Workstation"
+    """
     pass
 
 def _get_stacks_file():
@@ -911,7 +1492,18 @@ def _save_stacks(data):
 @stacks.command('list')
 @click.option('--json', 'output_json', is_flag=True, help="Output in JSON format")
 def stacks_list(output_json):
-    """List all deployment stacks."""
+    """
+    List all deployment stacks.
+
+    \b
+    OPTIONS:
+        --json    Output in JSON format
+
+    \b
+    EXAMPLES:
+        switchcraft stacks list
+        switchcraft stacks list --json
+    """
     data = _load_stacks()
 
     if output_json:
@@ -946,7 +1538,15 @@ def stacks_create(name):
 @click.option('--name', '-n', required=True, help="Stack name")
 @click.confirmation_option(prompt="Are you sure you want to delete this stack?")
 def stacks_delete(name):
-    """Delete a deployment stack."""
+    """
+    Delete a deployment stack.
+
+    \b
+    OPTIONS:
+        -n, --name    Stack name to delete (required)
+
+    Prompts for confirmation before deleting.
+    """
     data = _load_stacks()
     if name not in data:
         print(f"[red]Stack '{name}' not found.[/red]")
@@ -1035,14 +1635,50 @@ def stacks_deploy(name, dry_run):
 # --- Library Group ---
 @cli.group()
 def library():
-    """Manage .intunewin package library."""
+    """
+    Manage local .intunewin package library.
+
+    \b
+    DESCRIPTION:
+        Scan and inspect .intunewin packages on your local machine.
+        View package metadata and find prepared packages.
+
+    \b
+    SUBCOMMANDS:
+        scan    Scan directories for .intunewin files
+        info    Show package details
+
+    \b
+    EXAMPLES:
+        switchcraft library scan
+        switchcraft library scan -d "C:\\Packages"
+        switchcraft library info myapp.intunewin
+    """
     pass
 
 @library.command('scan')
 @click.option('--dirs', '-d', multiple=True, type=click.Path(exists=True), help="Directories to scan")
 @click.option('--json', 'output_json', is_flag=True, help="Output in JSON format")
 def library_scan(dirs, output_json):
-    """Scan directories for .intunewin files."""
+    """
+    Scan directories for .intunewin files.
+
+    \b
+    DESCRIPTION:
+        Recursively scans directories for .intunewin package files.
+        By default, scans Downloads and Desktop folders.
+
+    \b
+    OPTIONS:
+        -d, --dirs    Directories to scan (can specify multiple)
+        --json        Output in JSON format
+
+    \b
+    EXAMPLES:
+        switchcraft library scan
+        switchcraft library scan -d "C:\\Packages" -d "D:\\IntuneApps"
+        switchcraft library scan --json
+    """
     from datetime import datetime
 
     # Default directories
@@ -1096,7 +1732,27 @@ def library_scan(dirs, output_json):
 @click.argument('intunewin_file', type=click.Path(exists=True))
 @click.option('--json', 'output_json', is_flag=True, help="Output in JSON format")
 def library_info(intunewin_file, output_json):
-    """Show information about an .intunewin file."""
+    """
+    Show detailed information about an .intunewin file.
+
+    \b
+    DESCRIPTION:
+        Extracts and displays metadata from an .intunewin package
+        including app name, setup file, and MSI product info.
+
+    \b
+    ARGUMENTS:
+        INTUNEWIN_FILE    Path to the .intunewin file
+
+    \b
+    OPTIONS:
+        --json    Output in JSON format
+
+    \b
+    EXAMPLES:
+        switchcraft library info myapp.intunewin
+        switchcraft library info C:\\Packages\\app.intunewin --json
+    """
     import zipfile
     from defusedxml import ElementTree as ET
 

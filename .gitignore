@@ -90,3 +90,5 @@ debug_button_2.py
 /docs/public/demo
 /build_web/switchcraft
 /build_web
+/MagicMock/mock.client_storage.get()
+test_output.ps1
