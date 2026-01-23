@@ -1,4 +1,7 @@
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 class FilePickerHelper:
     """
@@ -20,7 +23,7 @@ class FilePickerHelper:
             return None, None
         except Exception as e:
             # e.g. TclError: no display name and no $DISPLAY environment variable
-            print(f"Tkinter unavailable: {e}")
+            logger.warning(f"Tkinter unavailable: {e}")
             return None, None
 
     @staticmethod
@@ -33,7 +36,7 @@ class FilePickerHelper:
         """
         tk, filedialog = FilePickerHelper._get_tkinter()
         if not tk or not filedialog:
-            print("FilePickerHelper: Tkinter not available (Web/Headless mode?)")
+            logger.warning("FilePickerHelper: Tkinter not available (Web/Headless mode?)")
             return None
 
         root = tk.Tk()
@@ -68,7 +71,7 @@ class FilePickerHelper:
         """
         tk, filedialog = FilePickerHelper._get_tkinter()
         if not tk or not filedialog:
-             print("FilePickerHelper: Tkinter not available")
+             logger.warning("FilePickerHelper: Tkinter not available")
              return None
 
         root = tk.Tk()
@@ -92,7 +95,7 @@ class FilePickerHelper:
         """
         tk, filedialog = FilePickerHelper._get_tkinter()
         if not tk or not filedialog:
-             print("FilePickerHelper: Tkinter not available")
+             logger.warning("FilePickerHelper: Tkinter not available")
              return None
 
         root = tk.Tk()

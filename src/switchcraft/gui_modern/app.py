@@ -1464,7 +1464,6 @@ class ModernApp:
                 import traceback
                 view_name = factory_func.__name__ if hasattr(factory_func, '__name__') else 'unknown'
                 error_msg = f"Exception loading view '{view_name}': {ex}"
-                print(f"DEBUG: {error_msg}") # Keep print for immediate debug console visibility
                 logger.error(error_msg, exc_info=True)
                 logger.error(f"Traceback: {traceback.format_exc()}")
                 from switchcraft.gui_modern.views.crash_view import CrashDumpView

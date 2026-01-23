@@ -302,6 +302,23 @@ function Get-InnoSetupPath {
 }
 
 # --- 0. PREPARE ASSETS ---
+Write-Host "`nGenerating Splash Screen..." -ForegroundColor Cyan
+try {
+    $SplashScript = Join-Path $RepoRoot "scripts/generate_splash.py"
+    if (Test-Path $SplashScript) {
+        if ($IsWinBuild) {
+            python $SplashScript --version "v$AppVersion"
+        }
+        else {
+            python3 $SplashScript --version "v$AppVersion"
+        }
+    } else {
+        Write-Warning "Splash generation script not found at $SplashScript"
+    }
+} catch {
+    Write-Warning "Failed to generate dynamic splash screen: $_. Using existing fallback."
+}
+
 if ($LocalDev) {
     Write-Host "`nGenerating Bundled Addons (Local Dev Mode)..." -ForegroundColor Cyan
     try {

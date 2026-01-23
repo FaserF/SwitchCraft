@@ -73,6 +73,27 @@ Download the latest release from [GitHub Releases](https://github.com/FaserF/Swi
 
 ---
 
+## Uninstallation Options
+
+The SwitchCraft uninstaller (`unins000.exe` in the install folder) supports standard Inno Setup flags and a custom cleanup flag.
+
+### Factory Reset Uninstall
+To completely remove SwitchCraft, including all configuration, history, and addons, use the `/FULLCLEANUP` parameter.
+
+```powershell
+# Silent uninstall with full data cleanup
+./unins000.exe /VERYSILENT /FULLCLEANUP
+```
+
+**What gets deleted?**
+- Installation Directory (`{app}`)
+- User Preferences Registry (`HKCU\Software\FaserF\SwitchCraft`)
+- Roaming AppData (`%APPDATA%\FaserF\SwitchCraft`)
+- Local AppData (`%LOCALAPPDATA%\FaserF\SwitchCraft`)
+- Addons (`%USERPROFILE%\.switchcraft`)
+
+---
+
 ## Data Storage Locations
 
 SwitchCraft stores configuration and user data in the following locations.

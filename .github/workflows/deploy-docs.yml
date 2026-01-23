@@ -46,6 +46,10 @@ jobs:
           cat > build_web/web_entry.py <<EOF
           import sys
           import os
+          from unittest.mock import MagicMock
+
+          # Mock ssl BEFORE importing anything else
+          sys.modules["ssl"] = MagicMock()
 
           # Patch requests for Pyodide (WASM)
           if sys.platform == "emscripten":
@@ -62,11 +66,10 @@ jobs:
           import switchcraft.main
 
           if __name__ == "__main__":
-              # Detect if run() is available (Flet >= 0.21)
-              if hasattr(ft, "run"):
-                  ft.run(main=switchcraft.main.main)
-              else:
-                  ft.app(target=switchcraft.main.main, assets_dir="switchcraft/assets")
+              # Use ft.app for web (flet publish) - this is the standard entry point
+              # assets_dir needs to match where assets are relative to URL root or how they are served
+              # switchcraft/assets should be correct relative to the published root
+              ft.app(target=switchcraft.main.main, assets_dir="switchcraft/assets")
           EOF
 
           # Manually create requirements.txt inside build_web

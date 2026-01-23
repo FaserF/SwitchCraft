@@ -114,6 +114,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 [Code]
 var
   DebugModeParam: Boolean;
+  FullCleanupParam: Boolean;
 
 // Check for /DEBUGMODE=1 command line parameter
 function InitializeSetup(): Boolean;
@@ -164,6 +165,64 @@ begin
     if DebugModeParam then
     begin
       RegWriteDWordValue(HKEY_CURRENT_USER, 'Software\{#MyAppPublisher}\{#MyAppName}', 'DebugMode', 1);
+    end;
+  end;
+end;
+
+// Kill app before uninstall
+function InitializeUninstall(): Boolean;
+var
+  ErrorCode: Integer;
+begin
+  Result := True;
+  // Silently kill the process if it's running
+  Exec('taskkill.exe', '/F /IM {#MyAppExeName} /T', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+
+  // Check for /FULLCLEANUP parameter
+  FullCleanupParam := False;
+  if Pos('/FULLCLEANUP', Uppercase(GetCmdTail)) > 0 then
+  begin
+    FullCleanupParam := True;
+  end;
+end;
+
+// Ensure folder is gone after uninstall
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    // Standard cleanup: Attempt to remove the app directory recursively if it still exists
+    if DirExists(ExpandConstant('{app}')) then
+    begin
+      DelTree(ExpandConstant('{app}'), True, True, True);
+    end;
+
+    // Factory Reset Cleanup
+    if FullCleanupParam then
+    begin
+      // 1. Registry (HKCU)
+      if RegKeyExists(HKEY_CURRENT_USER, 'Software\FaserF\SwitchCraft') then
+      begin
+         RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\FaserF\SwitchCraft');
+      end;
+
+      // 2. Addons Folder (.switchcraft)
+      if DirExists(ExpandConstant('{userprofile}\.switchcraft')) then
+      begin
+        DelTree(ExpandConstant('{userprofile}\.switchcraft'), True, True, True);
+      end;
+
+      // 3. Roaming AppData (Logs, History, Cache)
+      if DirExists(ExpandConstant('{userappdata}\FaserF\SwitchCraft')) then
+      begin
+        DelTree(ExpandConstant('{userappdata}\FaserF\SwitchCraft'), True, True, True);
+      end;
+
+      // 4. Local AppData (WebView2 Cache if any, or other local data)
+      if DirExists(ExpandConstant('{localappdata}\FaserF\SwitchCraft')) then
+      begin
+        DelTree(ExpandConstant('{localappdata}\FaserF\SwitchCraft'), True, True, True);
+      end;
     end;
   end;
 end;

@@ -663,6 +663,16 @@ def main(page: ft.Page):
         page.update()
 
 if __name__ == "__main__":
+    # Fix Taskbar Icon on Windows (AppUserModelID)
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            # Unique ID for the app - allows Taskbar to group windows and use correct icon
+            myappid = u'FaserF.SwitchCraft.Modern.Release'
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception:
+            pass
+
     if hasattr(ft, "run"):
         ft.run(main)
     else:

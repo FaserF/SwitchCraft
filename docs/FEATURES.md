@@ -1,4 +1,72 @@
-# ✨ Features
+# ✨ SwitchCraft Features
+
+## 🕵️ Analysis & Packaging
+
+### Universal Analysis
+Analyze any installer file to discover:
+- **Silent Switches**: Automatically detects `/qn`, `/S`, `/VERYSILENT`, and vendor-specific flags.
+- **Installer Type**: Identifies MSI, NSIS, Inno Setup, InstallShield, WiX, Squirrel, and 20+ others.
+- **Metadata**: Extracts Product Name, Version, Manufacturer, and Architecture directly from the binary.
+
+### Intune Integration
+- **One-Click Packaging**: Converts any Setup.exe/MSI into a ready-to-deploy `.intunewin` file.
+- **Direct Upload**: Uploads apps directly to your Intune tenant via Microsoft Graph API.
+- **Store Browser**: View your existing Intune apps, assignments, and icons in a modern gallery view.
+- **Group Manager**: Full Entra ID Group management - create, delete, and add members to assignment groups.
+
+## 🚀 Deployment & Store
+
+### Winget Integration
+- **Search & Deploy**: Access thousands of apps from the Microsoft Winget repository.
+- **WingetCreate GUI**: A graphical interface to create and submit new manifests to the Winget repo.
+- **Auto-Update Logic**: Generate update-aware installation scripts.
+
+### MacOS Support
+- **Cross-Platform**: Generate macOS installation scripts (`install.sh`) and standard packages (DMG/PKG).
+- **Notarization Checks**: Inspect package signatures and entitlements.
+
+## 🏢 Enterprise Features
+
+### Cloud Sync (GitHub)
+Sync your configuration across devices using private GitHub Gists.
+- **Settings**: Theme, Language, default paths.
+- **Secrets**: API Keys (Encrypted).
+- **History**: Recent analysis history.
+- **Login**: Secure OAuth login with GitHub.
+
+### Factory Reset
+Completely wipe the application state to fix corruption or remove sensitive data.
+- **Command**: `unins000.exe /FULLCLEANUP` or `SwitchCraft.exe --factory-reset`.
+- **Scope**: Deletes Registry keys, AppData, Addons, and Credential Manager secrets.
+
+### AI Assistance (Addon)
+Get intelligent packaging advice from:
+- **Local AI**: Runs offline using Ollama/Llama.
+- **OpenAI / Gemini**: Cloud-based assistance for complex scenarios.
+- **Context Aware**: The AI knows which file you are analyzing and suggests specific fixes.
+
+## 🎯 Supported Installer Types
+
+| Installer Type | Detection Confidence |
+|---------------|---------------------|
+| **MSI Database** | 100% |
+| **NSIS** | 90% |
+| **Inno Setup** | 90% |
+| **InstallShield** | 80% |
+| **WiX Burn** | 85% |
+| **Advanced Installer** | 80% |
+| **Electron (Squirrel)** | 80% |
+
+## 📦 Archive Extraction
+If an installer is a wrapper (e.g. self-extracting ZIP), SwitchCraft automatically:
+1. Extracts the contents to a temp folder.
+2. Scans for nested MSIs or Setup files.
+3. Suggests the correct nested command line.
+
+## 🎨 Modern UI
+- **Flet-Based**: Built on Flutter for a fast, responsive native experience.
+- **Dark Mode**: Fully themed for modern workflows.
+- **Notifications**: Integrated notification center for background tasks.
 
 - **🔎 Universal Analysis**:
   - **MSI**: Extracts `ProductCode`, `UpgradeCode`, manufacturer, version, and standard `/qn` switches

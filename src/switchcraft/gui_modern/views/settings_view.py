@@ -774,33 +774,52 @@ class ModernSettingsView(ft.Column, ViewMixin):
     def _on_github_login_click(self, e):
         """Handle GitHub login button click."""
         try:
-            print("DEBUG: _on_github_login_click STARTED", flush=True)
+            logger.debug("_on_github_login_click STARTED")
+            # Visual feedback
+            if hasattr(e.control, 'text'):
+                e.control.text = "Clicked..."
+                e.control.update()
+            elif hasattr(e.control, 'content') and hasattr(e.control.content, 'controls'):
+                 # It's likely a row with Icon+Text
+                 for c in e.control.content.controls:
+                     if isinstance(c, ft.Text):
+                         c.value = "Clicked..."
+                 e.control.update()
+
             logger.info("GitHub login clicked (direct handler)")
-            # Show snack immediately to confirm UI reaction
+            # Show snack immediately
             self._show_snack("Starting GitHub Login...", "BLUE")
             # Proceed to permission dialog
             self._show_permission_dialog(self._start_github_login)
-            print("DEBUG: _on_github_login_click FINISHED", flush=True)
-        except Exception as e:
-            logger.exception(f"CRITICAL: Failed in _on_github_login_click: {e}")
-            self._show_snack(f"Login Error: {e}", "RED")
+            logger.debug("_on_github_login_click FINISHED")
+        except Exception as ex:
+            logger.exception(f"CRITICAL: Failed in _on_github_login_click: {ex}")
+            # Try to show error on button
+            try:
+                if hasattr(e.control, 'text'):
+                    e.control.text = f"Err: {str(ex)[:20]}"
+                    e.control.bgcolor = "RED"
+                    e.control.update()
+            except:
+                pass
+            self._show_snack(f"Login Error: {ex}", "RED")
 
     def _show_permission_dialog(self, callback):
         """Show permission explanation dialog before GitHub login."""
-        print("DEBUG: _show_permission_dialog ENTERED", flush=True)
+        logger.debug("_show_permission_dialog ENTERED")
 
         # Immediate snack confirmation
         self._show_snack("Preparing GitHub Permissions...", "BLUE")
 
         def proceed(e):
-            print("DEBUG: User clicked 'Continue'", flush=True)
+            logger.debug("User clicked 'Continue'")
             if hasattr(dlg, "open"):
                 dlg.open = False
             self.app_page.update()
             callback(None)
 
         def cancel(e):
-            print("DEBUG: User clicked 'Cancel'", flush=True)
+            logger.debug("User clicked 'Cancel' in permission dialog")
             if hasattr(dlg, "open"):
                 dlg.open = False
             self.app_page.update()
@@ -829,22 +848,15 @@ class ModernSettingsView(ft.Column, ViewMixin):
             actions_alignment=ft.MainAxisAlignment.END,
         )
 
-        print("DEBUG: Setting page.dialog and opening...", flush=True)
-        if hasattr(self.app_page, "open"):
-             self.app_page.open(dlg)
-             logger.info("Permission dialog opened using page.open()")
-        else:
-             self.app_page.dialog = dlg
-             dlg.open = True
-             self.app_page.update()
-             logger.info("Permission dialog opened using legacy mode")
-        print("DEBUG: self.app_page.update() called for dialog", flush=True)
+        logger.info("Opening permission dialog...")
+        # Use safe opener
+        self._open_dialog_safe(dlg)
 
     def _start_github_login(self, e):
         """
         Start an interactive GitHub device‑flow login in a background thread and handle the result.
         """
-        print("DEBUG: _start_github_login ENTERED", flush=True)
+        logger.debug("_start_github_login ENTERED")
         logger.info("GitHub login button clicked, starting device flow...")
 
         # Store original button state for restoration
@@ -970,13 +982,12 @@ class ModernSettingsView(ft.Column, ViewMixin):
             self._close_dialog(loading_dlg)
 
             # Show dialog on main thread
-            print(f"DEBUG: Opening device flow dialog for code {flow.get('user_code')}", flush=True)
+            logger.debug(f"Opening device flow dialog for code {flow.get('user_code')}")
             logger.info("Showing GitHub login dialog...")
 
-            self.app_page.dialog = dlg
-            dlg.open = True
-            self.app_page.update()
-            print("DEBUG: Device flow dialog should be visible now", flush=True)
+            # Use safe opener instead of manual property setting
+            self._open_dialog_safe(dlg)
+            logger.debug("Device flow dialog opened")
 
             # Poll for token in background thread
             def _poll_token():

@@ -19,8 +19,8 @@ hero:
       text: Try Web Demo
       link: /demo/
     - theme: alt
-      text: View on GitHub
-      link: https://github.com/FaserF/SwitchCraft
+      text: GPO / Registry
+      link: /Registry
 
 features:
   - icon: 🔍
@@ -46,8 +46,8 @@ features:
   - icon: ⚙️
     title: Enterprise Ready
     details: Full GPO (ADMX) and Intune OMA-URI support. Centrally manage settings across your organization.
-    link: /PolicyDefinitions/README
-    linkText: GPO Reference
+    link: /Registry
+    linkText: Registry & GPO
   - icon: 💻
     title: Powerful CLI
     details: Automate packaging workflows in CI/CD pipelines with JSON output and scriptable commands.

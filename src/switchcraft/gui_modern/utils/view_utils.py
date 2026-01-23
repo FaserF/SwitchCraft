@@ -315,7 +315,7 @@ class ViewMixin:
     def _open_dialog_safe(self, dlg):
         """
         Open a dialog safely across Flet versions and environments.
-        Uses the legacy page.dialog pattern as it is more reliable in some environments.
+        Prioritizes modern 'page.open(dlg)' API, falls back to legacy 'page.dialog = dlg'.
         """
         page = getattr(self, "app_page", None)
         if not page:
@@ -329,23 +329,25 @@ class ViewMixin:
              return False
 
         try:
-            # Method 1: Legacy API (Highly compatible)
-            # We try this first as it works reliably in this app's environment
+            # Method 1: Modern API (Preferred)
+            if hasattr(page, 'open'):
+                try:
+                    logger.debug("Attempting to open dialog using page.open()...")
+                    page.open(dlg)
+                    logger.info("Dialog opened successfully using page.open()")
+                    return True
+                except Exception as e:
+                    logger.warning(f"page.open(dlg) failed: {e}. Falling back to legacy mode.")
+
+            # Method 2: Legacy API (Fallback)
+            logger.debug("Attempting to open dialog using legacy page.dialog...")
             page.dialog = dlg
             if hasattr(dlg, 'open'):
                 dlg.open = True
-
-            # Explicit update to trigger popup
             page.update()
-
-            # Additional fallback: Method 2 Modern API (if legacy didn't seem to work)
-            if hasattr(page, 'open'):
-                try:
-                    page.open(dlg)
-                except Exception as e:
-                    logger.debug(f"page.open(dlg) fallback failed: {e}")
-
+            logger.info("Dialog opened using legacy page.dialog mode")
             return True
+
         except Exception as e:
             logger.error(f"Failed to open dialog in any mode: {e}", exc_info=True)
             return False

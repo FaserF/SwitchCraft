@@ -136,6 +136,24 @@ SwitchCraft provides multiple editions to suit different environments.
 
 ---
 
+## 🔧 Installation & Uninstallation
+
+### Uninstall Options
+The uninstaller supports standard Inno Setup parameters including a special "Factory Reset" flag.
+
+| Parameter | Description |
+| :--- | :--- |
+| `/VERYSILENT` | Uninstall without any UI or prompts. |
+| `/FULLCLEANUP` | **Factory Reset**: Removes **ALL** SwitchCraft data including Registry, AppData, Addons, and Secrets. |
+
+**Example (Complete Removal):**
+```powershell
+# Run the uninstaller (found in the installation directory)
+unins000.exe /VERYSILENT /FULLCLEANUP
+```
+
+---
+
 ## 🔧 Troubleshooting
 
 ### Crash Dumps & Logs

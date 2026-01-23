@@ -1,3 +1,4 @@
+import sys
 import stat
 import logging
 import os
@@ -185,7 +186,7 @@ class IntuneService:
         try:
             process = ShellUtils.Popen(
                 cmd,
-                silent=silent_execution,
+                silent=False, # We handle hiding via startupinfo manually to avoid "No Window" vs "Hidden Window" conflict
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
