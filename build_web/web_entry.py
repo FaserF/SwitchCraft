@@ -58,4 +58,4 @@ import switchcraft.main
 
 if __name__ == "__main__":
     # Use ft.run for modern Flet (0.80.0+)
-    ft.run(target=switchcraft.main.main, assets_dir="assets")
+    ft.run(switchcraft.main.main, assets_dir="assets")
