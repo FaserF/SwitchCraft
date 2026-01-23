@@ -6,9 +6,9 @@ Build SwitchCraft yourself for development or customization.
 
 | Tool | Version | Required |
 |------|---------|----------|
-| **Python** | 3.10+ | ✅ |
+| **Python** | 3.10+ (only 3.14 activly supported) | ✅  |
 | **Git** | Latest | ✅ |
-| **Node.js** | 18+ | For docs only |
+| **Node.js** | 18+ (only 24 activly supported) | For docs only |
 
 ## Quick Build
 
