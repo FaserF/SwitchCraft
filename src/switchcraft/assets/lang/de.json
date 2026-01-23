@@ -1,4 +1,6 @@
 {
+    "short_name": "Kurzname",
+    "start_url": "Start URL",
     "app_title": "SwitchCraft Legacy 🧙‍♂️",
     "running_as_admin": "Status: Administrator ✅",
     "running_as_user": "Status: Standard-Benutzer 👤",

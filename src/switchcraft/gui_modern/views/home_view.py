@@ -279,7 +279,7 @@ class ModernHomeView(ft.Container, ViewMixin):
                                     ft.Container(
                                         content=ft.Text(item["category"], size=10, color="WHITE"),
                                         bgcolor="PRIMARY",
-                                        padding=ft.padding.symmetric(horizontal=8, vertical=2),
+                                        padding=ft.Padding.symmetric(horizontal=8, vertical=2),
                                         border_radius=5
                                     )
                                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
