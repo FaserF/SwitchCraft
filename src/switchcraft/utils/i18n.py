@@ -101,6 +101,19 @@ class I18n:
                 # PyInstaller: Assets are at root/assets
                 base_path = Path(sys._MEIPASS)
                 lang_dir = base_path / "assets" / "lang"
+            elif sys.platform == "emscripten":
+                # Pyodide/WASM: Try multiple possible locations
+                possible_paths = [
+                    Path("switchcraft/assets/lang"),
+                    Path("assets/lang"),
+                    Path("/home/pyodide/switchcraft/assets/lang"),
+                    Path("/assets/lang")
+                ]
+                lang_dir = Path("switchcraft/assets/lang") # Default
+                for p in possible_paths:
+                    if p.exists():
+                        lang_dir = p
+                        break
             else:
                 # Dev: src/switchcraft/utils/../assets/lang -> src/switchcraft/assets/lang
                 base_path = Path(__file__).parent

@@ -46,6 +46,16 @@ jobs:
           cat > build_web/web_entry.py <<EOF
           import sys
           import os
+
+          # Patch requests for Pyodide (WASM)
+          if sys.platform == "emscripten":
+              try:
+                  import pyodide_http
+                  pyodide_http.patch_all()
+                  print("Requests patched for Pyodide")
+              except ImportError:
+                  print("pyodide-http not found, requests might fail")
+
           import flet as ft
           # Ensure current dir is in path
           sys.path.insert(0, os.getcwd())
@@ -54,7 +64,7 @@ jobs:
           if __name__ == "__main__":
               # Detect if run() is available (Flet >= 0.21)
               if hasattr(ft, "run"):
-                  ft.run(target=switchcraft.main.main)
+                  ft.run(main=switchcraft.main.main)
               else:
                   ft.app(target=switchcraft.main.main, assets_dir="switchcraft/assets")
           EOF
@@ -63,6 +73,7 @@ jobs:
           # This ONLY contains safe, web-compatible dependencies
           cat > build_web/requirements.txt <<EOF
           flet
+          pyodide-http
           pefile
           olefile
           requests

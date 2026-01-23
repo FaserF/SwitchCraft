@@ -177,6 +177,11 @@ class IntuneService:
         logger.info(f"Running IntuneWinAppUtil: {cmd} (Show Console: {show_console})")
 
         startupinfo = None
+        if silent_execution and sys.platform == "win32":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+
         try:
             process = ShellUtils.Popen(
                 cmd,

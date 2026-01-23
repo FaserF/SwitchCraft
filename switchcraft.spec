@@ -88,27 +88,27 @@ a = Analysis(
     noarchive=False,
 )
 
-splash = Splash(
-    'src/switchcraft/assets/switchcraft_logo.png',
-    binaries=a.binaries,
-    datas=a.datas,
-    text_pos=None,
-    text_size=12,
-    minify_script=True
-)
+splash = None
+if sys.platform != 'darwin':
+    splash = Splash(
+        'src/switchcraft/assets/splash.png',
+        binaries=a.binaries,
+        datas=a.datas,
+        text_pos=None,
+        text_size=12,
+        minify_script=True
+    )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+exe_args = [pyz, a.scripts, a.binaries, a.zipfiles, a.datas]
+if splash:
+    exe_args.extend([splash, splash.binaries])
+exe_args.append([])
+
 exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    splash,
-    splash.binaries,
-    [],
-    name='SwitchCraft', # Modern (Flet) is now the main 'SwitchCraft'
+    *exe_args,
+    name='SwitchCraft',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
