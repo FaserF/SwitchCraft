@@ -127,14 +127,19 @@ jobs:
 
           # Publish from WITHIN the build_web directory
           cd build_web
+          # Save our patched web_entry.py for later use
+          cp web_entry.py ../web_entry.py.patched
+
           flet publish web_entry.py --app-name "SwitchCraft Demo" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath ../dist --assets switchcraft/assets
+
+          # CRITICAL: Overwrite the Flet-generated web_entry.py in dist with our patched version
+          echo "Applying SSL patch to generated dist/web_entry.py..."
+          cp ../web_entry.py.patched ../dist/web_entry.py
 
           # Move build to docs public folder
           cd ..
 
           # CRITICAL: Overwrite Flet default icons with SwitchCraft icons
-          # Flet publish generates default icons in 'dist/icons' and 'dist/favicon.png'
-          # We must replace them with our assets from 'src/switchcraft/assets'
           echo "Overwriting PWA Icons..."
           cp src/switchcraft/assets/icon-192.png dist/icons/icon-192.png
           cp src/switchcraft/assets/icon-512.png dist/icons/icon-512.png
