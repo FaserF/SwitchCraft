@@ -156,7 +156,7 @@ html {
   }
 }
 
-/* Mobile Nav Fixes - Removed to allow default theme behavior
+/* Mobile Nav Fixes */
 .VPNavScreen {
   position: fixed !important;
   top: var(--vp-nav-height, 64px) !important;
@@ -164,8 +164,10 @@ html {
   width: 100% !important;
   bottom: 0 !important;
   background-color: var(--vp-c-bg) !important;
+  height: 100vh !important;
   display: flex !important;
   flex-direction: column;
+
   overflow-y: auto !important;
   z-index: 1000 !important;
-} */
+}

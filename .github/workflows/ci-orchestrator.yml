@@ -110,6 +110,20 @@ jobs:
     needs: [test-backend]
     uses: ./.github/workflows/build.yml
 
+  test-web-demo:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install Flet
+        run: pip install flet
+      - name: Run Web Demo Build
+        run: python scripts/build_web_demo.py
+
   auto-merge:
     needs: [build, test-e2e]
     runs-on: ubuntu-latest

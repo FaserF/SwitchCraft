@@ -6,6 +6,8 @@ from switchcraft.utils.i18n import i18n
 from switchcraft.services.intune_service import IntuneService
 import threading
 
+from switchcraft import IS_WEB
+
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 class ModernHomeView(ft.Container, ViewMixin):
@@ -21,7 +23,8 @@ class ModernHomeView(ft.Container, ViewMixin):
         self.content = self._build_content()
 
         # Start background news loading
-        threading.Thread(target=self._load_news, daemon=True).start()
+        if not IS_WEB:
+            threading.Thread(target=self._load_news, daemon=True).start()
 
     def _create_action_card(self, title, subtitle, icon, target_idx, color="BLUE"):
         return ft.Container(

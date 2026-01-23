@@ -253,6 +253,11 @@ def main(page: ft.Page):
             # Use SessionStoreBackend backed by Flet's page.session
             session_backend = SessionStoreBackend(page.session)
             SwitchCraftConfig.set_backend(session_backend)
+
+            # CRITICAL: Attach backend to page so we can restore it in callbacks
+            # Flet callbacks in other threads/contexts might lose the ContextVar
+            page.sc_backend = session_backend
+
             print("Config Backend: SessionStoreBackend (Web/Combined)")
 
             # --- WEB AUTHENTICATION (SSO) ---

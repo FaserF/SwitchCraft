@@ -14,14 +14,30 @@ class AuthService:
 
     # Replace with your actual GitHub App Client ID
     # For open source projects, this is typically public.
-    CLIENT_ID = "Ov23liFQxD8H5In5LqBM"
-    SCOPE = "gist read:user"
+    # Remove hardcoded ID to prevent accidental leakage or misuse
+    # CLIENT_ID = "..."
 
     AUTH_URL = "https://github.com/login/device/code"
     TOKEN_URL = "https://github.com/login/oauth/access_token"
+    SCOPE = "repo read:user user:email" # Added scopes for better access
+
     USER_API = "https://api.github.com/user"
 
     KEYRING_SERVICE_NAME = "SwitchCraft_GitHub_Token"
+
+    @classmethod
+    def get_client_id(cls):
+        """Get Client ID from Config or Env"""
+        # Try Config first (which includes EnvBackend in desktop, Session in web)
+        cid = SwitchCraftConfig.get_value("GITHUB_CLIENT_ID")
+        if not cid:
+             # Fallback to direct Env if Config misses it (e.g. bootstrap phase)
+             cid = os.environ.get("SC_GITHUB_CLIENT_ID")
+
+        if not cid:
+            logger.error("GitHub Client ID is missing! Login will fail.")
+            return ""
+        return cid
 
     @classmethod
     def initiate_device_flow(cls) -> Optional[Dict[str, Any]]:
@@ -29,14 +45,18 @@ class AuthService:
         Step 1: Request a device code from GitHub.
         Returns a dictionary containing 'device_code', 'user_code', 'verification_uri', etc.
         """
+        cid = cls.get_client_id()
+        if not cid:
+             return None
+
         headers = {"Accept": "application/json"}
         data = {
-            "client_id": cls.CLIENT_ID,
+            "client_id": cid,
             "scope": cls.SCOPE
         }
 
         try:
-            logger.info(f"Initiating GitHub device flow for client {cls.CLIENT_ID}...")
+            logger.info(f"Initiating GitHub device flow for client {cid[:4]}...")
             response = requests.post(cls.AUTH_URL, headers=headers, data=data, timeout=10)
             logger.debug(f"GitHub response: {response.status_code} - {response.text}")
             response.raise_for_status()

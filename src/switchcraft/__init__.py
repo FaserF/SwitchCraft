@@ -1,6 +1,7 @@
 __version__ = "2026.1.5b1"
 
 import sys
+IS_WEB = sys.platform == "emscripten"
 # --- WEB / PYODIDE PATCHES (run immediately on package import) ---
 if sys.platform == "emscripten":
     import types

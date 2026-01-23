@@ -1,6 +1,7 @@
 import flet as ft
 import time
 import threading
+from switchcraft import IS_WEB
 
 class SkeletonContainer(ft.Container):
     """
@@ -52,4 +53,5 @@ class SkeletonContainer(ft.Container):
                         break
                     time.sleep(0.1)
 
-        threading.Thread(target=_loop, daemon=True).start()
+        if not IS_WEB:
+            threading.Thread(target=_loop, daemon=True).start()

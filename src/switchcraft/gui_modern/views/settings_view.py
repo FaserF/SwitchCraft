@@ -813,6 +813,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                  e.control.update()
 
             logger.info("GitHub login clicked (direct handler)")
+            self._ensure_backend() # Restore context first
             # Show snack immediately
             self._show_snack("Starting GitHub Login...", "BLUE")
             # Proceed to permission dialog

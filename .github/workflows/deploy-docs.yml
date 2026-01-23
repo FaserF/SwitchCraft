@@ -51,6 +51,7 @@ jobs:
           # Mock ssl with necessary constants for urllib3
           ssl = MagicMock()
           ssl.OPENSSL_VERSION_NUMBER = 0x101010CF # 1.1.1l (Reliable for urllib3)
+          ssl.OPENSSL_VERSION_INFO = (1, 1, 1, 15, 15)
           ssl.HAS_SNI = True
           ssl.OP_NO_SSLv2 = 0x01000000
           ssl.OP_NO_SSLv3 = 0x02000000

@@ -2,9 +2,10 @@ from pathlib import Path
 import os
 import json
 import threading
+import sys
 
 import flet as ft
-from switchcraft import __version__
+from switchcraft import __version__, IS_WEB
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 
@@ -224,7 +225,8 @@ class ModernApp:
             except Exception as ex:
                 logger.warning(f"Failed to auto-update Intune tool: {ex}")
 
-        threading.Thread(target=check_updates, daemon=True).start()
+        if not IS_WEB:
+            threading.Thread(target=check_updates, daemon=True).start()
 
     def _get_help_url(self, index):
         """Returns the GitHub Pages documentation URL for the given view index."""
@@ -687,7 +689,8 @@ class ModernApp:
                 logger.error(f"Startup update check failed: {e}")
                 self.page.update_check_result = {"checked": True, "error": str(e)}
 
-        threading.Thread(target=_run, daemon=True).start()
+        if not IS_WEB:
+            threading.Thread(target=_run, daemon=True).start()
 
         # Check for First Run conditions
         # 1. Local Bundle (Dev/Test)
@@ -706,7 +709,6 @@ class ModernApp:
         Used for Local Dev/Test builds.
         """
         try:
-            import sys
             from pathlib import Path
             if getattr(sys, 'frozen', False):
                 base_path = Path(sys._MEIPASS) / "assets" / "addons"
@@ -1115,7 +1117,9 @@ class ModernApp:
 
         # First run / Demo mode check
         import threading
-        threading.Thread(target=self._check_first_run, daemon=True).start()
+        if not IS_WEB:
+            import threading
+            threading.Thread(target=self._check_first_run, daemon=True).start()
 
         # Handle command line arguments for initial navigation
         import sys
@@ -1134,7 +1138,9 @@ class ModernApp:
                 time.sleep(0.5)  # Wait for UI to be fully rendered
                 from switchcraft.gui_modern.nav_constants import NavIndex
                 self.goto_tab(NavIndex.PACKAGING_WIZARD)
-            threading.Thread(target=nav_to_wizard, daemon=True).start()
+            if not IS_WEB:
+                import threading
+                threading.Thread(target=nav_to_wizard, daemon=True).start()
         elif "--analyzer" in sys.argv or "--all-in-one" in sys.argv:
             # Delay navigation slightly to ensure UI is ready
             def nav_to_analyzer():
@@ -1145,7 +1151,9 @@ class ModernApp:
                 time.sleep(0.5)  # Wait for UI to be fully rendered
                 from switchcraft.gui_modern.nav_constants import NavIndex
                 self.goto_tab(NavIndex.ANALYZER)
-            threading.Thread(target=nav_to_analyzer, daemon=True).start()
+            if not IS_WEB:
+                import threading
+                threading.Thread(target=nav_to_analyzer, daemon=True).start()
 
         # In silent mode, minimize window and suppress first-run dialogs
         if self.silent_mode:
