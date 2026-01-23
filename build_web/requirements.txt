@@ -1,0 +1,11 @@
+flet
+pyodide-http
+pefile
+olefile
+requests
+click
+rich
+PyYAML
+defusedxml
+PyJWT
+anyio>=4.12.1

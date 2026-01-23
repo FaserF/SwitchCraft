@@ -90,5 +90,5 @@ debug_button_2.py
 /docs/public/demo
 /build_web/switchcraft/
 # Build Web - track web_entry.py and requirements.txt
-/MagicMock/mock.client_storage.get()
-test_output.ps1
+!/build_web/web_entry.py
+!/build_web/requirements.txt
