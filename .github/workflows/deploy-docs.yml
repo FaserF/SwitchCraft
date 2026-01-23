@@ -79,7 +79,7 @@ jobs:
 
           # Publish from WITHIN the build_web directory
           cd build_web
-          flet publish web_entry.py --app-name "SwitchCraft" --app-short-name "SwitchCraft Demo" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath ../dist --assets switchcraft/assets
+          flet publish web_entry.py --app-name "SwitchCraft Demo" --app-short-name "SwitchCraft" --app-description "SwitchCraft Web Demo" --base-url "/demo/" --distpath ../dist --assets switchcraft/assets
 
           # Move build to docs public folder
           cd ..

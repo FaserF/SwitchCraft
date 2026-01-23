@@ -27,7 +27,7 @@ def build_web_demo():
 
     print("Creating web_entry.py...")
     # This simulates the CI generation step
-    import sys
+    web_entry_content = """import sys
 import os
 
 # Notes:
@@ -114,13 +114,30 @@ anyio>=4.12.1
              if os.path.exists(candidate):
                  flet_exe = candidate
 
+        # PWA Arguments
+        pwa_args = [
+            "--app-name", "SwitchCraft Demo", # Display Name
+            "--app-short-name", "SwitchCraft", # Home Screen Name
+            "--app-description", "SwitchCraft Web Demo",
+            "--base-url", "/demo/",
+            "--distpath", "../dist",
+            "--assets", "switchcraft/assets"
+        ]
+
+        # Verify icons exist (warn only)
+        icon_path = os.path.join(build_dir, "switchcraft", "assets", "icon-192.png")
+        if not os.path.exists(icon_path):
+             print(f"WARNING: PWA Icon not found at {icon_path}. PWA might not be installable.")
+
         if not flet_exe:
              # Last resort: python -m flet
              print("Could not find flet executable. Trying python -m flet...")
-             subprocess.check_call([sys.executable, "-m", "flet", "publish", "web_entry.py", "--app-name", "SwitchCraft", "--app-short-name", "SwitchCraft Demo", "--app-description", "SwitchCraft Web Demo", "--base-url", "/demo/", "--distpath", "../dist", "--assets", "switchcraft/assets"])
+             cmd = [sys.executable, "-m", "flet", "publish", "web_entry.py"] + pwa_args
+             subprocess.check_call(cmd)
         else:
             print(f"Using flet executable: {flet_exe}")
-            subprocess.check_call([flet_exe, "publish", "web_entry.py", "--app-name", "SwitchCraft", "--app-short-name", "SwitchCraft Demo", "--app-description", "SwitchCraft Web Demo", "--base-url", "/demo/", "--distpath", "../dist", "--assets", "switchcraft/assets"])
+            cmd = [flet_exe, "publish", "web_entry.py"] + pwa_args
+            subprocess.check_call(cmd)
 
     except subprocess.CalledProcessError as e:
         print(f"Error running flet publish: {e}")

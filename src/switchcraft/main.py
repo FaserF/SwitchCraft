@@ -689,7 +689,65 @@ def main(page: ft.Page):
         )
         page.update()
 
+def _ensure_pwa_manifest():
+    """
+    Ensure a PWA manifest.json exists in the assets directory with the correct version.
+    This enables PWA installation for the self-hosted Docker version.
+    """
+    try:
+        import json
+        from pathlib import Path
+        try:
+            from switchcraft import __version__
+        except ImportError:
+            __version__ = "Unknown"
+
+        base_dir = Path(__file__).parent
+        assets_dir = base_dir / "assets"
+        manifest_path = assets_dir / "manifest.json"
+
+        # Define PWA Manifest content
+        manifest_data = {
+            "name": "SwitchCraft",
+            "short_name": "SwitchCraft",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#202020",
+            "theme_color": "#202020",
+            "description": f"Modern Software Management - v{__version__}",
+            "icons": [
+                {
+                    "src": "icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                },
+                {
+                    "src": "icon-512.png",
+                    "sizes": "512x512",
+                    "type": "image/png"
+                },
+                 {
+                    "src": "switchcraft_logo.png",
+                    "sizes": "any",
+                    "type": "image/png"
+                }
+            ]
+        }
+
+        # Check if assets dir exists (should exist)
+        if assets_dir.exists():
+            # Always overwrite/update to ensure version is current
+            with open(manifest_path, "w", encoding="utf-8") as f:
+                json.dump(manifest_data, f, indent=2)
+            # print(f"PWA Manifest updated: {manifest_path}")
+
+    except Exception as e:
+        print(f"Failed to generate PWA manifest: {e}")
+
 if __name__ == "__main__":
+    # Ensure PWA manifest exists for Web/Docker mode
+    _ensure_pwa_manifest()
+
     # Fix Taskbar Icon on Windows (AppUserModelID)
     if sys.platform == "win32":
         try:
