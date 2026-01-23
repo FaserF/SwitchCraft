@@ -27,31 +27,12 @@ def build_web_demo():
 
     print("Creating web_entry.py...")
     # This simulates the CI generation step
-    web_entry_content = """import sys
+    import sys
 import os
-from unittest.mock import MagicMock
 
-# Mock ssl with necessary constants for urllib3
-ssl = MagicMock()
-ssl.OPENSSL_VERSION_NUMBER = 0x101010CF # 1.1.1l (Reliable for urllib3)
-ssl.OPENSSL_VERSION_INFO = (1, 1, 1, 15, 15)
-ssl.HAS_SNI = True
-ssl.OP_NO_SSLv2 = 0x01000000
-ssl.OP_NO_SSLv3 = 0x02000000
-ssl.OP_NO_TLSv1 = 0x04000000
-ssl.OP_NO_TLSv1_1 = 0x10000000
-ssl.OP_NO_TLSv1_2 = 0x08000000
-ssl.OP_NO_TLSv1_3 = 0x20000000
-sys.modules["ssl"] = ssl
-
-# Patch requests for Pyodide (WASM)
-if sys.platform == "emscripten":
-    try:
-        import pyodide_http
-        pyodide_http.patch_all()
-        print("Requests patched for Pyodide")
-    except ImportError:
-        print("pyodide-http not found, requests might fail")
+# Notes:
+# SSL and Request patching is now handled in switchcraft/__init__.py
+# to ensure it runs within the package context and works reliably.
 
 import flet as ft
 # Ensure current dir is in path
@@ -155,9 +136,9 @@ anyio>=4.12.1
         shutil.rmtree(dist_dir)
 
         # Cleanup build_web directory to avoid file duplication in user's workspace
-        if os.path.exists(build_dir):
-            print(f"Cleaning up temporary build directory: {build_dir}")
-            shutil.rmtree(build_dir, ignore_errors=True)
+        # if os.path.exists(build_dir):
+        #     print(f"Cleaning up temporary build directory: {build_dir}")
+        #     shutil.rmtree(build_dir, ignore_errors=True)
 
         print(f"Build complete. Served at {docs_public_dir}")
         print("To test, run python -m http.server --directory docs/public")
