@@ -315,10 +315,10 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                         ft.Text("Standard detection will be limited.", size=12, color="WHITE70"),
                     ], expand=True),
                     ft.FilledButton(
-                        content=ft.Text(i18n.get("analyzer_addon_install") or "Install Now"),
+                        content=ft.Text(i18n.get("analyzer_addon_install") or "Install via Settings"),
                         color="WHITE",
                         bgcolor="RED_700",
-                        on_click=self._install_advanced_addon
+                        on_click=self._go_to_settings
                     )
                 ], alignment=ft.MainAxisAlignment.START, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 bgcolor="RED_900",
@@ -328,6 +328,14 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             )
             self.addon_warning.visible = True
             # Note: Don't call self.update() here - view isn't added to page yet
+
+    def _go_to_settings(self, e):
+        # Redirect to Addon Manager (Settings -> Help)
+        if hasattr(self.page, 'switchcraft_app') and hasattr(self.page.switchcraft_app, 'goto_tab'):
+            from switchcraft.gui_modern.nav_constants import NavIndex
+            self.page.switchcraft_app.goto_tab(NavIndex.SETTINGS_HELP)
+        else:
+            self._show_snack("Please go to Settings > Help manually.", "ORANGE")
 
     def _install_advanced_addon(self, e):
         e.control.disabled = True

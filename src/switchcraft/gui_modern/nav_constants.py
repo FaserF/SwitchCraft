@@ -14,15 +14,11 @@ class NavIndex:
     """Central registry of all navigation view indices."""
 
     # === MAIN VIEWS ===
-    # === MAIN VIEWS ===
     HOME = 0
-    # ADDON_MANAGER Removed
-
-    # === SETTINGS SUB-VIEWS (via SettingsView tabs) ===
     SETTINGS_UPDATES = 1      # Settings tab index 1
     SETTINGS_GRAPH = 2        # Settings tab index 2
-    SETTINGS_HELP = 3         # Settings tab index 4
-    SETTINGS_POLICIES = 21    # Settings tab index 3 (Policies)
+    SETTINGS_HELP = 3         # Settings tab index 4 (Help & Resources)
+    ADDON_MANAGER = 3         # Alias for SETTINGS_HELP
 
     # === TOOLS & APPS ===
     WINGET = 4                # Apps (Winget Search)
@@ -48,6 +44,8 @@ class NavIndex:
     GROUP_MANAGER = 18        # Group Manager
     WINGET_CREATE = 19        # WingetCreate Manager
     EXCHANGE = 20             # Exchange Online View
+
+    SETTINGS_POLICIES = 21    # Settings tab index 3 (Policies)
 
 
 # Mapping from NavIndex to sidebar category for reference

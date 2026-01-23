@@ -1555,8 +1555,8 @@ class ModernApp:
                 from switchcraft.gui_modern.views.settings_view import ModernSettingsView
                 return ModernSettingsView(self.page, initial_tab_index=2)
              load_view(_f)
-        elif idx == NavIndex.SETTINGS_HELP:
-             # Help (Settings sub)
+        elif idx == NavIndex.ADDON_MANAGER:
+             # Help (Settings sub) - Contains Addon Manager
              def _f():
                 from switchcraft.gui_modern.views.settings_view import ModernSettingsView
                 return ModernSettingsView(self.page, initial_tab_index=4)
@@ -1605,15 +1605,27 @@ class ModernApp:
             load_view(_f)
         elif idx == NavIndex.SCRIPTS:
             # Scripts
-            load_view(lambda: ScriptUploadView(self.page))
+            def _f():
+                if 'scripts' not in self._view_cache:
+                    from switchcraft.gui_modern.views.script_upload_view import ScriptUploadView
+                    self._view_cache['scripts'] = ScriptUploadView(self.page)
+                return self._view_cache['scripts']
+            load_view(_f)
         elif idx == NavIndex.MACOS:
             # MacOS
-            load_view(lambda: MacOSWizardView(self.page))
+            def _f():
+                if 'macos' not in self._view_cache:
+                    from switchcraft.gui_modern.views.macos_wizard_view import MacOSWizardView
+                    self._view_cache['macos'] = MacOSWizardView(self.page)
+                return self._view_cache['macos']
+            load_view(_f)
         elif idx == NavIndex.HISTORY:
             # History
             def _f():
-                from switchcraft.gui_modern.views.history_view import ModernHistoryView
-                return ModernHistoryView(self.page)
+                if 'history' not in self._view_cache:
+                    from switchcraft.gui_modern.views.history_view import ModernHistoryView
+                    self._view_cache['history'] = ModernHistoryView(self.page)
+                return self._view_cache['history']
             load_view(_f)
         elif idx == NavIndex.SETTINGS:
             # Settings (General)

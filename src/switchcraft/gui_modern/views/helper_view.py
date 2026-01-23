@@ -98,7 +98,8 @@ class ModernHelperView(ft.Column, ViewMixin):
     def _build_missing_addon_view(self):
         def go_to_addons(e):
             if hasattr(self.app_page, 'switchcraft_app') and hasattr(self.app_page.switchcraft_app, 'goto_tab'):
-                self.app_page.switchcraft_app.goto_tab(9)
+                from switchcraft.gui_modern.nav_constants import NavIndex
+                self.app_page.switchcraft_app.goto_tab(NavIndex.SETTINGS_HELP)
             else:
                 self._show_snack(i18n.get("please_navigate_manually") or "Please navigate to Addons tab manually", "ORANGE")
 

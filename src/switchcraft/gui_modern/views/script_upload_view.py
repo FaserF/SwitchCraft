@@ -26,22 +26,8 @@ class ScriptUploadView(ft.Column, ViewMixin):
         self.current_owner = None
         self.current_repo = None
 
-        # Initialize File Pickers once to prevent duplicate overlays on tab switch
-        self.ps_picker = ft.FilePicker()
-        self.ps_picker.on_result = self._on_ps_picked
-
-        self.det_picker = ft.FilePicker()
-        self.det_picker.on_result = self._on_det_picked
-
-        self.rem_picker = ft.FilePicker()
-        self.rem_picker.on_result = self._on_rem_picked
-
-        self.folder_picker = ft.FilePicker()
-        self.folder_picker.on_result = self._on_import_folder_picked
-
-        if self.app_page:
-            self.app_page.overlay.extend([self.ps_picker, self.det_picker, self.rem_picker, self.folder_picker])
-            self.app_page.update()
+        from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+        self.file_picker_helper = FilePickerHelper
 
         # UI Components - wrapped in container with proper padding
         self.controls = [
@@ -117,7 +103,7 @@ class ScriptUploadView(ft.Column, ViewMixin):
         )
         self.ps_file_btn = ft.FilledButton(
             content=ft.Row([ft.Icon(ft.Icons.FILE_OPEN), ft.Text(i18n.get("select_script_file") or "Select Script (.ps1)...")], alignment=ft.MainAxisAlignment.CENTER),
-            on_click=lambda _: self.ps_picker.pick_files(allowed_extensions=["ps1"])
+            on_click=self._on_ps_pick_click
         )
         self.ps_file_label = ft.Text(
             i18n.get("no_file_selected") or "No file selected",
@@ -159,18 +145,14 @@ class ScriptUploadView(ft.Column, ViewMixin):
             padding=20
         )
 
-    def _on_ps_picked(self, e):
-        if e.files and e.files[0]:
-            file_obj = e.files[0]
-            # Web check: file_obj.path might be None
-            if file_obj.path:
-                self.script_path = file_obj.path
-            else:
-                self.script_path = None # Handle Web Upload later if needed
-
-            self.ps_file_label.value = file_obj.name
+    def _on_ps_pick_click(self, e):
+        path = self.file_picker_helper.pick_file(allowed_extensions=["ps1"])
+        if path:
+            self.script_path = path
+            filename = Path(path).name
+            self.ps_file_label.value = filename
             if not self.ps_name.value:
-                self.ps_name.value = Path(file_obj.name).stem
+                self.ps_name.value = Path(filename).stem
             self.update()
 
     def _upload_ps_script(self, e):
@@ -207,13 +189,6 @@ class ScriptUploadView(ft.Column, ViewMixin):
                 token = self.intune_service.authenticate(tenant, client, secret)
 
                 content = ""
-                # Handle Web vs Local read
-                # If script_path is None or we are Web, we might need to handle content differently
-                # But FilePicker usually gives path on Desktop.
-                # If Web, we need to upload first?
-                # Assuming Desktop/Docker-Local for now.
-                # If failing on web due to missing path, we need Full Upload implementation.
-
                 with open(self.script_path, "r", encoding="utf-8") as f:
                     content = f.read()
 
@@ -247,7 +222,7 @@ class ScriptUploadView(ft.Column, ViewMixin):
 
         self.det_file_btn = ft.FilledButton(
             content=ft.Row([ft.Icon(ft.Icons.SEARCH), ft.Text(i18n.get("select_detection_script") or "Select Detection (.ps1)...")], alignment=ft.MainAxisAlignment.CENTER),
-            on_click=lambda _: self.det_picker.pick_files(allowed_extensions=["ps1"])
+            on_click=self._on_det_pick_click
         )
         self.det_file_label = ft.Text(
             i18n.get("no_detection_script") or "No detection script",
@@ -257,7 +232,7 @@ class ScriptUploadView(ft.Column, ViewMixin):
 
         self.rem_file_btn = ft.FilledButton(
             content=ft.Row([ft.Icon(ft.Icons.HEALING), ft.Text(i18n.get("select_remediation_script") or "Select Remediation (.ps1)...")], alignment=ft.MainAxisAlignment.CENTER),
-            on_click=lambda _: self.rem_picker.pick_files(allowed_extensions=["ps1"])
+            on_click=self._on_rem_pick_click
         )
         self.rem_file_label = ft.Text(
             i18n.get("no_remediation_script") or "No remediation script",
@@ -301,31 +276,20 @@ class ScriptUploadView(ft.Column, ViewMixin):
             padding=20
         )
 
-    def _on_det_picked(self, e):
-        if e.files and e.files[0]:
-            file_obj = e.files[0]
-            if not file_obj.path:
-                 # Web case or error
-                 self.det_file_label.value = "Path unavailable (Web Upload?)"
-                 self.update()
-                 return
-
-            self.detect_path = file_obj.path
-            self.det_file_label.value = file_obj.name
+    def _on_det_pick_click(self, e):
+        path = self.file_picker_helper.pick_file(allowed_extensions=["ps1"])
+        if path:
+            self.detect_path = path
+            self.det_file_label.value = Path(path).name
             if not self.rem_name.value:
-                self.rem_name.value = Path(file_obj.name).stem
+                self.rem_name.value = Path(path).stem
             self.update()
 
-    def _on_rem_picked(self, e):
-        if e.files and e.files[0]:
-            file_obj = e.files[0]
-            if not file_obj.path:
-                 self.rem_file_label.value = "Path unavailable (Web Upload?)"
-                 self.update()
-                 return
-
-            self.remediate_path = file_obj.path
-            self.rem_file_label.value = file_obj.name
+    def _on_rem_pick_click(self, e):
+        path = self.file_picker_helper.pick_file(allowed_extensions=["ps1"])
+        if path:
+            self.remediate_path = path
+            self.rem_file_label.value = Path(path).name
             self.update()
 
     def _upload_rem_script(self, e):
@@ -605,17 +569,15 @@ class ScriptUploadView(ft.Column, ViewMixin):
         resp.raise_for_status()
         return resp.text
 
-    def _on_import_folder_picked(self, e):
-        if e.path:
-            self._start_download_import(e.path)
-
     def _import_github_scripts(self, e):
         selected = [item["path"] for item in self.repo_script_items if item["checkbox"].value]
         if not selected:
             self._show_snack(i18n.get("no_scripts_selected") or "No scripts selected", "ORANGE")
             return
 
-        self.folder_picker.get_directory_path(dialog_title="Select Destination Folder")
+        path = self.file_picker_helper.pick_directory()
+        if path:
+            self._start_download_import(path)
 
     def _start_download_import(self, dest_path):
         selected = [item["path"] for item in self.repo_script_items if item["checkbox"].value]
@@ -632,7 +594,6 @@ class ScriptUploadView(ft.Column, ViewMixin):
                 for script_path in selected:
                     try:
                         content = self._fetch_github_content(script_path, branch)
-                        # Save to file, preserving structure? No, flatten or prompt?
                         # Flattening is safer for now, using filename
                         filename = Path(script_path).name
                         with open(dest / filename, "w", encoding="utf-8") as f:

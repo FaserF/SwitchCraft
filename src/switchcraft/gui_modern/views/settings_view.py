@@ -826,34 +826,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     def _show_permission_dialog(self, callback):
         """Show permission explanation dialog before GitHub login."""
-        logger.debug("_show_permission_dialog ENTERED")
-
-        # Immediate snack confirmation
+        logger.info("[DEBUG] _show_permission_dialog ENTERED")
         self._show_snack("Preparing GitHub Permissions...", "BLUE")
-
-        def proceed(e):
-            try:
-                logger.info("User clicked 'Continue' in permission dialog [INSTRUMENTED]")
-                self._close_dialog(dlg)
-
-                # Check page before update to avoid ghosts
-                if self.app_page:
-                    self.app_page.update()
-
-                logger.info("Calling callback from permission dialog...")
-                callback(e) # Pass event 'e' instead of None, though _start_github_login handles None too
-            except Exception as ex:
-                logger.exception(f"Critical error in proceed handler: {ex}")
-                self._show_snack(f"Error continuing: {ex}", "RED")
-
-        def cancel(e):
-            try:
-                logger.info("User clicked 'Cancel' in permission dialog [INSTRUMENTED]")
-                self._close_dialog(dlg)
-                if self.app_page:
-                    self.app_page.update()
-            except Exception as ex:
-                logger.error(f"Error in cancel handler: {ex}")
 
         explanation = i18n.get("github_permissions_explanation") or (
             "SwitchCraft requests the following GitHub permissions:\n\n"
@@ -863,8 +837,28 @@ class ModernSettingsView(ft.Column, ViewMixin):
             "No other data is accessed or stored."
         )
 
+        # Dialog reference for handlers
+        dlg = None
+
+        def proceed_wrapper(e):
+            nonlocal dlg
+            logger.info("[DEBUG] Permission dialog: 'Continue' CLICKED")
+            try:
+                self._close_dialog(dlg)
+                logger.info("[DEBUG] Permission dialog closed, invoking callback...")
+                # Call callback directly (callback is _start_github_login which is sync)
+                callback(e)
+            except Exception as ex:
+                logger.exception(f"[CRITICAL] Error in permission proceed handler: {ex}")
+                self._show_snack(f"Error: {ex}", "RED")
+
+        def cancel_wrapper(e):
+            nonlocal dlg
+            logger.info("[DEBUG] Permission dialog: 'Cancel' CLICKED")
+            self._close_dialog(dlg)
+
         dlg = ft.AlertDialog(
-            modal=True, # Force user interaction
+            modal=True,
             title=ft.Text(i18n.get("github_permissions_title") or "GitHub Permissions"),
             content=ft.Column([
                 ft.Text(explanation),
@@ -874,14 +868,13 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 )
             ], tight=True, width=450),
             actions=[
-                ft.TextButton(i18n.get("btn_continue") or "Continue", on_click=proceed),
-                ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=cancel),
+                ft.TextButton(i18n.get("btn_continue") or "Continue", on_click=proceed_wrapper),
+                ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=cancel_wrapper),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
 
-        logger.info("Opening permission dialog...")
-        # Use safe opener
+        logger.info("[DEBUG] Attempting to open permission dialog...")
         self._open_dialog_safe(dlg)
 
     def _start_github_login(self, e):
@@ -1033,15 +1026,20 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         continue # Interval passed, poll again
 
             except Exception as ex:
-                logger.exception(f"Error in GitHub Login Flow: {ex}")
-                self._close_dialog(loading_dlg)
+                logger.exception(f"[CRITICAL] Error in GitHub Login Flow: {ex}")
+                try:
+                    self._close_dialog(loading_dlg)
+                except: pass
                 # Ensure dlg is closed if open
                 if 'dlg' in locals():
-                    self._close_dialog(dlg)
+                    try:
+                        self._close_dialog(dlg)
+                    except: pass
 
                 self._show_snack(f"Login Error: {ex}", "RED")
                 self._restore_login_button(original_text, original_icon)
 
+        logger.info("[DEBUG] Scheduling GitHub login flow task...")
         self._run_task_safe(_run_login_flow)
 
     def _restore_login_button(self, text, icon):

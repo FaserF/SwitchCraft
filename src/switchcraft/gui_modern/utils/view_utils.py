@@ -269,62 +269,52 @@ class ViewMixin:
                         page.run_task(func)
                         return True
                     except Exception as e:
-                        logger.warning(f"Failed to run async task: {e}", exc_info=True)
-                        # Fallback: try to execute coroutine properly
+                        logger.warning(f"Failed to run async task via run_task: {e}", exc_info=True)
+                        # Fallback for async function when run_task fails
                         try:
-                            import asyncio
-                            try:
-                                # Check if event loop is running
-                                asyncio.get_running_loop()
-                                # If loop is running, schedule the coroutine
-                                asyncio.create_task(func())
-                                return True
-                            except RuntimeError:
-                                # No running loop, use asyncio.run
-                                asyncio.run(func())
-                                return True
-                        except Exception as e2:
-                            logger.error(f"Failed to execute async function directly: {e2}", exc_info=True)
-                            return False
+                            loop = asyncio.get_running_loop()
+                            loop.create_task(func() if inspect.iscoroutine(func) else func())
+                            return True
+                        except RuntimeError:
+                            asyncio.run(func() if inspect.iscoroutine(func) else func())
+                            return True
                 else:
-                    # For sync functions, wrap in async wrapper only if run_task is available
-                    # Otherwise, call directly to avoid creating unawaited coroutines
+                    # For sync functions, wrap in async wrapper
                     try:
-                        # Wrap sync function in async wrapper
                         async def async_wrapper():
                             try:
                                 func()
                             except Exception as e:
                                 logger.error(f"Error in async wrapper for sync function: {e}", exc_info=True)
-                                raise
                         page.run_task(async_wrapper)
                         return True
                     except Exception as e:
-                        logger.warning(f"Failed to run task (sync wrapped): {e}", exc_info=True)
-                        # Fallback: try direct call for sync functions
+                        logger.warning(f"Failed to run wrapped sync task via run_task: {e}", exc_info=True)
+                        # Fallback: call sync directly
                         try:
                             func()
                             return True
                         except Exception as e2:
-                            logger.error(f"Failed to execute sync function directly: {e2}", exc_info=True)
+                            logger.error(f"Sync fallback failed: {e2}")
                             return False
             else:
-                # run_task not available, fall back to direct call
+                # No run_task available, handle async/sync accordingly
                 try:
-                    func()
+                    if inspect.iscoroutinefunction(func):
+                        try:
+                            loop = asyncio.get_running_loop()
+                            loop.create_task(func())
+                        except RuntimeError:
+                            asyncio.run(func())
+                    else:
+                        func()
                     return True
                 except Exception as e:
-                    logger.warning(f"Failed to execute function directly (no run_task): {e}", exc_info=True)
+                    logger.warning(f"Fallback execution failed: {e}", exc_info=True)
                     return False
         except Exception as ex:
-            logger.error(f"Failed to run task safely: {ex}", exc_info=True)
-            # Fallback: try direct call
-            try:
-                func()
-                return True
-            except Exception as e:
-                logger.error(f"Failed to execute function in final fallback: {e}", exc_info=True)
-                return False
+            logger.error(f"Critical failure in _run_task_safe: {ex}", exc_info=True)
+            return False
 
     def _open_dialog_safe(self, dlg):
         """

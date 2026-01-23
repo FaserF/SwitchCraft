@@ -53,7 +53,8 @@ class ModernWingetView(ft.Row, ViewMixin):
                     e: Event object from the UI control (unused).
                 """
                 if hasattr(page, 'switchcraft_app') and hasattr(page.switchcraft_app, 'goto_tab'):
-                    page.switchcraft_app.goto_tab(16)
+                    from switchcraft.gui_modern.nav_constants import NavIndex
+                    page.switchcraft_app.goto_tab(NavIndex.SETTINGS_HELP)
                 else:
                     page.snack_bar = ft.SnackBar(ft.Text(i18n.get("please_navigate_manually") or "Please navigate to Addons tab manually"), bgcolor="ORANGE")
                     page.snack_bar.open = True
