@@ -5,7 +5,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.utils.i18n import i18n
 
 class ModernHelperView(ft.Column, ViewMixin):
     """
@@ -171,7 +173,10 @@ class ModernHelperView(ft.Column, ViewMixin):
                 )
             ], alignment=align)
         )
-        self.update()
+        try:
+            self.update()
+        except:
+            pass
 
     def send_message(self, e):
         user_msg = self.input_field.value

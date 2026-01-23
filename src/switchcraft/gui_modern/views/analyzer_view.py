@@ -99,9 +99,11 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             ),
             bgcolor=None,
             on_click=on_drop_click,
-            on_hover=lambda e: setattr(drop_container, "border", ft.Border.all(4, "BLUE_400") if e.data == "true" else ft.Border.all(2, "BLUE_700")) or self.update(),
-            padding=20
+            # Make sure the container itself accepts dropped files if possible,
+            # though page.on_file_drop is global.
         )
+
+        self.drop_zone = drop_container
 
         # Wrap with Dropzone if available for native file DnD
         if HAS_DROPZONE and ftd:
@@ -214,6 +216,32 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             )
         ]
         self._check_addon()
+
+    def did_mount(self):
+        # Register global file drop handler when this view is active
+        self.app_page.on_file_drop = self._on_global_file_drop
+        if self.page:
+             self.app_page.update()
+
+    def will_unmount(self):
+        # Unregister handler to avoid conflicts
+        self.app_page.on_file_drop = None
+
+    def _on_global_file_drop(self, e):
+        # Handle file drop on the window
+        files = e.files
+        if files:
+            # Flet on_file_drop returns list of FilePickerUploadFile or similar objects
+            # Actually e.files is a list of ft.FilePickerResultEvent objects?
+            # No, for on_file_drop it is a list of FileDropEvent objects usually containing path
+            # Let's inspect carefully. In generic Flet desktop, it's usually just objects with path.
+            for f in files:
+                # f.path should exist on Desktop
+                if hasattr(f, "path"):
+                     if f.name.lower().endswith((".exe", ".msi", ".ps1", ".bat", ".cmd", ".vbs", ".msp")):
+                         self.start_analysis(f.path)
+                         break
+
 
     def _start_url_download(self, e):
         """Download installer from URL and start analysis."""

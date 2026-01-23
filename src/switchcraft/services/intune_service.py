@@ -5,6 +5,8 @@ import os
 import subprocess
 import requests
 import base64
+import json
+from datetime import datetime
 from pathlib import Path
 import zipfile
 from typing import Optional, Callable
@@ -126,6 +128,66 @@ class IntuneService:
         except Exception:
             logger.exception("Failed to download IntuneWinAppUtil")
             return False
+
+    def check_for_tool_updates(self, notify=True):
+        """
+        Checks GitHub for the latest release of the Content Prep Tool.
+        If a newer version is available, downloads it and notifies the user.
+        """
+        try:
+            from switchcraft.services.notification_service import NotificationService
+            from packaging import version
+
+            # 1. Get current version
+            current_ver_str = self.get_tool_version()
+            if not current_ver_str or current_ver_str == "Unknown" or current_ver_str == "Error":
+                 # If we can't determine local version, we probably shouldn't blindly overwrite
+                 # unless the file is missing (handled by is_tool_available).
+                 # Or we treat "Unknown" as 0.0.0
+                 current_ver_str = "0.0.0.0"
+
+            # Clean current version (Windows file version might be 1.8.4.0, GitHub tag v1.8.4)
+            # GitHub releases for this tool usually utilize tags like 'v1.8.2'
+
+            api_url = "https://api.github.com/repos/microsoft/Microsoft-Win32-Content-Prep-Tool/releases/latest"
+
+            # Short timeout to not block app startup
+            resp = requests.get(api_url, timeout=5)
+            if resp.status_code != 200:
+                logger.warning(f"Failed to check for updates: {resp.status_code}")
+                return
+
+            j = resp.json()
+            remote_tag = j.get("tag_name", "").lstrip("v") # e.g. 1.8.4
+
+            if not remote_tag:
+                return
+
+            # Compare
+            try:
+                # Windows File Version often has 4 parts: 1.8.4.0
+                curr = version.parse(current_ver_str)
+                rem = version.parse(remote_tag)
+
+                if rem > curr:
+                    logger.info(f"Update available: {rem} > {curr}. Downloading...")
+
+                    if self.download_tool():
+                        msg = f"IntuneWinAppUtil updated to version {remote_tag}"
+                        logger.info(msg)
+
+                        if notify:
+                            NotificationService().add_notification(
+                                title="Tool Updated",
+                                message=msg,
+                                type="success",
+                                notify_system=True # Trigger Windows Toast
+                            )
+            except Exception as e:
+                logger.debug(f"Version comparison failed: {e}")
+
+        except Exception as e:
+            logger.warning(f"Error checking for Intune tool updates: {e}")
 
     def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str, catalog_folder: str = None, quiet: bool = True, progress_callback: Optional[Callable[[str], None]] = None) -> str:
         """

@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 import json
+import threading
 
 import flet as ft
 from switchcraft import __version__
@@ -210,6 +211,18 @@ class ModernApp:
 
         # Now that UI is built, shutdown splash screen
         self._terminate_splash()
+
+        # Check for Intune Tool updates in background
+        def check_updates():
+            try:
+                # Add fail-safe delay
+                import time
+                time.sleep(5)
+                self.intune_service.check_for_tool_updates(notify=True)
+            except Exception as ex:
+                logger.warning(f"Failed to auto-update Intune tool: {ex}")
+
+        threading.Thread(target=check_updates, daemon=True).start()
 
     def _get_help_url(self, index):
         """Returns the GitHub Pages documentation URL for the given view index."""

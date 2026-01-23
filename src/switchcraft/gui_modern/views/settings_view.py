@@ -705,8 +705,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 danger_zone,
                 ft.Divider(),
                 ft.Text(f"{i18n.get('about_version') or 'Version'}: {__version__} ({self._get_build_date()})", color="ON_SURFACE_VARIANT", text_align=ft.TextAlign.CENTER),
-                ft.Text(i18n.get("brought_by") or "Brought to you by Fabian Seitz (FaserF)", color="ON_SURFACE_VARIANT", size=11, text_align=ft.TextAlign.CENTER, italic=True),
-                ft.Text(i18n.get("created_with_ai") or "(erstellt mit Hilfe von KI)", color="ON_SURFACE_VARIANT", size=10, text_align=ft.TextAlign.CENTER, italic=True)
+                ft.Text(i18n.get("brought_by") or "Brought to you by Fabian Seitz (FaserF)", color="ON_SURFACE_VARIANT", size=11, text_align=ft.TextAlign.CENTER, italic=True)
             ],
             padding=20,
             spacing=15
@@ -756,6 +755,12 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self._check_updates(None, only_changelog=True)
 
 
+
+
+    def _on_lang_change(self, val):
+        SwitchCraftConfig.set_user_preference("Language", val)
+        i18n.load_language(val)
+        self._show_snack(f"Language set to {val}. Please restart app to apply fully.", "BLUE")
 
     def _on_theme_change(self, val):
         SwitchCraftConfig.set_user_preference("Theme", val)
