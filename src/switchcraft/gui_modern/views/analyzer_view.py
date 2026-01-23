@@ -928,6 +928,10 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 cmd_exec = "msiexec.exe"
                 cmd_params = f"/i \"{path_obj}\" {params_str}"
 
+            if sys.platform != "win32":
+                self._show_snack("Local testing is only supported on Windows.", "RED")
+                return
+
             try:
                 # We already checked for admin, but runas ensures UAC if somehow needed
                 ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", cmd_exec, cmd_params, str(path_obj.parent), 1)
@@ -1045,6 +1049,31 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             dlg.open = True
             self.app_page.update()
 
+    def _copy_to_clipboard(self, text: str):
+        """Copy text to clipboard using Flet first, then fallbacks."""
+        # 1. Try Flet Page (Best for Web)
+        if self.app_page:
+            try:
+                self.app_page.set_clipboard(text)
+                self._show_snack("Copied to clipboard!", "GREEN_700")
+                return
+            except Exception:
+                pass
+
+        # 2. Try Pyperclip
+        try:
+            import pyperclip
+            pyperclip.copy(text)
+            self._show_snack("Copied to clipboard!", "GREEN_700")
+        except ImportError:
+            # 3. Fallback to Windows Clip via ShellUtils
+            try:
+                from switchcraft.utils.shell_utils import ShellUtils
+                ShellUtils.run_command(['clip'], input=text.encode('utf-8'), check=True, silent=True)
+                self._show_snack("Copied to clipboard!", "GREEN_700")
+            except Exception:
+                self._show_snack("Failed to copy", "RED")
+
     def _on_click_create_intunewin(self, e):
         # We need a source folder and output. For simplicity, use installer dir and create alongside.
         if not self.current_info:
@@ -1133,22 +1162,6 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
              self.app_page.dialog = dlg
              dlg.open = True
              self.app_page.update()
-
-    def _copy_to_clipboard(self, text: str):
-        """Copy text to clipboard."""
-        try:
-            import pyperclip
-            pyperclip.copy(text)
-            self._show_snack("Copied to clipboard!", "GREEN_700")
-        except ImportError:
-            try:
-                import subprocess
-                subprocess.run(['clip'], input=text.encode('utf-8'), check=True)
-                self._show_snack("Copied to clipboard!", "GREEN_700")
-            except Exception:
-                self._show_snack("Failed to copy", "RED")
-
-
 
     def _add_history_entry(self, info, status):
         try:

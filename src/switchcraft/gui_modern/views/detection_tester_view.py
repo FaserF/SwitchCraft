@@ -79,18 +79,28 @@ class DetectionTesterView(ft.Column):
             width=500
         )
 
-        self.controls = [
-            ft.Text("Live Detection Tester", size=28, weight=ft.FontWeight.BOLD),
-            ft.Text("Verify your Intune detection rules locally before uploading.", size=16, color="ON_SURFACE_VARIANT"),
-            ft.Container(height=20),
-            ft.Row([self.rule_type, self.operator_dd, self.path_field]),
-            self.script_field,
-            ft.Row([self.prop_field, self.val_field]),
-            ft.Container(height=10),
-            self.check_btn,
-            ft.Container(height=20),
-            self.result_area
-        ]
+        if sys.platform != "win32":
+            self.controls = [
+                ft.Text("Live Detection Tester", size=28, weight=ft.FontWeight.BOLD),
+                ft.Container(height=20),
+                ft.Row([
+                    ft.Icon(ft.Icons.WARNING, color="ORANGE", size=40),
+                    ft.Text("This feature is only available on Windows.", size=16)
+                ])
+            ]
+        else:
+            self.controls = [
+                ft.Text("Live Detection Tester", size=28, weight=ft.FontWeight.BOLD),
+                ft.Text("Verify your Intune detection rules locally before uploading.", size=16, color="ON_SURFACE_VARIANT"),
+                ft.Container(height=20),
+                ft.Row([self.rule_type, self.operator_dd, self.path_field]),
+                self.script_field,
+                ft.Row([self.prop_field, self.val_field]),
+                ft.Container(height=10),
+                self.check_btn,
+                ft.Container(height=20),
+                self.result_area
+            ]
 
     def _on_type_change(self, e):
         t = self.rule_type.value

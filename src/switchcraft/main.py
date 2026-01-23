@@ -7,6 +7,20 @@ src_path = os.path.dirname(current_dir)
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
+# --- WEB / PYODIDE PATCHES ---
+if sys.platform == "emscripten":
+    try:
+        # Patch requests/urllib3 to use browser fetch
+        import pyodide_http
+        pyodide_http.patch_all()
+    except ImportError:
+        print("Warning: pyodide_http not found. Network requests may fail.")
+
+    # Mock SSL to prevent import errors in libraries (like urllib3) that expect it
+    import types
+    if "ssl" not in sys.modules:
+        sys.modules["ssl"] = types.ModuleType("ssl")
+
 # Global splash process handle
 splash_proc = None
 
