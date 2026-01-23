@@ -1,4 +1,5 @@
 import flet as ft
+from switchcraft import IS_WEB
 import logging
 import asyncio
 import inspect
@@ -312,9 +313,46 @@ class ViewMixin:
                 except Exception as e:
                     logger.warning(f"Fallback execution failed: {e}", exc_info=True)
                     return False
-        except Exception as ex:
             logger.error(f"Critical failure in _run_task_safe: {ex}", exc_info=True)
             return False
+
+    def _run_in_background(self, target, *args, **kwargs):
+        """
+        Run a function in the background, handling web/desktop differences.
+        On Desktop: Starts a new daemon thread.
+        On Web: Uses page.run_task (which is async safe in WASM).
+
+        Parameters:
+            target: The function to run
+            *args: Arguments for the function
+            **kwargs: Keyword arguments for the function
+        """
+        import threading
+
+        page = getattr(self, "app_page", None) or getattr(self, "page", None)
+
+        if IS_WEB and page and hasattr(page, "run_task"):
+            logger.debug(f"Web mode: Running '{target.__name__}' as async task")
+            async def async_wrapper():
+                try:
+                    # If target is async, await it, else call it
+                    if inspect.iscoroutinefunction(target):
+                        await target(*args, **kwargs)
+                    else:
+                        target(*args, **kwargs)
+                except Exception as e:
+                    logger.error(f"Error in background task: {e}", exc_info=True)
+
+            page.run_task(async_wrapper)
+        else:
+            if IS_WEB:
+                logger.warning("Web mode detected but page.run_task not available. Falling back to sync call.")
+                # Fallback to sync call if run_task is missing on web (shouldn't happen)
+                target(*args, **kwargs)
+            else:
+                # Desktop: Use traditional threading
+                logger.debug(f"Desktop mode: Starting thread for '{target.__name__}'")
+                threading.Thread(target=target, args=args, kwargs=kwargs, daemon=True).start()
 
     def _open_dialog_safe(self, dlg):
         """

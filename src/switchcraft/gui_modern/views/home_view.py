@@ -135,6 +135,10 @@ class ModernHomeView(ft.Container, ViewMixin):
         if not username:
             username = os.getenv("USERNAME") or os.getenv("USER") or i18n.get("default_user") or "User"
 
+        # If the environment/fallback returns "web_user" (usually in Pyodide), translate it
+        if username == "web_user":
+            username = i18n.get("web_user")
+
         # Now get the greeting with the name
         greeting = i18n.get(greeting_key, name=username)
         # Handle fallback if the translation doesn't have the {name} placeholder yet or fails

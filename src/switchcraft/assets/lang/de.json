@@ -613,6 +613,7 @@
     "greeting_night_4": "Bis morgen, {name}!",
     "home_subtitle": "Hier ist, was mit deinen Deployments passiert.",
     "default_user": "Benutzer",
+    "web_user": "Web-Benutzer",
     "dashboard_overview_title": "Übersicht",
     "stat_analyzed": "Analysiert",
     "stat_packaged": "Paketiert",

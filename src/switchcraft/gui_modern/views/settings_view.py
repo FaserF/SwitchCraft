@@ -809,12 +809,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
             except Exception as ex:
                 self.changelog_text.value = f"{i18n.get('update_check_failed') or 'Error fetching updates'}: {ex}"
-                try:
-                    self.update()
                 except Exception:
                     pass
 
-        threading.Thread(target=_run, daemon=True).start()
+        self._run_in_background(_run)
 
     def _on_github_login_click(self, e):
         """Handle GitHub login button click."""
@@ -1107,7 +1105,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 self._show_snack(i18n.get("sync_success_up") or "Sync Up Successful", "GREEN")
             else:
                 self._show_snack(i18n.get("sync_failed") or "Sync Up Failed", "RED")
-        threading.Thread(target=_run, daemon=True).start()
+        self._run_in_background(_run)
 
     def _sync_down(self, e):
         def _run():
@@ -1115,7 +1113,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                  self._show_snack(i18n.get("sync_success_down") or "Sync Down Successful. Restart app.", "GREEN")
              else:
                  self._show_snack(i18n.get("sync_failed") or "Sync Down Failed", "RED")
-        threading.Thread(target=_run, daemon=True).start()
+         self._run_in_background(_run)
 
     def _export_settings(self, e):
         """
@@ -1320,7 +1318,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
             self.update()
 
-        threading.Thread(target=_run, daemon=True).start()
+        self._run_in_background(_run)
 
     def _send_test_notification(self, e):
         from switchcraft.services.notification_service import NotificationService

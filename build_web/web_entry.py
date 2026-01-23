@@ -49,6 +49,36 @@ if sys.platform == "emscripten":
     except ImportError:
         pass
 
+    # ============================================================
+    # GLOBAL THREADING MONKEYPATCH FOR WASM
+    # ============================================================
+    import threading
+    import asyncio
+
+    class WASMThread(threading.Thread):
+        """Bridge between standard threading and WASM-friendly asyncio tasks."""
+        def start(self):
+            # Instead of failing with 'can't start new thread',
+            # we schedule the work in the main browser loop.
+            async def _bridge():
+                try:
+                    # 'run' calls self._target if it exists
+                    self.run()
+                except Exception as e:
+                    print(f"ERROR in WASM background thread '{self.name}': {e}")
+
+            try:
+                # Schedule as a background task
+                asyncio.create_task(_bridge())
+                print(f"DEBUG: Redirected thread '{self.name}' to asyncio task")
+            except RuntimeError:
+                # No loop? Call it synchronously if desperate,
+                # but in Flet there is always a loop in the worker.
+                self.run()
+
+    threading.Thread = WASMThread
+    print("DEBUG: Global threading monkeypatch applied")
+
 # ============================================================
 # Normal imports AFTER ssl patching
 # ============================================================

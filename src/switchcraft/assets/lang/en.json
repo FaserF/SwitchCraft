@@ -613,6 +613,7 @@
     "greeting_night_4": "Night, {name}!",
     "home_subtitle": "Here is what's happening with your deployments.",
     "default_user": "User",
+    "web_user": "Web User",
     "dashboard_overview_title": "Overview",
     "stat_analyzed": "Analyzed",
     "stat_packaged": "Packaged",

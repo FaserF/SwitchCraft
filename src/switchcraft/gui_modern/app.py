@@ -327,15 +327,26 @@ class ModernApp:
                 logger.info("Closing notification drawer")
                 try:
                     # Method 1: Use page.close if available (newer Flet)
+                    res = None
                     if hasattr(self.page, 'close_end_drawer'):
-                        self.page.close_end_drawer()
+                        res = self.page.close_end_drawer()
                     elif hasattr(self.page, 'close') and self.page.end_drawer:
-                        self.page.close(self.page.end_drawer)
+                        res = self.page.close(self.page.end_drawer)
                     else:
                         # Fallback for older Flet
                         if self.page.end_drawer:
                             self.page.end_drawer.open = False
                             self.page.update()
+
+                    # If the result is a coroutine (WASM/Async context), we MUST handle it
+                    import inspect
+                    if inspect.iscoroutine(res):
+                        async def silent_wait(coro):
+                            await coro
+                        # Use run_task if available to avoid un-awaited coroutine warning
+                        if hasattr(self.page, "run_task"):
+                           self.page.run_task(silent_wait, res)
+
                     logger.info("Notification drawer closed successfully")
                 except Exception as ex:
                     logger.error(f"Failed to close drawer: {ex}", exc_info=True)

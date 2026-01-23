@@ -36,6 +36,9 @@ jobs:
           pip install flet==0.80.3
           pip install Pillow
 
+      - name: Validate Translations
+        run: python scripts/validate_i18n.py
+
       - name: Build Web Demo
         run: |
           # Bake translations for WASM
@@ -50,7 +53,7 @@ jobs:
           import os
           import sys
 
-          print("DEBUG: WEB ENTRY RELOADED (Version 2026.1.24-FIXED-V5)")
+          print("DEBUG: WEB ENTRY RELOADED")
           print(f"BUILD_TIME: \$(date)")
 
           # ============================================================
@@ -98,6 +101,29 @@ jobs:
                   print("DEBUG: pyodide_http patched successfully")
               except ImportError:
                   pass
+
+              # ============================================================
+              # GLOBAL THREADING MONKEYPATCH FOR WASM
+              # ============================================================
+              import threading
+              import asyncio
+
+              class WASMThread(threading.Thread):
+                  """Bridge between standard threading and WASM-friendly asyncio tasks."""
+                  def start(self):
+                      async def _bridge():
+                          try:
+                              self.run()
+                          except Exception as e:
+                              print(f"ERROR in WASM background thread '{self.name}': {e}")
+
+                      try:
+                          asyncio.create_task(_bridge())
+                      except RuntimeError:
+                          self.run()
+
+              threading.Thread = WASMThread
+              print("DEBUG: Global threading monkeypatch applied")
 
           # ============================================================
           # Normal imports AFTER ssl patching
