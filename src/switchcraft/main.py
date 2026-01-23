@@ -7,19 +7,6 @@ src_path = os.path.dirname(current_dir)
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-# --- WEB / PYODIDE PATCHES ---
-if sys.platform == "emscripten":
-    try:
-        # Patch requests/urllib3 to use browser fetch
-        import pyodide_http
-        pyodide_http.patch_all()
-    except ImportError:
-        print("Warning: pyodide_http not found. Network requests may fail.")
-
-    # Mock SSL to prevent import errors in libraries (like urllib3) that expect it
-    import types
-    if "ssl" not in sys.modules:
-        sys.modules["ssl"] = types.ModuleType("ssl")
 
 # Global splash process handle
 splash_proc = None
@@ -61,6 +48,27 @@ if __name__ == "__main__":
 
 # Now do heavy imports
 import flet as ft # noqa: E402
+
+# --- MONKEY PATCH: Fix web_entry.py legacy ft.run call ---
+# web_entry.py (generated) calls ft.run(target=...) but Pyodide flet might expect ft.app or different sig.
+# We force ft.run to route to ft.app with correct args.
+def flexible_run(*args, **kwargs):
+    # Extract target from kwargs or args
+    target = kwargs.get("target")
+    if not target and args:
+        target = args[0]
+
+    # Delegate to ft.app which handles the modern run logic
+    # Filter kwargs to only what ft.app accepts if needed, but passing through is usually safe for **kwargs
+    # If target is missing, app() usually fails, but flexible_run wrappers tries its best.
+    if target:
+        kwargs["target"] = target
+
+    return ft.app(**kwargs)
+
+# Always override run to be safe
+ft.run = flexible_run
+# ---------------------------------------------------------
 
 # Flet Universal Compatibility Patch
 def patch_flet():

@@ -216,6 +216,11 @@ class ModernIntuneView(ft.Column, ViewMixin):
                 self.update()
             def _bg():
                 try:
+                    # Reload credentials from config to ensure we have the latest values
+                    self.tenant_id = SwitchCraftConfig.get_value("IntuneTenantID", "")
+                    self.client_id = SwitchCraftConfig.get_value("IntuneClientID", "")
+                    self.client_secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret") or ""
+
                     if not self.tenant_id or not self.client_id or not self.client_secret:
                         def update_fail_creds():
                             self.up_status.value = "Missing Credentials (check Settings)"

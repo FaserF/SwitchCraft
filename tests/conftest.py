@@ -317,12 +317,20 @@ def _create_mock_page():
                     loop = asyncio.get_running_loop()
                     return loop.create_task(func(*args, **kwargs))
                 except RuntimeError:
-                    # No loop running, use run and return a dummy completed task
-                    future = asyncio.run(func(*args, **kwargs))
-                    # Return a completed future to satisfy code that might await it
-                    f = asyncio.Future()
-                    f.set_result(future)
-                    return f
+                    # No loop running, use run execution
+                    result = asyncio.run(func(*args, **kwargs))
+
+                    # Return a completed awaitable to satisfy code that might await it
+                    class CompletedTask:
+                        def __init__(self, res): self._res = res
+                        def __await__(self):
+                            yield
+                            return self._res
+                        def result(self): return self._res
+                        def done(self): return True
+                        def cancel(self): return False
+
+                    return CompletedTask(result)
             else:
                 return func(*args, **kwargs)
 

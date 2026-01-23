@@ -58,7 +58,7 @@ The **Intune Store** view (Modern UI only) allows you to:
 - Browse all your Intune applications with logo display
 - View detailed metadata (ID, Publisher, Created Date, App Type)
 - See group assignments (Required, Available, Uninstall)
-- View install/uninstall command lines
+- View install/uninstall command lines (Ensure `/ALLUSERS` is present for machine-wide installs)
 - Launch the Packaging Wizard directly from an existing app
 - Search and filter applications
 

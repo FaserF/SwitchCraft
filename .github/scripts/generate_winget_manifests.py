@@ -32,8 +32,8 @@ Installers:
     InstallerUrl: {installer_url}
     InstallerSha256: {installer_sha256}
     InstallerSwitches:
-      Silent: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-      SilentWithProgress: /SILENT /SUPPRESSMSGBOXES /NORESTART
+      Silent: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS
+      SilentWithProgress: /SILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS
       InstallLocation: /DIR="<INSTALLPATH>"
       Log: /LOG="<LOGPATH>"
   - Architecture: x64

@@ -45,6 +45,7 @@ DisableDirPage=no
 ; Privileges - force admin for machine-wide install
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog commandline
+UsePreviousPrivileges=no
 
 ; Output settings
 OutputDir=dist
