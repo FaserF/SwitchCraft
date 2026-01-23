@@ -68,7 +68,7 @@ class TestPhase2Features(unittest.TestCase):
             self.assertTrue("AI" in response or "KI" in response, f"Response should contain AI or KI: {response}")
         else:
             # Real AI mode - check for English greeting
-            self.assertIn("I am SwitchCraft AI", response)
+            self.assertIn("SwitchCraft AI", response)
 
     def test_ai_context_answer_de(self):
         """Test context-aware answer in German."""

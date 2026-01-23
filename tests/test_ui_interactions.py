@@ -237,6 +237,8 @@ def test_analyzer_view_buttons(mock_page):
         try:
             view = ModernAnalyzerView(mock_page)
             view.update = MagicMock() # Mock update to prevent "Control must be added" error
+            # Hack: Manually attach page to allow self.page access in handlers
+            view._page = mock_page
 
             # Simulate Analysis Completion to show dynamic buttons
             log("Simulating Analysis Completion...")

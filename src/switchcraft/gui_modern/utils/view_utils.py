@@ -338,6 +338,7 @@ class ViewMixin:
                 try:
                     logger.debug("Attempting to open dialog using page.open()...")
                     page.open(dlg)
+                    page.update()
                     logger.info("Dialog opened successfully using page.open()")
                     return True
                 except Exception as e:

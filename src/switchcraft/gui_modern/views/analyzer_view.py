@@ -24,7 +24,7 @@ from switchcraft.gui_modern.utils.view_utils import ViewMixin
 # Try to import flet_dropzone for native file DnD
 try:
     import flet_dropzone as ftd
-    HAS_DROPZONE = True
+    HAS_DROPZONE = False # Forced False to fix compiled exe issues
 except ImportError:
     HAS_DROPZONE = False
     ftd = None
@@ -231,16 +231,20 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         # Handle file drop on the window
         files = e.files
         if files:
-            # Flet on_file_drop returns list of FilePickerUploadFile or similar objects
-            # Actually e.files is a list of ft.FilePickerResultEvent objects?
-            # No, for on_file_drop it is a list of FileDropEvent objects usually containing path
-            # Let's inspect carefully. In generic Flet desktop, it's usually just objects with path.
+            logger.info(f"File drop detected: {len(files)} files")
             for f in files:
-                # f.path should exist on Desktop
-                if hasattr(f, "path"):
-                     if f.name.lower().endswith((".exe", ".msi", ".ps1", ".bat", ".cmd", ".vbs", ".msp")):
-                         self.start_analysis(f.path)
+                logger.debug(f"Dropped file: {f.name}, Path: {getattr(f, 'path', 'No Path')}")
+                # Flet for Windows provides path in f.path
+                file_path = getattr(f, "path", None)
+                if file_path:
+                     if file_path.lower().endswith((".exe", ".msi", ".ps1", ".bat", ".cmd", ".vbs", ".msp")):
+                         logger.info(f"Starting analysis for: {file_path}")
+                         self.start_analysis(file_path)
                          break
+                     else:
+                         logger.warning(f"File ignored (extension mismatch): {file_path}")
+                else:
+                    logger.warning(f"File object has no path: {f}")
 
 
     def _start_url_download(self, e):

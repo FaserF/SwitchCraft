@@ -705,7 +705,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 danger_zone,
                 ft.Divider(),
                 ft.Text(f"{i18n.get('about_version') or 'Version'}: {__version__} ({self._get_build_date()})", color="ON_SURFACE_VARIANT", text_align=ft.TextAlign.CENTER),
-                ft.Text(i18n.get("brought_by") or "Brought to you by Fabian Seitz (FaserF)", color="ON_SURFACE_VARIANT", size=11, text_align=ft.TextAlign.CENTER, italic=True)
+                ft.Text(i18n.get("brought_by") or "Brought to you by Fabian Seitz (FaserF)", color="ON_SURFACE_VARIANT", size=11, text_align=ft.TextAlign.CENTER, italic=True),
+                ft.Text("Created with the help of AI", color="ON_SURFACE_VARIANT", size=10, text_align=ft.TextAlign.CENTER, italic=True)
             ],
             padding=20,
             spacing=15

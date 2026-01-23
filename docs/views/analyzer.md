@@ -27,14 +27,14 @@ Once a file is analyzed, the following sections appear:
 ### 3. Action Buttons
 These buttons provide quick workflows based on the analysis:
 
-*   **![Auto Fix](/assets/icons/auto_fix.png) Auto Deploy (All-in-One)**:
+*   **Auto Deploy (All-in-One)**:
     *   Generates a PowerShell script.
     *   Packages it as `.intunewin`.
     *   Uploads it to your configured Intune tenant (Settings required).
-*   **![Play](/assets/icons/play.png) Test Locally (Admin)**:
+*   **Test Locally (Admin)**:
     *   Runs the installer *with the detected silent switches* on your local machine.
     *   **Note**: Requires Administrator privileges. You may be prompted to restart SwitchCraft as Admin.
-*   **![Description](/assets/icons/description.png) Winget Manifest**:
+*   **Winget Manifest**:
     *   Generates a preliminary Winget Manifest based on the analysis.
     *   Useful for submitting packages to the Windows Package Manager repository.
 

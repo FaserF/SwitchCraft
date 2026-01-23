@@ -14,6 +14,7 @@ from switchcraft.services.notification_service import NotificationService
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.controls.sidebar import HoverSidebar
 from switchcraft.gui_modern.nav_constants import NavIndex
+from switchcraft.services.intune_service import IntuneService
 import logging
 import time
 
@@ -122,6 +123,7 @@ class ModernApp:
 
         # Initialize Services EARLY
         self.notification_service = NotificationService()
+        self.intune_service = IntuneService()
         self._last_notif_id = None
         self.addon_service = AddonService()
         self.dynamic_addons = []
