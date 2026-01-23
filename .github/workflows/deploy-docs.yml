@@ -158,7 +158,6 @@ jobs:
           rm -rf build_web
           rm -f web_entry.py.patched
         shell: bash
-        shell: bash
 
       - name: Setup Node
         uses: actions/setup-node@v6
