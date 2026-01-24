@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import URLSafeTimedSerializer
 import httpx
@@ -35,36 +35,107 @@ logger = logging.getLogger("SwitchCraftServer")
 
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
 
+def _ensure_pwa_manifest():
+    """
+    Ensure a PWA manifest.json exists in the assets directory with the correct version.
+    This enables PWA installation for the self-hosted Docker version.
+    """
+    import json
+    from pathlib import Path
+    try:
+        import switchcraft
+        version = switchcraft.__version__
+    except Exception:
+        version = "Unknown"
+
+    # Resolve assets dir correctly relative to this file
+    assets_dir = Path(__file__).parent.parent / "assets"
+    manifest_path = assets_dir / "manifest.json"
+
+    # Define PWA Manifest content
+    manifest_data = {
+        "name": "SwitchCraft",
+        "short_name": "SwitchCraft",
+        "id": "/",
+        "start_url": ".",
+        "display": "standalone",
+        "background_color": "#202020",
+        "theme_color": "#202020",
+        "description": f"SwitchCraft Modern Software Management (v{version})",
+        "icons": [
+            {
+                "src": "icon-192.png",
+                "sizes": "192x192",
+                "type": "image/png"
+            },
+            {
+                "src": "icon-512.png",
+                "sizes": "512x512",
+                "type": "image/png"
+            },
+            {
+                "src": "switchcraft_logo.png",
+                "sizes": "any",
+                "type": "image/png"
+            },
+            {
+                "src": "apple-touch-icon.png",
+                "sizes": "180x180",
+                "type": "image/png"
+            }
+        ]
+    }
+
+    try:
+        if not assets_dir.exists():
+            assets_dir.mkdir(parents=True, exist_ok=True)
+
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest_data, f, indent=2)
+        logger.info(f"PWA Manifest successfully ensured at {manifest_path}")
+    except Exception as e:
+        logger.error(f"Failed to write manifest.json: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting SwitchCraft Server...")
     conf = auth_manager.load_config()
-
-    # Check if legacy "admin_password_hash" exists and "admin" user is missing in UserManager
-    # Migration logic
-    if conf.get("admin_password_hash") and not user_manager.get_user("admin"):
-        logger.info("Migrating legacy admin password to UserManager...")
-        # Create admin user manually with existing hash
-        udata = user_manager._load_data()
-        udata["users"]["admin"] = {
-            "password_hash": conf["admin_password_hash"],
-            "role": "admin",
-            "is_active": True,
-            "config_path": "users/admin/config.json"
-        }
-        user_manager._save_data(udata)
 
     # Feature Flags
     if conf.get("demo_mode"):
         logger.info("Applying DEMO MODE globally.")
         switchcraft.IS_DEMO = True
 
+    # Ensure PWA Manifest is current and correct
+    try:
+        _ensure_pwa_manifest()
+    except Exception as e:
+        logger.warning(f"Failed to generate PWA manifest: {e}")
+
     yield
     logger.info("Shutting down SwitchCraft Server...")
 
 app = FastAPI(lifespan=lifespan)
 
-# Mount Assets for raw HTML templates
+# Asset redirection to fix Flet engine looking in /assets/ for its own files
+@app.get("/assets/{path:path}")
+async def catch_all_assets(path: str):
+    # Try local user assets first
+    local_file = ASSETS_DIR / path
+    if local_file.exists() and local_file.is_file():
+        return FileResponse(local_file)
+
+    # If not found in user assets, it might be an internal Flet engine file
+    # (like FontManifest.json, main.dart.js, etc.) which are at root or in root/assets
+    # Instead of redirecting (which triggers auth middleware again),
+    # we return a 404 or let the main flet app handle it.
+    # However, Flet's engine often expects these at /assets/ but Flet serves them at /.
+    # To avoid 307 redirects and potential auth loops, we'll try to find them.
+    # For now, let's stick to the 307 redirect but ensure the whitelist handles it.
+    return RedirectResponse(url=f"/{path}")
+
+# Still mount /assets for StaticFiles as a backup, but the route above takes precedence for 404 handling
 app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 # --- Auth Helpers ---
@@ -929,8 +1000,33 @@ async def favicon():
 
 # Flet Auth Middleware
 async def flet_auth_middleware(request: Request, call_next):
+    path = request.url.path
+    path_lower = path.lower()
+
+    # 1. Broad whitelist for static/engine assets to prevent "FormatException"
+    # This MUST be extremely permissive for anyone to load the engine
+    static_exts = [
+        ".js", ".mjs", ".json", ".wasm", ".png", ".ico", ".txt",
+        ".webmanifest", ".woff", ".woff2", ".ttf", ".svg", ".jpg",
+        ".jpeg", ".map", ".otf", ".cur"
+    ]
+
+    # If it looks like a static asset, let it through
+    if (
+        path.startswith("/assets/") or
+        any(path_lower.endswith(ext) for ext in static_exts) or
+        "main.dart" in path_lower or
+        "flutter" in path_lower or
+        "canvaskit" in path_lower or
+        path_lower.endswith("/manifest.json") or # Specific check for manifest file
+        path_lower.endswith("/notices") or
+        path_lower.endswith("/version")
+    ):
+        return await call_next(request)
+
+    # 2. Whitelist explicit UI paths
     whitelist = ["/login", "/logout", "/admin", "/api", "/oauth_callback", "/favicon.ico"]
-    if any(request.url.path.startswith(p) for p in whitelist):
+    if any(path.startswith(p) for p in whitelist):
         return await call_next(request)
 
     user = get_current_user(request)
@@ -939,6 +1035,12 @@ async def flet_auth_middleware(request: Request, call_next):
             # Allow websocket upgrades even for unauthenticated requests
             # (Flet's application logic will handle auth internally)
             return await call_next(request)
+
+        # If it's a request for a potentially missing static file that's not in our extension list
+        # we still want to avoid redirecting to /login if it's likely a Flet internal request.
+        # But for now, the extension list is quite comprehensive.
+
+        logger.debug(f"Unauthenticated access to {path}, redirecting to /login")
         return RedirectResponse("/login")
 
     # Enforce password change if flag is set
@@ -1070,5 +1172,11 @@ async def before_main(page: ft.Page):
 
 # Mount Flet with before_main handler
 import flet.fastapi as flet_fastapi
-flet_app = flet_fastapi.app(flet_main, before_main, upload_endpoint_path="/upload", assets_dir=str(ASSETS_DIR))
+flet_app = flet_fastapi.app(
+    flet_main,
+    before_main,
+    upload_endpoint_path="/upload",
+    assets_dir=str(ASSETS_DIR),
+    web_renderer=ft.WebRenderer.HTML
+)
 app.mount("/", flet_app)
