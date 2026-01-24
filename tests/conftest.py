@@ -213,7 +213,7 @@ def _create_mock_page():
 
 
 @pytest.fixture(autouse=True)
-def mock_blocking_calls(monkeypatch):
+def mock_blocking_calls(monkeypatch, request):
     """Global fixture to mock all blocking OS/UI/Network calls."""
     import os
     import webbrowser
@@ -226,6 +226,8 @@ def mock_blocking_calls(monkeypatch):
 
     from switchcraft.utils.config import SwitchCraftConfig
     from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+
+    test_path = str(request.node.path)
 
     # Mock FilePickerHelper
     monkeypatch.setattr(FilePickerHelper, "pick_file", MagicMock(return_value="C:/test/file.exe"))
@@ -243,8 +245,10 @@ def mock_blocking_calls(monkeypatch):
     monkeypatch.setattr(requests, "delete", MagicMock())
 
     # Mock subprocess to prevent heavy process spawning
-    monkeypatch.setattr(subprocess, "run", MagicMock())
-    monkeypatch.setattr(subprocess, "Popen", MagicMock())
+    # But allow test_smoke.py to run real version checks
+    if "test_smoke.py" not in test_path:
+        monkeypatch.setattr(subprocess, "run", MagicMock())
+        monkeypatch.setattr(subprocess, "Popen", MagicMock())
 
     # Mock keyring to prevent secret store hangs in CI/Local
     monkeypatch.setattr(keyring, "get_password", MagicMock(return_value="mock_password"))
@@ -252,37 +256,58 @@ def mock_blocking_calls(monkeypatch):
     monkeypatch.setattr(keyring, "delete_password", MagicMock())
 
     # Mock SwitchCraftConfig to prevent registry/file I/O and GPO checks
-    monkeypatch.setattr(SwitchCraftConfig, "get_value", MagicMock(return_value="test_value"))
-    monkeypatch.setattr(SwitchCraftConfig, "get_secure_value", MagicMock(return_value="test_secret"))
-    monkeypatch.setattr(SwitchCraftConfig, "set_user_preference", MagicMock())
-    monkeypatch.setattr(SwitchCraftConfig, "set_secure_value", MagicMock())
-    monkeypatch.setattr(SwitchCraftConfig, "is_managed", MagicMock(return_value=False))
+    # BUT allow it for test_config*.py which tests the config logic itself
+    test_path = str(request.node.path)
+    if "test_config" not in test_path and "test_full_coverage" not in test_path and "test_critical_ui_flows" not in test_path and "test_github_login_integration" not in test_path:
+        monkeypatch.setattr(SwitchCraftConfig, "get_value", MagicMock(return_value="test_value"))
+        monkeypatch.setattr(SwitchCraftConfig, "get_secure_value", MagicMock(return_value="test_secret"))
+        monkeypatch.setattr(SwitchCraftConfig, "set_user_preference", MagicMock())
+        monkeypatch.setattr(SwitchCraftConfig, "set_secure_value", MagicMock())
+        monkeypatch.setattr(SwitchCraftConfig, "is_managed", MagicMock(return_value=False))
+
 
     # Mock UpdateChecker to prevent real update checks
     from switchcraft.utils.app_updater import UpdateChecker
-    monkeypatch.setattr(UpdateChecker, "check_for_updates", MagicMock(return_value=(False, "1.0.0", {})))
+    if "test_updater_logic.py" not in test_path:
+         monkeypatch.setattr(UpdateChecker, "check_for_updates", MagicMock(return_value=(False, "1.0.0", {})))
+
 
     # Mock os.startfile if it exists (Windows only)
     if hasattr(os, "startfile"):
         monkeypatch.setattr(os, "startfile", MagicMock())
 
-    # We only want to block threads created by our code.
-    class MockThread(threading.Thread):
+    # Safely mock threading.Thread to prevent background threads from our code
+    import threading
+    original_thread_cls = threading.Thread
+
+    class MockThread(original_thread_cls):
         def start(self):
             import inspect
             stack = inspect.stack()
             # Look for switchcraft in the caller's stack
-            is_our_code = False
+            is_switchcraft = False
+            is_safe_infrastructure = False
+
             for frame in stack:
-                if "switchcraft" in frame.filename:
-                    is_our_code = True
+                filename = frame.filename
+                if "switchcraft" in filename:
+                    is_switchcraft = True
+                if ("concurrent" in filename and "futures" in filename) or "asyncio" in filename:
+                    is_safe_infrastructure = True
+
+            # Allow if it's infrastructure (asyncio/futures) OR if it's NOT switchcraft code
+            # OR if it is being run from a test (test is in stack)
+            is_test = False
+            for frame in stack:
+                if "tests" in frame.filename or "test_" in frame.filename:
+                    is_test = True
                     break
-            
-            if is_our_code:
-                # logger.debug(f"Blocking thread start from SwitchCraft code")
-                pass
+
+            if is_safe_infrastructure or is_test or not is_switchcraft:
+                super().start()
             else:
-                original_thread.start(self)
+                # preventing thread start from direct switchcraft code (not driven by test)
+                pass
 
     monkeypatch.setattr(threading, "Thread", MockThread)
 
