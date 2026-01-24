@@ -313,7 +313,8 @@ class ViewMixin:
                 except Exception as e:
                     logger.warning(f"Fallback execution failed: {e}", exc_info=True)
                     return False
-            logger.error(f"Critical failure in _run_task_safe: {ex}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Critical failure in _run_task_safe: {e}", exc_info=True)
             return False
 
     def _run_in_background(self, target, *args, **kwargs):
