@@ -1,0 +1,31 @@
+{
+  "name": "SwitchCraft Demo",
+  "short_name": "SwitchCraft",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#202020",
+  "theme_color": "#202020",
+  "description": "SwitchCraft Web Demo",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "switchcraft_logo.png",
+      "sizes": "any",
+      "type": "image/png"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
