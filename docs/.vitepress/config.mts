@@ -11,7 +11,7 @@ export default defineConfig({
     lang: 'en-US',
 
     head: [
-        ['link', { rel: 'icon', href: '/favicon.ico' }],
+        ['link', { rel: 'icon', href: (process.env.BASE_URL || '/') + 'favicon.ico' }],
         ['meta', { name: 'theme-color', content: '#6366f1' }],
         ['meta', { name: 'og:type', content: 'website' }],
         ['meta', { name: 'og:title', content: 'SwitchCraft Documentation - The Ultimate Packaging Assistant' }],

@@ -8,12 +8,10 @@ from switchcraft.gui_modern.views.dashboard_view import DashboardView
 # Note: LibraryView and ModernSettingsView are imported inline in their respective tests
 
 @pytest.fixture(autouse=True)
-def global_test_mocks():
-    """Globally mock background threads and blocking calls for UI tests."""
-    with patch("threading.Thread"), \
-         patch("switchcraft.utils.config.SwitchCraftConfig.get_value"), \
-         patch("switchcraft.utils.config.SwitchCraftConfig.set_user_preference"), \
-         patch("flet.FilePicker"):
+def ui_test_setup():
+    """UI test specific setup."""
+    # We still patch _attach_debug_log_handler because it's very specific to this view's initialization
+    with patch("switchcraft.gui_modern.views.settings_view.ModernSettingsView._attach_debug_log_handler"):
         yield
 
 @pytest.fixture
@@ -113,6 +111,8 @@ def test_settings_view_buttons(mock_page):
          patch("switchcraft.gui_modern.views.settings_view.AuthService"), \
          patch("switchcraft.gui_modern.views.settings_view.SyncService"), \
          patch("flet.FilePicker"):
+
+        from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
         # Mock thread start to just log it
         mock_thread.return_value.start.side_effect = lambda: log("Thread started!")
@@ -310,7 +310,7 @@ def test_analyzer_view_buttons(mock_page):
                     # Don't fail immediately, try others? No, fail is better to fix one by one.
                     pytest.fail(f"Button '{label}' crashed: {ex}")
 
-@pytest.mark.skipif(is_ci_environment(), reason="Hangs in CI due to background scans and thread context")
+# @pytest.mark.skipif(is_ci_environment(), reason="Hangs in CI due to background scans and thread context")
 def test_library_view_buttons(mock_page):
     """Test buttons in LibraryView."""
     # log_file = "test_result.log"
@@ -422,16 +422,28 @@ def test_settings_view_entra_test_connection(mock_page):
         #      f.write(msg + "\n")
         print(msg)
 
-    with patch("switchcraft.gui_modern.views.settings_view.SwitchCraftConfig") as verify_config, \
-         patch("switchcraft.gui_modern.views.settings_view.IntuneService"), \
+    with patch("switchcraft.gui_modern.views.settings_view.IntuneService") as mock_intune, \
          patch("switchcraft.gui_modern.views.settings_view.AuthService"), \
-         patch("threading.Thread"), \
          patch("flet.FilePicker"):
 
-        # Mock Config interactions
-        verify_config.get_value.return_value = "dummy_val"
-        verify_config.get_secure_value.return_value = "dummy_secret"
-        verify_config.is_managed.return_value = False
+        # Configure IntuneService mock
+        mock_intune_instance = mock_intune.return_value
+        mock_intune_instance.get_tool_version.return_value = "1.0.0"
+
+        # Mock Config interactions are now handled by global monkeypatch in conftest.py
+        # But we might still want to customize them for this test if needed.
+        # Since SwitchCraftConfig is now globally patched, calling its methods returns Mocks.
+        from switchcraft.utils.config import SwitchCraftConfig
+
+        # Test Connection button uses GraphTenantId, GraphClientId, GraphClientSecret
+        SwitchCraftConfig.get_value.side_effect = lambda key, default=None: {
+            "GraphTenantId": "test-tenant",
+            "GraphClientId": "test-client",
+            "IntuneToolPath": "C:/test/tool.exe"
+        }.get(key, default)
+
+        SwitchCraftConfig.get_secure_value.return_value = "test-secret"
+        SwitchCraftConfig.is_managed.return_value = False
 
         log("\nInstantiating ModernSettingsView (Tab 2: Graph API)")
         try:
