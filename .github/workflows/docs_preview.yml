@@ -119,10 +119,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.action == 'closed'
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
       - name: Cleanup Preview
         uses: rossjrw/pr-preview-action@v1
         with:
-          source-dir: docs/.vitepress/dist # Not used for cleanup but required by action validation sometimes
           preview-branch: gh-pages
           umbrella-dir: pr-preview
-          action: remove
+          action: delete
