@@ -266,26 +266,24 @@ def mock_blocking_calls(monkeypatch):
     if hasattr(os, "startfile"):
         monkeypatch.setattr(os, "startfile", MagicMock())
 
-@pytest.fixture(autouse=True)
-def prevent_threads(monkeypatch):
-    """
-    Prevent background thread spawning in SwitchCraft modules during tests.
-    This avoids resource exhaustion and hangs.
-    """
-    import threading
-    original_thread = threading.Thread
-
+    # We only want to block threads created by our code.
     class MockThread(threading.Thread):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.daemon = True
         def start(self):
-            # Do nothing
-            pass
+            import inspect
+            stack = inspect.stack()
+            # Look for switchcraft in the caller's stack
+            is_our_code = False
+            for frame in stack:
+                if "switchcraft" in frame.filename:
+                    is_our_code = True
+                    break
+            
+            if is_our_code:
+                # logger.debug(f"Blocking thread start from SwitchCraft code")
+                pass
+            else:
+                original_thread.start(self)
 
-    # We only want to block threads created by our code,
-    # but monkeypatching threading.Thread is global.
-    # It should be safe for UI tests as they use a mock page.
     monkeypatch.setattr(threading, "Thread", MockThread)
 
 
