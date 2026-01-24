@@ -126,6 +126,25 @@ class ViewMixin:
         except Exception as e:
             logger.warning(f"Failed to show snackbar: {e}", exc_info=True)
 
+    def _show_restricted_hint(self, feature_name: str = None):
+        """Show a customized snackbar hint for features restricted in Demo or due to missing dependencies."""
+        from switchcraft import IS_DEMO
+        import sys
+        from switchcraft.utils.shell_utils import ShellUtils
+        from switchcraft.utils.i18n import i18n
+
+        msg = ""
+        if sys.platform in ["emscripten", "wasi"] or IS_DEMO:
+             feat = f"'{feature_name}' " if feature_name else ""
+             msg = i18n.get("demo_restriction_hint", feature=feat) or f"The feature {feat}is restricted in the Web Demo. For full functionality, please use the Desktop version."
+        elif not ShellUtils.is_wine_available():
+             msg = i18n.get("wine_missing_hint") or "This feature requires Wine to be installed on your Linux system."
+
+        if msg:
+            self._show_snack(msg, "ORANGE")
+            return True
+        return False
+
     def _open_path(self, path):
         """Cross-platform path opener (Folder or File)."""
         import os

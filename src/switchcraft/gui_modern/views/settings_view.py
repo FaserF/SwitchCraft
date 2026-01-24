@@ -803,20 +803,19 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 # Update UI
                 self.changelog_text.value = f"**{i18n.get('latest_version') or 'Latest Version'}:** {version_str}\n\n{note}"
                 self.latest_version_text.value = version_str if version_str else (i18n.get("unknown") or "Unknown")
-                self.update()
 
                 if not only_changelog and self.app_page:
                     if has_update:
                         self._show_snack(f"{i18n.get('update_available') or 'Update available'}: {version_str}", "BLUE")
                     else:
                         self._show_snack(i18n.get("no_update_found") or "No updates available.", "GREY")
-                    try:
-                        self.app_page.update()
-                    except Exception:
-                        pass
+
+                self.update()
 
             except Exception as ex:
+                logger.error(f"Error checking for updates: {ex}")
                 self.changelog_text.value = f"{i18n.get('update_check_failed') or 'Error fetching updates'}: {ex}"
+                self.latest_version_text.value = i18n.get("unknown") or "Unknown"
                 self.update()
 
         self._run_in_background(_run)

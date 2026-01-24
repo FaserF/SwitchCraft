@@ -1091,5 +1091,9 @@
     "admin_title": "Admin Dashboard",
     "default_creds_warning": "Default credentials are active!",
     "confirm_pw": "Confirm Password",
-    "new_pw": "New Password"
+    "new_pw": "New Password",
+    "error_feature_demo_restricted": "Packaging is not available in the Web Demo.",
+    "error_wine_missing": "Wine is required to run the Packaging Tool on Linux. Please install Wine.",
+    "demo_restriction_hint": "The feature {feature}is restricted in the Web Demo. For full functionality, please use the Desktop version.",
+    "wine_missing_hint": "This feature requires Wine to be installed on your Linux system."
 }

@@ -305,7 +305,12 @@ class IntuneService:
                 universal_newlines=True
             )
             if not process:
-                raise RuntimeError("Failed to start process (likely WASM environment)")
+                from switchcraft import IS_DEMO
+                if IS_DEMO or sys.platform in ["emscripten", "wasi"]:
+                    raise RuntimeError(i18n.get("error_feature_demo_restricted") or "Packaging is not available in the Web Demo.")
+                if not ShellUtils.is_wine_available():
+                    raise RuntimeError(i18n.get("error_wine_missing") or "Wine is required to run the Packaging Tool on Linux. Please install Wine.")
+                raise RuntimeError("Failed to start packaging process (restricted environment).")
 
             with process:
 

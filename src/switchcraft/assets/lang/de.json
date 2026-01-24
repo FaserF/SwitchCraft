@@ -1091,5 +1091,9 @@
     "admin_title": "Admin-Dashboard",
     "default_creds_warning": "Standard-Anmeldedaten sind aktiv!",
     "confirm_pw": "Passwort bestätigen",
-    "new_pw": "Neues Passwort"
+    "new_pw": "Neues Passwort",
+    "error_feature_demo_restricted": "Das Paketieren ist in der Web-Demo nicht verfügbar.",
+    "error_wine_missing": "Wine wird benötigt, um das Paketierungs-Werkzeug unter Linux auszuführen. Bitte installiere Wine.",
+    "demo_restriction_hint": "Die Funktion {feature}ist in der Web-Demo eingeschränkt. Für den vollen Funktionsumfang nutze bitte die Desktop-Version.",
+    "wine_missing_hint": "Diese Funktion erfordert eine Wine-Installation auf deinem Linux-System."
 }
