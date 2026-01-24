@@ -282,7 +282,14 @@ class RegistryBackend(ConfigBackend):
             return None
 
 class JsonFileBackend(ConfigBackend):
-    """JSON File Backend for Server-Side User Persistence."""
+    """
+    JSON File Backend for Server-Side User Persistence.
+
+    WARNING: This backend stores keys with the "SECURE_" prefix in plaintext
+    within the JSON file. It is intended for environments where the server
+    filesystem is protected. For production environments requiring high security,
+    consider using a dedicated secrets manager (e.g., HashiCorp Vault).
+    """
     def __init__(self, file_path: str):
         self.file_path = file_path
         self._cache = {}
@@ -292,7 +299,7 @@ class JsonFileBackend(ConfigBackend):
         try:
             import json
             if os.path.exists(self.file_path):
-                with open(self.file_path, "r") as f:
+                with open(self.file_path, "r", encoding="utf-8") as f:
                     self._cache = json.load(f)
             else:
                 self._cache = {}
@@ -304,7 +311,7 @@ class JsonFileBackend(ConfigBackend):
         try:
             import json
             os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
-            with open(self.file_path, "w") as f:
+            with open(self.file_path, "w", encoding="utf-8") as f:
                 json.dump(self._cache, f, indent=4)
         except Exception as e:
             logger.error(f"Failed to save config to {self.file_path}: {e}")
@@ -320,9 +327,15 @@ class JsonFileBackend(ConfigBackend):
         # JSON is not secure for secrets unless encrypted, but for server-side
         # protected by ACLs it's often acceptable or we use a separate vault.
         # Here we just prefix to obscure.
+        logger.warning(f"Retrieving 'SECURE_{value_name}' from plaintext JSON storage.")
         return self.get_value(f"SECURE_{value_name}")
 
     def set_secure_value(self, value_name: str, value: str):
+        """
+        Stores a sensitive value in the config.
+        TODO: Integrate with a production-grade vault (e.g. HashiCorp Vault / AWS Secrets Manager).
+        """
+        logger.warning(f"Storing 'SECURE_{value_name}' in plaintext JSON storage. Use a proper vault for production.")
         self.set_value(f"SECURE_{value_name}", value)
 
     def delete_secure_value(self, value_name: str):

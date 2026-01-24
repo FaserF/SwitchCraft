@@ -1,12 +1,10 @@
 import logging
 import os
-import json
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
 
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, BackgroundTasks, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import URLSafeTimedSerializer
 import httpx
@@ -15,13 +13,11 @@ import shutil
 
 import flet as ft
 import pyotp
-from flet.fastapi import FletApp
 
 from switchcraft.main import main as flet_main
 from switchcraft.server.auth_config import AuthConfigManager
 from switchcraft.server.user_manager import UserManager
 import switchcraft
-from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.server.update_checker import check_for_updates
 
 # Configuration
@@ -241,7 +237,8 @@ async def login_page(request: Request, sso_failed: bool = False):
     if conf.get("auth_disabled"):
         resp = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
         token = serializer.dumps({"username": "admin"})
-        resp.set_cookie("sc_session", token, httponly=True, max_age=86400)
+        secure_flag = auth_manager.load_config().get("session_cookie_secure", False)
+        resp.set_cookie("sc_session", token, httponly=True, max_age=86400, secure=secure_flag)
         return resp
 
     # Auto-redirect to Entra SSO if configured and not returning from a failed SSO attempt
@@ -365,9 +362,19 @@ async def login(username: str = Form(...), password: str = Form(...), totp_token
 
         if not error:
              # Success
+            user_info = user_manager.get_user(username)
+            if user_info and user_info.get("must_change_password"):
+                logger.info(f"User '{username}' must change password. Redirecting to Admin.")
+                resp = RedirectResponse(url="/admin?force_pw_change=1", status_code=status.HTTP_303_SEE_OTHER)
+                token = serializer.dumps({"username": username})
+                secure_flag = auth_manager.load_config().get("session_cookie_secure", False)
+                resp.set_cookie("sc_session", token, httponly=True, max_age=86400, secure=secure_flag)
+                return resp
+
             resp = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
             token = serializer.dumps({"username": username})
-            resp.set_cookie("sc_session", token, httponly=True, max_age=86400)
+            secure_flag = auth_manager.load_config().get("session_cookie_secure", False)
+            resp.set_cookie("sc_session", token, httponly=True, max_age=86400, secure=secure_flag)
             return resp
     else:
         error = "Invalid Credentials"
@@ -455,7 +462,7 @@ async def entra_callback(code: str, request: Request):
             if not user_manager.get_user(email):
                 conf = auth_manager.load_config()
                 if not conf.get("allow_sso_registration", True):
-                     return RedirectResponse("/login?sso_failed=1&error=registration_disabled")
+                     return HTMLResponse("Registration via SSO is disabled", 403)
 
                 logger.info(f"Auto-provisioning Entra user: {email}")
                 user_manager.create_user(email, password=None, role="user", auto_hash=False)
@@ -463,7 +470,8 @@ async def entra_callback(code: str, request: Request):
             # Login
             resp = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
             token = serializer.dumps({"username": email, "auth_method": "entra"})
-            resp.set_cookie("sc_session", token, httponly=True, max_age=86400)
+            secure_flag = auth_manager.load_config().get("session_cookie_secure", False)
+            resp.set_cookie("sc_session", token, httponly=True, max_age=86400, secure=secure_flag)
             return resp
     except Exception as e:
         logger.error(f"Entra SSO Error: {e}")
@@ -492,13 +500,14 @@ async def github_callback(code: str, request: Request):
           if not user_manager.get_user(login):
                conf = auth_manager.load_config()
                if not conf.get("allow_sso_registration", True):
-                    return RedirectResponse("/login?sso_failed=1&error=registration_disabled")
+                    return HTMLResponse("Registration via SSO is disabled", 403)
 
                user_manager.create_user(login, password=None, role="user", auto_hash=False)
 
           resp = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
           token = serializer.dumps({"username": login, "auth_method": "github"})
-          resp.set_cookie("sc_session", token, httponly=True, max_age=86400)
+          secure_flag = auth_manager.load_config().get("session_cookie_secure", False)
+          resp.set_cookie("sc_session", token, httponly=True, max_age=86400, secure=secure_flag)
           return resp
     except Exception as e:
         logger.error(f"GitHub SSO Error: {e}")
@@ -506,7 +515,7 @@ async def github_callback(code: str, request: Request):
 
 # --- Admin Section ---
 @app.get("/admin", response_class=HTMLResponse)
-async def admin_page(user: str = Depends(admin_required)):
+async def admin_page(request: Request, user: str = Depends(admin_required)):
     conf = auth_manager.load_config()
     users = user_manager.list_users()
 
@@ -537,11 +546,12 @@ async def admin_page(user: str = Depends(admin_required)):
 
     # Password change warning banner
     password_warning = ""
-    if conf.get("first_run", False):
-        password_warning = '''
-        <div style="background: #cc3300; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
-            <strong>⚠️ SECURITY WARNING:</strong> You are using the default admin password!<br>
-            Please change it immediately using the form below.
+    if conf.get("first_run", False) or request.query_params.get("force_pw_change") == "1":
+        msg = "You are using a temporary or default password!" if request.query_params.get("force_pw_change") == "1" else "You are using the default admin password!"
+        password_warning = f'''
+        <div style="background: #cc3300; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 2px solid #ffdd44;">
+            <strong>⚠️ SECURITY WARNING: {msg}</strong><br>
+            Please change it immediately using the form below to unlock all features.
         </div>
         '''
 
@@ -807,14 +817,22 @@ async def flet_auth_middleware(request: Request, call_next):
     user = get_current_user(request)
     if not user:
         if "websocket" in request.headers.get("upgrade", "").lower():
-            pass
+            # Allow websocket upgrades even for unauthenticated requests
+            # (Flet's application logic will handle auth internally)
+            return await call_next(request)
         return RedirectResponse("/login")
+
+    # Enforce password change if flag is set
+    u_info = user_manager.get_user(user)
+    if u_info and u_info.get("must_change_password"):
+        # If not on /admin (where change is handled) or /logout or /api
+        if not request.url.path.startswith("/admin") and not request.url.path.startswith("/logout") and not request.url.path.startswith("/api"):
+            logger.warning(f"User '{user}' must change password before accessing {request.url.path}")
+            return RedirectResponse("/admin?force_pw_change=1")
 
     return await call_next(request)
 
 app.middleware("http")(flet_auth_middleware)
-
-app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 # --- Upload Handler ---
 UPLOAD_DIR = Path(tempfile.gettempdir()) / "switchcraft_uploads"
@@ -824,8 +842,27 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 async def upload_endpoint(files: list[UploadFile]):
     saved_files = []
     for file in files:
-        safe_name = "".join(x for x in file.filename if x.isalnum() or x in "-_.")
-        path = UPLOAD_DIR / safe_name
+        if not file.filename:
+            continue
+
+        # Keep only alphanumeric, dots, dashes, underscores
+        clean_name = "".join(x for x in file.filename if x.isalnum() or x in "-_.")
+
+        # Prevent hidden files (leading dots) and ensure it's not empty after cleaning
+        clean_name = clean_name.lstrip(".")
+        if not clean_name:
+            import uuid
+            clean_name = f"upload_{uuid.uuid4().hex[:8]}.bin"
+
+        # Truncate long filenames
+        if len(clean_name) > 200:
+            name_parts = clean_name.rsplit(".", 1)
+            if len(name_parts) > 1:
+                clean_name = name_parts[0][:190] + "." + name_parts[1]
+            else:
+                clean_name = clean_name[:200]
+
+        path = UPLOAD_DIR / clean_name
         try:
             with open(path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)

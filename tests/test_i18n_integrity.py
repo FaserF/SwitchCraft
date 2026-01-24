@@ -127,7 +127,8 @@ class TestI18nIntegrity(unittest.TestCase):
             'intunewin_file', 'msi_info', 'group_type', 'script_file', 'value_name', 'group_id',
             'rule_type', 'output_json', 'target_version', 'search_query',
             'error_description', 'import_settings', 'created_at', 'export_settings', 'export_logs',
-            'admin_password', 'config_path', 'admin_password_hash', 'first_run', 'demo_mode'
+            'admin_password', 'config_path', 'admin_password_hash', 'first_run', 'demo_mode',
+            'current_password', 'new_password', 'confirm_password'
         }
 
         for k in found_keys:

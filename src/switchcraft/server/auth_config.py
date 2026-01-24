@@ -1,12 +1,11 @@
 import json
-import os
 import secrets
 from pathlib import Path
 from typing import Optional, Dict
 import logging
 
-import bcrypt
 import pyotp
+import bcrypt
 
 logger = logging.getLogger("AuthConfig")
 
@@ -56,13 +55,13 @@ class AuthConfigManager:
                 data = json.load(f)
                 # Migration/Ensuring new fields exist
                 if "admin_password_hash" not in data and "admin_password" in data:
-                     # Migrate plain to hash
-                     try:
-                         data["admin_password_hash"] = self._hash_password(data["admin_password"])
-                         del data["admin_password"]
-                         self.save_config(data)
-                     except Exception as e:
-                         logger.error(f"Migration failed: {e}")
+                    # Migrate plain to hash
+                    try:
+                        data["admin_password_hash"] = self._hash_password(data["admin_password"])
+                        del data["admin_password"]
+                        self.save_config(data)
+                    except Exception as e:
+                        logger.error(f"Migration failed: {e}")
 
                 # Defaults for new flags
                 if "demo_mode" not in data:
@@ -75,6 +74,12 @@ class AuthConfigManager:
                     data["mfa_enabled"] = False
                 if "enforce_mfa" not in data:
                     data["enforce_mfa"] = False
+                if "session_cookie_secure" not in data:
+                    data["session_cookie_secure"] = False
+
+                if data.get("first_run"):
+                    logger.warning("SECURITY WARNING: Default 'admin' credentials might be active. Change the password immediately in the Admin Panel.")
+
                 return data
         except Exception:
             return self._create_default_config()
@@ -95,6 +100,7 @@ class AuthConfigManager:
             "allow_sso_registration": True,
             "mfa_enabled": False,
             "enforce_mfa": False,
+            "session_cookie_secure": False,
             "totp_secret": "", # Base32 secret
             "webauthn_credentials": [], # List of registered credentials
             "first_run": True

@@ -71,6 +71,8 @@ jobs:
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_advanced/manifest.json
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_ai/manifest.json
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_winget/manifest.json
+          sed -i "s/\"description\": \".*\"/\"description\": \"SwitchCraft - Enterprise Application Management\"/" src/switchcraft/assets/manifest.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft/assets/manifest.json
 
 
           # Update .iss files (Inno Setup installer scripts)
@@ -125,7 +127,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft.iss switchcraft_legacy.iss src/switchcraft_advanced/manifest.json src/switchcraft_ai/manifest.json src/switchcraft_winget/manifest.json
+          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft.iss switchcraft_legacy.iss src/switchcraft_advanced/manifest.json src/switchcraft_ai/manifest.json src/switchcraft_winget/manifest.json src/switchcraft/assets/manifest.json
 
 
           # Only commit if there are changes

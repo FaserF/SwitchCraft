@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "switchcraft"
 version = "2026.1.5b1"
-description = "A universal silent switch finder and installer analyzer."
+description = "A comprehensive enterprise IT platform for software packaging, analysis, and Intune management."
 readme = "README.md"
 authors = [{ name = "FaserF" }]
 license = "MIT"
@@ -38,11 +38,11 @@ gui = [
     "pillow",
     "plyer"
 ]
-modern = ["flet==0.80.3", "flet-desktop==0.80.3", "flet-charts==0.80.3"]
+modern = ["flet==0.80.4", "flet-desktop==0.80.4", "flet-charts==0.80.4"]
 test = [
     "pytest==9.0.2",
-    "flet-charts==0.80.3",
-    "httpx"
+    "flet-charts==0.80.4",
+    "httpx<=0.27.0"
 ]
 build = [
     "pyinstaller==6.18.0"
@@ -59,8 +59,9 @@ web-server = [
     "python-multipart",
     "jinja2",
     "itsdangerous",
+    "bcrypt<=4.0.1",
     "passlib[bcrypt]",
-    "pyotp",
+    "pyotp", # Verified for Python 3.14
     "webauthn"
 ]
 

@@ -1,9 +1,10 @@
 import json
 import logging
-import secrets
 from pathlib import Path
 from typing import Optional, Dict, List
+import secrets
 import bcrypt
+from switchcraft.utils.crypto import SimpleCrypto
 
 logger = logging.getLogger("UserManager")
 
@@ -19,9 +20,10 @@ class UserManager:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.users_file = self.data_dir / "users.json"
 
+        self.crypto = SimpleCrypto()
         self._ensure_users_file()
 
-    def _hash_password(self, password: str) -> str:
+    def _hash_password(self, password: str) -> Optional[str]:
         """Hash a password using bcrypt (Python 3.14 compatible)."""
         if password is None:
             return None
@@ -45,15 +47,27 @@ class UserManager:
 
     def _ensure_users_file(self):
         if not self.users_file.exists():
-            # Create default admin user
-            default_admin_hash = self._hash_password("admin")
+            # Create default admin user with a secure random password
+            generated_password = secrets.token_urlsafe(16)
+            logger.info("*" * 60)
+            logger.info(f"INITIAL ADMIN PASSWORD GENERATED: {generated_password}")
+            logger.info("PLEASE RECORD THIS PASSWORD IMMEDIATELY.")
+            logger.info("*" * 60)
+
+            # Also print to stdout to ensure visibility in Docker logs / terminal
+            print("\n" + "!" * 60)
+            print(f"!!! INITIAL ADMIN PASSWORD: {generated_password} !!!")
+            print("!" * 60 + "\n")
+
+            default_admin_hash = self._hash_password(generated_password)
             initial_data = {
                 "users": {
                     "admin": {
                         "password_hash": default_admin_hash,
                         "role": "admin",
                         "created_at": 0,
-                        "is_active": True
+                        "is_active": True,
+                        "must_change_password": True
                     }
                 }
             }
@@ -93,10 +107,10 @@ class UserManager:
 
         pwd_hash = None
         if password:
-             if auto_hash:
-                 pwd_hash = self._hash_password(password)
-             else:
-                 pwd_hash = password # Already hashed or managed elsewhere
+            if auto_hash:
+                pwd_hash = self._hash_password(password)
+            else:
+                pwd_hash = password # Already hashed or managed elsewhere
 
         data["users"][username] = {
             "password_hash": pwd_hash,
@@ -128,7 +142,11 @@ class UserManager:
         data = self._load_data()
         if username in data["users"]:
             data["users"][username]["password_hash"] = self._hash_password(new_password)
+            # Clear must_change_password flag upon successful manual update
+            data["users"][username]["must_change_password"] = False
             self._save_data(data)
+            return True
+        return False
 
     def get_user_config_path(self, username: str) -> Path:
         """Returns the absolute path to the user's config.json."""
@@ -144,13 +162,23 @@ class UserManager:
         return self.data_dir / "users" / username / "config.json"
 
     def set_totp_secret(self, username: str, secret: str):
-        """Store a TOTP secret for the given user."""
+        """Store a TOTP secret for the given user, encrypted."""
         data = self._load_data()
         if username in data["users"]:
-            data["users"][username]["totp_secret"] = secret
+            # Encrypt secret before storing
+            ciphertext = self.crypto.encrypt(secret)
+            data["users"][username]["totp_secret"] = ciphertext
             self._save_data(data)
 
     def get_totp_secret(self, username: str) -> Optional[str]:
-        """Retrieve the TOTP secret for the given user."""
+        """Retrieve and decrypt the TOTP secret for the given user."""
         user = self.get_user(username)
-        return user.get("totp_secret") if user else None
+        ciphertext = user.get("totp_secret") if user else None
+        if not ciphertext:
+            return None
+
+        try:
+            return self.crypto.decrypt(ciphertext)
+        except Exception as e:
+            logger.error(f"Failed to decrypt TOTP secret for {username}: {e}")
+            return None

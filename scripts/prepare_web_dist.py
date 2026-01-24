@@ -31,15 +31,6 @@ def patch_index_html(dist_dir):
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # 1. Regex Replace "Working..." or "Loading..."
-    # Flet often puts this in a <div id="loading-text"> or similar, or just plain text.
-    # We look for the visible text.
-    import re
-
-    # Pattern to match standard Flet/Flutter loading text
-    # It might be in a script or HTML.
-    # We'll try to inject a style block first to override aesthetics
-
     custom_css = """
     <style>
         #loading {

@@ -38,7 +38,10 @@ async def check_for_updates() -> dict:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 GITHUB_RELEASES_URL,
-                headers={"Accept": "application/vnd.github.v3+json"}
+                headers={
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": f"SwitchCraft/{__version__}"
+                }
             )
 
             if response.status_code != 200:
@@ -87,15 +90,24 @@ def check_for_updates_sync() -> dict:
     """Synchronous wrapper for update check."""
     import asyncio
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If we're already in an async context, return a placeholder
-            return {
-                "has_update": False,
-                "current_version": __version__,
-                "error": "Cannot run sync check in async context"
-            }
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                # If we're already in an async context, return a placeholder
+                return {
+                    "has_update": False,
+                    "current_version": __version__,
+                    "error": "Cannot run sync check in async context"
+                }
+        except RuntimeError:
+            # No running loop, safe to use asyncio.run
+            return asyncio.run(check_for_updates())
+
         return loop.run_until_complete(check_for_updates())
-    except RuntimeError:
-        # No event loop, create one
-        return asyncio.run(check_for_updates())
+    except Exception as e:
+        logger.error(f"Sync update check failed: {e}")
+        return {
+            "has_update": False,
+            "current_version": __version__,
+            "error": str(e)
+        }

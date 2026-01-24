@@ -187,16 +187,16 @@ def test_winget_details_updates_ui_correctly(mock_page, mock_winget_helper):
     # Track update calls
     update_calls = []
     original_update = view.update
-    def track_update():
+    def track_update(*args, **kwargs):
         update_calls.append("view_update")
-        original_update()
+        original_update(*args, **kwargs)
     view.update = track_update
 
     page_update_calls = []
     original_page_update = mock_page.update
-    def track_page_update():
+    def track_page_update(*args, **kwargs):
         page_update_calls.append("page_update")
-        original_page_update()
+        original_page_update(*args, **kwargs)
     mock_page.update = track_page_update
 
     # Load details

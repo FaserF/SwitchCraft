@@ -55,9 +55,9 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         self.file_picker.on_result = self._on_file_picker_result
         self.file_picker.on_upload = self._on_file_upload
 
-        def on_drop_click(e):
+        async def on_drop_click(e):
              # Use Flet's FilePicker instead of blocking helper
-             self.file_picker.pick_files(
+             await self.file_picker.pick_files(
                  allow_multiple=False,
                  allowed_extensions=["exe", "msi", "ps1", "bat", "cmd", "vbs", "msp"]
              )
@@ -237,23 +237,39 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             else:
                 # Web Mode: Upload first
                 self._show_snack("Uploading for analysis...", "BLUE")
-                # Flet file picker upload
-                self.file_picker.upload(e.files, upload_url="/api/upload", method="POST")
+                # Flet file picker upload - endpoint in app.py is /upload
+                self.file_picker.upload(e.files, upload_url="/upload", method="POST")
 
     def _on_file_upload(self, e):
         if e.error:
             self._show_snack(f"Upload failed: {e.error}", "RED")
             return
 
-        # Calculate path (Must match server/app.py logic)
-        fname = e.file_name
-        safe_name = "".join(x for x in fname if x.isalnum() or x in "-_.")
-        path = Path(tempfile.gettempdir()) / "switchcraft_uploads" / safe_name
+        # Try to parse server response for absolute path (prevents collisions)
+        analysis_path = None
+        if e.data:
+            try:
+                import json
+                resp = json.loads(e.data)
+                uploaded = resp.get("uploaded", [])
+                if uploaded and len(uploaded) > 0:
+                    analysis_path = uploaded[0]
+                    logger.info(f"Using server-returned path: {analysis_path}")
+            except Exception as ex:
+                logger.warning(f"Failed to parse server upload response: {ex}")
 
-        if path.exists():
-            self.start_analysis(str(path), cleanup_path=str(path))
+        # Fallback to local reconstruction if server response missing/invalid
+        if not analysis_path:
+            # Reconstruct (Basic cleanup matching app.py logic)
+            fname = e.file_name
+            clean_name = "".join(x for x in fname if x.isalnum() or x in "-_.").lstrip(".")
+            analysis_path = str(Path(tempfile.gettempdir()) / "switchcraft_uploads" / clean_name)
+            logger.info(f"Falling back to reconstructed path: {analysis_path}")
+
+        if Path(analysis_path).exists():
+            self.start_analysis(analysis_path, cleanup_path=analysis_path)
         else:
-            self._show_snack(f"Upload finished but file not found at {path}", "RED")
+            self._show_snack("Upload finished but file path could not be verified.", "RED")
 
     def did_mount(self):
         # Register global file drop handler when this view is active

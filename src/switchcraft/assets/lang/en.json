@@ -1,7 +1,7 @@
 {
     "short_name": "Short Name",
     "start_url": "Start URL",
-    "app_title": "SwitchCraft Legacy 🧙‍♂️",
+    "app_title": "SwitchCraft 🧙‍♂️",
     "running_as_admin": "Status: Administrator ✅",
     "running_as_user": "Status: Standard User 👤",
     "nav_home": "Home",
@@ -789,7 +789,7 @@
     "new_installer_urls": "New Installer URL(s)",
     "package_id": "Package ID",
     "app_name": "Application Name",
-    "short_description": "Short Description",
+    "short_description": "Enterprise software management and packaging platform",
     "homepage": "Homepage URL",
     "installer_type": "Installer Type",
     "install_scope": "Install Scope",

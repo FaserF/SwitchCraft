@@ -1120,7 +1120,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 self._show_snack(i18n.get("sync_failed") or "Sync Down Failed", "RED")
         self._run_in_background(_run)
 
-    def _export_settings(self, e):
+    async def _export_settings(self, e):
         """
         Export settings via FilePicker (Desktop) or Download (Web).
         """
@@ -1141,18 +1141,18 @@ class ModernSettingsView(ft.Column, ViewMixin):
         else:
             # Desktop: Use Save File Dialog
             self._picker_context = "export_settings"
-            self.file_picker.save_file(
+            await self.file_picker.save_file(
                 dialog_title=i18n.get("btn_export_settings") or "Export Settings",
                 file_name="settings.json",
                 allowed_extensions=["json"]
             )
 
-    def _import_settings(self, e):
+    async def _import_settings(self, e):
         """
         Import settings via FilePicker.
         """
         self._picker_context = "import_settings"
-        self.file_picker.pick_files(
+        await self.file_picker.pick_files(
             allow_multiple=False,
             allowed_extensions=["json"],
             dialog_title=i18n.get("btn_import_settings") or "Import Settings"
@@ -1191,24 +1191,24 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     self._show_snack("Web import failed (No path received)", "ORANGE")
 
         elif context == "export_logs":
-             if e.path:
-                 try:
-                     # e.path is the destination
-                     # We need to copy from self._log_source_path (set in _export_logs)
-                     src = getattr(self, "_log_source_path", None)
-                     if src:
-                         import shutil
-                         shutil.copy2(src, e.path)
-                         self._show_snack(f"Logs exported to {e.path}", "GREEN")
-                     else:
-                         self._show_snack("Log copy failed: Source lost", "RED")
-                 except Exception as ex:
-                     self._show_snack(f"Log export failed: {ex}", "RED")
+            if e.path:
+                try:
+                    # e.path is the destination
+                    # We need to copy from self._log_source_path (set in _export_logs)
+                    src = getattr(self, "_log_source_path", None)
+                    if src:
+                        import shutil
+                        shutil.copy2(src, e.path)
+                        self._show_snack(f"Logs exported to {e.path}", "GREEN")
+                    else:
+                        self._show_snack("Log copy failed: Source lost", "RED")
+                except Exception as ex:
+                    self._show_snack(f"Log export failed: {ex}", "RED")
 
         # Reset context
         self._picker_context = None
 
-    def _export_logs(self, e):
+    async def _export_logs(self, e):
         """Export logs to a file. Includes current session log and recent log files."""
         import datetime
         import os
@@ -1229,17 +1229,17 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 handler.file_handler.flush()
             source_path = handler.current_log_path
         else:
-             # Find in log dir
-             app_data = os.getenv('APPDATA')
-             if app_data:
-                 log_dir = Path(app_data) / "FaserF" / "SwitchCraft" / "Logs"
-             else:
-                 log_dir = Path.home() / ".switchcraft" / "logs"
+            # Find in log dir
+            app_data = os.getenv('APPDATA')
+            if app_data:
+                log_dir = Path(app_data) / "FaserF" / "SwitchCraft" / "Logs"
+            else:
+                log_dir = Path.home() / ".switchcraft" / "logs"
 
-             if log_dir.exists():
-                 log_files = sorted(log_dir.glob("SwitchCraft_Session_*.log"), key=os.path.getmtime, reverse=True)
-                 if log_files:
-                     source_path = log_files[0]
+            if log_dir.exists():
+                log_files = sorted(log_dir.glob("SwitchCraft_Session_*.log"), key=os.path.getmtime, reverse=True)
+                if log_files:
+                    source_path = log_files[0]
 
         if not source_path:
             self._show_snack("No log file found to export.", "ORANGE")
@@ -1261,7 +1261,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
             # Desktop: Save Dialog
             self._log_source_path = source_path
             self._picker_context = "export_logs"
-            self.file_picker.save_file(
+            await self.file_picker.save_file(
                 dialog_title=i18n.get("help_export_logs") or "Export Logs",
                 file_name=filename,
                 allowed_extensions=["log", "txt"]
