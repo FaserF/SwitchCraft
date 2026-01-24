@@ -42,7 +42,7 @@ modern = ["flet==0.80.4", "flet-desktop==0.80.4", "flet-charts==0.80.4"]
 test = [
     "pytest==9.0.2",
     "flet-charts==0.80.4",
-    "httpx<=0.27.0"
+    "httpx>=0.28.1"
 ]
 build = [
     "pyinstaller==6.18.0"

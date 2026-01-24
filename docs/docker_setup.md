@@ -102,6 +102,6 @@ To keep your users and settings safe, mount the `/root/.switchcraft` volume.
 
 *   **SSO Redirect Error?** Ensure `SC_BASE_URL` matches exactly the URL you access in the browser (including http/https and port).
 *   **Locked Out?**
-    *   `docker exec -it switchcraft sh`
-    *   Delete `server/users.json` to reset the database (recreating default admin).
-    *   Or manually edit `server/users.json` if you know JSON syntax.
+  *   `docker exec -it switchcraft sh`
+  *   Delete `server/users.json` to reset the database (recreating default admin).
+  *   Or manually edit `server/users.json` if you know JSON syntax.
