@@ -121,22 +121,50 @@ app = FastAPI(lifespan=lifespan)
 # Asset redirection to fix Flet engine looking in /assets/ for its own files
 @app.get("/assets/{path:path}")
 async def catch_all_assets(path: str):
-    # Try local user assets first
+    # 1. Try local user assets first
     local_file = ASSETS_DIR / path
     if local_file.exists() and local_file.is_file():
         return FileResponse(local_file)
 
-    # If not found in user assets, it might be an internal Flet engine file
-    # (like FontManifest.json, main.dart.js, etc.) which are at root or in root/assets
-    # Instead of redirecting (which triggers auth middleware again),
-    # we return a 404 or let the main flet app handle it.
-    # However, Flet's engine often expects these at /assets/ but Flet serves them at /.
-    # To avoid 307 redirects and potential auth loops, we'll try to find them.
-    # For now, let's stick to the 307 redirect but ensure the whitelist handles it.
+    try:
+        import flet_web
+        flet_web_dir = Path(flet_web.__path__[0]) / "web"
+
+        # Check if it exists in flet_web/assets (e.g. packages/wakelock_plus/...)
+        internal_asset = flet_web_dir / "assets" / path
+        if internal_asset.exists() and internal_asset.is_file():
+            return FileResponse(internal_asset)
+
+        root_asset = flet_web_dir / path
+        if root_asset.exists() and root_asset.is_file():
+             return RedirectResponse(url=f"/{path}")
+
+    except ImportError:
+        pass
+
+    # Fallback: Redirect to root and hope for the best (Legacy behavior)
     return RedirectResponse(url=f"/{path}")
 
 # Still mount /assets for StaticFiles as a backup, but the route above takes precedence for 404 handling
 app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+
+# --- Explicit Manifest Handlers to prevent SPA Fallback (HTML) ---
+# Flet engine requests these. If missing, Flet's SPA router returns index.html which causes FormatException.
+from fastapi.responses import JSONResponse
+
+@app.get("/AssetManifest.json")
+async def get_asset_manifest():
+    local = ASSETS_DIR / "AssetManifest.json"
+    if local.exists():
+        return FileResponse(local)
+    return JSONResponse(content={})
+
+@app.get("/FontManifest.json")
+async def get_font_manifest():
+    local = ASSETS_DIR / "FontManifest.json"
+    if local.exists():
+        return FileResponse(local)
+    return JSONResponse(content=[])
 
 # --- Auth Helpers ---
 def get_current_user(request: Request):
@@ -474,6 +502,155 @@ async def mfa_setup_verify(secret: str = Form(...), code: str = Form(...), user:
     else:
         error_msg = '<div style="color: #ff6666; margin-top: 10px;">Invalid code. Please try again.</div>'
         return MFA_SETUP_TEMPLATE.format(secret=secret, error_msg=error_msg)
+
+# --- SSO Implementation ---
+
+@app.get("/login/{provider}")
+async def login_oauth(provider: str, request: Request):
+    """Initiate OAuth flow for provider."""
+    # Build callback URL based on current request host
+    # X-Forwarded-Proto is important behind proxy/docker
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    # Ensure standard port if needed, or rely on request.url.netloc
+    base_url = f"{scheme}://{request.headers.get('host')}"
+    redirect_uri = f"{base_url}/oauth_callback"
+
+    if provider == "github":
+        client_id = os.environ.get("SC_GITHUB_CLIENT_ID")
+        if not client_id:
+            return HTMLResponse("GitHub SSO not configured (Client ID missing).", status_code=500)
+
+        # GitHub Authorize URL
+        scope = "read:user"
+        auth_url = (
+            f"https://github.com/login/oauth/authorize"
+            f"?client_id={client_id}"
+            f"&redirect_uri={redirect_uri}"
+            f"&scope={scope}"
+            f"&state=github"
+        )
+        return RedirectResponse(auth_url)
+
+    elif provider == "entra":
+        client_id = os.environ.get("SC_ENTRA_CLIENT_ID")
+        tenant_id = os.environ.get("SC_ENTRA_TENANT_ID")
+        if not client_id or not tenant_id:
+            return HTMLResponse("Entra SSO not configured.", status_code=500)
+
+        # Entra Authorize URL
+        scope = "User.Read"
+        auth_url = (
+            f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize"
+            f"?client_id={client_id}"
+            f"&response_type=code"
+            f"&redirect_uri={redirect_uri}"
+            f"&response_mode=query"
+            f"&scope={scope}"
+            f"&state=entra"
+        )
+        return RedirectResponse(auth_url)
+
+    raise HTTPException(status_code=404, detail="Provider not supported")
+
+@app.get("/oauth_callback")
+async def oauth_callback(code: str, state: str, request: Request):
+    """Handle OAuth callback, exchange code for token, create user session."""
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    base_url = f"{scheme}://{request.headers.get('host')}"
+    redirect_uri = f"{base_url}/oauth_callback"
+
+    user_email = None
+    username = None
+
+    async with httpx.AsyncClient() as client:
+        if state == "github":
+            client_id = os.environ.get("SC_GITHUB_CLIENT_ID")
+            client_secret = os.environ.get("SC_GITHUB_CLIENT_SECRET")
+
+            # Exchange code for token
+            token_resp = await client.post(
+                "https://github.com/login/oauth/access_token",
+                headers={"Accept": "application/json"},
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": code,
+                    "redirect_uri": redirect_uri
+                }
+            )
+            token_data = token_resp.json()
+            access_token = token_data.get("access_token")
+
+            if not access_token:
+                logger.error(f"GitHub Auth Failed: {token_data}")
+                return RedirectResponse("/login?sso_failed=1")
+
+            # Get User Info
+            user_resp = await client.get(
+                "https://api.github.com/user",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            gh_user = user_resp.json()
+            username = gh_user.get("login")
+            user_email = gh_user.get("email")
+
+        elif state == "entra":
+            client_id = os.environ.get("SC_ENTRA_CLIENT_ID")
+            client_secret = os.environ.get("SC_ENTRA_CLIENT_SECRET")
+            tenant_id = os.environ.get("SC_ENTRA_TENANT_ID")
+
+            # Exchange code for token
+            token_resp = await client.post(
+                f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
+                data={
+                    "client_id": client_id,
+                    "scope": "User.Read",
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                    "client_secret": client_secret
+                }
+            )
+            token_data = token_resp.json()
+            access_token = token_data.get("access_token")
+
+            if not access_token:
+                 logger.error(f"Entra Auth Failed: {token_data.get('error_description')}")
+                 return RedirectResponse("/login?sso_failed=1")
+
+            # Get User Info (Graph)
+            user_resp = await client.get(
+                "https://graph.microsoft.com/v1.0/me",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            ms_user = user_resp.json()
+            username = ms_user.get("userPrincipalName").split("@")[0] # Use part before @ as username?
+            user_email = ms_user.get("mail") or ms_user.get("userPrincipalName")
+
+    if not username:
+        return RedirectResponse("/login?sso_failed=1")
+
+    # Login Logic
+    # check if user exists, if not, create?
+    # For now, we assume simple mapping: username provided by SSO is trusted.
+    # If using file-based auth, we might need to "register" them strictly.
+    # But usually SSO means auto-provisioning for simple apps.
+
+    # Ensure user exists in our system (optional, creates placeholder in users.json if missing)
+    if not user_manager.get_user(username):
+        conf = auth_manager.load_config()
+        if conf.get("allow_sso_registration", True):
+             # Create user with random password (they use SSO anyway)
+             user_manager.create_user(username, pyotp.random_base32(), role="user")
+        else:
+             return HTMLResponse("SSO Registration Disabled by Administrator.", status_code=403)
+
+    # Convert to session cookie
+    resp = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    token = serializer.dumps({"username": username})
+    secure_flag = auth_manager.load_config().get("session_cookie_secure", False)
+    resp.set_cookie("sc_session", token, httponly=True, max_age=86400, secure=secure_flag)
+    return resp
 
 # --- SSO Test Endpoints ---
 
@@ -1014,6 +1191,9 @@ async def flet_auth_middleware(request: Request, call_next):
     # If it looks like a static asset, let it through
     if (
         path.startswith("/assets/") or
+        path.startswith("/packages/") or
+        "assets/packages" in path_lower or
+        "icons/" in path_lower or
         any(path_lower.endswith(ext) for ext in static_exts) or
         "main.dart" in path_lower or
         "flutter" in path_lower or
@@ -1176,7 +1356,6 @@ flet_app = flet_fastapi.app(
     flet_main,
     before_main,
     upload_endpoint_path="/upload",
-    assets_dir=str(ASSETS_DIR),
-    web_renderer=ft.WebRenderer.HTML
+    assets_dir=str(ASSETS_DIR)
 )
 app.mount("/", flet_app)

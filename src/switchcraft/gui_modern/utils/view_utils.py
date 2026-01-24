@@ -173,7 +173,7 @@ class ViewMixin:
             except (RuntimeError, AttributeError):
                 pass
 
-        is_web = getattr(page, "web", False) if page else False
+        is_web = getattr(page, "web", False) if page else IS_WEB
 
         # On Desktop, webbrowser.open is usually more reliable than page.launch_url
         if not is_web:

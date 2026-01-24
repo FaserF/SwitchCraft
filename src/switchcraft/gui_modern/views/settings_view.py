@@ -799,6 +799,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 checker = UpdateChecker(channel=channel)
                 has_update, version_str, _ = checker.check_for_updates()
                 note = checker.release_notes or "No changelog available."
+
+                # Update UI
                 self.changelog_text.value = f"**{i18n.get('latest_version') or 'Latest Version'}:** {version_str}\n\n{note}"
                 self.latest_version_text.value = version_str if version_str else (i18n.get("unknown") or "Unknown")
                 self.update()
@@ -812,6 +814,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
             except Exception as ex:
                 self.changelog_text.value = f"{i18n.get('update_check_failed') or 'Error fetching updates'}: {ex}"
+                self.update()
 
         self._run_in_background(_run)
 
