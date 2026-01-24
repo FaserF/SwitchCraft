@@ -810,7 +810,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         self._show_snack(f"{i18n.get('update_available') or 'Update available'}: {version_str}", "BLUE")
                     else:
                         self._show_snack(i18n.get("no_update_found") or "No updates available.", "GREY")
-                    self.app_page.update()
+                    try:
+                        self.app_page.update()
+                    except Exception:
+                        pass
 
             except Exception as ex:
                 self.changelog_text.value = f"{i18n.get('update_check_failed') or 'Error fetching updates'}: {ex}"
