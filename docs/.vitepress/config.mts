@@ -85,7 +85,15 @@ export default defineConfig({
                         { text: 'Script Manager', link: '/views/scripts' },
                         { text: 'Detection Tester', link: '/views/tester' },
                         { text: 'AI Helper', link: '/views/helper' },
+                        { text: 'SAP Management', link: '/views/sap_wizard' },
                         { text: 'Settings', link: '/views/settings' }
+                    ]
+                },
+                {
+                    text: 'Specialized Tools',
+                    collapsed: false,
+                    items: [
+                        { text: 'SAP Installation Server', link: '/SAP' }
                     ]
                 },
                 {

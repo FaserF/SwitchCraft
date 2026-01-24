@@ -208,6 +208,7 @@ class ModernHomeView(ft.Container, ViewMixin):
             ft.Row([
                 self._create_action_card(i18n.get("home_card_analyzer_title") or "Analyzer", i18n.get("home_card_analyzer_desc") or "Deep Scan Installers", ft.Icons.SEARCH, NavIndex.ANALYZER, "CYAN"),
                 self._create_action_card(i18n.get("home_card_wizard_title") or "Wizard", i18n.get("home_card_wizard_desc") or "Packaging Wizard", ft.Icons.AUTO_FIX_HIGH, NavIndex.PACKAGING_WIZARD, "PURPLE"),
+                self._create_action_card(i18n.get("sap_card_title") or "SAP Management", i18n.get("sap_card_desc") or "SAP Install Server tool", ft.Icons.BUSINESS, NavIndex.SAP_WIZARD, "BLUE"),
                 self._create_action_card(i18n.get("home_card_winget_title") or "Winget", i18n.get("home_card_winget_desc") or "Browse Store", ft.Icons.SHOP_TWO, NavIndex.WINGET, "BLUE"),
             ], wrap=True, spacing=15),
 

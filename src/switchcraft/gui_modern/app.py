@@ -1076,6 +1076,9 @@ class ModernApp:
                 ft.NavigationRailDestination(
                     icon=ft.Icons.POLICY_OUTLINED, selected_icon=ft.Icons.POLICY, label=i18n.get("settings_policies") or "Policies"
                 ),  # 21 Policies
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.BUSINESS, selected_icon=ft.Icons.BUSINESS, label=i18n.get("sap_card_title") or "SAP Management"
+                ),  # 22 SAP Magic
             ]
 
 
@@ -1778,6 +1781,12 @@ class ModernApp:
             def _f():
                 from switchcraft.gui_modern.views.wingetcreate_view import WingetCreateView
                 return WingetCreateView(self.page)
+            load_view(_f)
+        elif idx == NavIndex.SAP_WIZARD:
+            # SAP Management
+            def _f():
+                from switchcraft.gui_modern.views.sap_wizard_view import SapWizardView
+                return SapWizardView(self.page)
             load_view(_f)
 
         else:
