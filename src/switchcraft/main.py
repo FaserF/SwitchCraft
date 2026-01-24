@@ -247,7 +247,7 @@ def main(page: ft.Page):
     # --- Config Backend Initialization ---
     import sys  # Ensure sys is available for platform checks below
     try:
-        from switchcraft.utils.config import SwitchCraftConfig, SessionStoreBackend, RegistryBackend, EnvBackend
+        from switchcraft.utils.config import SwitchCraftConfig, SessionStoreBackend, RegistryBackend, EnvBackend, JsonFileBackend
 
         # Determine Backend Mode
         if page.web:
@@ -416,7 +416,7 @@ def main(page: ft.Page):
     # --- End Patching ---
 
     # --- Page Configuration ---
-    page.title = "SwitchCraft"
+    page.title = "SwitchCraft Web"
 
     # Set favicon for web mode
     try:

@@ -16,9 +16,8 @@ COPY pyproject.toml .
 COPY README.md .
 COPY src ./src
 
-# Install dependencies (Modern Flet only)
-# Note: We omit 'gui' (Legacy Tkinter) to avoid system package requirements
-RUN pip install --no-cache-dir .[modern]
+# Install dependencies (Modern Flet + Web Server + Web WASM)
+RUN pip install --no-cache-dir .[modern,web-server] flet-web packaging
 
 # Generate Addons (Pre-installed)
 RUN python src/generate_addons.py
@@ -42,5 +41,5 @@ ENV SC_DISABLE_WINGET_INSTALL=1
 # Create symlink for assets so Flet can find them at /app/assets
 RUN ln -s /app/src/switchcraft/assets /app/assets
 
-# Command to run the application in web mode
-CMD ["flet", "run", "--web", "--port", "8080", "--host", "0.0.0.0", "src/switchcraft/main.py"]
+# Command to run the application using the Auth Proxy Server
+CMD ["uvicorn", "switchcraft.server.app:app", "--host", "0.0.0.0", "--port", "8080"]

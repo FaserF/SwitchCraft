@@ -51,7 +51,9 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         self.addon_warning = ft.Container(visible=False)
 
         # File Picker for Native/Web Support
-        self.file_picker = ft.FilePicker(on_result=self._on_file_picker_result)
+        self.file_picker = ft.FilePicker()
+        self.file_picker.on_result = self._on_file_picker_result
+        self.file_picker.on_upload = self._on_file_upload
 
         def on_drop_click(e):
              # Use Flet's FilePicker instead of blocking helper
@@ -227,13 +229,31 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         self._check_addon()
 
-    def _on_file_picker_result(self, e: ft.FilePickerResultEvent):
+    def _on_file_picker_result(self, e):
         if e.files:
             f = e.files[0]
             if f.path:
                 self.start_analysis(f.path)
             else:
-                self._show_snack(i18n.get("web_analysis_unavailable") or "Browser file analysis requires upload support (coming soon)", "ORANGE")
+                # Web Mode: Upload first
+                self._show_snack("Uploading for analysis...", "BLUE")
+                # Flet file picker upload
+                self.file_picker.upload(e.files, upload_url="/api/upload", method="POST")
+
+    def _on_file_upload(self, e):
+        if e.error:
+            self._show_snack(f"Upload failed: {e.error}", "RED")
+            return
+
+        # Calculate path (Must match server/app.py logic)
+        fname = e.file_name
+        safe_name = "".join(x for x in fname if x.isalnum() or x in "-_.")
+        path = Path(tempfile.gettempdir()) / "switchcraft_uploads" / safe_name
+
+        if path.exists():
+            self.start_analysis(str(path), cleanup_path=str(path))
+        else:
+            self._show_snack(f"Upload finished but file not found at {path}", "RED")
 
     def did_mount(self):
         # Register global file drop handler when this view is active

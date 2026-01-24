@@ -1080,5 +1080,6 @@
     "news_error": "Could not load news",
     "loading_news": "Loading latest Intune news...",
     "read_more": "Read more",
-    "intune_news": "Intune News"
+    "intune_news": "Intune News",
+    "web_analysis_unavailable": "Browser file analysis requires upload support (coming soon)"
 }

@@ -101,7 +101,8 @@ def test_settings_view_buttons(mock_page):
          patch("switchcraft.utils.config.SwitchCraftConfig.set_user_preference"), \
          patch("threading.Thread") as mock_thread, \
          patch("switchcraft.gui_modern.views.settings_view.AuthService"), \
-         patch("switchcraft.gui_modern.views.settings_view.SyncService"):
+         patch("switchcraft.gui_modern.views.settings_view.SyncService"), \
+         patch("flet.FilePicker"):
 
         # Mock thread start to just log it
         mock_thread.return_value.start.side_effect = lambda: log("Thread started!")
@@ -230,7 +231,8 @@ def test_analyzer_view_buttons(mock_page):
     with patch("switchcraft.gui_modern.views.analyzer_view.HAS_DROPZONE", True), \
          patch("switchcraft.services.history_service.HistoryService"), \
          patch("switchcraft.gui_modern.utils.file_picker_helper.FilePickerHelper.save_file", return_value="mock_script.ps1"), \
-         patch("switchcraft.gui_modern.views.analyzer_view.SigningService.sign_script", return_value=True):
+         patch("switchcraft.gui_modern.views.analyzer_view.SigningService.sign_script", return_value=True), \
+         patch("flet.FilePicker"):
 
         log("\nInstantiating AnalyzerView")
 
@@ -309,7 +311,8 @@ def test_library_view_buttons(mock_page):
     # 1. Test "Intune not configured" state
     with patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_value") as mock_get, \
          patch("switchcraft.gui_modern.utils.file_picker_helper.FilePickerHelper.save_file", return_value="mock_script.ps1"), \
-         patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_secure_value") as mock_secure:
+         patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_secure_value") as mock_secure, \
+         patch("flet.FilePicker"):
 
         # Simulate missing credentials
         mock_get.return_value = None
@@ -356,7 +359,8 @@ def test_library_view_buttons(mock_page):
 
     # 2. Test "Intune Configured" state with history items
     with patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_value") as mock_get, \
-         patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_secure_value") as mock_secure:
+         patch("switchcraft.gui_modern.views.library_view.SwitchCraftConfig.get_secure_value") as mock_secure, \
+         patch("flet.FilePicker"):
 
         # Simulate valid credentials
         mock_get.return_value = "dummy_val"
@@ -410,7 +414,8 @@ def test_settings_view_entra_test_connection(mock_page):
     with patch("switchcraft.gui_modern.views.settings_view.SwitchCraftConfig") as verify_config, \
          patch("switchcraft.gui_modern.views.settings_view.IntuneService"), \
          patch("switchcraft.gui_modern.views.settings_view.AuthService"), \
-         patch("threading.Thread"):
+         patch("threading.Thread"), \
+         patch("flet.FilePicker"):
 
         # Mock Config interactions
         verify_config.get_value.return_value = "dummy_val"

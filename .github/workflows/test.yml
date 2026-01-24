@@ -55,7 +55,7 @@ jobs:
         if: steps.should_run.outputs.should_run == 'true'
         run: |
           python -m pip install --upgrade pip
-          pip install .[test,gui,desktop]
+          pip install .[test,gui,desktop,web-server]
 
       - name: Run All Python Tests
         if: steps.should_run.outputs.should_run == 'true'
@@ -121,7 +121,7 @@ jobs:
       - name: Install Dependencies
         run: |
            python -m pip install --upgrade pip
-           pip install .[test,gui,desktop]
+           pip install .[test,gui,desktop,web-server]
            pip install pytest-asyncio
 
       - name: Run E2E Integration Tests

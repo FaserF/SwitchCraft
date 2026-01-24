@@ -26,7 +26,8 @@ dependencies = [
     "defusedxml",
     "PyJWT",
     "anyio>=4.12.1",
-    "urllib3>=2.6.3,<3"
+    "urllib3>=2.6.3,<3",
+    "packaging"
 ]
 requires-python = ">=3.12"
 
@@ -40,8 +41,8 @@ gui = [
 modern = ["flet==0.80.3", "flet-desktop==0.80.3", "flet-charts==0.80.3"]
 test = [
     "pytest==9.0.2",
-    "flet==0.80.3",
-    "flet-charts==0.80.3"
+    "flet-charts==0.80.3",
+    "httpx"
 ]
 build = [
     "pyinstaller==6.18.0"
@@ -50,6 +51,17 @@ desktop = [
     "winotify",
     "py7zr",
     "keyring"
+]
+
+web-server = [
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "jinja2",
+    "itsdangerous",
+    "passlib[bcrypt]",
+    "pyotp",
+    "webauthn"
 ]
 
 [project.scripts]

@@ -159,7 +159,16 @@ class I18n:
             if user_pref and user_pref in ["de", "en"]:
                 return user_pref
 
-            # 2. Try System Locale
+            # 2. Try to get browser language from session (Web mode)
+            try:
+                browser_lang = SwitchCraftConfig.get_value("browser_language", None)
+                if browser_lang and browser_lang in ["de", "en"]:
+                    logger.info(f"Using browser language from session: {browser_lang}")
+                    return browser_lang
+            except Exception:
+                pass
+
+            # 3. Try System Locale
             # Windows can return 'de_DE', 'German_Germany', 'de', etc.
             lang = None
             try:
@@ -179,7 +188,7 @@ class I18n:
                 except Exception:
                     pass
 
-            # 3. Analyze detected system string
+            # 4. Analyze detected system string
             if lang:
                 lang = lang.lower()
                 if "de_" in lang or "german" in lang or lang == "de":

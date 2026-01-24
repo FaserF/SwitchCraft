@@ -1080,5 +1080,6 @@
     "news_error": "Fehler beim Laden der Neuigkeiten",
     "loading_news": "Lade aktuelle Intune-Neuigkeiten...",
     "read_more": "Mehr lesen",
-    "intune_news": "Intune Neuigkeiten"
+    "intune_news": "Intune Neuigkeiten",
+    "web_analysis_unavailable": "Die Analyse von Browser-Dateien erfordert Upload-Unterstützung (demnächst verfügbar)"
 }

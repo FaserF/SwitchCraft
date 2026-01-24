@@ -31,19 +31,57 @@ def patch_index_html(dist_dir):
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Replace "Working..." with a better message
-    content = content.replace(
-        '<p>Working...</p>',
-        '<p style="color: #95a5a6; font-family: \'Segoe UI\', sans-serif; font-size: 14px;">Initializing SwitchCraft...</p>'
-    )
+    # 1. Regex Replace "Working..." or "Loading..."
+    # Flet often puts this in a <div id="loading-text"> or similar, or just plain text.
+    # We look for the visible text.
+    import re
 
-    # Modernize the loader colors
-    content = content.replace('border: 16px solid #f3f3f3;', 'border: 8px solid #34495e;')
-    content = content.replace('border-top: 16px solid #3498db;', 'border-top: 8px solid #3498db;')
+    # Pattern to match standard Flet/Flutter loading text
+    # It might be in a script or HTML.
+    # We'll try to inject a style block first to override aesthetics
+
+    custom_css = """
+    <style>
+        #loading {
+            background-color: #1a1c1e !important;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .lds-ring div { border-color: #0066cc transparent transparent transparent !important; }
+
+        /* Attempt to target common loading text classes if they exist */
+        #loading p, .loading-text {
+            color: #bdc3c7 !important;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+            margin-top: 20px;
+        }
+    </style>
+    """
+
+    # Insert CSS before </head>
+    if "</head>" in content:
+        content = content.replace("</head>", f"{custom_css}\n</head>")
+
+    # Replace the text "Working..." if found
+    if "Working..." in content:
+        content = content.replace("Working...", "Initializing SwitchCraft...")
+        print("Replaced 'Working...' text.")
+    elif "Loading..." in content:
+        content = content.replace("Loading...", "Initializing SwitchCraft...")
+        print("Replaced 'Loading...' text.")
+    else:
+        # Fallback: Flutter Web often puts the loading logic in 'flutter_service_worker.js' or main.dart.js
+        # But Flet's index.html template usually exposes it.
+        # If not found, we might need to rely on the CSS overlay approach or look for JS string.
+        print("Warning: Could not find 'Working...' or 'Loading...' text to replace.")
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
-    print("index.html patched successfuly")
+    print("index.html patched.")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--bake":

@@ -115,9 +115,9 @@ class ModernApp:
         # The loading screen will be replaced in build_ui()
 
         # Update Page Properties
-        self.page.title = "SwitchCraft"
+        self.page.title = "SwitchCraft Web"
         if self.page.web:
-            self.page.favicon = "/switchcraft_logo.png"
+            self.page.favicon = "favicon.png"
         elif not self.page.favicon:
             self.page.favicon = "assets/switchcraft_logo.ico"
         self.page.theme_mode = ft.ThemeMode.SYSTEM
@@ -552,7 +552,7 @@ class ModernApp:
         self.page.update()
 
     def setup_page(self):
-        self.page.title = "SwitchCraft"
+        self.page.title = "SwitchCraft Web"
         # self.page.title = f"SwitchCraft v{__version__}"
         # Parse theme
         theme_pref = SwitchCraftConfig.get_value("Theme", "System")
@@ -620,7 +620,7 @@ class ModernApp:
             if hasattr(self.page, 'appbar') and self.page.appbar:
                 # Use absolute path for logo in appbar to be safe, or /path if assets_dir works
                 # Let's try the absolute path as fallback if simple / failed
-                header_logo = ft.Image(src="/switchcraft_logo.png", width=30, height=30)
+                header_logo = ft.Image(src="switchcraft_logo.png", width=30, height=30)
                 self.page.appbar.leading = header_logo
                 self.page.appbar.update()
         except Exception as e:
@@ -966,26 +966,33 @@ class ModernApp:
     def setup_banner(self):
         """
         Show a prominent banner for development or beta builds.
-
-        If the app version string contains "dev" or "beta", sets self.banner_container to a Flet Container displaying a localized banner message (falls back to a default message containing the version). The banner uses a red/white color scheme for development builds and an amber/black scheme for beta builds, and is centered with padding.
         """
         from switchcraft.utils.i18n import i18n
-        version_lower = __version__.lower()
-        if "beta" in version_lower or "dev" in version_lower:
-            key = "banner_dev_msg" if "dev" in version_lower else "banner_beta_msg"
-            default_text = f"You are using a {('Development' if 'dev' in version_lower else 'Beta')} Build ({__version__}). Bugs may occur."
-            text = i18n.get(key, version=__version__, default=default_text)
+        from packaging import version
 
-            bg_color = "RED" if "dev" in version_lower else "AMBER"
-            text_color = "WHITE" if "dev" in version_lower else "BLACK"
+        try:
+            v = version.parse(__version__)
+            is_pre = v.is_prerelease or v.is_devrelease
+            version_lower = __version__.lower()
 
-            self.banner_container = ft.Container(
-                content=ft.Text(text, color=text_color, weight="bold", text_align="center"),
-                bgcolor=bg_color,
-                padding=5,
-                alignment=ft.Alignment(0, 0),  # Center alignment
-                width=None  # Full width via expand
-            )
+            if is_pre or "dev" in version_lower or "beta" in version_lower:
+                is_dev = "dev" in version_lower
+                key = "banner_dev_msg" if is_dev else "banner_beta_msg"
+                default_text = f"You are using a {('Development' if is_dev else 'Beta/Pre-release')} Build ({__version__}). Bugs may occur."
+                text = i18n.get(key, version=__version__, default=default_text)
+
+                bg_color = "RED" if is_dev else "AMBER"
+                text_color = "WHITE" if is_dev else "BLACK"
+
+                self.banner_container = ft.Container(
+                    content=ft.Text(text, color=text_color, weight="bold", text_align="center"),
+                    bgcolor=bg_color,
+                    padding=5,
+                    alignment=ft.Alignment(0, 0),  # Center alignment
+                    width=None  # Full width via expand
+                )
+        except Exception as e:
+            logger.warning(f"Error in setup_banner: {e}")
 
     def build_ui(self):
         # IMPORTANT: Keep loading screen visible during build
