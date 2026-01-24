@@ -71,8 +71,9 @@ jobs:
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_advanced/manifest.json
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_ai/manifest.json
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_winget/manifest.json
-          sed -i "s/\"description\": \".*\"/\"description\": \"SwitchCraft - Enterprise Application Management\"/" src/switchcraft/assets/manifest.json
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft/assets/manifest.json
+
+          # JSON-safe update for main asset manifest
+          python -c "import json, os; p='src/switchcraft/assets/manifest.json'; d=json.load(open(p)) if os.path.exists(p) else {}; d.update({'version': os.environ['VERSION'], 'description': 'SwitchCraft - Enterprise Application Management'}); json.dump(d, open(p, 'w'), indent=4)"
 
 
           # Update .iss files (Inno Setup installer scripts)

@@ -797,7 +797,12 @@ async def admin_reset(user: str = Depends(admin_required)):
     if users_path.exists():
         users_path.unlink()
 
-    # Re-initialize with defaults (this will happen on next load)
+    # Re-initialize with defaults immediately to prevent lockout
+    try:
+        user_manager._ensure_users_file()
+    except Exception as e:
+        logger.error(f"Failed to recreate default admin during reset: {e}")
+
     # Force logout
     resp = RedirectResponse("/login", status_code=303)
     resp.delete_cookie("sc_session")
@@ -854,15 +859,34 @@ async def upload_endpoint(files: list[UploadFile]):
             import uuid
             clean_name = f"upload_{uuid.uuid4().hex[:8]}.bin"
 
-        # Truncate long filenames
-        if len(clean_name) > 200:
-            name_parts = clean_name.rsplit(".", 1)
-            if len(name_parts) > 1:
-                clean_name = name_parts[0][:190] + "." + name_parts[1]
-            else:
-                clean_name = clean_name[:200]
+        # Append short UUID and ensure uniqueness
+        import uuid
+        uid = uuid.uuid4().hex[:8]
+        parts = clean_name.rsplit(".", 1)
 
-        path = UPLOAD_DIR / clean_name
+        candidate_name = clean_name
+        if len(parts) > 1:
+            candidate_name = f"{parts[0]}_{uid}.{parts[1]}"
+        else:
+            candidate_name = f"{clean_name}_{uid}"
+
+        path = UPLOAD_DIR / candidate_name
+        # Final collision safety loop (backup in case of rapid concurrent identical uploads)
+        while path.exists():
+            uid = uuid.uuid4().hex[:4]
+            parts = candidate_name.rsplit("_", 1) # Split by our own suffix
+            if len(parts) > 1:
+                # Re-try with new suffix
+                base = parts[0]
+                ext_parts = parts[1].rsplit(".", 1)
+                if len(ext_parts) > 1:
+                    candidate_name = f"{base}_{uid}.{ext_parts[1]}"
+                else:
+                    candidate_name = f"{base}_{uid}"
+            else:
+                candidate_name = f"{candidate_name}_{uid}"
+            path = UPLOAD_DIR / candidate_name
+
         try:
             with open(path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)

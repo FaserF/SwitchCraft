@@ -74,8 +74,6 @@ def test_login_flow(client):
     assert "sc_session" in resp.cookies
     client.cookies.set("sc_session", resp.cookies["sc_session"])
 
-    token = resp.cookies["sc_session"]
-
     # 4. Access Protected Route
     resp = client.get("/api/me")
     assert resp.status_code == 200
@@ -99,7 +97,6 @@ def test_user_management_by_admin(client, managers):
     # Login as Admin
     resp = client.post("/login", data={"username": "admin", "password": "admin"}, follow_redirects=False)
     client.cookies.set("sc_session", resp.cookies.get("sc_session"))
-    token = resp.cookies.get("sc_session")
 
     # 1. Create User
     resp = client.post("/admin/users/add",
@@ -132,7 +129,6 @@ def test_sso_registration_toggle(client, managers):
     # Login as Admin
     resp = client.post("/login", data={"username": "admin", "password": "admin"}, follow_redirects=False)
     client.cookies.set("sc_session", resp.cookies.get("sc_session"))
-    token = resp.cookies.get("sc_session")
 
     # 1. Mock SSO Callback (Entra) - Success Case (Auto Provisioning ON)
     with patch("httpx.AsyncClient", autospec=True) as MockClientClass:
@@ -188,7 +184,6 @@ def test_feature_flags(client, managers):
     # 1. Enable Demo Mode
     resp = client.post("/login", data={"username": "admin", "password": "admin"}, follow_redirects=False)
     client.cookies.set("sc_session", resp.cookies.get("sc_session"))
-    token = resp.cookies.get("sc_session")
 
     client.post("/admin/settings", data={"demo_mode": True, "auth_disabled": False})
 

@@ -252,19 +252,39 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 import json
                 resp = json.loads(e.data)
                 uploaded = resp.get("uploaded", [])
-                if uploaded and len(uploaded) > 0:
+
+                # Probe multiple possible response fields
+                if uploaded and isinstance(uploaded, list) and len(uploaded) > 0:
                     analysis_path = uploaded[0]
+                elif resp.get("path"):
+                    analysis_path = resp.get("path")
+                elif resp.get("filepath"):
+                    analysis_path = resp.get("filepath")
+                elif resp.get("file"):
+                    analysis_path = resp.get("file")
+
+                if analysis_path:
                     logger.info(f"Using server-returned path: {analysis_path}")
             except Exception as ex:
                 logger.warning(f"Failed to parse server upload response: {ex}")
 
         # Fallback to local reconstruction if server response missing/invalid
-        if not analysis_path:
             # Reconstruct (Basic cleanup matching app.py logic)
+            import uuid
             fname = e.file_name
             clean_name = "".join(x for x in fname if x.isalnum() or x in "-_.").lstrip(".")
+            # Add short UUID to avoid local collisions if multiple uploads happen rapidly
+            if clean_name:
+                parts = clean_name.rsplit(".", 1)
+                if len(parts) > 1:
+                    clean_name = f"{parts[0]}_{uuid.uuid4().hex[:8]}.{parts[1]}"
+                else:
+                    clean_name = f"{clean_name}_{uuid.uuid4().hex[:8]}"
+            else:
+                clean_name = f"upload_{uuid.uuid4().hex[:8]}.bin"
+
             analysis_path = str(Path(tempfile.gettempdir()) / "switchcraft_uploads" / clean_name)
-            logger.info(f"Falling back to reconstructed path: {analysis_path}")
+            logger.info(f"Falling back to reconstructed path (with UUID): {analysis_path}")
 
         if Path(analysis_path).exists():
             self.start_analysis(analysis_path, cleanup_path=analysis_path)

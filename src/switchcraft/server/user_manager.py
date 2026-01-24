@@ -50,7 +50,7 @@ class UserManager:
             # Create default admin user with a secure random password
             generated_password = secrets.token_urlsafe(16)
             logger.info("*" * 60)
-            logger.info(f"INITIAL ADMIN PASSWORD GENERATED: {generated_password}")
+            logger.info("Initial admin password generated and printed to stdout")
             logger.info("PLEASE RECORD THIS PASSWORD IMMEDIATELY.")
             logger.info("*" * 60)
 

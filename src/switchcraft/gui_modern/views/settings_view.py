@@ -1176,19 +1176,34 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     self._show_snack(f"Export Failed: {ex}", "RED")
 
         elif context == "import_settings":
-            if e.files:
+            if e.files and len(e.files) > 0:
                 fpath = e.files[0].path
-                if fpath:
-                    try:
+                content = getattr(e.files[0], "content", None)
+
+                try:
+                    if fpath:
+                        # Desktop Flow
                         with open(fpath, "r", encoding="utf-8") as f:
                             data = json.load(f)
-                        SwitchCraftConfig.import_preferences(data)
-                        self._show_snack(i18n.get("import_success") or "Settings Imported. Please Restart.", "GREEN")
-                    except Exception as ex:
-                        logger.error(f"Error importing settings: {ex}")
-                        self._show_snack(f"Import Failed: {ex}", "RED")
-                else:
-                    self._show_snack("Web import failed (No path received)", "ORANGE")
+                    elif content:
+                        # Web Flow (Simulated/Future-Proofing for Flet Web Byte Access)
+                        # content is usually bytes in Flet Web
+                        data = json.loads(content.decode("utf-8"))
+                    else:
+                        # Fallback for Web where path is None and content not provided directly
+                        # Or restricted environment
+                        from switchcraft import IS_WEB
+                        if IS_WEB:
+                            self._show_snack("Settings import not supported in web version yet (Sandbox restriction)", "ORANGE")
+                        else:
+                            self._show_snack("Import failed: No file path or content received", "RED")
+                        return
+
+                    SwitchCraftConfig.import_preferences(data)
+                    self._show_snack(i18n.get("import_success") or "Settings Imported. Please Restart.", "GREEN")
+                except Exception as ex:
+                    logger.error(f"Error importing settings: {ex}")
+                    self._show_snack(f"Import Failed: {ex}", "RED")
 
         elif context == "export_logs":
             if e.path:

@@ -212,7 +212,7 @@ jobs:
           cd docs
           npx vitepress build
         env:
-          BASE_URL: /
+          BASE_URL: /${{ github.event.repository.name }}/
 
       - name: Upload to gh-pages
         uses: JamesIves/github-pages-deploy-action@v4

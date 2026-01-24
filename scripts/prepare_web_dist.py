@@ -33,6 +33,7 @@ def patch_index_html(dist_dir):
 
     custom_css = """
     <style>
+        /* SWITCHCRAFT_CUSTOM_CSS_MARKER */
         #loading {
             background-color: #1a1c1e !important;
             display: flex;
@@ -53,8 +54,10 @@ def patch_index_html(dist_dir):
     </style>
     """
 
-    # Insert CSS before </head>
-    if "</head>" in content:
+    # Insert CSS before </head> if not already present
+    if "/* SWITCHCRAFT_CUSTOM_CSS_MARKER */" in content:
+        print("Custom CSS already present, skipping injection.")
+    elif "</head>" in content:
         content = content.replace("</head>", f"{custom_css}\n</head>")
 
     # Replace the text "Working..." if found
