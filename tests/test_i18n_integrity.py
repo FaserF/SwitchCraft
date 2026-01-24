@@ -123,9 +123,12 @@ class TestI18nIntegrity(unittest.TestCase):
             'winget_switch', 'packaging_wizard_view', 'setup_file', 'first_dynamic_index',
             'install_switches', 'ask_browser', 'history_service', 'silent_args', 'all_temp_dirs',
             'install_silent', 'winget_create', 'intune_store',
-            # CLI option names (not i18n keys)
+            # CLI option names and internal config/state keys (not i18n keys)
             'intunewin_file', 'msi_info', 'group_type', 'script_file', 'value_name', 'group_id',
-            'rule_type', 'output_json', 'target_version', 'search_query'
+            'rule_type', 'output_json', 'target_version', 'search_query',
+            'error_description', 'import_settings', 'created_at', 'export_settings', 'export_logs',
+            'admin_password', 'config_path', 'admin_password_hash', 'first_run', 'demo_mode',
+            'current_password', 'new_password', 'confirm_password'
         }
 
         for k in found_keys:

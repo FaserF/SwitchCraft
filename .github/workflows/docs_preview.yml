@@ -28,6 +28,56 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[test]
+          pip install Pillow
+
+      - name: Pre-install Addons (Web)
+        run: |
+           mkdir -p src/switchcraft/addons
+           python -c "import zipfile, os, glob; from pathlib import Path; [zipfile.ZipFile(z).extractall(Path('src/switchcraft/addons') / Path(z).stem.replace('switchcraft_', '')) for z in glob.glob('src/switchcraft/assets/addons/*.zip')]"
+
+      - name: Build Web Demo
+        run: |
+          python scripts/prepare_web_dist.py --bake
+          mkdir -p build_web
+          cp -r src/switchcraft build_web/
+
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          cat > build_web/web_entry.py <<EOF
+          import os
+          import sys
+          import flet as ft
+          # WASM compatibility patches
+          if sys.platform == "emscripten":
+              import pyodide_http
+              pyodide_http.patch_all()
+          sys.path.insert(0, os.getcwd())
+          import switchcraft
+          switchcraft.IS_DEMO = True
+          import switchcraft.main
+          if __name__ == "__main__":
+              ft.run(switchcraft.main.main, assets_dir="assets")
+          EOF
+
+          cd build_web
+          # Simplified publish for preview - use the PR specific base-url
+          flet publish web_entry.py --app-name "SwitchCraft Demo PR-$PR_NUMBER" --base-url "/pr-preview/pr-$PR_NUMBER/demo/" --distpath ../dist --assets switchcraft/assets
+          cd ..
+
+          python scripts/prepare_web_dist.py --patch dist
+          rm -rf docs/public/demo
+          mkdir -p docs/public/demo
+          cp -r dist/* docs/public/demo/
+        shell: bash
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -36,8 +86,13 @@ jobs:
           cache-dependency-path: docs/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
-        working-directory: docs
+        run: |
+          cd docs
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install vitepress vue
+          fi
 
       - name: Build Docs
         run: npm run docs:build
@@ -52,15 +107,24 @@ jobs:
           preview-branch: gh-pages
           umbrella-dir: pr-preview
           action: auto
+          comment: |
+            🚀 **PR Preview is ready!**
+
+            - 📄 [Documentation Preview](https://switchcraft.fabiseitz.de/pr-preview/pr-${{ github.event.pull_request.number }}/)
+            - 🎮 [Web Demo Preview](https://switchcraft.fabiseitz.de/pr-preview/pr-${{ github.event.pull_request.number }}/demo/)
+
+            *Built with love and GitHub Actions.*
 
   cleanup-preview:
     runs-on: ubuntu-latest
     if: github.event.action == 'closed'
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
       - name: Cleanup Preview
         uses: rossjrw/pr-preview-action@v1
         with:
-          source-dir: docs/.vitepress/dist # Not used for cleanup but required by action validation sometimes
           preview-branch: gh-pages
           umbrella-dir: pr-preview
-          action: remove
+          action: delete

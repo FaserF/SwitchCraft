@@ -115,23 +115,34 @@ class ModernHomeView(ft.Container, ViewMixin):
         # Use the placeholder logic if possible
         # We need to get the username first to pass it to i18n.get
 
-        # Try to get display name from Windows (full name instead of login name)
         import os
         username = None
+
+        # 1. Try to get username from web session (Server Auth)
         try:
-            import ctypes
-            GetUserNameExW = ctypes.windll.secur32.GetUserNameExW
-            NameDisplay = 3  # EXTENDED_NAME_FORMAT NameDisplay
-            size = ctypes.pointer(ctypes.c_ulong(0))
-            GetUserNameExW(NameDisplay, None, size)
-            nameBuffer = ctypes.create_unicode_buffer(size.contents.value)
-            GetUserNameExW(NameDisplay, nameBuffer, size)
-            if nameBuffer.value:
-                username = nameBuffer.value
+            if hasattr(self.app_page, 'switchcraft_session') and self.app_page.switchcraft_session:
+                session_user = self.app_page.switchcraft_session.get('username')
+                if session_user:
+                    username = session_user
         except Exception:
             pass
 
-        # Fallback to environment variable or default
+        # 2. Try to get display name from Windows (full name instead of login name)
+        if not username:
+            try:
+                import ctypes
+                GetUserNameExW = ctypes.windll.secur32.GetUserNameExW
+                NameDisplay = 3  # EXTENDED_NAME_FORMAT NameDisplay
+                size = ctypes.pointer(ctypes.c_ulong(0))
+                GetUserNameExW(NameDisplay, None, size)
+                nameBuffer = ctypes.create_unicode_buffer(size.contents.value)
+                GetUserNameExW(NameDisplay, nameBuffer, size)
+                if nameBuffer.value:
+                    username = nameBuffer.value
+            except Exception:
+                pass
+
+        # 3. Fallback to environment variable or default
         if not username:
             username = os.getenv("USERNAME") or os.getenv("USER") or i18n.get("default_user") or "User"
 

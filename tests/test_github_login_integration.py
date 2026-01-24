@@ -167,13 +167,15 @@ def test_github_login_button_click_integration(mock_page, mock_auth_service):
 def test_github_login_button_handler_wrapped(mock_page):
     """Test that GitHub login button handler is properly wrapped with _safe_event_handler."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+    from unittest.mock import patch
 
-    view = ModernSettingsView(mock_page)
-    # Manually trigger build phases
-    view.build()
-    if hasattr(view, '_build_cloud_sync_section'):
-        view._build_cloud_sync_section()
-    mock_page.add(view)
+    with patch('switchcraft.gui_modern.views.settings_view.AuthService.is_authenticated', return_value=False):
+        view = ModernSettingsView(mock_page)
+        # Manually trigger build phases
+        view.build()
+        if hasattr(view, '_build_cloud_sync_section'):
+            view._build_cloud_sync_section()
+        mock_page.add(view)
 
     # Verify button exists
     assert hasattr(view, 'login_btn'), "Login button should exist"

@@ -26,6 +26,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self.changelog_text = ft.Markdown("")
         self.latest_version_text = ft.Text("")
 
+        # Shared FilePicker for various actions
+        self.file_picker = ft.FilePicker()
+        self.file_picker.on_result = self._on_file_picker_result
+
         # Custom Tab Navigation
         self.current_content = ft.Container(expand=True, padding=10)
 
@@ -53,7 +57,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self.controls = [
             ft.Container(content=self.nav_row, height=60, padding=5, bgcolor="SURFACE_CONTAINER"),
             ft.Divider(height=1, thickness=1),
-            self.current_content
+            self.current_content,
+            self.file_picker
         ]
 
         # Load initial content
@@ -1109,143 +1114,175 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     def _sync_down(self, e):
         def _run():
-             if SyncService.sync_down():
-                 self._show_snack(i18n.get("sync_success_down") or "Sync Down Successful. Restart app.", "GREEN")
-             else:
-                 self._show_snack(i18n.get("sync_failed") or "Sync Down Failed", "RED")
-         self._run_in_background(_run)
+            if SyncService.sync_down():
+                self._show_snack(i18n.get("sync_success_down") or "Sync Down Successful. Restart app.", "GREEN")
+            else:
+                self._show_snack(i18n.get("sync_failed") or "Sync Down Failed", "RED")
+        self._run_in_background(_run)
 
-    def _export_settings(self, e):
+    async def _export_settings(self, e):
         """
-        Open a file-save dialog and write current user preferences to a JSON file.
-
-        Opens a save-file picker prompting the user for a destination (default filename "settings.json"); if a path is selected, exports the application preferences to that file as pretty-printed JSON and shows a success notification.
+        Export settings via FilePicker (Desktop) or Download (Web).
         """
-        from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
-        try:
-            path = FilePickerHelper.save_file(dialog_title=i18n.get("btn_export_settings") or "Export Settings", file_name="settings.json", allowed_extensions=["json"])
-            if path:
-                prefs = SwitchCraftConfig.export_preferences()
-                with open(path, "w") as f:
-                    json.dump(prefs, f, indent=4)
-                self._show_snack(f"{i18n.get('export_success') or 'Exported to'} {path}")
-        except Exception as ex:
-             logger.error(f"Failed to export settings: {ex}")
-             self._show_snack(f"{i18n.get('export_failed') or 'Export Failed'}: {ex}", "RED")
+        from switchcraft import IS_WEB
+        import base64
 
-    def _import_settings(self, e):
+        prefs = SwitchCraftConfig.export_preferences()
+        json_str = json.dumps(prefs, indent=4)
+
+        if IS_WEB:
+            # Web: Trigger download via Data URI
+            b64 = base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
+            data_uri = f"data:application/json;base64,{b64}"
+            # Use 'download' attribute simulation if possible, but Flet launch_url behaves like opening link
+            # Browsers usually download data URIs with correct MIME type
+            self._launch_url(data_uri)
+            self._show_snack("Export started (Check downloads)", "GREEN")
+        else:
+            # Desktop: Use Save File Dialog
+            self._picker_context = "export_settings"
+            await self.file_picker.save_file(
+                dialog_title=i18n.get("btn_export_settings") or "Export Settings",
+                file_name="settings.json",
+                allowed_extensions=["json"]
+            )
+
+    async def _import_settings(self, e):
         """
-        Import application settings from a user-selected JSON file.
-
-        Opens a file picker restricted to a single `.json` file, parses the selected file as JSON, and applies the data via SwitchCraftConfig.import_preferences. Displays a success snack on successful import; on failure shows an error snack and logs the exception. JSON decoding errors are reported as an invalid JSON file.
-
-        Parameters:
-            e: UI event or trigger that invoked this handler (ignored).
+        Import settings via FilePicker.
         """
-        try:
-            from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
-            path = FilePickerHelper.pick_file(allowed_extensions=["json"], allow_multiple=False)
-            if path:
+        self._picker_context = "import_settings"
+        await self.file_picker.pick_files(
+            allow_multiple=False,
+            allowed_extensions=["json"],
+            dialog_title=i18n.get("btn_import_settings") or "Import Settings"
+        )
+
+    def _on_file_picker_result(self, e):
+        """Handle results from the shared FilePicker."""
+        context = getattr(self, "_picker_context", None)
+        if not context:
+            return
+
+        if context == "export_settings":
+            if e.path:
                 try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
+                    prefs = SwitchCraftConfig.export_preferences()
+                    with open(e.path, "w") as f:
+                        json.dump(prefs, f, indent=4)
+                    self._show_snack(f"{i18n.get('export_success') or 'Exported to'} {e.path}")
+                except Exception as ex:
+                    logger.error(f"Failed to export settings: {ex}")
+                    self._show_snack(f"Export Failed: {ex}", "RED")
+
+        elif context == "import_settings":
+            if e.files and len(e.files) > 0:
+                fpath = e.files[0].path
+                content = getattr(e.files[0], "content", None)
+
+                try:
+                    if fpath:
+                        # Desktop Flow
+                        with open(fpath, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                    elif content:
+                        # Web Flow (Simulated/Future-Proofing for Flet Web Byte Access)
+                        # content is usually bytes in Flet Web
+                        data = json.loads(content.decode("utf-8"))
+                    else:
+                        # Fallback for Web where path is None and content not provided directly
+                        # Or restricted environment
+                        from switchcraft import IS_WEB
+                        if IS_WEB:
+                            self._show_snack("Settings import not supported in web version yet (Sandbox restriction)", "ORANGE")
+                        else:
+                            self._show_snack("Import failed: No file path or content received", "RED")
+                        return
+
                     SwitchCraftConfig.import_preferences(data)
                     self._show_snack(i18n.get("import_success") or "Settings Imported. Please Restart.", "GREEN")
-                except json.JSONDecodeError as ex:
-                    logger.error(f"Invalid JSON in settings file: {ex}")
-                    self._show_snack(f"{i18n.get('import_failed') or 'Import Failed'}: Invalid JSON file", "RED")
                 except Exception as ex:
-                    logger.exception(f"Error importing settings: {ex}")
-                    self._show_snack(f"{i18n.get('import_failed') or 'Import Failed'}: {ex}", "RED")
-        except Exception as ex:
-            logger.exception(f"Error in import settings handler: {ex}")
-            self._show_snack(f"{i18n.get('import_failed') or 'Import Failed'}: {ex}", "RED")
+                    logger.error(f"Error importing settings: {ex}")
+                    self._show_snack(f"Import Failed: {ex}", "RED")
 
-    def _export_logs(self, e):
+        elif context == "export_logs":
+            if e.path:
+                try:
+                    # e.path is the destination
+                    # We need to copy from self._log_source_path (set in _export_logs)
+                    src = getattr(self, "_log_source_path", None)
+                    if src:
+                        import shutil
+                        shutil.copy2(src, e.path)
+                        self._show_snack(f"Logs exported to {e.path}", "GREEN")
+                    else:
+                        self._show_snack("Log copy failed: Source lost", "RED")
+                except Exception as ex:
+                    self._show_snack(f"Log export failed: {ex}", "RED")
+
+        # Reset context
+        self._picker_context = None
+
+    async def _export_logs(self, e):
         """Export logs to a file. Includes current session log and recent log files."""
         import datetime
         import os
         from pathlib import Path
+        from switchcraft import IS_WEB
+        import base64
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"SwitchCraft_Debug_{timestamp}.log"
 
-        from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
-        path = FilePickerHelper.save_file(dialog_title=i18n.get("help_export_logs") or "Export Logs", file_name=filename, allowed_extensions=["log", "txt"])
+        # Locate the best log file to export
+        from switchcraft.utils.logging_handler import get_session_handler
+        handler = get_session_handler()
+        source_path = None
 
-        if not path:
-            return  # User cancelled
-
-        try:
-            from switchcraft.utils.logging_handler import get_session_handler
-            handler = get_session_handler()
-
-            # Try to export current session log first
-            exported = False
-            if handler.current_log_path and handler.current_log_path.exists():
-                try:
-                    if handler.file_handler:
-                        handler.file_handler.flush()
-                    import shutil
-                    shutil.copy2(handler.current_log_path, path)
-                    exported = True
-                    logger.info(f"Exported current session log to {path}")
-                except Exception as ex:
-                    logger.warning(f"Failed to export current session log: {ex}")
-
-            # If no current log, try to find and export recent log files
-            if not exported:
-                # Find log directory
-                app_data = os.getenv('APPDATA')
-                if app_data:
-                    log_dir = Path(app_data) / "FaserF" / "SwitchCraft" / "Logs"
-                else:
-                    log_dir = Path.home() / ".switchcraft" / "logs"
-
-                if log_dir.exists():
-                    # Find all session log files
-                    log_files = sorted(log_dir.glob("SwitchCraft_Session_*.log"), key=os.path.getmtime, reverse=True)
-
-                    if log_files:
-                        # Export the most recent log file
-                        try:
-                            import shutil
-                            shutil.copy2(log_files[0], path)
-                            exported = True
-                            logger.info(f"Exported recent log file to {path}")
-                        except Exception as ex:
-                            logger.error(f"Failed to export log file: {ex}")
-                            self._show_snack(f"{i18n.get('logs_export_failed') or 'Log export failed'}: {ex}", "RED")
-                            return
-                    else:
-                        logger.warning("No log files found to export")
-                        self._show_snack(i18n.get("logs_no_logs_found") or "No log files found to export.", "ORANGE")
-                        return
-                else:
-                    logger.warning(f"Log directory does not exist: {log_dir}")
-                    self._show_snack(i18n.get("logs_no_logs_found") or "No log files found to export.", "ORANGE")
-                    return
-
-            if exported:
-                self._show_snack(i18n.get("logs_exported") or f"Logs exported to {path}", "GREEN")
-                # Open the folder containing the exported file
-                try:
-                    folder_path = Path(path).parent
-                    if os.name == 'nt':  # Windows
-                        import subprocess
-                        subprocess.Popen(['explorer', str(folder_path)])
-                    else:
-                        # Use ViewMixin's _open_path method for cross-platform support
-                        self._open_path(str(folder_path))
-                except Exception as ex:
-                    logger.debug(f"Failed to open folder: {ex}")
-                    # Don't show error to user, folder opening is a nice-to-have feature
+        if handler.current_log_path and handler.current_log_path.exists():
+            if handler.file_handler:
+                handler.file_handler.flush()
+            source_path = handler.current_log_path
+        else:
+            # Find in log dir
+            app_data = os.getenv('APPDATA')
+            if app_data:
+                log_dir = Path(app_data) / "FaserF" / "SwitchCraft" / "Logs"
             else:
-                self._show_snack(i18n.get("logs_export_failed") or "Log export failed.", "RED")
+                log_dir = Path.home() / ".switchcraft" / "logs"
 
-        except Exception as ex:
-            logger.exception(f"Error exporting logs: {ex}")
-            self._show_snack(f"{i18n.get('logs_export_failed') or 'Log export failed'}: {ex}", "RED")
+            if log_dir.exists():
+                log_files = sorted(log_dir.glob("SwitchCraft_Session_*.log"), key=os.path.getmtime, reverse=True)
+                if log_files:
+                    source_path = log_files[0]
+
+        if not source_path:
+            self._show_snack("No log file found to export.", "ORANGE")
+            return
+
+        # Prepare for export
+        if IS_WEB:
+            # Web: Read file and Download
+            try:
+                with open(source_path, "rb") as f:
+                    content = f.read()
+                b64 = base64.b64encode(content).decode("utf-8")
+                data_uri = f"data:text/plain;base64,{b64}"
+                self._launch_url(data_uri)
+                self._show_snack("Log export started.", "GREEN")
+            except Exception as ex:
+                self._show_snack(f"Web Export Failed: {ex}", "RED")
+        else:
+            # Desktop: Save Dialog
+            self._log_source_path = source_path
+            self._picker_context = "export_logs"
+            await self.file_picker.save_file(
+                dialog_title=i18n.get("help_export_logs") or "Export Logs",
+                file_name=filename,
+                allowed_extensions=["log", "txt"]
+            )
+
+
 
 
 

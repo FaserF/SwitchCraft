@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -214,18 +214,12 @@ jobs:
         env:
           BASE_URL: /
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+      - name: Upload to gh-pages
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          path: docs/.vitepress/dist
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          folder: docs/.vitepress/dist
+          branch: gh-pages
+          clean: true
+          # Preserve the pr-preview directory
+          clean-exclude: |
+            pr-preview/

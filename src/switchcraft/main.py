@@ -44,6 +44,51 @@ def start_splash():
 
 # Start Splash IMMEDIATELY - before any heavy imports
 if __name__ == "__main__":
+    # NEW: Check for CLI commands that should run without GUI/Splash
+    if "--help" in sys.argv or "-h" in sys.argv or "/?" in sys.argv:
+        print("SwitchCraft - Packaging Assistant for IT Professionals")
+        print("\nUsage: SwitchCraft.exe [OPTIONS]")
+        print("\nOptions:")
+        print("  --help, -h, /?          Show this help message")
+        print("  --version, -v           Show version information")
+        print("  --wizard                Open Packaging Wizard on startup")
+        print("  --analyzer, --all-in-one Open Installer Analyzer on startup")
+        print("  --factory-reset         Delete all user data and settings (requires confirmation)")
+        print("  --protocol <URL>        Handle protocol URL (switchcraft://...)")
+        print("  --silent                Silent mode (minimize UI, auto-accept prompts)")
+        print("\nExamples:")
+        print("  SwitchCraft.exe --wizard")
+        print("  SwitchCraft.exe --analyzer")
+        print("  SwitchCraft.exe --factory-reset")
+        print("  SwitchCraft.exe switchcraft://analyzer")
+        sys.exit(0)
+
+    if "--version" in sys.argv or "-v" in sys.argv:
+        try:
+            # Local import to avoid top-level dependency
+            from switchcraft import __version__
+            print(f"SwitchCraft v{__version__}")
+        except ImportError:
+            print("SwitchCraft (version unknown)")
+        sys.exit(0)
+
+    if "--factory-reset" in sys.argv:
+        try:
+             # Local import only for this command
+            from switchcraft.utils.config import SwitchCraftConfig
+            print("WARNING: This will delete ALL user data, settings, and secrets.")
+            print("Are you sure? (Type 'yes' to confirm)")
+            confirmation = input("> ")
+            if confirmation.strip().lower() == "yes":
+                SwitchCraftConfig.delete_all_application_data()
+                print("Factory reset complete.")
+            else:
+                print("Aborted.")
+            sys.exit(0)
+        except Exception as e:
+            print(f"Factory reset failed: {e}")
+            sys.exit(1)
+
     start_splash()
 
 # Now do heavy imports
@@ -247,7 +292,7 @@ def main(page: ft.Page):
     # --- Config Backend Initialization ---
     import sys  # Ensure sys is available for platform checks below
     try:
-        from switchcraft.utils.config import SwitchCraftConfig, SessionStoreBackend, RegistryBackend, EnvBackend
+        from switchcraft.utils.config import SwitchCraftConfig, RegistryBackend, EnvBackend
 
         # Determine Backend Mode
         if page.web:
@@ -314,51 +359,8 @@ def main(page: ft.Page):
         # Continue... fallback defaults might work or fail gracefully later
 
     # --- Handle Command Line Arguments FIRST ---
-
-
-    # Check for help/version flags (before UI initialization)
-    if "--help" in sys.argv or "-h" in sys.argv or "/?" in sys.argv:
-        print("SwitchCraft - Packaging Assistant for IT Professionals")
-        print("\nUsage: SwitchCraft.exe [OPTIONS]")
-        print("\nOptions:")
-        print("  --help, -h, /?          Show this help message")
-        print("  --version, -v           Show version information")
-        print("  --wizard                Open Packaging Wizard on startup")
-        print("  --analyzer, --all-in-one Open Installer Analyzer on startup")
-        print("  --factory-reset         Delete all user data and settings (requires confirmation)")
-        print("  --protocol <URL>        Handle protocol URL (switchcraft://...)")
-        print("  --silent                Silent mode (minimize UI, auto-accept prompts)")
-        print("\nExamples:")
-        print("  SwitchCraft.exe --wizard")
-        print("  SwitchCraft.exe --analyzer")
-        print("  SwitchCraft.exe --factory-reset")
-        print("  SwitchCraft.exe switchcraft://analyzer")
-        sys.exit(0)
-
-    if "--version" in sys.argv or "-v" in sys.argv:
-        try:
-            from switchcraft import __version__
-            print(f"SwitchCraft v{__version__}")
-        except ImportError:
-            print("SwitchCraft (version unknown)")
-        sys.exit(0)
-
-    # Handle factory reset (before UI initialization)
-    if "--factory-reset" in sys.argv:
-        try:
-            from switchcraft.utils.config import SwitchCraftConfig
-            print("WARNING: This will delete ALL user data, settings, and secrets.")
-            print("Are you sure? (Type 'yes' to confirm)")
-            confirmation = input("> ")
-            if confirmation.strip().lower() == "yes":
-                SwitchCraftConfig.delete_all_application_data()
-                print("Factory reset complete.")
-            else:
-                print("Aborted.")
-            sys.exit(0)
-        except Exception as e:
-            print(f"Factory reset failed: {e}")
-            sys.exit(1)
+    # Moved to top-level `if __name__ == "__main__":` block to avoid starting Splash/GUI
+    pass
 
     # --- Robust Page Patching ---
 
@@ -416,7 +418,7 @@ def main(page: ft.Page):
     # --- End Patching ---
 
     # --- Page Configuration ---
-    page.title = "SwitchCraft"
+    page.title = "SwitchCraft Web" if page.web else "SwitchCraft"
 
     # Set favicon for web mode
     try:

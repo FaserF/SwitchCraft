@@ -1,0 +1,24 @@
+services:
+  switchcraft-web:
+    build: .
+    image: switchcraft-web:latest
+    container_name: switchcraft-web
+    ports:
+      - "8080:8080"
+    volumes:
+      - switchcraft_data:/root/.switchcraft
+    environment:
+      - SC_CLIENT_ID=${SC_CLIENT_ID}
+      - SC_CLIENT_SECRET=${SC_CLIENT_SECRET}
+      - SC_AUTH_PROVIDER=${SC_AUTH_PROVIDER:-entra}
+      - SC_ENTRA_CLIENT_ID=${SC_ENTRA_CLIENT_ID}
+      - SC_ENTRA_CLIENT_SECRET=${SC_ENTRA_CLIENT_SECRET}
+      - SC_ENTRA_TENANT_ID=${SC_ENTRA_TENANT_ID}
+      - SC_GITHUB_CLIENT_ID=${SC_GITHUB_CLIENT_ID}
+      - SC_GITHUB_CLIENT_SECRET=${SC_GITHUB_CLIENT_SECRET}
+      - SC_BASE_URL=${SC_BASE_URL}
+      - SC_DISABLE_WINGET_INSTALL=1
+    restart: unless-stopped
+
+volumes:
+  switchcraft_data:

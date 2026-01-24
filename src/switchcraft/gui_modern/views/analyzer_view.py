@@ -51,11 +51,13 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         self.addon_warning = ft.Container(visible=False)
 
         # File Picker for Native/Web Support
-        self.file_picker = ft.FilePicker(on_result=self._on_file_picker_result)
+        self.file_picker = ft.FilePicker()
+        self.file_picker.on_result = self._on_file_picker_result
+        self.file_picker.on_upload = self._on_file_upload
 
-        def on_drop_click(e):
+        async def on_drop_click(e):
              # Use Flet's FilePicker instead of blocking helper
-             self.file_picker.pick_files(
+             await self.file_picker.pick_files(
                  allow_multiple=False,
                  allowed_extensions=["exe", "msi", "ps1", "bat", "cmd", "vbs", "msp"]
              )
@@ -227,13 +229,67 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         self._check_addon()
 
-    def _on_file_picker_result(self, e: ft.FilePickerResultEvent):
+    def _on_file_picker_result(self, e):
         if e.files:
             f = e.files[0]
             if f.path:
                 self.start_analysis(f.path)
             else:
-                self._show_snack(i18n.get("web_analysis_unavailable") or "Browser file analysis requires upload support (coming soon)", "ORANGE")
+                # Web Mode: Upload first
+                self._show_snack("Uploading for analysis...", "BLUE")
+                # Flet file picker upload - endpoint in app.py is /upload
+                self.file_picker.upload(e.files, upload_url="/upload", method="POST")
+
+    def _on_file_upload(self, e):
+        if e.error:
+            self._show_snack(f"Upload failed: {e.error}", "RED")
+            return
+
+        # Try to parse server response for absolute path (prevents collisions)
+        analysis_path = None
+        if e.data:
+            try:
+                import json
+                resp = json.loads(e.data)
+                uploaded = resp.get("uploaded", [])
+
+                # Probe multiple possible response fields
+                if uploaded and isinstance(uploaded, list) and len(uploaded) > 0:
+                    analysis_path = uploaded[0]
+                elif resp.get("path"):
+                    analysis_path = resp.get("path")
+                elif resp.get("filepath"):
+                    analysis_path = resp.get("filepath")
+                elif resp.get("file"):
+                    analysis_path = resp.get("file")
+
+                if analysis_path:
+                    logger.info(f"Using server-returned path: {analysis_path}")
+            except Exception as ex:
+                logger.warning(f"Failed to parse server upload response: {ex}")
+
+        # Fallback to local reconstruction if server response missing/invalid
+            # Reconstruct (Basic cleanup matching app.py logic)
+            import uuid
+            fname = e.file_name
+            clean_name = "".join(x for x in fname if x.isalnum() or x in "-_.").lstrip(".")
+            # Add short UUID to avoid local collisions if multiple uploads happen rapidly
+            if clean_name:
+                parts = clean_name.rsplit(".", 1)
+                if len(parts) > 1:
+                    clean_name = f"{parts[0]}_{uuid.uuid4().hex[:8]}.{parts[1]}"
+                else:
+                    clean_name = f"{clean_name}_{uuid.uuid4().hex[:8]}"
+            else:
+                clean_name = f"upload_{uuid.uuid4().hex[:8]}.bin"
+
+            analysis_path = str(Path(tempfile.gettempdir()) / "switchcraft_uploads" / clean_name)
+            logger.info(f"Falling back to reconstructed path (with UUID): {analysis_path}")
+
+        if Path(analysis_path).exists():
+            self.start_analysis(analysis_path, cleanup_path=analysis_path)
+        else:
+            self._show_snack("Upload finished but file path could not be verified.", "RED")
 
     def did_mount(self):
         # Register global file drop handler when this view is active

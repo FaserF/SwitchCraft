@@ -238,8 +238,9 @@ def test_github_login_button_exists(mock_page):
     """Test that GitHub login button exists and has on_click handler."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
-    view = ModernSettingsView(mock_page)
-    mock_page.add(view)
+    with patch('switchcraft.gui_modern.views.settings_view.AuthService.is_authenticated', return_value=False):
+        view = ModernSettingsView(mock_page)
+        mock_page.add(view)
 
     # Get the login button from cloud sync section
     cloud_sync = view._build_cloud_sync_section()
@@ -248,6 +249,8 @@ def test_github_login_button_exists(mock_page):
     assert view.login_btn is not None, "Login button should not be None"
     assert view.login_btn.on_click is not None, "Login button must have on_click handler"
     assert callable(view.login_btn.on_click), "on_click handler must be callable"
+
+
 
 
 def test_notification_button_exists(mock_page):

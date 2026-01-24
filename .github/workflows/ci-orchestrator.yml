@@ -100,7 +100,7 @@ jobs:
       component: backend
 
   test-e2e:
-    needs: [lint, decision]
+    needs: [lint, decision, test-backend]
     if: needs.decision.outputs.run_e2e == 'true'
     uses: ./.github/workflows/test.yml
     with:

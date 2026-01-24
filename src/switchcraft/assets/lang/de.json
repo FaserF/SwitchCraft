@@ -1,7 +1,7 @@
 {
     "short_name": "Kurzname",
     "start_url": "Start URL",
-    "app_title": "SwitchCraft Legacy 🧙‍♂️",
+    "app_title": "SwitchCraft 🧙‍♂️",
     "running_as_admin": "Status: Administrator ✅",
     "running_as_user": "Status: Standard-Benutzer 👤",
     "nav_home": "Startseite",
@@ -791,7 +791,7 @@
     "new_installer_urls": "Neue Installer-URL(s)",
     "package_id": "Paket-ID",
     "app_name": "Anwendungsname",
-    "short_description": "Kurzbeschreibung",
+    "short_description": "Umfassende Enterprise IT Plattform für Paketierung und Intune Management",
     "homepage": "Homepage-URL",
     "installer_type": "Installer-Typ",
     "install_scope": "Installationsbereich",
@@ -1080,5 +1080,6 @@
     "news_error": "Fehler beim Laden der Neuigkeiten",
     "loading_news": "Lade aktuelle Intune-Neuigkeiten...",
     "read_more": "Mehr lesen",
-    "intune_news": "Intune Neuigkeiten"
+    "intune_news": "Intune Neuigkeiten",
+    "web_analysis_unavailable": "Die Analyse von Browser-Dateien erfordert Upload-Unterstützung (demnächst verfügbar)"
 }

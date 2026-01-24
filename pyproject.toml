@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "switchcraft"
 version = "2026.1.5b1"
-description = "A universal silent switch finder and installer analyzer."
+description = "A comprehensive enterprise IT platform for software packaging, analysis, and Intune management."
 readme = "README.md"
 authors = [{ name = "FaserF" }]
 license = "MIT"
@@ -26,7 +26,8 @@ dependencies = [
     "defusedxml",
     "PyJWT",
     "anyio>=4.12.1",
-    "urllib3>=2.6.3,<3"
+    "urllib3>=2.6.3,<3",
+    "packaging"
 ]
 requires-python = ">=3.12"
 
@@ -37,11 +38,12 @@ gui = [
     "pillow",
     "plyer"
 ]
-modern = ["flet==0.80.3", "flet-desktop==0.80.3", "flet-charts==0.80.3"]
+modern = ["flet==0.80.4", "flet-desktop==0.80.4", "flet-charts==0.80.4"]
 test = [
     "pytest==9.0.2",
-    "flet==0.80.3",
-    "flet-charts==0.80.3"
+    "flet-charts==0.80.4",
+    "httpx>=0.28.1",
+    "pytest-timeout"
 ]
 build = [
     "pyinstaller==6.18.0"
@@ -50,6 +52,18 @@ desktop = [
     "winotify",
     "py7zr",
     "keyring"
+]
+
+web-server = [
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "jinja2",
+    "itsdangerous",
+    "bcrypt<=4.0.1",
+    "passlib[bcrypt]",
+    "pyotp", # Verified for Python 3.14
+    "webauthn"
 ]
 
 [project.scripts]
@@ -69,6 +83,7 @@ python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
 addopts = "--ignore=test_out.txt --ignore=test_output.txt --ignore=test_addons_result.txt -W ignore::ResourceWarning"
+timeout = 60
 
 # Flet Web Publishing Configuration
 [tool.flet.app]
