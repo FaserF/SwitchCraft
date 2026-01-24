@@ -162,11 +162,99 @@ MFA_SETUP_TEMPLATE = """
 </html>
 """
 
+
+# --- I18n Dictionaries ---
+TRANSLATIONS = {
+    "en": {
+        "title": "SwitchCraft Web",
+        "desc": "Intune Packaging & Management Platform<br>Simplify your Windows app deployment workflow.",
+        "username": "Username",
+        "password": "Password",
+        "login": "Log In",
+        "footer_rights": "© 2026 FaserF",
+        "admin_panel": "Admin Panel",
+        "sso_ms": "Log in with Microsoft",
+        "sso_gh": "Log in with GitHub",
+        "not_configured": "Not Configured",
+        "default_creds_warning": "⚠️ Security Notice: Default credentials active (admin/admin). Change immediately!",
+        "settings_saved": "Global settings saved.",
+        "admin_title": "Server Administration",
+        "back_to_app": "Back to App",
+        "logout": "Logout",
+        "change_password": "Change Admin Password",
+        "curr_pw": "Current Password",
+        "new_pw": "New Password",
+        "confirm_pw": "Confirm Password",
+        "user_mgmt": "User Management",
+        "add_user": "Add User",
+        "role": "Role",
+        "active": "Active",
+        "actions": "Actions",
+        "global_settings": "Global Settings",
+        "enable_demo": "Enable Demo Mode",
+        "disable_auth": "Disable Auth (Auto-Login)",
+        "allow_sso": "Allow SSO Registration (Auto-Provision)",
+        "enforce_mfa": "Enforce MFA for All Users",
+        "save_settings": "Save Settings",
+        "sso_config": "SSO Configuration",
+        "backup_reset": "Backup & Reset",
+        "exp_backup": "Export Backup",
+        "fac_reset": "Factory Reset",
+    },
+    "de": {
+        "title": "SwitchCraft Web",
+        "desc": "Intune Packaging & Management Plattform<br>Vereinfachen Sie Ihren Windows-App-Deployment-Workflow.",
+        "username": "Benutzername",
+        "password": "Passwort",
+        "login": "Anmelden",
+        "footer_rights": "© 2026 FaserF",
+        "admin_panel": "Admin-Bereich",
+        "sso_ms": "Mit Microsoft anmelden",
+        "sso_gh": "Mit GitHub anmelden",
+        "not_configured": "Nicht konfiguriert",
+        "default_creds_warning": "⚠️ Sicherheitshinweis: Standard-Zugangsdaten aktiv (admin/admin). Bitte sofort ändern!",
+        "settings_saved": "Einstellungen gespeichert.",
+        "admin_title": "Server-Verwaltung",
+        "back_to_app": "Zurück zur App",
+        "logout": "Abmelden",
+        "change_password": "Admin-Passwort ändern",
+        "curr_pw": "Aktuelles Passwort",
+        "new_pw": "Neues Passwort",
+        "confirm_pw": "Passwort bestätigen",
+        "user_mgmt": "Benutzerverwaltung",
+        "add_user": "Benutzer hinzufügen",
+        "role": "Rolle",
+        "active": "Aktiv",
+        "actions": "Aktionen",
+        "global_settings": "Globale Einstellungen",
+        "enable_demo": "Demo-Modus aktivieren",
+        "disable_auth": "Authentifizierung deaktivieren (Auto-Login)",
+        "allow_sso": "SSO-Registrierung erlauben",
+        "enforce_mfa": "MFA für alle erzwingen",
+        "save_settings": "Einstellungen speichern",
+        "sso_config": "SSO-Konfiguration",
+        "backup_reset": "Backup & Reset",
+        "exp_backup": "Backup exportieren",
+        "fac_reset": "Werksreset / Zurücksetzen",
+    }
+}
+
+def get_locale(request: Request) -> str:
+    accept = request.headers.get("Accept-Language", "").lower()
+    logger.info(f"Language Detection: Header='{accept}' -> Detected='{'de' if 'de' in accept else 'en'}'")
+    if "de" in accept:
+        return "de"
+    return "en"
+
+def t(key: str, request: Request) -> str:
+    lang = get_locale(request)
+    return TRANSLATIONS.get(lang, TRANSLATIONS["en"]).get(key, key)
+
 LOGIN_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SwitchCraft Web</title>
+    <title>{title}</title>
     <link rel="icon" type="image/png" href="/assets/favicon.png">
     <style>
         body {{ font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; background-color: #111315; color: white; margin: 0; padding: 20px; box-sizing: border-box; }}
@@ -198,16 +286,16 @@ LOGIN_TEMPLATE = """
     <div class="container">
         <div class="card">
             <img src="/assets/switchcraft_logo.png" alt="SwitchCraft" class="logo" onerror="this.style.display='none'">
-            <h2>SwitchCraft Web</h2>
-            <p class="description">Intune Packaging & Management Platform<br>Simplify your Windows app deployment workflow.</p>
+            <h2>{title}</h2>
+            <p class="description">{desc}</p>
 
             {error_msg}
 
             <form action="/login" method="post">
-                <input type="text" name="username" placeholder="Username" required autofocus>
-                <input type="password" name="password" placeholder="Password" required>
+                <input type="text" name="username" placeholder="{ph_username}" required autofocus>
+                <input type="password" name="password" placeholder="{ph_password}" required>
                 {mfa_field}
-                <button type="submit">Log In</button>
+                <button type="submit">{btn_login}</button>
             </form>
 
             {sso_section}
@@ -219,9 +307,9 @@ LOGIN_TEMPLATE = """
             <p>SwitchCraft v{version}</p>
             <p>
                 <a href="https://github.com/FaserF/SwitchCraft" target="_blank">GitHub</a> |
-                <a href="/admin">Admin Panel</a>
+                <a href="/admin">{link_admin}</a>
             </p>
-            <p style="color: #666;">© 2026 FaserF</p>
+            <p style="color: #666;">{footer}</p>
         </footer>
     </div>
 </body>
@@ -247,8 +335,6 @@ async def login_page(request: Request, sso_failed: bool = False):
         return RedirectResponse("/login/entra", status_code=status.HTTP_302_FOUND)
 
     mfa_field = ""
-    # MFA Logic now depends on specific user but we don't know user yet.
-    # We support the legacy "global" mfa check for admin.
     if conf.get("mfa_enabled"):
         mfa_field = '<input type="text" name="totp_token" placeholder="MFA Code (e.g. 123456)" pattern="[0-9]{6}" autocomplete="off">'
 
@@ -259,29 +345,33 @@ async def login_page(request: Request, sso_failed: bool = False):
 
     # Entra button
     if entra_configured:
-        sso_html += '<a href="/login/entra"><button class="sso-btn" type="button">🔐 Log in with Microsoft</button></a>'
+        sso_html += f'<a href="/login/entra"><button class="sso-btn" type="button">🔐 {t("sso_ms", request)}</button></a>'
     else:
-        sso_html += '<button class="sso-btn sso-disabled" type="button" disabled title="Not configured - Set SC_ENTRA_CLIENT_ID">🔐 Log in with Microsoft (Not Configured)</button>'
+        sso_html += f'<button class="sso-btn sso-disabled" type="button" disabled title="Not configured - Set SC_ENTRA_CLIENT_ID">🔐 {t("sso_ms", request)} ({t("not_configured", request)})</button>'
 
     # GitHub button
     if github_configured:
-        sso_html += '<a href="/login/github"><button class="sso-btn" type="button">🐙 Log in with GitHub</button></a>'
+        sso_html += f'<a href="/login/github"><button class="sso-btn" type="button">🐙 {t("sso_gh", request)}</button></a>'
     else:
-        sso_html += '<button class="sso-btn sso-disabled" type="button" disabled title="Not configured - Set SC_GITHUB_CLIENT_ID">🐙 Log in with GitHub (Not Configured)</button>'
+        sso_html += f'<button class="sso-btn sso-disabled" type="button" disabled title="Not configured - Set SC_GITHUB_CLIENT_ID">🐙 {t("sso_gh", request)} ({t("not_configured", request)})</button>'
 
     # Default password warning (show if first_run is True)
     default_pw_warning = ""
     if conf.get("first_run", False):
-        default_pw_warning = '''
+        default_pw_warning = f'''
         <div class="warning">
-            <strong>⚠️ Security Notice:</strong><br>
-            Default credentials are active:<br>
-            Username: <code>admin</code> | Password: <code>admin</code><br><br>
-            <strong>Please change the password immediately</strong> after logging in via the <a href="/admin">Admin Panel</a>.
+            <strong>{t("default_creds_warning", request)}</strong>
         </div>
         '''
 
     return LOGIN_TEMPLATE.format(
+        title=t("title", request),
+        desc=t("desc", request),
+        ph_username=t("username", request),
+        ph_password=t("password", request),
+        btn_login=t("login", request),
+        link_admin=t("admin_panel", request),
+        footer=t("footer_rights", request),
         error_msg="",
         mfa_field=mfa_field,
         sso_section=sso_html,
@@ -335,7 +425,7 @@ async def test_sso_config(provider: str, user: str = Depends(admin_required)):
 
 
 @app.post("/login", response_class=HTMLResponse)
-async def login(username: str = Form(...), password: str = Form(...), totp_token: str = Form(None)):
+async def login(request: Request, username: str = Form(...), password: str = Form(...), totp_token: str = Form(None)):
     error = None
 
     # 1. Verify User
@@ -398,6 +488,13 @@ async def login(username: str = Form(...), password: str = Form(...), totp_token
         '''
 
     return LOGIN_TEMPLATE.format(
+        title=t("title", request),
+        desc=t("desc", request),
+        ph_username=t("username", request),
+        ph_password=t("password", request),
+        btn_login=t("login", request),
+        link_admin=t("admin_panel", request),
+        footer=t("footer_rights", request),
         error_msg=f'<div class="error">{error}</div>',
         mfa_field=mfa_field,
         sso_section=sso_section,
@@ -521,6 +618,8 @@ async def admin_page(request: Request, user: str = Depends(admin_required)):
 
     # Check for updates
     update_info = await check_for_updates()
+    logger.info(f"Admin Page Update Info: {update_info}")
+
     update_banner = ""
     if update_info.get("has_update"):
         update_banner = f"""
@@ -534,9 +633,20 @@ async def admin_page(request: Request, user: str = Depends(admin_required)):
         """
     elif update_info.get("error"):
         logger.warning(f"Update check failed: {update_info['error']}")
+    else:
+        # Up to date
+        update_banner = f"""
+        <div style="background: #00aa44; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <strong>✅ SwitchCraft is up to date</strong><br>
+                <span style="font-size: 0.9em;">Version: v{switchcraft.__version__} | Channel: {update_info.get('channel', 'stable')}</span>
+            </div>
+             <button disabled style="background: rgba(255,255,255,0.2); color: white; cursor: default; margin: 0;">Latest Version</button>
+        </div>
+        """
 
     # Render Users Table
-    users_html = "<table style='width:100%; text-align:left; border-collapse:collapse;'><tr><th>Username</th><th>Role</th><th>Active</th><th>Actions</th></tr>"
+    users_html = f"<table style='width:100%; text-align:left; border-collapse:collapse;'><tr><th>{t('username', request)}</th><th>{t('role', request)}</th><th>{t('active', request)}</th><th>{t('actions', request)}</th></tr>"
     for u in users:
         active_status = "✅" if u.get('is_active') else "❌"
         users_html += f"<tr><td>{u['username']}</td><td>{u['role']}</td><td>{active_status}</td>"
@@ -564,7 +674,7 @@ async def admin_page(request: Request, user: str = Depends(admin_required)):
     <!DOCTYPE html>
     <html>
     <head>
-        <title>SwitchCraft Admin</title>
+        <title>{t('admin_title', request)}</title>
         <link rel="icon" type="image/png" href="/assets/favicon.png">
          <style>
             body {{ font-family: 'Segoe UI', sans-serif; padding: 20px; background-color: #111315; color: #eee; }}
@@ -609,60 +719,60 @@ async def admin_page(request: Request, user: str = Depends(admin_required)):
     </head>
     <body>
         <div class="card">
-            <h1>🔧 Server Administration</h1>
-            <p>Logged in as: <b>{user}</b> | <a href="/">Back to App</a> | <a href="/logout">Logout</a></p>
+            <h1>🔧 {t('admin_title', request)}</h1>
+            <p>Logged in as: <b>{user}</b> | <a href="/">{t('back_to_app', request)}</a> | <a href="/logout">{t('logout', request)}</a></p>
 
             {update_banner}
             {password_warning}
 
             <!-- Password Change Section -->
             <div class="section">
-                <h4>🔐 Change Admin Password</h4>
+                <h4>🔐 {t('change_password', request)}</h4>
                 <form action="/admin/password" method="post" class="inline-form">
-                    <input type="password" name="current_password" placeholder="Current Password" required>
-                    <input type="password" name="new_password" placeholder="New Password" required minlength="6">
-                    <input type="password" name="confirm_password" placeholder="Confirm Password" required minlength="6">
-                    <button type="submit" class="btn-success">Change Password</button>
+                    <input type="password" name="current_password" placeholder="{t('curr_pw', request)}" required>
+                    <input type="password" name="new_password" placeholder="{t('new_pw', request)}" required minlength="6">
+                    <input type="password" name="confirm_password" placeholder="{t('confirm_pw', request)}" required minlength="6">
+                    <button type="submit" class="btn-success">{t('change_password', request)}</button>
                 </form>
             </div>
 
-            <h3>👥 User Management</h3>
+            <h3>👥 {t('user_mgmt', request)}</h3>
             {users_html}
 
-            <h4>Add User</h4>
+            <h4>{t('add_user', request)}</h4>
             <form action="/admin/users/add" method="post" class="inline-form">
-                <input type="text" name="username" placeholder="Username" required>
-                <input type="password" name="password" placeholder="Password" required>
+                <input type="text" name="username" placeholder="{t('username', request)}" required>
+                <input type="password" name="password" placeholder="{t('password', request)}" required>
                 <select name="role"><option value="user">User</option><option value="admin">Admin</option></select>
-                <button type="submit">Create User</button>
+                <button type="submit">{t('add_user', request)}</button>
             </form>
 
-            <h3>⚙️ Global Settings</h3>
+            <h3>⚙️ {t('global_settings', request)}</h3>
             <form action="/admin/settings" method="post">
                 <div class="toggle-label">
-                    <label>Enable Demo Mode</label>
+                    <label>{t('enable_demo', request)}</label>
                     <input type="checkbox" name="demo_mode" {'checked' if conf.get('demo_mode') else ''}>
                 </div>
                 <div class="toggle-label">
-                    <label>Disable Auth (Auto-Login)</label>
+                    <label>{t('disable_auth', request)}</label>
                     <input type="checkbox" name="auth_disabled" {'checked' if conf.get('auth_disabled') else ''}>
                 </div>
                 <div class="toggle-label">
-                    <label>Allow SSO Registration (Auto-Provision)</label>
+                    <label>{t('allow_sso', request)}</label>
                     <input type="checkbox" name="allow_sso_registration" {'checked' if conf.get('allow_sso_registration', True) else ''}>
                 </div>
                 <div class="toggle-label">
-                    <label>Enforce MFA for All Users</label>
+                    <label>{t('enforce_mfa', request)}</label>
                     <input type="checkbox" name="enforce_mfa" {'checked' if conf.get('enforce_mfa') else ''}>
                 </div>
                 <p style="font-size: 0.8em; color: #888; margin-top: -5px;">When enabled, users without MFA will be required to set it up on next login.</p>
                 <br>
-                <button type="submit">Save Settings</button>
+                <button type="submit">{t('save_settings', request)}</button>
             </form>
 
             <!-- SSO Configuration -->
             <div class="section">
-                <h4>🔑 SSO Configuration</h4>
+                <h4>🔑 {t('sso_config', request)}</h4>
                 <p style="color: #888; font-size: 0.9em;">Configure Single Sign-On providers. Set via environment variables.</p>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -688,18 +798,18 @@ async def admin_page(request: Request, user: str = Depends(admin_required)):
 
             <!-- Backup & Reset -->
             <div class="section">
-                <h4>💾 Backup & Reset</h4>
+                <h4>💾 {t('backup_reset', request)}</h4>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <a href="/admin/backup"><button type="button">📥 Export Backup</button></a>
+                    <a href="/admin/backup"><button type="button">📥 {t('exp_backup', request)}</button></a>
                     <form action="/admin/reset" method="post" onsubmit="return confirm('⚠️ This will DELETE ALL DATA and reset to defaults. Are you absolutely sure?');" style="display: inline;">
-                        <button type="submit" class="btn-danger">🗑️ Factory Reset</button>
+                        <button type="submit" class="btn-danger">🗑️ {t('fac_reset', request)}</button>
                     </form>
                 </div>
             </div>
 
             <footer>
                 <p>SwitchCraft v{switchcraft.__version__}</p>
-                <p><a href="https://github.com/FaserF/SwitchCraft" target="_blank">GitHub</a> | © 2024 FaserF</p>
+                <p><a href="https://github.com/FaserF/SwitchCraft" target="_blank">GitHub</a> | {t('footer_rights', request)}</p>
             </footer>
         </div>
     </body>
@@ -813,6 +923,10 @@ async def admin_reset(user: str = Depends(admin_required)):
 async def get_me(user: str = Depends(get_current_user)):
     return {"username": user}
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return RedirectResponse(url="/assets/favicon.ico")
+
 # Flet Auth Middleware
 async def flet_auth_middleware(request: Request, call_next):
     whitelist = ["/login", "/logout", "/admin", "/api", "/oauth_callback", "/favicon.ico"]
@@ -924,14 +1038,17 @@ async def before_main(page: ft.Page):
 
             # Detect browser language from Accept-Language header
             accept_lang = request.headers.get("Accept-Language", "")
+            logger.info(f"Flet before_main: Accept-Language='{accept_lang}'")
             if accept_lang:
                 # Parse Accept-Language: e.g. "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7"
                 lang_parts = accept_lang.split(",")
                 if lang_parts:
                     primary_lang = lang_parts[0].split(";")[0].strip().lower()
+                    logger.info(f"Flet before_main: Primary detected='{primary_lang}'")
                     # Check if German
                     if primary_lang.startswith("de"):
                         page.switchcraft_session['browser_language'] = "de"
+                        logger.info("Flet before_main: Setting language to 'de'")
                         # Set i18n language directly
                         try:
                             from switchcraft.utils.i18n import i18n

@@ -17,7 +17,9 @@ COPY README.md .
 COPY src ./src
 
 # Install dependencies (Modern Flet + Web Server + Web WASM)
-RUN pip install --no-cache-dir .[modern,web-server] flet-web packaging
+# Explicitly avoid 'modern' extra which includes flet-desktop (causes issues in Docker)
+# PIN VERSIONS to ensure frontend (JS) matches backend (Python) capabilities (Fixes FilePicker issue)
+RUN pip install --no-cache-dir .[web-server] flet==0.80.4 flet-web==0.80.4 flet-charts==0.80.4 packaging
 
 # Generate Addons (Pre-installed)
 RUN python src/generate_addons.py

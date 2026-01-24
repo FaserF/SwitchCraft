@@ -804,18 +804,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 self.update()
 
                 if not only_changelog and self.app_page:
-                     if has_update:
-                         # Use SnackBar action logic if needed, but for compatibility keep it simple or implement action support in helper
-                         # For now simple message
-                         self._show_snack(f"{i18n.get('update_available') or 'Update available'}: {version_str}", "BLUE")
-                     else:
-                         self._show_snack(i18n.get("no_update_found") or "No updates available.", "GREY")
-                     self.app_page.update()
+                    if has_update:
+                        self._show_snack(f"{i18n.get('update_available') or 'Update available'}: {version_str}", "BLUE")
+                    else:
+                        self._show_snack(i18n.get("no_update_found") or "No updates available.", "GREY")
+                    self.app_page.update()
 
             except Exception as ex:
                 self.changelog_text.value = f"{i18n.get('update_check_failed') or 'Error fetching updates'}: {ex}"
-            except Exception:
-                pass
 
         self._run_in_background(_run)
 

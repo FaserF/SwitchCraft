@@ -180,9 +180,26 @@ class ModernHomeView(ft.Container, ViewMixin):
 
         return ft.Column([
             # Header
-            ft.Text(f"{greeting}", size=32, weight=ft.FontWeight.BOLD, color="PRIMARY"),
-            ft.Text(privilege_text, size=14, color="SECONDARY", weight=ft.FontWeight.W_500),
-            ft.Text(subtitle, size=14, color="SECONDARY"),
+            # Header
+            ft.Row([
+                ft.Column([
+                    ft.Text(f"{greeting}", size=32, weight=ft.FontWeight.BOLD, color="PRIMARY"),
+                    ft.Text(privilege_text, size=14, color="SECONDARY", weight=ft.FontWeight.W_500),
+                    ft.Text(subtitle, size=14, color="SECONDARY"),
+                ], expand=True, spacing=5),
+                ft.Button(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.HELP_OUTLINE, color="WHITE"),
+                        ft.Text(i18n.get("btn_help") or "Help & Docs", color="WHITE"),
+                    ], spacing=10, tight=True),
+                    on_click=lambda _: self._launch_url("https://faserf.github.io/SwitchCraft/"),
+                    style=ft.ButtonStyle(
+                        bgcolor="PRIMARY",
+                        padding=15,
+                        shape=ft.RoundedRectangleBorder(radius=10),
+                    )
+                )
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.START),
 
             ft.Divider(height=30, color="TRANSPARENT"),
 

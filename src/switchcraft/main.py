@@ -308,6 +308,16 @@ def main(page: ft.Page):
             # Flet callbacks in other threads/contexts might lose the ContextVar
             page.sc_backend = storage_backend
 
+            # Apply Language from Session (if detected by middleware)
+            if hasattr(page, 'switchcraft_session'):
+                sess_lang = page.switchcraft_session.get('browser_language')
+                if sess_lang and sess_lang in ['de', 'en']:
+                    print(f"Applying session language: {sess_lang}")
+                    SwitchCraftConfig.set_value("Language", sess_lang)
+                    # Force update i18n immediate
+                    from switchcraft.utils.i18n import i18n
+                    i18n.set_language(sess_lang)
+
             print("Config Backend: ClientStorageBackend (Web/Persistent)")
 
             # --- WEB AUTHENTICATION (SSO) ---
@@ -357,6 +367,23 @@ def main(page: ft.Page):
     except Exception as e:
         print(f"Failed to initialize Config Backend: {e}")
         # Continue... fallback defaults might work or fail gracefully later
+
+    # --- UI Initialization ---
+    page.title = "SwitchCraft"
+    # Attempt to set window icon for Desktop (doesn't hurt Web if ignored)
+    page.window_icon = "assets/favicon.ico"
+
+    page.theme_mode = ft.ThemeMode.DARK
+    page.padding = 0
+    page.spacing = 0
+
+    # Configure Fonts
+    page.fonts = {
+        "Segoe UI": "Segoe UI",
+        "Roboto": "Roboto",
+        "Open Sans": "Open Sans"
+    }
+    page.theme = ft.Theme(font_family="Segoe UI")
 
     # --- Handle Command Line Arguments FIRST ---
     # Moved to top-level `if __name__ == "__main__":` block to avoid starting Splash/GUI
@@ -740,34 +767,26 @@ def _ensure_pwa_manifest():
         manifest_path = assets_dir / "manifest.json"
 
         # Define PWA Manifest content
+        # Simplify icons to reduce 404/Cache errors
         manifest_data = {
             "name": "SwitchCraft",
             "short_name": "SwitchCraft",
-            "start_url": ".",
+            "id": "/",
+            "start_url": "./?pwa=1",
             "display": "standalone",
-            "background_color": "#202020",
-            "theme_color": "#202020",
-            "description": f"Modern Software Management - v{__version__}",
+            "background_color": "#111315",
+            "theme_color": "#0066cc",
+            "description": f"SwitchCraft Modern Software Management (v{__version__})",
             "icons": [
                 {
-                    "src": "icons/icon-192.png",
+                    "src": "icon-192.png",
                     "sizes": "192x192",
                     "type": "image/png"
                 },
                 {
-                    "src": "icons/icon-512.png",
+                    "src": "icon-512.png",
                     "sizes": "512x512",
                     "type": "image/png"
-                },
-                 {
-                    "src": "switchcraft_logo.png",
-                    "sizes": "any",
-                    "type": "image/png"
-                },
-                {
-                     "src": "apple-touch-icon.png",
-                     "sizes": "180x180",
-                     "type": "image/png"
                 }
             ]
         }

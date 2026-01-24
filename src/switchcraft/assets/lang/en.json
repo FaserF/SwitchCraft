@@ -1081,5 +1081,15 @@
     "loading_news": "Loading latest Intune news...",
     "read_more": "Read more",
     "intune_news": "Intune News",
-    "web_analysis_unavailable": "Browser file analysis requires upload support (coming soon)"
+    "web_analysis_unavailable": "Browser file analysis requires upload support (coming soon)",
+    "enable_demo": "Enable Demo Mode",
+    "add_user": "Add User",
+    "not_configured": "Not Configured",
+    "admin_panel": "Admin Panel",
+    "btn_help": "Help & Docs",
+    "save_settings": "Save Settings",
+    "admin_title": "Admin Dashboard",
+    "default_creds_warning": "Default credentials are active!",
+    "confirm_pw": "Confirm Password",
+    "new_pw": "New Password"
 }

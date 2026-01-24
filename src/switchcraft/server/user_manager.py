@@ -47,17 +47,13 @@ class UserManager:
 
     def _ensure_users_file(self):
         if not self.users_file.exists():
-            # Create default admin user with a secure random password
-            generated_password = secrets.token_urlsafe(16)
+            # Create default admin user with documented default password
+            # The UI warns the user to change this immediately (must_change_password=True)
+            generated_password = "admin"
             logger.info("*" * 60)
-            logger.info("Initial admin password generated and printed to stdout")
-            logger.info("PLEASE RECORD THIS PASSWORD IMMEDIATELY.")
+            logger.info("Initial admin user created.")
+            logger.info("Default Credentials: admin / admin")
             logger.info("*" * 60)
-
-            # Also print to stdout to ensure visibility in Docker logs / terminal
-            print("\n" + "!" * 60)
-            print(f"!!! INITIAL ADMIN PASSWORD: {generated_password} !!!")
-            print("!" * 60 + "\n")
 
             default_admin_hash = self._hash_password(generated_password)
             initial_data = {

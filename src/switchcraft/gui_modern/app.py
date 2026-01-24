@@ -229,37 +229,37 @@ class ModernApp:
             threading.Thread(target=check_updates, daemon=True).start()
 
     def _get_help_url(self, index):
-        """Returns the GitHub Pages documentation URL for the given view index."""
-        base_url = "https://faserf.github.io/SwitchCraft/views/"
+        """Returns the GitHub documentation URL for the given view index."""
+        base_url = "https://faserf.github.io/SwitchCraft/" # Pointing to GitHub Pages
         from switchcraft.gui_modern.nav_constants import NavIndex
 
         mapping = {
-            NavIndex.HOME: "home",
-            NavIndex.SETTINGS_UPDATES: "settings",
-            NavIndex.SETTINGS_GRAPH: "settings",
-            NavIndex.SETTINGS_HELP: "help",
-            NavIndex.ADDON_MANAGER: "help",
-            NavIndex.WINGET: "winget",
-            NavIndex.ANALYZER: "analyzer",
-            NavIndex.HELPER: "helper",
-            NavIndex.INTUNE: "intune",
-            NavIndex.INTUNE_STORE: "intune_store",
-            NavIndex.SCRIPTS: "scripts",
-            NavIndex.MACOS: "macos",
-            NavIndex.HISTORY: "history",
-            NavIndex.SETTINGS: "settings",
-            NavIndex.PACKAGING_WIZARD: "wizard",
-            NavIndex.DETECTION_TESTER: "tester",
-            NavIndex.STACK_MANAGER: "stacks",
-            NavIndex.DASHBOARD: "dashboard",
-            NavIndex.LIBRARY: "library",
-            NavIndex.GROUP_MANAGER: "groups",
-            NavIndex.WINGET_CREATE: "winget_create",
-            NavIndex.EXCHANGE: "exchange",
-            NavIndex.SETTINGS_POLICIES: "policies"
+            NavIndex.HOME: "",
+            NavIndex.SETTINGS_UPDATES: "views/settings",
+            NavIndex.SETTINGS_GRAPH: "views/settings",
+            NavIndex.SETTINGS_HELP: "views/help",
+            NavIndex.ADDON_MANAGER: "views/help",
+            NavIndex.WINGET: "views/winget",
+            NavIndex.ANALYZER: "views/analyzer",
+            NavIndex.HELPER: "views/helper",
+            NavIndex.INTUNE: "views/intune",
+            NavIndex.INTUNE_STORE: "views/intune_store",
+            NavIndex.SCRIPTS: "views/scripts",
+            NavIndex.MACOS: "views/macos",
+            NavIndex.HISTORY: "views/history",
+            NavIndex.SETTINGS: "views/settings",
+            NavIndex.PACKAGING_WIZARD: "views/wizard",
+            NavIndex.DETECTION_TESTER: "views/tester",
+            NavIndex.STACK_MANAGER: "views/stacks",
+            NavIndex.DASHBOARD: "views/dashboard",
+            NavIndex.LIBRARY: "views/library",
+            NavIndex.GROUP_MANAGER: "views/groups",
+            NavIndex.WINGET_CREATE: "views/winget_create",
+            NavIndex.EXCHANGE: "views/exchange",
+            NavIndex.SETTINGS_POLICIES: "views/policies"
         }
 
-        page_name = mapping.get(index, "home") # Default to home
+        page_name = mapping.get(index, "")
         return f"{base_url}{page_name}"
 
     def _open_help(self, e):
@@ -268,8 +268,10 @@ class ModernApp:
             current_idx = getattr(self, '_current_tab_index', 0)
             url = self._get_help_url(current_idx)
             logger.info(f"Opening help for index {current_idx}: {url}")
-            import webbrowser
-            webbrowser.open(url)
+
+            # Use page.launch_url for cross-platform compatibility (Web/Desktop)
+            self.page.launch_url(url)
+
         except Exception as ex:
             logger.error(f"Failed to open help: {ex}")
             self.page.snack_bar = ft.SnackBar(ft.Text(f"Failed to open help: {ex}"), bgcolor="RED")

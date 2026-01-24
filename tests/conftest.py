@@ -209,6 +209,10 @@ def _create_mock_page():
                 self.end_drawer.open = False
             self.update()
 
+        def launch_url(self, url):
+            """Mock launch_url."""
+            pass
+
     return MockPage()
 
 

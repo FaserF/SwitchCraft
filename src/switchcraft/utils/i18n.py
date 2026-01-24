@@ -217,11 +217,10 @@ class I18n:
         try:
             from switchcraft.utils.config import SwitchCraftConfig
             ctx_lang = SwitchCraftConfig.get_value("Language")
-            if ctx_lang and ctx_lang != self.language:
-                 # This might happen if 'set_language' wasn't called on this instance
-                 # but preference changed. We should probably use that language map.
-                 # For simplicity, we stick to current unless we want to load on the fly
-                 pass
+            if ctx_lang and ctx_lang != self.language and ctx_lang in self.translations:
+                 # Use the language from the current context (User Session)
+                 # This allows multi-user language support despite Singleton pattern
+                 lang = ctx_lang
         except:
             pass
 

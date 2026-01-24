@@ -1081,5 +1081,15 @@
     "loading_news": "Lade aktuelle Intune-Neuigkeiten...",
     "read_more": "Mehr lesen",
     "intune_news": "Intune Neuigkeiten",
-    "web_analysis_unavailable": "Die Analyse von Browser-Dateien erfordert Upload-Unterstützung (demnächst verfügbar)"
+    "web_analysis_unavailable": "Die Analyse von Browser-Dateien erfordert Upload-Unterstützung (demnächst verfügbar)",
+    "enable_demo": "Demo-Modus aktivieren",
+    "add_user": "Benutzer hinzufügen",
+    "not_configured": "Nicht konfiguriert",
+    "admin_panel": "Admin-Panel",
+    "btn_help": "Hilfe & Docs",
+    "save_settings": "Einstellungen speichern",
+    "admin_title": "Admin-Dashboard",
+    "default_creds_warning": "Standard-Anmeldedaten sind aktiv!",
+    "confirm_pw": "Passwort bestätigen",
+    "new_pw": "Neues Passwort"
 }
