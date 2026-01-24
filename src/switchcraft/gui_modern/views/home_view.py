@@ -6,7 +6,7 @@ from switchcraft.utils.i18n import i18n
 from switchcraft.services.intune_service import IntuneService
 import threading
 
-from switchcraft import IS_WEB
+from switchcraft import IS_WEB, IS_DEMO
 
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
@@ -137,7 +137,7 @@ class ModernHomeView(ft.Container, ViewMixin):
 
         # If the environment/fallback returns "web_user" (usually in Pyodide), translate it
         if username == "web_user":
-            username = i18n.get("web_user")
+            username = i18n.get("demo_web_user" if IS_DEMO else "web_user")
 
         # Now get the greeting with the name
         greeting = i18n.get(greeting_key, name=username)

@@ -614,6 +614,7 @@
     "home_subtitle": "Here is what's happening with your deployments.",
     "default_user": "User",
     "web_user": "Web User",
+    "demo_web_user": "Demo ({web_user})",
     "dashboard_overview_title": "Overview",
     "stat_analyzed": "Analyzed",
     "stat_packaged": "Packaged",

@@ -748,12 +748,12 @@ def _ensure_pwa_manifest():
             "description": f"Modern Software Management - v{__version__}",
             "icons": [
                 {
-                    "src": "icon-192.png",
+                    "src": "icons/icon-192.png",
                     "sizes": "192x192",
                     "type": "image/png"
                 },
                 {
-                    "src": "icon-512.png",
+                    "src": "icons/icon-512.png",
                     "sizes": "512x512",
                     "type": "image/png"
                 },
@@ -761,11 +761,15 @@ def _ensure_pwa_manifest():
                     "src": "switchcraft_logo.png",
                     "sizes": "any",
                     "type": "image/png"
+                },
+                {
+                     "src": "apple-touch-icon.png",
+                     "sizes": "180x180",
+                     "type": "image/png"
                 }
             ]
         }
 
-        # Check if assets dir exists (should exist)
         if assets_dir.exists():
             # Always overwrite/update to ensure version is current
             with open(manifest_path, "w", encoding="utf-8") as f:
@@ -774,6 +778,7 @@ def _ensure_pwa_manifest():
 
     except Exception as e:
         print(f"Failed to generate PWA manifest: {e}")
+
 
 if __name__ == "__main__":
     # Ensure PWA manifest exists for Web/Docker mode

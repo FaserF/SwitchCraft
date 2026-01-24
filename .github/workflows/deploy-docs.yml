@@ -29,15 +29,21 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install Flet
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .
-          pip install flet==0.80.3
+          pip install .[test]
           pip install Pillow
 
-      - name: Validate Translations
-        run: python scripts/validate_i18n.py
+      - name: Run Tests (I18n Integrity)
+        run: python -m pytest tests/test_i18n_integrity.py
+
+      - name: Pre-install Addons (Web)
+        run: |
+           # Helper to unzip addons into source tree so they are bundled as python packages
+           # Must ensure destination exists
+           mkdir -p src/switchcraft/addons
+           python -c "import zipfile, os, glob; from pathlib import Path; [zipfile.ZipFile(z).extractall(Path('src/switchcraft/addons') / Path(z).stem.replace('switchcraft_', '')) for z in glob.glob('src/switchcraft/assets/addons/*.zip')]"
 
       - name: Build Web Demo
         run: |
@@ -54,7 +60,7 @@ jobs:
           import sys
 
           print("DEBUG: WEB ENTRY RELOADED")
-          print(f"BUILD_TIME: \$(date)")
+          print(f"BUILD_TIME: $(date)")
 
           # ============================================================
           # CRITICAL: Patch ssl module BEFORE any urllib3 import
@@ -131,6 +137,8 @@ jobs:
           import flet as ft
           # Ensure current dir is in path
           sys.path.insert(0, os.getcwd())
+          import switchcraft
+          switchcraft.IS_DEMO = True
           import switchcraft.main
 
           if __name__ == "__main__":
@@ -140,8 +148,8 @@ jobs:
 
           # Generate dynamic splash screen
           VERSION=$(python -c "import src.switchcraft as s; print(s.__version__)")
-          echo "Generating Splash for Version: \$VERSION"
-          python scripts/generate_splash.py --version "\$VERSION" --output "build_web/switchcraft/assets/splash.png"
+          echo "Generating Splash for Version: $VERSION"
+          python scripts/generate_splash.py --version "$VERSION" --output "build_web/switchcraft/assets/splash.png"
 
           # Manually create requirements.txt
           cat > build_web/requirements.txt <<EOF

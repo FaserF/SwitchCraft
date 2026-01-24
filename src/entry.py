@@ -27,7 +27,7 @@ if __name__ == '__main__':
             print("Abnormal termination.")
     finally:
         if getattr(sys, 'frozen', False):
-             # Only pause in frozen (EXE) mode, so we do not annoy dev usage
+             # Only pause in frozen (EXE) mode, so we don't annoy dev usage
              # But suppress PyInstaller cleanup warnings about temp dir
              import warnings
              warnings.filterwarnings('ignore', category=ResourceWarning)

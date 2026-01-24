@@ -50,10 +50,15 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         self.progress_bar = ft.ProgressBar(width=400, visible=False)
         self.addon_warning = ft.Container(visible=False)
 
+        # File Picker for Native/Web Support
+        self.file_picker = ft.FilePicker(on_result=self._on_file_picker_result)
+
         def on_drop_click(e):
-             path = FilePickerHelper.pick_file(allowed_extensions=["exe", "msi", "ps1", "bat", "cmd", "vbs", "msp"])
-             if path:
-                 self.start_analysis(path)
+             # Use Flet's FilePicker instead of blocking helper
+             self.file_picker.pick_files(
+                 allow_multiple=False,
+                 allowed_extensions=["exe", "msi", "ps1", "bat", "cmd", "vbs", "msp"]
+             )
 
         def on_drag_enter(e):
             self.drop_zone.border = ft.Border.all(4, "BLUE_400")
@@ -214,8 +219,21 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 ], spacing=10, scroll=ft.ScrollMode.AUTO, expand=True),
                 expand=True
             )
+
         ]
+
+        # Add FilePicker to controls (it's invisible but needs to be in the tree)
+        self.controls.append(self.file_picker)
+
         self._check_addon()
+
+    def _on_file_picker_result(self, e: ft.FilePickerResultEvent):
+        if e.files:
+            f = e.files[0]
+            if f.path:
+                self.start_analysis(f.path)
+            else:
+                self._show_snack(i18n.get("web_analysis_unavailable") or "Browser file analysis requires upload support (coming soon)", "ORANGE")
 
     def did_mount(self):
         # Register global file drop handler when this view is active

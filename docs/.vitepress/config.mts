@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-    title: "SwitchCraft",
+    title: "SwitchCraft Documentation",
     description: "The Ultimate Packaging Assistant for IT Professionals - Streamline your application packaging workflow with smart analysis, Intune integration, and AI assistance.",
 
     base: process.env.BASE_URL || '/',
@@ -14,7 +14,7 @@ export default defineConfig({
         ['link', { rel: 'icon', href: '/favicon.ico' }],
         ['meta', { name: 'theme-color', content: '#6366f1' }],
         ['meta', { name: 'og:type', content: 'website' }],
-        ['meta', { name: 'og:title', content: 'SwitchCraft - The Ultimate Packaging Assistant' }],
+        ['meta', { name: 'og:title', content: 'SwitchCraft Documentation - The Ultimate Packaging Assistant' }],
         ['meta', { name: 'og:description', content: 'Streamline your IT packaging workflow with smart analysis, Intune integration, and AI assistance.' }],
         ['meta', { name: 'og:image', content: 'https://github.com/FaserF/SwitchCraft/raw/main/docs/public/screenshots/switchcraft_logo_with_Text.png' }],
         ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
@@ -28,7 +28,7 @@ export default defineConfig({
 
     themeConfig: {
         logo: '/screenshots/switchcraft_logo_with_Text.png',
-        siteTitle: 'SwitchCraft',
+        siteTitle: 'SwitchCraft Documentation',
 
         nav: [
             { text: 'Home', link: '/' },

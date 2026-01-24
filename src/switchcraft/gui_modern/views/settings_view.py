@@ -809,8 +809,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
             except Exception as ex:
                 self.changelog_text.value = f"{i18n.get('update_check_failed') or 'Error fetching updates'}: {ex}"
-                except Exception:
-                    pass
+            except Exception:
+                pass
 
         self._run_in_background(_run)
 

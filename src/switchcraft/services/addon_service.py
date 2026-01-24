@@ -27,6 +27,19 @@ class AddonService:
     @staticmethod
     def get_addon_dir():
         """Returns the base directory for addons."""
+        from switchcraft import IS_WEB
+        if IS_WEB:
+            # In Web/Pyodide, we use the 'switchcraft.addons' package directory
+            # assuming addons are baked into the package.
+            # Using __file__ to locate the services directory, then up to package, then addons.
+            # src/switchcraft/services/addon_service.py -> src/switchcraft
+            base = Path(__file__).parent.parent
+            path = base / "addons"
+            # Ensure it exists (it should if baked properly)
+            if not path.exists():
+                path.mkdir(parents=True, exist_ok=True)
+            return path
+
         path = Path.home() / ".switchcraft" / "addons"
         path.mkdir(parents=True, exist_ok=True)
         return path
