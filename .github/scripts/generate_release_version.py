@@ -23,10 +23,10 @@ def get_existing_tags():
 def calculate_next_version(base_version, tags, release_type="stable"):
     """
     Calculates the next version based on the base_version (Year.Month) and existing tags.
-    Format: Year.Month.Version[-suffix]
+    Format: Year.Month.Version[suffix]
 
     Args:
-        base_version: The Year.Month base (e.g., "2025.12")
+        base_version: The Year.Month base (e.g., "2026.1")
         tags: List of existing git tags
         release_type: One of "stable", "prerelease", "development"
 
@@ -34,33 +34,66 @@ def calculate_next_version(base_version, tags, release_type="stable"):
         Version string with appropriate suffix
     """
     max_patch = -1
+    max_beta = 0
+    stable_exists_for_max_patch = False
 
-    # Pattern matches versions with or without suffix
-    pattern = re.compile(rf"^{re.escape(base_version)}\.(\d+)(?:-.*)?$")
+    # Pattern matches MAJOR.MINOR.PATCH with optional pre-release (aN, bN, rcN) or dev/build metadata
+    # We want to extract the patch number and potentially the beta number
+    pattern = re.compile(rf"^{re.escape(base_version)}\.(\d+)(?:b(\d+))?.*$")
 
     for tag in tags:
-        # Handle tags with or without 'v' prefix
         clean_tag = tag.lstrip('v')
         match = pattern.match(clean_tag)
         if match:
             patch = int(match.group(1))
+            beta = int(match.group(2)) if match.group(2) else 0
+
             if patch > max_patch:
                 max_patch = patch
+                max_beta = beta
+                stable_exists_for_max_patch = (beta == 0 and "b" not in clean_tag and "dev" not in clean_tag)
+            elif patch == max_patch:
+                if beta > max_beta:
+                    max_beta = beta
+                if beta == 0 and "b" not in clean_tag and "dev" not in clean_tag:
+                    stable_exists_for_max_patch = True
 
-    next_patch = max_patch + 1
+    if max_patch == -1:
+        # No tags for this Year.Month yet
+        next_patch = 0
+        next_beta = 1
+    else:
+        if release_type == "stable":
+            if stable_exists_for_max_patch:
+                next_patch = max_patch + 1
+            else:
+                next_patch = max_patch
+            next_beta = 0
+        elif release_type == "prerelease":
+            if stable_exists_for_max_patch:
+                next_patch = max_patch + 1
+                next_beta = 1
+            else:
+                next_patch = max_patch
+                next_beta = max_beta + 1
+        else: # development
+            if stable_exists_for_max_patch:
+                next_patch = max_patch + 1
+            else:
+                next_patch = max_patch
+            next_beta = 0 # Not used for dev
+
     base_ver = f"{base_version}.{next_patch}"
 
-    # Add suffix based on release type (PEP 440 compliant)
     if release_type == "prerelease":
-        return f"{base_ver}b1"  # beta1 is PEP 440 compliant
+        return f"{base_ver}b{next_beta}"
     elif release_type == "development":
         try:
             sha = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
-            # PEP 440: Use .dev0 for development, +sha for build metadata
             return f"{base_ver}.dev0+{sha}"
         except Exception:
             return f"{base_ver}.dev0"
-    else:  # stable
+    else: # stable
         return base_ver
 
 def main():
