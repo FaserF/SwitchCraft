@@ -1,0 +1,120 @@
+import flet as ft
+import logging
+import os
+from pathlib import Path
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.utils.i18n import i18n
+from switchcraft.services.sap_service import SapService
+
+logger = logging.getLogger(__name__)
+
+class SapWizardView(ft.Column, ViewMixin):
+    """
+    Wizard-style UI for SAP Installation Server management.
+    Handles merging updates, customization, and packaging.
+    """
+
+    def __init__(self, page: ft.Page):
+        super().__init__(expand=True, scroll=ft.ScrollMode.AUTO)
+        self.app_page = page
+        self.sap_service = SapService()
+
+        # State
+        self.server_path = ""
+        self.update_files = []
+        self.logo_path = ""
+        self.use_webview2 = True
+
+        self.current_step = 1
+        self.content_area = ft.Container(expand=True)
+        self.controls = [
+            ft.Text(i18n.get("sap_wizard_title") or "SAP Management Wizard", size=24, weight=ft.FontWeight.BOLD),
+            ft.Divider(),
+            self.content_area,
+            self._build_nav_buttons()
+        ]
+
+        self._show_step(1)
+
+    def _show_step(self, step_num):
+        self.current_step = step_num
+        if step_num == 1:
+            self.content_area.content = self._build_step_1()
+        elif step_num == 2:
+            self.content_area.content = self._build_step_2()
+        elif step_num == 3:
+            self.content_area.content = self._build_step_3()
+        elif step_num == 4:
+            self.content_area.content = self._build_step_4()
+        self.update()
+
+    def _build_step_1(self):
+        """Step 1: Select SAP Installation Server path."""
+        def on_pick_server(e: ft.FilePickerResultEvent):
+            if e.path:
+                self.server_path = e.path
+                path_text.value = e.path
+                self.update()
+
+        path_text = ft.Text(self.server_path or "No path selected", italic=True)
+        fp = ft.FilePicker()
+        fp.on_result = on_pick_server
+        self.app_page.overlay.append(fp)
+
+        return ft.Column([
+            ft.Text(i18n.get("sap_step1_title") or "1. Select SAP Installation Server", size=18, weight=ft.FontWeight.BOLD),
+            ft.Text(i18n.get("sap_step1_desc") or "Point to the root folder of your SAP nwsetupadmin server."),
+            ft.Row([
+                ft.ElevatedButton(i18n.get("btn_browse_folder") or "Browse Server Folder", icon=ft.Icons.FOLDER_OPEN, on_click=lambda _: fp.get_directory_path()),
+                path_text
+            ])
+        ])
+
+    def _build_step_2(self):
+        """Step 2: Add Updates/Add-ons."""
+        return ft.Column([
+            ft.Text(i18n.get("sap_step2_title") or "2. Add Updates & Add-ons (Optional)", size=18, weight=ft.FontWeight.BOLD),
+            ft.Text(i18n.get("sap_step2_desc") or "Select .exe files to merge into the installation server."),
+            ft.ElevatedButton(i18n.get("btn_add_update") or "Add Update EXE", icon=ft.Icons.ADD, on_click=lambda _: self._show_snack("Not implemented in stub")),
+            ft.ListView(expand=True, height=100) # Placeholder for file list
+        ])
+
+    def _build_step_3(self):
+        """Step 3: Customization."""
+        return ft.Column([
+            ft.Text(i18n.get("sap_step3_title") or "3. Customization", size=18, weight=ft.FontWeight.BOLD),
+            ft.Checkbox(label=i18n.get("sap_use_webview2") or "Default to Edge WebView2 (Recommended)", value=self.use_webview2, on_change=lambda e: setattr(self, 'use_webview2', e.control.value)),
+            ft.Row([
+                ft.ElevatedButton(i18n.get("btn_select_logo") or "Select Custom Logo", icon=ft.Icons.IMAGE),
+                ft.Text(i18n.get("no_logo_selected") or "No logo selected", italic=True)
+            ])
+        ])
+
+    def _build_step_4(self):
+        """Step 4: Summary & Packaging."""
+        return ft.Column([
+            ft.Text(i18n.get("sap_step4_title") or "4. Summary & Packaging", size=18, weight=ft.FontWeight.BOLD),
+            ft.Text(f"{i18n.get('label_server') or 'Server'}: {self.server_path}"),
+            ft.Text(f"{i18n.get('label_custom_logo') or 'Custom Logo'}: {'Yes' if self.logo_path else 'No'}"),
+            ft.Text(f"{i18n.get('label_webview2') or 'Edge WebView2'}: {'Enabled' if self.use_webview2 else 'Disabled'}"),
+            ft.Divider(),
+            ft.ElevatedButton(i18n.get("btn_apply_build") or "Apply & Build Packaging", icon=ft.Icons.BUILD_CIRCLE, bgcolor="PRIMARY", color="WHITE", on_click=self._on_finalize)
+        ])
+
+    def _build_nav_buttons(self):
+        return ft.Row([
+            ft.TextButton(i18n.get("btn_back") or "Back", on_click=lambda _: self._show_step(self.current_step - 1) if self.current_step > 1 else None),
+            ft.ElevatedButton(i18n.get("btn_next") or "Next", on_click=lambda _: self._show_step(self.current_step + 1) if self.current_step < 4 else None)
+        ], alignment=ft.MainAxisAlignment.END)
+
+    def _on_finalize(self, _):
+        if not self.server_path:
+            self._show_snack("Please select a server path first.", color="RED")
+            return
+
+        try:
+            self.sap_service.customize_server(self.server_path, self.logo_path, self.use_webview2)
+            self._show_snack("SAP Server customized successfully!", color="GREEN")
+            # In a real app, we would now trigger the packaging process
+        except Exception as e:
+            self._show_snack(f"Error: {e}", color="RED")

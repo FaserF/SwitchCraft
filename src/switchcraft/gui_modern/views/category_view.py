@@ -38,7 +38,9 @@ DESCRIPTION_MAP = {
     "Help & Resources": "desc_help",
     "Hilfe & Ressourcen": "desc_help",
     "Policies": "desc_policies",
-    "Richtlinien": "desc_policies"
+    "Richtlinien": "desc_policies",
+    "SAP Management": "sap_card_desc",
+    "SAP-Management": "sap_card_desc"
 }
 
 class CategoryView(ft.Container):
