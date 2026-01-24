@@ -1,4 +1,11 @@
+import pytest
+import flet as ft
+from unittest.mock import patch, MagicMock
 from conftest import is_ci_environment
+
+from switchcraft.gui_modern.views.analyzer_view import ModernAnalyzerView
+from switchcraft.gui_modern.views.dashboard_view import DashboardView
+# Note: LibraryView and ModernSettingsView are imported inline in their respective tests
 
 @pytest.fixture(autouse=True)
 def global_test_mocks():

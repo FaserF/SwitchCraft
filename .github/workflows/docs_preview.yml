@@ -69,7 +69,7 @@ jobs:
 
           cd build_web
           # Simplified publish for preview - use the PR specific base-url
-          flet publish web_entry.py --app-name "SwitchCraft Demo PR-$PR_NUMBER" --base-url "/${{ github.event.repository.name }}/pr-preview/pr-$PR_NUMBER/demo/" --distpath ../dist --assets switchcraft/assets
+          flet publish web_entry.py --app-name "SwitchCraft Demo PR-$PR_NUMBER" --base-url "/pr-preview/pr-$PR_NUMBER/demo/" --distpath ../dist --assets switchcraft/assets
           cd ..
 
           python scripts/prepare_web_dist.py --patch dist
@@ -98,7 +98,7 @@ jobs:
         run: npm run docs:build
         working-directory: docs
         env:
-          BASE_URL: /${{ github.event.repository.name }}/pr-preview/pr-${{ github.event.pull_request.number }}/
+          BASE_URL: /pr-preview/pr-${{ github.event.pull_request.number }}/
 
       - name: Deploy Preview
         uses: rossjrw/pr-preview-action@v1
@@ -107,6 +107,13 @@ jobs:
           preview-branch: gh-pages
           umbrella-dir: pr-preview
           action: auto
+          comment: |
+            🚀 **PR Preview is ready!**
+
+            - 📄 [Documentation Preview](https://switchcraft.fabiseitz.de/pr-preview/pr-${{ github.event.pull_request.number }}/)
+            - 🎮 [Web Demo Preview](https://switchcraft.fabiseitz.de/pr-preview/pr-${{ github.event.pull_request.number }}/demo/)
+
+            *Built with love and GitHub Actions.*
 
   cleanup-preview:
     runs-on: ubuntu-latest
