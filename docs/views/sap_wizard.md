@@ -2,9 +2,6 @@
 
 The **SAP Management Wizard** is a guided tool designed to simplify the lifecycle management of SAP Installation Servers.
 
-![SAP Wizard Screenshot](/docs/public/img/sap_wizard.png)
-*Note: Screenshot represents the modern UI layout.*
-
 ## View Components
 
 ### Server Selection

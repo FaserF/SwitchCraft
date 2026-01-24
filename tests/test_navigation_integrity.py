@@ -84,7 +84,8 @@ class TestNavigationIntegrity(unittest.TestCase):
         # However, SETTINGS_POLICIES was added at index 21.
         # We should use an index that is guaranteed to be handled as a dynamic addon.
         # Let's find the max static index and use max + 1.
-        max_static = max(vars(NavIndex).values()) if isinstance(vars(NavIndex), dict) else 21
+        vals = [v for v in vars(NavIndex).values() if isinstance(v, int)]
+        max_static = max(vals) if vals else 22
         target_idx = max_static + 1
 
         # Override first_dynamic_index to match our target

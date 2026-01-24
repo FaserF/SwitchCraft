@@ -57,7 +57,8 @@ class SapWizardView(ft.Column, ViewMixin):
                 self.update()
 
         path_text = ft.Text(self.server_path or "No path selected", italic=True)
-        fp = ft.FilePicker(on_result=on_pick_server)
+        fp = ft.FilePicker()
+        fp.on_result = on_pick_server
         self.app_page.overlay.append(fp)
 
         return ft.Column([
