@@ -316,6 +316,8 @@ class ViewMixin:
         except Exception as e:
             logger.error(f"Critical failure in _run_task_safe: {e}", exc_info=True)
             return False
+        finally:
+            pass
 
     def _run_in_background(self, target, *args, **kwargs):
         """
