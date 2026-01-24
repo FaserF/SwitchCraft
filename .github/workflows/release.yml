@@ -55,7 +55,7 @@ jobs:
 
       - name: Update Version in Files
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          export VERSION="${{ steps.version.outputs.version }}"
           echo "Updating version to $VERSION"
 
           # Update pyproject.toml
@@ -74,8 +74,7 @@ jobs:
 
           # JSON-safe update for main asset manifest
           python -c "import json, os; p='src/switchcraft/assets/manifest.json'; d=json.load(open(p)) if os.path.exists(p) else {}; d.update({'version': os.environ['VERSION'], 'description': 'SwitchCraft - Enterprise Application Management'}); json.dump(d, open(p, 'w'), indent=4)"
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
+
 
 
           # Update .iss files (Inno Setup installer scripts)
