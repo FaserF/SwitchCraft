@@ -1787,8 +1787,8 @@ class ModernApp:
                 dynamic_idx = idx - self.first_dynamic_index
             else:
                 # Fallback if somehow not set (should not happen if build_ui called)
-                # This fallback assumes EXCHANGE is last static
-                dynamic_idx = idx - (NavIndex.EXCHANGE + 1)
+                # This fallback assumes SETTINGS_POLICIES is last static
+                dynamic_idx = idx - (NavIndex.SETTINGS_POLICIES + 1)
 
             if 0 <= dynamic_idx < len(self.dynamic_addons):
                 addon = self.dynamic_addons[dynamic_idx]

@@ -71,8 +71,8 @@ class TestSapService(unittest.TestCase):
         self.assertEqual(result, "C:\\Output.exe")
         mock_run.assert_called_once()
         args = mock_run.call_args[0][0]
-        self.assertIn("/Package=Package1", args)
-        self.assertIn("/CreateSFU", args)
+        # Implementation now wraps command in a .bat file
+        self.assertTrue(str(args[0]).endswith('.bat'), f"Expected a batch file argument, got: {args}")
 
 if __name__ == '__main__':
     unittest.main()
