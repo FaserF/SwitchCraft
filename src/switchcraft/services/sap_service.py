@@ -97,28 +97,103 @@ class SapService:
 
         return True
 
-    def create_single_file_installer(self, server_path: str, package_name: str, output_path: str) -> str:
+    def list_packages(self, server_path: str) -> List[dict]:
         """
-        Creates a single-file installer (SFU) for a specific package.
-        Note: NwSapSetupAdmin.exe CLI for SFU creation is semi-documented.
-        We fallback to the command pattern often used for automation.
+        Parses SapSetup.xml or SapGuiSetup.xml to list available products/packages.
+        Returns list of dicts: {'name': 'Package Name', 'id': 'Guid'}
+        """
+        packages = []
+
+        # Possible XML files defining products
+        candidates = ["SapSetup.xml", "SapGuiSetup.xml"]
+
+        base_path = Path(server_path)
+        # Handle architecture path adjustments (if user selected root, we look in Setup)
+        setup_path = base_path / "Setup"
+        if not setup_path.exists():
+            setup_path = base_path # Maybe user pointed directly to Setup?
+
+        for xml_name in candidates:
+             xml_path = setup_path / xml_name
+             if not xml_path.exists():
+                 continue
+
+             try:
+                 tree = ET.parse(xml_path)
+                 root = tree.getroot()
+
+                 # Look for <Product> or <SapSetupProduct>
+                 for tag in ["Product", "SapSetupProduct"]:
+                     for product in root.findall(f".//{tag}"):
+                         name = product.get("Name")
+                         guid = product.get("Guid")
+                         if name:
+                             packages.append({"name": name, "id": guid})
+
+             except Exception as e:
+                 logger.error(f"Failed to parse {xml_name}: {e}")
+
+        return packages
+
+    def create_single_file_installer(self, server_path: str, package_name: str, output_dir: str) -> str:
+        """
+        Creates a Single File Installer (SFU) for the specified package.
+        UsesNwSapSetupAdmin.exe from the server path.
         """
         admin_tool = self.detect_admin_tool(server_path)
         if not admin_tool:
             raise FileNotFoundError("SAP Admin Tool not found.")
 
-        # Best-guess CLI for SFU creation (NwSapSetupAdmin.exe /CreateSFU)
-        # Actual implementation might require NwSapSetup.exe /Package="name" /CreateSFU
-        cmd = [
-            str(admin_tool),
-            f"/Package={package_name}",
-            "/CreateSFU",
-            f"/dest={output_path}"
-        ]
+        output_path = Path(output_dir)
+        if not output_path.exists():
+            output_path.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Creating SAP SFU: {cmd}")
-        result = ShellUtils.run_command(cmd)
+        # Use a temporary batch file to guarantee exact quoting behavior.
+        import tempfile
+        import os
+
+        # Ensure output_dir is the directory
+        output_dir = Path(output_path)
+        if not output_dir.exists():
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Target file must be specified in /Dest for many SFU creators
+        target_file_path = output_dir / f"{package_name}.exe"
+
+        # Using colon-based syntax which is often required for legacy SAP tools
+        # /CreateSFU:"Path" /Package:"Name" /Silent
+        bat_content = f"""
+@echo off
+"{str(admin_tool)}" /CreateSFU:"{str(target_file_path)}" /Package:"{package_name}" /Silent
+echo Exit Code: %ERRORLEVEL%
+"""
+        fd, bat_path = tempfile.mkstemp(suffix=".bat", text=True)
+        os.close(fd)
+
+        try:
+            with open(bat_path, "w") as f:
+                f.write(bat_content)
+
+            logger.info(f"Executing SAP Batch Wrapper: {bat_path}")
+            logger.info(f"Command: \"{str(admin_tool)}\" /CreateSFU:\"{str(target_file_path)}\" /Package:\"{package_name}\" /Silent")
+
+            # Run the batch file
+            result = ShellUtils.run_command([bat_path])
+
+            if result:
+                 logger.info(f"SAP Batch Output: {result.stdout}")
+                 if result.stderr:
+                     logger.error(f"SAP Batch Stderr: {result.stderr}")
+
+        finally:
+            if os.path.exists(bat_path):
+                os.unlink(bat_path)
+
+        if target_file_path.exists():
+            return str(target_file_path)
+
+        # If result was OK, return dir
         if result and result.returncode == 0:
-            return output_path
+             return str(output_path)
 
-        raise RuntimeError(f"Failed to create SAP SFU: {result.stderr if result else 'Unknown error'}")
+        raise RuntimeError(f"Failed to create SAP SFU. ReturnCode: {result.returncode if result else 'None'}.")

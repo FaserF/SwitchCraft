@@ -46,7 +46,6 @@ class NavIndex:
     EXCHANGE = 20             # Exchange Online View
 
     SETTINGS_POLICIES = 21    # Settings tab index 3 (Policies)
-    SAP_WIZARD = 22           # SAP Management Wizard
 
 
 # Mapping from NavIndex to sidebar category for reference
@@ -59,7 +58,7 @@ NAV_CATEGORIES = {
     "Tools": [
         NavIndex.ANALYZER, NavIndex.HELPER, NavIndex.SCRIPTS,
         NavIndex.MACOS, NavIndex.PACKAGING_WIZARD, NavIndex.DETECTION_TESTER,
-        NavIndex.WINGET_CREATE, NavIndex.SAP_WIZARD
+        NavIndex.WINGET_CREATE
     ],
     "System": [
         NavIndex.SETTINGS, NavIndex.SETTINGS_UPDATES,

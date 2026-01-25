@@ -146,3 +146,64 @@ class ShellUtils:
         except Exception as e:
             logger.error(f"Popen failed: {e}")
             return None
+
+    @staticmethod
+    def is_admin() -> bool:
+        """Checks if the current process has administrative privileges."""
+        try:
+            if sys.platform == 'win32':
+                import ctypes
+                return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            else:
+                return os.geteuid() == 0
+        except Exception:
+            return False
+
+    @staticmethod
+    def restart_as_admin():
+        """Restarts the current script with administrative privileges."""
+        if sys.platform != 'win32':
+            logger.warning("Elevated restart only supported on Windows.")
+            return
+
+        import ctypes
+
+        # Get current executable and arguments
+        # If running from python script: python.exe script.py args
+        # If frozen (exe): switchcraft.exe args
+
+        try:
+            cwd = os.getcwd()
+            if getattr(sys, 'frozen', False):
+                # Running as compiled exe
+                executable = sys.executable
+                params = " ".join([f'"{arg}"' for arg in sys.argv[1:]])
+            else:
+                # Running as script
+                executable = sys.executable
+                # Ensure script path is absolute so it works from System32/Admin context
+                script_abs = os.path.abspath(sys.argv[0])
+                script_path = f'"{script_abs}"'
+                args = " ".join([f'"{arg}"' for arg in sys.argv[1:]])
+                params = f"{script_path} {args}"
+
+            logger.info(f"Triggering UAC elevation for: {executable} {params} in {cwd}")
+
+            # ShellExecute with 'runas' verb triggers UAC
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None,
+                "runas",
+                executable,
+                params,
+                cwd, # Output directory
+                1 # SW_SHOWNORMAL
+            )
+
+            if ret > 32:
+                 # Success, exit current process
+                 sys.exit(0)
+            else:
+                 logger.error(f"ShellExecute failed with code {ret}")
+
+        except Exception as e:
+            logger.error(f"Failed to restart as admin: {e}")
