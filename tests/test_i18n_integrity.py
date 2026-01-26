@@ -122,7 +122,7 @@ class TestI18nIntegrity(unittest.TestCase):
             'all_attempts', 'product_name', 'winget_url', 'file_path', 'history_view', 'bundle_id',
             'winget_switch', 'packaging_wizard_view', 'setup_file', 'first_dynamic_index',
             'install_switches', 'ask_browser', 'history_service', 'silent_args', 'all_temp_dirs',
-            'install_silent', 'winget_create', 'intune_store',
+            'install_silent', 'winget_create', 'intune_store', 'version_field',
             # CLI option names and internal config/state keys (not i18n keys)
             'intunewin_file', 'msi_info', 'group_type', 'script_file', 'value_name', 'group_id',
             'rule_type', 'output_json', 'target_version', 'search_query',

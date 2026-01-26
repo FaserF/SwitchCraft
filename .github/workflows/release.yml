@@ -24,6 +24,7 @@ jobs:
       contents: write
     outputs:
       version: ${{ steps.version.outputs.version }}
+      docker_version: ${{ steps.version.outputs.docker_version }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
       is_prerelease: ${{ steps.version.outputs.is_prerelease }}
     steps:
@@ -49,9 +50,15 @@ jobs:
             echo "Warning: Version generation failed or returned invalid version '$VERSION', using fallback: 2026.1.2"
             VERSION="2026.1.2"
           fi
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Sanitize version for Docker (Docker tags cannot contain '+', replace with '-')
+          DOCKER_VERSION=$(echo "$VERSION" | tr '+' '-')
+          echo "docker_version=$DOCKER_VERSION" >> $GITHUB_OUTPUT
+
           echo "is_prerelease=${{ github.event.inputs.release_type != 'stable' }}" >> $GITHUB_OUTPUT
-          echo "Generated version: $VERSION"
+          echo "Generated version: $VERSION (Docker safe: $DOCKER_VERSION)"
 
       - name: Update Version in Files
         run: |
@@ -164,6 +171,7 @@ jobs:
           draft: false
           prerelease: ${{ github.event.inputs.release_type != 'stable' }}
           generate_release_notes: true
+          # Note: If release_type is 'development', Docker build is skipped.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -345,6 +353,8 @@ jobs:
   docker_build:
     name: Build Docker Image
     needs: prepare_release
+    # Skip Docker build for development (nightly) builds to save space
+    if: github.event.inputs.release_type != 'development'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -380,7 +390,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ steps.owner.outputs.owner }}/switchcraft:${{ needs.prepare_release.outputs.version }}
+            ghcr.io/${{ steps.owner.outputs.owner }}/switchcraft:${{ needs.prepare_release.outputs.docker_version }}
             ghcr.io/${{ steps.owner.outputs.owner }}/switchcraft:${{ needs.prepare_release.outputs.is_prerelease == 'true' && 'prerelease' || 'latest' }}
 
 
@@ -404,3 +414,24 @@ jobs:
         run: |
           VERSION="${{ needs.prepare_release.outputs.version }}"
           python .github/scripts/generate_winget_manifests.py --version "$VERSION" >> "$GITHUB_STEP_SUMMARY"
+
+  cleanup_releases:
+    name: Cleanup Old Releases
+    needs: [create_release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install Dependencies
+        run: pip install requests
+      - name: Cleanup Old Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          python .github/scripts/cleanup_releases.py
