@@ -460,6 +460,10 @@ def main(page: ft.Page):
     except Exception:
         pass
 
+    # --- Initialize Global App State ---
+    import switchcraft
+    switchcraft.IS_DEMO = SwitchCraftConfig.is_demo_mode()
+
     page.theme_mode = ft.ThemeMode.SYSTEM
     page.padding = 0
     page.spacing = 0

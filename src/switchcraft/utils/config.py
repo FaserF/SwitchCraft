@@ -673,6 +673,12 @@ class SwitchCraftConfig:
         return cls.get_value("DebugMode", 0) == 1
 
     @classmethod
+    def is_demo_mode(cls) -> bool:
+        """Check if demo mode is enabled via config or CLI."""
+        if '--demo' in sys.argv: return True
+        return cls.get_value("DemoMode", 0) == 1 or cls.get_value("demo_mode", False) == True
+
+    @classmethod
     def get_update_channel(cls) -> str:
         return cls.get_value("UpdateChannel", "stable")
 

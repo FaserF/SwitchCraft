@@ -635,7 +635,7 @@ class ModernApp:
         self.dev_banner_container = ft.Container()
 
         # Demo Banner
-        if IS_DEMO:
+        if IS_DEMO or SwitchCraftConfig.is_demo_mode():
              self.banner_container = ft.Container(
                 content=ft.Row(
                     [

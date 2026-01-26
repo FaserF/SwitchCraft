@@ -207,8 +207,8 @@ var
   ErrorCode: Integer;
 begin
   Result := True;
-  // Silently kill the process if it's running
-  Exec('taskkill.exe', '/F /IM {#MyAppExeName} /T', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  // Silently kill the process only if it's running from the installation directory (avoids killing portable versions)
+  Exec('powershell.exe', '-ExecutionPolicy Bypass -WindowStyle Hidden -Command "Get-Process -Name ' + Copy('{#MyAppExeName}', 1, Pos('.exe', LowerCase('{#MyAppExeName}')) - 1) + ' -ErrorAction SilentlyContinue | Where-Object { $_.Path -like ''' + ExpandConstant('{app}') + '\*'' } | Stop-Process -Force"', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
 
   // Check for /FULLCLEANUP parameter
   FullCleanupParam := False;
