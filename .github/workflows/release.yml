@@ -88,7 +88,8 @@ jobs:
           # Extract numeric version only (remove .dev0, +build, etc.) for VersionInfoVersion
           BASE_VERSION=$(echo "$VERSION" | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
           # VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
-          VERSION_INFO="${BASE_VERSION}.0"
+          # Use GitHub Run Number as the Build component to ensure unique, increasing versions for upgrades
+          VERSION_INFO="${BASE_VERSION}.${{ github.run_number }}"
           # For MyAppVersion: use full version for dev (with commit ID), but remove commit ID for beta/stable
           if [[ "${{ github.event.inputs.release_type }}" == "development" ]]; then
             # Dev release: keep full version with commit ID (e.g., "2026.1.2.dev0+9d07a00")
@@ -208,7 +209,8 @@ jobs:
           # Extract numeric version only (remove .dev0, +build, etc.) for VersionInfoVersion
           BASE_VERSION=$(echo "$DEV_VERSION" | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
           # VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
-          VERSION_INFO="${BASE_VERSION}.0"
+          # Use GitHub Run Number as the Build component to ensure unique, increasing versions for upgrades
+          VERSION_INFO="${BASE_VERSION}.${{ github.run_number }}"
           # For dev releases: MyAppVersion should include commit ID (full DEV_VERSION)
           # MyAppVersionNumeric should be numeric only (BASE_VERSION)
           sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$DEV_VERSION\"/" switchcraft.iss
@@ -417,7 +419,7 @@ jobs:
 
   cleanup_releases:
     name: Cleanup Old Releases
-    needs: [create_release]
+    needs: [prepare_release]
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -20,11 +20,11 @@ def generate_splash(version=None, output_path=None):
     # Fonts (Windows standard)
     font_dir = Path("C:/Windows/Fonts")
     try:
-        # Reduced font sizes by 20%
-        font_main = ImageFont.truetype(str(font_dir / "segoeuib.ttf"), 48) # Reduced from 60
-        font_sub = ImageFont.truetype(str(font_dir / "segoeui.ttf"), 18)   # Reduced from 22
-        font_hint = ImageFont.truetype(str(font_dir / "segoeui.ttf"), 13)  # Reduced from 16
-        font_ver = ImageFont.truetype(str(font_dir / "consola.ttf"), 11)   # Reduced from 14
+        # Reduced font sizes by another 15% (approx)
+        font_main = ImageFont.truetype(str(font_dir / "segoeuib.ttf"), 40) # Reduced from 48
+        font_sub = ImageFont.truetype(str(font_dir / "segoeui.ttf"), 15)   # Reduced from 18
+        font_hint = ImageFont.truetype(str(font_dir / "segoeui.ttf"), 11)  # Reduced from 13
+        font_ver = ImageFont.truetype(str(font_dir / "consola.ttf"), 10)   # Reduced from 11
     except Exception:
         # Fallback to default if fonts not found
         font_main = ImageFont.load_default()
@@ -33,8 +33,8 @@ def generate_splash(version=None, output_path=None):
         font_ver = ImageFont.load_default()
 
     # Create background (Modern Dark Gray/Blue)
-    # Reduced image dimensions by 20%
-    width, height = 640, 400 # Reduced from 800, 500
+    # Reduced image dimensions by another 15% (Target: ~15% smaller area/dims)
+    width, height = 544, 340 # Reduced from 640, 400
     background_color = (30, 30, 40) # Dark Navy Gray
     img = Image.new('RGB', (width, height), color=background_color)
     draw = ImageDraw.Draw(img)
@@ -42,13 +42,13 @@ def generate_splash(version=None, output_path=None):
     # Load and scale logo
     if logo_path.exists():
         logo = Image.open(logo_path).convert("RGBA")
-        # Resize logo to fit well (Reduced from 200 to 160)
-        logo_size = 160
+        # Resize logo to fit well (Reduced from 160 to 136)
+        logo_size = 136
         logo.thumbnail((logo_size, logo_size), Image.Resampling.LANCZOS)
 
         # Center logo horizontally, slightly above middle
         logo_x = (width - logo.width) // 2
-        logo_y = height // 2 - logo.height - 40 # Reduced offset
+        logo_y = height // 2 - logo.height - 35 # Reduced offset
         img.paste(logo, (logo_x, logo_y), logo)
 
     # Add Text

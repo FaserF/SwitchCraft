@@ -586,7 +586,26 @@ def main(page: ft.Page):
             elif hasattr(page, "window_prevent_close"):
                 page.window_prevent_close = False
         except Exception:
+        except Exception:
             pass
+
+        # CRITICAL: Close Splash Screen on Error if it's still running
+        try:
+             import pyi_splash
+             if pyi_splash.is_alive():
+                 pyi_splash.close()
+                 print("Closed PyInstaller splash screen (Error Handler)")
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
+        if splash_proc:
+            try:
+                splash_proc.terminate()
+                print("Terminated external splash process (Error Handler)")
+            except Exception:
+                pass
 
         dump_file = write_crash_dump(sys.exc_info())
         dump_folder = str(dump_file.parent)

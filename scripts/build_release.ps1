@@ -52,7 +52,8 @@ param (
     [switch]$Addons,
     [switch]$Installer,
     [switch]$All,
-    [switch]$LocalDev
+    [switch]$LocalDev,
+    [int]$BuildNumber = 0
 )
 
 $ErrorActionPreference = "Stop"
@@ -65,6 +66,7 @@ $BuildStartTimeString = $BuildStartTime.ToString("yyyy-MM-dd HH:mm:ss")
 $IsWinBuild = $env:OS -match 'Windows_NT' -or $PSVersionTable.Platform -eq 'Win32NT'
 $IsLinBuild = $PSVersionTable.Platform -eq 'Unix' -and -not ($IsMacBuild = (uname) -eq 'Darwin')
 $IsMacBuild = $IsMacBuild -or ($PSVersionTable.Platform -eq 'Unix' -and (uname) -eq 'Darwin')
+
 
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "   SwitchCraft Release Builder            " -ForegroundColor Cyan
@@ -153,13 +155,14 @@ Write-Host "Project Root: $RepoRoot" -ForegroundColor Gray
 # --- Version Extraction ---
 function Extract-VersionInfo {
     param(
-        [string]$VersionString
+        [string]$VersionString,
+        [int]$BuildNum = 0
     )
     # Extract numeric version only (remove .dev0, +build, -dev, etc.) for VersionInfoVersion
     # Pattern: extract MAJOR.MINOR.PATCH from any version format
     $Numeric = if ($VersionString -match '^(\d+\.\d+\.\d+)') { $Matches[1] } else { $VersionString -replace '[^0-9.].*', '' }
     # VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
-    $Info = "$Numeric.0"
+    $Info = "$Numeric.$BuildNum"
     return @{
         Full = $VersionString
         Numeric = $Numeric
@@ -174,21 +177,21 @@ $RawFallbackVersion = if ($env:SWITCHCRAFT_VERSION) { $env:SWITCHCRAFT_VERSION }
 # Strip common prefixes like "v" and whitespace
 $CleanedFallbackVersion = $RawFallbackVersion.Trim() -replace '^v', ''
 # Extract version info from cleaned value
-$FallbackVersionInfo = Extract-VersionInfo -VersionString $CleanedFallbackVersion
+$FallbackVersionInfo = Extract-VersionInfo -VersionString $CleanedFallbackVersion -BuildNum $BuildNumber
 # Validate that the numeric component is non-empty and matches MAJOR.MINOR.PATCH pattern
 $IsValidFallback = -not [string]::IsNullOrWhiteSpace($FallbackVersionInfo.Numeric) -and
                    $FallbackVersionInfo.Numeric -match '^\d+\.\d+\.\d+$'
 if (-not $IsValidFallback) {
     Write-Warning "Fallback version from SWITCHCRAFT_VERSION is malformed (got: '$($FallbackVersionInfo.Numeric)'), expected MAJOR.MINOR.PATCH format. Using hardcoded default: 2026.1.5"
     $FallbackVersion = "2026.1.5"
-    $VersionInfo = Extract-VersionInfo -VersionString $FallbackVersion
+    $VersionInfo = Extract-VersionInfo -VersionString $FallbackVersion -BuildNum $BuildNumber
 } else {
     $FallbackVersion = $CleanedFallbackVersion
     $VersionInfo = $FallbackVersionInfo
 }
 # Ensure Info still appends a fourth component (Build number)
 if (-not $VersionInfo.Info -match '\.\d+$') {
-    $VersionInfo.Info = "$($VersionInfo.Numeric).0"
+    $VersionInfo.Info = "$($VersionInfo.Numeric).$BuildNumber"
 }
 $AppVersion = $VersionInfo.Full
 $AppVersionNumeric = $VersionInfo.Numeric
@@ -198,13 +201,13 @@ if (Test-Path $PyProjectFile) {
     try {
         $VersionLine = Get-Content -Path $PyProjectFile | Select-String "version = " | Select-Object -First 1
         if ($VersionLine -match 'version = "(.*)"') {
-            $VersionInfo = Extract-VersionInfo -VersionString $Matches[1]
+            $VersionInfo = Extract-VersionInfo -VersionString $Matches[1] -BuildNum $BuildNumber
             # Validate that the parsed version is non-empty and well-formed (MAJOR.MINOR.PATCH format)
             $IsValidVersion = -not [string]::IsNullOrWhiteSpace($VersionInfo.Numeric) -and
                               $VersionInfo.Numeric -match '^\d+\.\d+\.\d+$'
             if (-not $IsValidVersion) {
                 Write-Warning "Parsed version from pyproject.toml is malformed (got: '$($VersionInfo.Numeric)'), expected MAJOR.MINOR.PATCH format. Using fallback: $FallbackVersion"
-                $VersionInfo = Extract-VersionInfo -VersionString $FallbackVersion
+                $VersionInfo = Extract-VersionInfo -VersionString $FallbackVersion -BuildNum $BuildNumber
             }
             $AppVersion = $VersionInfo.Full
             $AppVersionNumeric = $VersionInfo.Numeric
