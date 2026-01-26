@@ -55,7 +55,7 @@ class SapWizardView(ft.Column, ViewMixin):
             ft.Text(i18n.get("sap_admin_required_title") or "Administrator Privileges Required", size=20, weight=ft.FontWeight.BOLD),
             ft.Text(i18n.get("sap_admin_required_desc") or "The SAP Installation Server Administration Tool (NwSapSetupAdmin.exe) requires administrative rights to merge updates and create packages."),
             ft.Container(height=20),
-            ft.ElevatedButton(
+            ft.FilledButton(
                 i18n.get("btn_restart_admin") or "Restart SwitchCraft as Admin",
                 icon=ft.Icons.SHIELD,
                 on_click=lambda _: ShellUtils.restart_as_admin(),
@@ -95,7 +95,7 @@ class SapWizardView(ft.Column, ViewMixin):
             ft.Text(i18n.get("sap_step1_title") or "1. Select SAP Installation Server", size=18, weight=ft.FontWeight.BOLD),
             ft.Text(i18n.get("sap_step1_desc") or "Point to the root folder of your SAP nwsetupadmin server."),
             ft.Row([
-                ft.ElevatedButton(i18n.get("btn_browse_folder") or "Browse Server Folder", icon=ft.Icons.FOLDER_OPEN, on_click=lambda _: fp.get_directory_path()),
+                ft.FilledButton(i18n.get("btn_browse_folder") or "Browse Server Folder", icon=ft.Icons.FOLDER_OPEN, on_click=lambda _: fp.get_directory_path()),
                 path_text
             ]),
             ft.Divider(height=20, color="TRANSPARENT"),
@@ -108,7 +108,7 @@ class SapWizardView(ft.Column, ViewMixin):
         return ft.Column([
             ft.Text(i18n.get("sap_step2_title") or "2. Add Updates & Add-ons (Optional)", size=18, weight=ft.FontWeight.BOLD),
             ft.Text(i18n.get("sap_step2_desc") or "Select .exe files to merge into the installation server."),
-            ft.ElevatedButton(i18n.get("btn_add_update") or "Add Update EXE", icon=ft.Icons.ADD, on_click=lambda _: self._show_snack("Not implemented in stub")),
+            ft.FilledButton(i18n.get("btn_add_update") or "Add Update EXE", icon=ft.Icons.ADD, on_click=lambda _: self._show_snack("Not implemented in stub")),
             ft.ListView(expand=True, height=100) # Placeholder for file list
         ])
 
@@ -118,7 +118,7 @@ class SapWizardView(ft.Column, ViewMixin):
             ft.Text(i18n.get("sap_step3_title") or "3. Customization", size=18, weight=ft.FontWeight.BOLD),
             ft.Checkbox(label=i18n.get("sap_use_webview2") or "Default to Edge WebView2 (Recommended)", value=self.use_webview2, on_change=lambda e: setattr(self, 'use_webview2', e.control.value)),
             ft.Row([
-                ft.ElevatedButton(i18n.get("btn_select_logo") or "Select Custom Logo", icon=ft.Icons.IMAGE),
+                ft.FilledButton(i18n.get("btn_select_logo") or "Select Custom Logo", icon=ft.Icons.IMAGE),
                 ft.Text(i18n.get("no_logo_selected") or "No logo selected", italic=True)
             ])
         ])
@@ -152,13 +152,13 @@ class SapWizardView(ft.Column, ViewMixin):
             ft.Divider(),
             self.package_dd,
             ft.Container(height=10),
-            ft.ElevatedButton(i18n.get("btn_apply_build") or "Apply & Build Packaging", icon=ft.Icons.BUILD_CIRCLE, bgcolor="PRIMARY", color="WHITE", on_click=self._on_finalize)
+            ft.FilledButton(i18n.get("btn_apply_build") or "Apply & Build Packaging", icon=ft.Icons.BUILD_CIRCLE, bgcolor="PRIMARY", color="WHITE", on_click=self._on_finalize)
         ])
 
     def _build_nav_buttons(self):
         return ft.Row([
             ft.TextButton(i18n.get("btn_back") or "Back", on_click=lambda _: self._show_step(self.current_step - 1) if self.current_step > 1 else None),
-            ft.ElevatedButton(i18n.get("btn_next") or "Next", on_click=lambda _: self._show_step(self.current_step + 1) if self.current_step < 4 else None)
+            ft.FilledButton(i18n.get("btn_next") or "Next", on_click=lambda _: self._show_step(self.current_step + 1) if self.current_step < 4 else None)
         ], alignment=ft.MainAxisAlignment.END)
 
     def _on_finalize(self, _):

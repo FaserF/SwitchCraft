@@ -1909,14 +1909,28 @@ class ModernApp:
                              # Button 2: Open App
                              toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
                          else:
-                             # Regular notifications (error/info/warning)
-                             # Button 1: Open Logs Folder (if exists)
-                             logs_path = Path(os.getenv('APPDATA', '')) / "FaserF" / "SwitchCraft" / "Logs"
-                             if logs_path.exists():
-                                 toast.add_actions(label=i18n.get("notif_open_logs") or "Open Logs", launch="file://{logs_path}")
+                             # Regular notifications (error/info/warning/success)
 
-                             if notif_type == "error":
-                                 toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
+                             # 1. Custom Path (e.g. Open Folder)
+                             custom_path = n_data.get("path")
+                             if custom_path and os.path.exists(custom_path):
+                                 toast.add_actions(label=i18n.get("notif_btn_open_folder") or "Open Folder", launch=f"file://{custom_path}")
+
+                             # 2. Custom URL (e.g. Open Intune)
+                             custom_url = n_data.get("url")
+                             if custom_url:
+                                 label = i18n.get("notif_btn_open_intune") if "intune.microsoft.com" in custom_url else "Open Link"
+                                 toast.add_actions(label=label, launch=custom_url)
+
+                             # 3. Default buttons for specific types
+                             if not custom_path and not custom_url:
+                                 # Button 1: Open Logs Folder (if exists)
+                                 logs_path = Path(os.getenv('APPDATA', '')) / "FaserF" / "SwitchCraft" / "Logs"
+                                 if logs_path.exists():
+                                     toast.add_actions(label=i18n.get("notif_open_logs") or "Open Logs", launch=f"file://{logs_path}")
+
+                                 if notif_type == "error":
+                                     toast.add_actions(label=i18n.get("notif_open_app") or "Open App", launch="switchcraft://notifications")
 
                          if notif_type == "error":
                              toast.set_audio(audio.LoopingAlarm, loop=False)

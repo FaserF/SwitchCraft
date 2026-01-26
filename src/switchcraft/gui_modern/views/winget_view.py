@@ -6,6 +6,7 @@ from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.services.addon_service import AddonService
 from switchcraft.utils.i18n import i18n
 from pathlib import Path
+from switchcraft.services.notification_service import NotificationService
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
@@ -920,6 +921,17 @@ class ModernWingetView(ft.Row, ViewMixin):
                     shutil.copy(installer, dest)
 
                     self._show_snack(f"Downloaded to {dest}", "GREEN")
+                    # Trigger Desktop Notification
+                    try:
+                        NotificationService().add_notification(
+                            title=i18n.get("notif_winget_download_complete_title") or "Download Complete",
+                            message=(i18n.get("notif_winget_download_complete_msg") or "Installer for '{name}' downloaded to your Downloads folder.").format(name=pkg_id),
+                            type="success",
+                            notify_system=True,
+                            data={"path": str(dest_dir)}
+                        )
+                    except Exception as n_ex:
+                        logger.warning(f"Failed to trigger Winget download notification: {n_ex}")
                     # TODO: Maybe auto-switch to Analyzer?
                 else:
                     self._show_snack("Download success but no installer found?", "ORANGE")
@@ -1039,7 +1051,21 @@ class ModernWingetView(ft.Row, ViewMixin):
                     kwargs['startupinfo'] = startupinfo
 
                 # Run in background without showing window
-                subprocess.Popen(cmd_list, **kwargs)
+                proc = subprocess.Popen(cmd_list, **kwargs)
+                def wait_for_proc():
+                    proc.wait()
+                    # Trigger Desktop Notification
+                    try:
+                        NotificationService().add_notification(
+                            title=i18n.get("notif_winget_install_complete_title") or "Installation Finished",
+                            message=(i18n.get("notif_winget_install_complete_msg") or "The installation of '{name}' has completed.").format(name=pkg_id),
+                            type="success",
+                            notify_system=True
+                        )
+                    except Exception as n_ex:
+                        logger.warning(f"Failed to trigger Winget install notification: {n_ex}")
+
+                threading.Thread(target=wait_for_proc, daemon=True).start()
             except Exception as ex:
                 self._show_snack(f"Failed to start install: {ex}", "RED")
 

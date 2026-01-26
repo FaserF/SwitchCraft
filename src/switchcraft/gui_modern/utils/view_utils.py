@@ -209,7 +209,15 @@ class ViewMixin:
             try:
                 # Flet's launch_url
                 logger.info(f"Using page.launch_url for: {url}")
-                page.launch_url(url)
+                res = page.launch_url(url)
+
+                # Handle potential coroutine (e.g. in newer Flet versions or async context)
+                if inspect.isawaitable(res):
+                    if hasattr(page, "run_task"):
+                        async def _wait(coro):
+                            await coro
+                        page.run_task(_wait, res)
+                    # if no run_task, we can't do much in a sync method, but at least we caught it
                 return
             except Exception as e:
                 logger.error(f"page.launch_url failed: {e}")

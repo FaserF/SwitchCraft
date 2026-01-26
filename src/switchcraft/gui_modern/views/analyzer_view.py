@@ -466,6 +466,16 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                  success = AddonService().install_addon(str(addon_zip))
             if success:
                 self._show_snack("Addon installed! Please restart SwitchCraft.", "GREEN")
+                # Trigger Desktop Notification
+                try:
+                    NotificationService().add_notification(
+                        title=i18n.get("notif_addon_install_complete_title") or "Addon Installed",
+                        message=(i18n.get("notif_addon_install_complete_msg") or "The addon '{name}' was installed successfully.").format(name="Advanced Features"),
+                        type="success",
+                        notify_system=True
+                    )
+                except Exception as n_ex:
+                    logger.warning(f"Failed to trigger Addon installation notification: {n_ex}")
                 self.addon_warning.visible = False
             else:
                 self._show_snack("Installation failed. Check logs.", "RED")
@@ -526,6 +536,19 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                     self.app_page.switchcraft_app.set_progress(visible=False)
 
                 self._show_results(result)
+
+                # Trigger Desktop Notification
+                try:
+                    name = Path(filepath).name
+                    NotificationService().add_notification(
+                        title=i18n.get("notif_analysis_complete_title") or "Analysis Complete",
+                        message=(i18n.get("notif_analysis_complete_msg") or "Successfully analyzed '{name}'.").format(name=name),
+                        type="success",
+                        notify_system=True,
+                        data={"path": str(Path(filepath).parent)}
+                    )
+                except Exception as n_ex:
+                    logger.warning(f"Failed to trigger analysis notification: {n_ex}")
             except Exception as ex:
                 logger.exception("Analysis failed")
                 self.status_text.value = f"Error: {ex}"
@@ -937,7 +960,17 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                     def prog_cb(p, m): log(f"Upload: {int(p * 100)}% - {m}")
                     app_id = self.intune_service.upload_win32_app(token, pkg_path, app_meta, progress_callback=prog_cb)
                     log(f"\nSUCCESS! App ID: {app_id}")
-                    NotificationService.send_notification("Intune Upload Success", f"Uploaded {info.product_name} to Intune.")
+                    # Trigger Desktop Notification
+                    try:
+                        NotificationService().add_notification(
+                            title=i18n.get("notif_all_in_one_complete_title") or "Auto-Deploy Finished",
+                            message=(i18n.get("notif_all_in_one_complete_msg") or "Deployment flow for '{name}' completed successfully.").format(name=info.product_name or "Application"),
+                            type="success",
+                            notify_system=True,
+                            data={"path": str(base_dir)}
+                        )
+                    except Exception as n_ex:
+                        logger.warning(f"Failed to trigger all-in-one notification: {n_ex}")
                     self._add_history_entry(info, "Deployed")
                 else:
                     log("\nSkipping Intune Upload (No Tenant ID configured).")
@@ -1204,6 +1237,18 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         def _bg():
             try:
                 self.intune_service.create_intunewin(str(source), setup_file, str(output), quiet=True)
+
+                # Trigger Desktop Notification
+                try:
+                    NotificationService().add_notification(
+                        title=i18n.get("notif_intunewin_complete_title") or "IntuneWin Ready",
+                        message=(i18n.get("notif_intunewin_complete_msg") or "The package '{name}' was created successfully.").format(name=setup_file),
+                        type="success",
+                        notify_system=True,
+                        data={"path": str(output)}
+                    )
+                except Exception as n_ex:
+                    logger.warning(f"Failed to trigger IntuneWin creation notification: {n_ex}")
 
                 # Find the created file
                 expected_intunewin = source / (installer.stem + ".intunewin")

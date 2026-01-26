@@ -25,15 +25,15 @@ def mock_page():
     page.close = MagicMock()
     page.close = MagicMock()
 
-    def mock_run_task(func):
+    def mock_run_task(func, *args, **kwargs):
         if inspect.iscoroutinefunction(func):
             try:
                 loop = asyncio.get_running_loop()
-                loop.create_task(func())
+                loop.create_task(func(*args, **kwargs))
             except RuntimeError:
-                asyncio.run(func())
+                asyncio.run(func(*args, **kwargs))
         else:
-            res = func()
+            res = func(*args, **kwargs)
             if inspect.isawaitable(res):
                 try:
                     loop = asyncio.get_running_loop()

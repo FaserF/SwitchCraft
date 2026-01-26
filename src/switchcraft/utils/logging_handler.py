@@ -21,6 +21,15 @@ class SessionLogHandler(logging.Handler):
         self.file_handler = None
         self.current_log_path = None
 
+    def close(self):
+        """Ensures the internal file handler is closed when this handler is closed."""
+        if self.file_handler:
+            try:
+                self.file_handler.close()
+            except Exception:
+                pass
+        super().close()
+
     def setup_file_logging(self, log_dir):
         """Sets up the file handler for the current session."""
         try:

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 from switchcraft.services.intune_service import IntuneService
+from switchcraft.services.notification_service import NotificationService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
@@ -644,6 +645,19 @@ class ModernIntuneView(ft.Column, ViewMixin):
                          output_file = f
                          break
 
+                # Trigger Desktop Notification
+                try:
+                    pkg_name = os.path.basename(output_file)
+                    NotificationService().add_notification(
+                        title=i18n.get("notif_intunewin_complete_title") or "IntuneWin Ready",
+                        message=(i18n.get("notif_intunewin_complete_msg") or "The package '{name}' was created successfully.").format(name=pkg_name),
+                        type="success",
+                        notify_system=True,
+                        data={"path": str(output)}
+                    )
+                except Exception as n_ex:
+                    logger.warning(f"Failed to trigger IntuneWin completion notification: {n_ex}")
+
                 def open_folder(e):
                     import subprocess
                     if os.name == 'nt':
@@ -732,6 +746,17 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     self.up_status.color = "GREEN"
                     self.btn_upload.disabled = False
                     self.update()
+                    # Trigger Desktop Notification
+                    try:
+                        NotificationService().add_notification(
+                            title=i18n.get("notif_intune_upload_complete_title") or "Upload Successful",
+                            message=(i18n.get("notif_intune_upload_complete_msg") or "'{name}' was successfully uploaded to Intune.").format(name=app_info.get("displayName") or "Application"),
+                            type="success",
+                            notify_system=True,
+                            data={"url": "https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/AppsWindowsAppsMenu"}
+                        )
+                    except Exception as n_ex:
+                        logger.warning(f"Failed to trigger Intune upload notification: {n_ex}")
                     self._show_success_dialog(new_app_id)
                 self._run_task_safe(update_done)
 

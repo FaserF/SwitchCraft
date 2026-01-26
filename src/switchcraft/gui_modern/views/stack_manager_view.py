@@ -3,6 +3,7 @@ import json
 import logging
 from pathlib import Path
 from switchcraft.utils.i18n import i18n
+from switchcraft.services.notification_service import NotificationService
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
@@ -350,6 +351,16 @@ class StackManagerView(ft.Column, ViewMixin):
                 self._run_task_with_fallback(
                     lambda: self._show_snack(f"Stack {self.current_stack} deployed successfully!", "GREEN")
                 )
+                # Trigger Desktop Notification
+                try:
+                    NotificationService().add_notification(
+                        title=i18n.get("notif_stack_deploy_complete_title") or "Stack Deployed",
+                        message=(i18n.get("notif_stack_deploy_complete_msg") or "Project stack '{name}' was deployed successfully.").format(name=self.current_stack),
+                        type="success",
+                        notify_system=True
+                    )
+                except Exception as n_ex:
+                    logger.warning(f"Failed to trigger stack deployment notification: {n_ex}")
             except Exception as e:
                 logger.error(f"Stack deployment failed: {e}")
                 self._run_task_with_fallback(
