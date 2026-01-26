@@ -53,6 +53,7 @@ param (
     [switch]$Installer,
     [switch]$All,
     [switch]$LocalDev,
+    [switch]$SkipDeps,
     [int]$BuildNumber = 0
 )
 
@@ -99,6 +100,39 @@ if ($All) {
 if (-not $Modern -and -not $Legacy -and -not $Cli -and -not $Pip -and -not $Installer -and -not $Addons) {
     Write-Host "No targets selected. Defaulting to Modern GUI." -ForegroundColor Yellow
     $Modern = $true
+}
+
+# --- 0. DEPS CHECK ---
+if (-not $SkipDeps) {
+    function Verify-Dependencies {
+        param(
+            [switch]$Modern,
+            [switch]$Legacy,
+            [switch]$All
+        )
+
+        Write-Host "`nChecking Python dependencies..." -ForegroundColor Cyan
+        $Extras = @("build", "desktop")
+        if ($Modern -or $All) { $Extras += "modern" }
+        if ($Legacy -or $All) { $Extras += "gui" }
+
+        $ExtrasString = ($Extras | Select-Object -Unique) -join ","
+        Write-Host "Required Extras: [$ExtrasString]" -ForegroundColor Gray
+
+        $PipCmd = if ($env:OS -match 'Windows_NT') { "python" } else { "python3" }
+
+        try {
+            # Use --no-warn-script-location to avoid noise
+            # Running install ensures all modules in pyproject.toml are met
+            & $PipCmd -m pip install ".[$ExtrasString]" --upgrade-strategy only-if-needed -q
+            if ($LASTEXITCODE -ne 0) { throw "Pip install failed" }
+            Write-Host "Dependencies verified." -ForegroundColor Green
+        } catch {
+            Write-Warning "Dependency check failed: $_. Attempting to continue anyway..."
+        }
+    }
+
+    Verify-Dependencies -Modern:$Modern -Legacy:$Legacy -All:$All
 }
 
 # --- Validation ---
