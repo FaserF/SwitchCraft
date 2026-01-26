@@ -22,7 +22,7 @@ class ModernWingetView(ft.Row, ViewMixin):
         Parameters:
             page (ft.Page): The Flet page instance used for rendering, navigation, and snack messages.
         """
-        super().__init__(expand=True)
+        super().__init__(expand=True, vertical_alignment=ft.CrossAxisAlignment.START)
         self.app_page = page
         self.winget = None
 
@@ -730,7 +730,12 @@ class ModernWingetView(ft.Row, ViewMixin):
 
         # CRITICAL: Create a NEW Column instance with all controls
         # This forces Flet to recognize the change
-        new_details_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+        new_details_area = ft.Column(
+            scroll=ft.ScrollMode.AUTO,
+            expand=True,
+            alignment=ft.MainAxisAlignment.START,
+            horizontal_alignment=ft.CrossAxisAlignment.START
+        )
         new_details_area.controls = detail_controls
 
         # CRITICAL: Re-assign both details_area and right_pane.content

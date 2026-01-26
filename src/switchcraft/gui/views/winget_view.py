@@ -89,7 +89,7 @@ class WingetView(ctk.CTkFrame):
         self.lbl_details_title.pack(pady=20, padx=20, fill="x")
 
         self.details_content = ctk.CTkScrollableFrame(self.right_pane, fg_color="transparent")
-        self.details_content.pack(fill="both", expand=True, padx=10, pady=10)
+        self.details_content.pack(fill="both", expand=True, padx=10, pady=10, anchor="nw")
 
         # Initial empty state
         self.lbl_empty_state = ctk.CTkLabel(self.details_content, text=i18n.get("winget_search_placeholder"))
@@ -229,10 +229,10 @@ class WingetView(ctk.CTkFrame):
                 else:
                     ctk.CTkLabel(f, text=val, anchor="w", wraplength=400).pack(side="left", fill="x", expand=True)
 
-        add_row("Version", info.get("Version"))
-        add_row("Publisher", info.get("publisher"))
-        add_row("Description", info.get("description"))
-        add_row("Homepage", info.get("homepage"), link=True)
+        add_row(i18n.get("field_version") or "Version", info.get("Version"))
+        add_row(i18n.get("field_publisher") or "Publisher", info.get("Publisher") or info.get("publisher"))
+        add_row(i18n.get("field_about") or "Description", info.get("Description") or info.get("description"))
+        add_row(i18n.get("field_homepage") or "Homepage", info.get("Homepage") or info.get("homepage"), link=True)
 
         # Manifest URL Logic
         manifest_url = info.get("manifest_url")
