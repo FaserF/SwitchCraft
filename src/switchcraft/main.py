@@ -833,7 +833,32 @@ if __name__ == "__main__":
         except Exception:
             pass
 
-    if hasattr(ft, "run"):
-        ft.run(main)
-    else:
-        ft.app(target=main, assets_dir="assets")
+    try:
+        if hasattr(ft, "run"):
+            ft.run(main)
+        else:
+            ft.app(target=main, assets_dir="assets")
+    except Exception as e:
+        # Fallback for early failures (before main() handles it)
+        try:
+            import pyi_splash
+            if pyi_splash.is_alive():
+                pyi_splash.close()
+        except:
+            pass
+
+        if splash_proc:
+            try:
+                splash_proc.terminate()
+            except:
+                pass
+
+        # Write crash dump for early failure
+        try:
+            write_crash_dump(sys.exc_info())
+        except:
+            pass
+
+        # If it's a windowed app with no console, we should try to show a message box
+        # but for now, just reraise if we have a console or exit
+        raise e

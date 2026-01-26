@@ -72,7 +72,7 @@ jobs:
           sed -i "s/__version__ = \".*\"/__version__ = \"$VERSION\"/" src/switchcraft/__init__.py
 
           # Update file_version_info.txt
-          python .github/scripts/update_version_info.py "$VERSION"
+          python .github/scripts/update_version_info.py "$VERSION" --build ${{ github.run_number }}
 
           # Update Addon Manifests
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_advanced/manifest.json
@@ -203,7 +203,7 @@ jobs:
           # Update version files
           sed -i "s/version = \".*\"/version = \"$DEV_VERSION\"/" pyproject.toml
           sed -i "s/__version__ = \".*\"/__version__ = \"$DEV_VERSION\"/" src/switchcraft/__init__.py
-          python .github/scripts/update_version_info.py "$DEV_VERSION"
+          python .github/scripts/update_version_info.py "$DEV_VERSION" --build ${{ github.run_number }}
 
           # Update .iss files (Inno Setup installer scripts)
           # Extract numeric version only (remove .dev0, +build, etc.) for VersionInfoVersion

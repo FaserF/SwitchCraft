@@ -254,6 +254,22 @@ if (-not $IsCI -and (Test-Path (Join-Path $RepoRoot ".git"))) {
 }
 
 
+# --- Update Version Info File (for PyInstaller) ---
+Write-Host "`nUpdating file_version_info.txt with localized version..." -ForegroundColor Gray
+try {
+    $UpdateScript = Join-Path $RepoRoot ".github/scripts/update_version_info.py"
+    if (Test-Path $UpdateScript) {
+        if ($IsWinBuild) {
+            python $UpdateScript "$AppVersion" --build $BuildNumber
+        }
+        else {
+            python3 $UpdateScript "$AppVersion" --build $BuildNumber
+        }
+    }
+} catch {
+    Write-Warning "Failed to update file_version_info.txt: $_"
+}
+
 # Setup Dist dir
 $DistDir = Join-Path $RepoRoot "dist"
 if (-not (Test-Path $DistDir)) {
