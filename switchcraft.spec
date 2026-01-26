@@ -109,10 +109,12 @@ if sys.platform != 'darwin':
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-exe_args = [pyz, a.scripts, a.binaries, a.zipfiles, a.datas]
+exe_args = [pyz, a.scripts]
 if splash:
-    exe_args.extend([splash, splash.binaries])
-exe_args.append([])
+    exe_args.append(splash)
+    exe_args.append(splash.binaries)
+
+exe_args.extend([a.binaries, a.zipfiles, a.datas])
 
 exe = EXE(
     *exe_args,

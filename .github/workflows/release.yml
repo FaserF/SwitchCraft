@@ -50,7 +50,7 @@ jobs:
             echo "Warning: Version generation failed or returned invalid version '$VERSION', using fallback: 2026.1.2"
             VERSION="2026.1.2"
           fi
-          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
           # Sanitize version for Docker (Docker tags cannot contain '+', replace with '-')
