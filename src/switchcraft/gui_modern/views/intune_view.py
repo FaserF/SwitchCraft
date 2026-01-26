@@ -111,7 +111,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
     def _build_packager_tab(self):
         self.log_view = ft.ListView(expand=True, spacing=5, auto_scroll=True)
 
-        self.setup_field = ft.TextField(label=i18n.get("lbl_setup_file") or "Setup File (.exe/.msi)", expand=True)
+        self.setup_field = ft.TextField(label=i18n.get("lbl_setup_file") or "Setup File (.exe/.msi/Script)", expand=True)
         self.source_field = ft.TextField(label=i18n.get("lbl_source_folder") or "Source Folder", expand=True)
         self.output_field = ft.TextField(label=i18n.get("lbl_output_folder") or "Output Folder", expand=True)
         self.quiet_check = ft.Checkbox(label=i18n.get("lbl_quiet_mode") or "Quiet Mode (No UI)", value=True)
@@ -122,10 +122,9 @@ class ModernIntuneView(ft.Column, ViewMixin):
             if path:
                 self.setup_field.value = path
                 parent = os.path.dirname(path)
-                if not self.source_field.value:
-                    self.source_field.value = parent
-                if not self.output_field.value:
-                    self.output_field.value = parent
+                # Always update source and output folders to match setup file location
+                self.source_field.value = parent
+                self.output_field.value = parent
                 self.update()
 
         def pick_folder(e, field):
