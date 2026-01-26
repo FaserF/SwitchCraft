@@ -1672,45 +1672,190 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         return asset
 
+    def _install_from_source_fallback(self, addon_id):
+        """
+        Fallback: Download source code from main branch and extract specific addon folder.
+        """
+        import requests
+        import tempfile
+        import zipfile
+        import shutil
+        from switchcraft.services.addon_service import AddonService
+        from pathlib import Path
+
+        repo = "FaserF/SwitchCraft"
+        # Download main branch zip
+        source_url = f"https://github.com/{repo}/archive/refs/heads/main.zip"
+        logger.info(f"Fallback: Downloading source from {source_url}...")
+
+        resp = requests.get(source_url, timeout=30)
+        resp.raise_for_status()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            zip_path = Path(temp_dir) / "source.zip"
+            zip_path.write_bytes(resp.content)
+
+            extract_dir = Path(temp_dir) / "extracted"
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+
+            # Locate addon folder in source
+            # Usually: SwitchCraft-main/src/switchcraft_{addon_id} OR SwitchCraft-main/src/switchcraft/assets/addons/{addon_id}
+            # Or just search for manifest.json with matching id?
+            # Common structure: SwitchCraft-main/src/switchcraft_{addon_id}
+
+            root_folder = next(extract_dir.iterdir()) # SwitchCraft-main
+
+            # Potential locations
+            candidates = [
+                root_folder / "src" / f"switchcraft_{addon_id}",
+                root_folder / "src" / addon_id,
+                root_folder / "src" / "switchcraft" / "assets" / "addons" / addon_id
+            ]
+
+            addon_src = None
+            for cand in candidates:
+                if cand.exists() and (cand / "manifest.json").exists():
+                    addon_src = cand
+                    break
+
+            if not addon_src:
+                raise Exception(f"Addon source for '{addon_id}' not found in main branch.")
+
+            # Zip the addon folder to simulate a release package
+            pkg_zip = Path(temp_dir) / f"{addon_id}_source.zip"
+            shutil.make_archive(str(pkg_zip.with_suffix('')), 'zip', addon_src)
+
+            logger.info(f"Installing {addon_id} from repackaged source...")
+            return AddonService().install_addon(str(pkg_zip))
+
     def _download_and_install_github(self, addon_id):
         """Helper to download/install without UI code mixed in."""
         import requests
         import tempfile
         from switchcraft.services.addon_service import AddonService
+        from switchcraft.utils.config import SwitchCraftConfig
+        from switchcraft import __version__
+        from pathlib import Path
 
         repo = "FaserF/SwitchCraft"
-        api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+        channel = SwitchCraftConfig.get_update_channel()
+        logger.info(f"Addon download strategy: channel={channel}, app_version={__version__}")
 
-        resp = requests.get(api_url, timeout=10)
-        resp.raise_for_status()
+        # Strategy Helpers
+        def try_matching_version():
+            # Try to find a release tag matching the current version
+            # Assuming tags are v<version>
+            tag = f"v{__version__}"
+            api_url = f"https://api.github.com/repos/{repo}/releases/tags/{tag}"
+            logger.info(f"Trying Matching Version Release: {api_url}")
+            resp = requests.get(api_url, timeout=10)
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            return _process_release(resp.json())
 
-        assets = resp.json().get("assets", [])
-        asset = self._select_addon_asset(assets, addon_id)
+        def try_latest():
+            api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+            logger.info(f"Trying Latest Release: {api_url}")
+            resp = requests.get(api_url, timeout=10)
+            if resp.status_code == 404:
+                return None # No latest release
+            resp.raise_for_status()
+            return _process_release(resp.json())
 
-        if not asset:
-            # List available assets for debugging
-            available_assets = [a["name"] for a in assets]
-            candidates = [f"switchcraft_{addon_id}.zip", f"{addon_id}.zip"]
-            logger.warning(f"Addon {addon_id} not found in latest release. Searched for: {candidates}. Available assets: {available_assets}")
-            raise Exception(f"Addon {addon_id} not found in latest release. Searched for: {', '.join(candidates)}. Available: {', '.join(available_assets[:10])}")
+        def try_newest_release():
+            # Gets list of releases (including pre-releases) and picks first
+            api_url = f"https://api.github.com/repos/{repo}/releases"
+            logger.info(f"Trying Newest Release (inc. beta): {api_url}")
+            resp = requests.get(api_url, timeout=10)
+            resp.raise_for_status()
+            releases = resp.json()
+            if not releases:
+                return None
+            return _process_release(releases[0]) # First is newest
 
-        download_url = asset["browser_download_url"]
-        asset_name = asset.get("name", f"{addon_id}.zip")
-        logger.info(f"Found {asset_name} in release, downloading from: {download_url}")
+        def try_source():
+            logger.info("Trying Source Code Fallback...")
+            return self._install_from_source_fallback(addon_id)
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
-            d_resp = requests.get(download_url, timeout=30)
-            d_resp.raise_for_status()
-            tmp.write(d_resp.content)
-            tmp_path = tmp.name
+        def _process_release(release_data):
+            assets = release_data.get("assets", [])
+            asset = self._select_addon_asset(assets, addon_id)
+            if not asset:
+                return None
 
-        try:
-            return AddonService().install_addon(tmp_path)
-        finally:
+            download_url = asset["browser_download_url"]
+            asset_name = asset.get("name", f"{addon_id}.zip")
+            logger.info(f"Found {asset_name} in release {release_data.get('tag_name')}, downloading from: {download_url}")
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                dl_path = Path(temp_dir) / asset_name
+                with requests.get(download_url, stream=True, timeout=30) as r:
+                    r.raise_for_status()
+                    with open(dl_path, 'wb') as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            f.write(chunk)
+
+                return AddonService().install_addon(str(dl_path))
+
+        # Execution Logic based on Channel
+        last_error = None
+
+        # 1. Stable Channel
+        if channel == "stable":
+            # Attempt 1: Stable Latest
             try:
-                os.unlink(tmp_path)
+                if res := try_latest(): return res
             except Exception as e:
-                logger.debug(f"Failed to cleanup temp file {tmp_path}: {e}")
+                logger.warning(f"Stable download failed: {e}")
+                last_error = e
+
+            # Attempt 2: Beta/Pre-release Fallback
+            try:
+                if res := try_newest_release(): return res
+            except Exception as e:
+                logger.warning(f"Beta fallback failed: {e}")
+                last_error = e
+
+            # Attempt 3: Source Fallback
+            try:
+                return try_source()
+            except Exception as e:
+                logger.error(f"Source fallback failed: {e}")
+                raise e # Raise specific source error if all else fails
+
+        # 2. Beta Channel
+        elif channel == "beta":
+            # Attempt 1: Newest Release (Beta)
+            try:
+                if res := try_newest_release(): return res
+            except Exception as e:
+                logger.warning(f"Beta download failed: {e}")
+                last_error = e
+
+            # Attempt 2: Source Fallback
+            try:
+                return try_source()
+            except Exception as e:
+                 raise e
+
+        # 3. Dev Channel
+        else: # dev / nightly
+             # Attempt 1: Source (Preferred for Dev)
+            try:
+                return try_source()
+            except Exception as e:
+                logger.warning(f"Source download failed: {e}")
+                last_error = e
+
+            # Attempt 2: Newest Release Fallback
+            try:
+                if res := try_newest_release(): return res
+            except Exception as e:
+                raise last_error or e
+
+        raise Exception(f"Addon '{addon_id}' could not be found in any channel fallback.")
 
     def _download_addon_from_github(self, addon_id):
         """
