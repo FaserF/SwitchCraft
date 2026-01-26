@@ -1004,7 +1004,7 @@ class ModernApp:
                 bg_color = "RED" if is_dev else "AMBER"
                 text_color = "WHITE" if is_dev else "BLACK"
 
-                self.banner_container = ft.Container(
+                self.dev_banner_container = ft.Container(
                     content=ft.Text(text, color=text_color, weight="bold", text_align="center"),
                     bgcolor=bg_color,
                     padding=5,
@@ -1134,6 +1134,8 @@ class ModernApp:
         self.main_layout_wrapper = ft.Column(
             controls=[
                 self.global_progress,
+                self.banner_container,
+                self.dev_banner_container,
                 self.content
             ],
             expand=True,

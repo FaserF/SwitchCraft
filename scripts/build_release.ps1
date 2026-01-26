@@ -231,21 +231,19 @@ if (-not $IsCI -and (Test-Path (Join-Path $RepoRoot ".git"))) {
         if ($GitCommit) {
             # Append local dev suffix only if not already present
             if (-not ($AppVersion -like "*$GitCommit*")) {
-                 # If version is already a dev version (has .dev), just append +commit if missing?
-                 # Or typically we want "X.Y.Z.dev0+commit"
-                 # If AppVersion is "2026.1.5", we make "2026.1.5.dev0+commit"
-                 # If AppVersion is "2026.1.5.dev0+oldcommit", we might be in trouble, but assuming standard flow:
-
-                 if ($AppVersion -match "dev\d+") {
-                     # Already has dev tag, maybe just missing commit or has different one?
-                     # Ideally we replace the existing build metadata?
-                     # For safety/simplicity in this script: Don't append .dev0 again if it has dev match
-                     $AppVersion = "$AppVersion+$GitCommit"
+                 # Check if the version already contains a commit hash or complex metadata (+)
+                 if ($AppVersion -match "\+") {
+                     Write-Host "Local Dev Build: Version already contains build metadata/hash ($AppVersion). Skipping second append." -ForegroundColor Gray
                  } else {
-                     $AppVersion = "$AppVersion.dev0+$GitCommit"
+                     if ($AppVersion -match "dev\d+") {
+                         # Already has dev tag, but missing commit
+                         $AppVersion = "$AppVersion+$GitCommit"
+                     } else {
+                         $AppVersion = "$AppVersion.dev0+$GitCommit"
+                     }
+                     Write-Host "Local Dev Build Detected: Appending commit hash $GitCommit" -ForegroundColor Cyan
+                     Write-Host "New Version: $AppVersion" -ForegroundColor Cyan
                  }
-                 Write-Host "Local Dev Build Detected: Appending commit hash $GitCommit" -ForegroundColor Cyan
-                 Write-Host "New Version: $AppVersion" -ForegroundColor Cyan
             } else {
                  Write-Host "Local Dev Build: Version already contains current commit hash ($GitCommit). Skipping append." -ForegroundColor Gray
             }
