@@ -716,7 +716,7 @@
     "winget_deploy_wau_desc": "Best for keeping apps updated automatically.",
     "winget_deploy_package_desc": "Download installer and prepare for Intune.",
     "winget_deploy_script_desc": "Generate PowerShell script for deployment.",
-    "winget_tip_autoupdate": "Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!",
+    "winget_tip_autoupdate": "Tip: Use Winget-AutoUpdate to keep apps fresh!",
     "stacks_title": "Project Stacks",
     "stacks_subtitle": "Manage collections of apps for batch deployment",
     "stacks_description": "Stacks allow you to group multiple apps together for batch deployment. Create a stack, add apps by Winget ID or file path, then deploy them all at once to Intune.",
