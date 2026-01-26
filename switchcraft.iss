@@ -17,7 +17,8 @@
 #define MyAppPublisher "FaserF"
 #define MyAppURL "https://github.com/FaserF/SwitchCraft"
 #define MyAppExeName "SwitchCraft.exe"
-#define MyAppDescription "Silent Install Switch Finder"
+#define MyAppDescription "SwitchCraft - Advanced Silent Switch & Packaging Tool"
+#define MyAppCopyright "Copyright (c) 2026 FaserF"
 
 [Setup]
 ; Basic Info
@@ -33,6 +34,8 @@ VersionInfoVersion={#MyAppVersionInfo}
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppDescription}
 VersionInfoProductName={#MyAppName}
+VersionInfoCopyright={#MyAppCopyright}
+VersionInfoProductVersion={#MyAppVersionInfo}
 
 ; Default directory (changes based on admin/user mode)
 DefaultDirName={autopf}\{#MyAppPublisher}\{#MyAppName}

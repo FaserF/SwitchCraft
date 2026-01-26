@@ -27,8 +27,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self.latest_version_text = ft.Text("")
 
         # Shared FilePicker for various actions
-        self.file_picker = ft.FilePicker()
-        self.file_picker.on_result = self._on_file_picker_result
+        # self.file_picker removed in favor of FilePickerHelper (Tkinter) logic
+        # self.file_picker = ft.FilePicker()
+        # self.file_picker.on_result = self._on_file_picker_result
 
         # Custom Tab Navigation
         self.current_content = ft.Container(expand=True, padding=10)
@@ -57,8 +58,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self.controls = [
             ft.Container(content=self.nav_row, height=60, padding=5, bgcolor="SURFACE_CONTAINER"),
             ft.Divider(height=1, thickness=1),
-            self.current_content,
-            self.file_picker
+            self.current_content
         ]
 
         # Load initial content
@@ -92,6 +92,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
              self._check_updates(None, only_changelog=True)
         # Check for policy-managed settings
         self._check_managed_settings()
+
+
 
     def _switch_tab(self, builder_func):
         try:
@@ -1127,6 +1129,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         """
         from switchcraft import IS_WEB
         import base64
+        import json
 
         prefs = SwitchCraftConfig.export_preferences()
         json_str = json.dumps(prefs, indent=4)
@@ -1140,89 +1143,55 @@ class ModernSettingsView(ft.Column, ViewMixin):
             self._launch_url(data_uri)
             self._show_snack("Export started (Check downloads)", "GREEN")
         else:
-            # Desktop: Use Save File Dialog
-            self._picker_context = "export_settings"
-            await self.file_picker.save_file(
+            # Desktop: Use Save File Dialog via Helper
+            from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+            path = FilePickerHelper.save_file(
                 dialog_title=i18n.get("btn_export_settings") or "Export Settings",
                 file_name="settings.json",
                 allowed_extensions=["json"]
             )
 
-    async def _import_settings(self, e):
-        """
-        Import settings via FilePicker.
-        """
-        self._picker_context = "import_settings"
-        await self.file_picker.pick_files(
-            allow_multiple=False,
-            allowed_extensions=["json"],
-            dialog_title=i18n.get("btn_import_settings") or "Import Settings"
-        )
-
-    def _on_file_picker_result(self, e):
-        """Handle results from the shared FilePicker."""
-        context = getattr(self, "_picker_context", None)
-        if not context:
-            return
-
-        if context == "export_settings":
-            if e.path:
+            if path:
                 try:
-                    prefs = SwitchCraftConfig.export_preferences()
-                    with open(e.path, "w") as f:
-                        json.dump(prefs, f, indent=4)
-                    self._show_snack(f"{i18n.get('export_success') or 'Exported to'} {e.path}")
+                    with open(path, "w") as f:
+                        f.write(json_str)
+                    self._show_snack(f"{i18n.get('export_success') or 'Exported to'} {path}", "GREEN")
                 except Exception as ex:
                     logger.error(f"Failed to export settings: {ex}")
                     self._show_snack(f"Export Failed: {ex}", "RED")
 
-        elif context == "import_settings":
-            if e.files and len(e.files) > 0:
-                fpath = e.files[0].path
-                content = getattr(e.files[0], "content", None)
+    async def _import_settings(self, e):
+        """
+        Import settings via FilePicker.
+        """
+        from switchcraft import IS_WEB
+        import json
 
-                try:
-                    if fpath:
-                        # Desktop Flow
-                        with open(fpath, "r", encoding="utf-8") as f:
-                            data = json.load(f)
-                    elif content:
-                        # Web Flow (Simulated/Future-Proofing for Flet Web Byte Access)
-                        # content is usually bytes in Flet Web
-                        data = json.loads(content.decode("utf-8"))
-                    else:
-                        # Fallback for Web where path is None and content not provided directly
-                        # Or restricted environment
-                        from switchcraft import IS_WEB
-                        if IS_WEB:
-                            self._show_snack("Settings import not supported in web version yet (Sandbox restriction)", "ORANGE")
-                        else:
-                            self._show_snack("Import failed: No file path or content received", "RED")
-                        return
+        if IS_WEB:
+             self._show_snack("Settings import not supported in web version yet", "ORANGE")
+             return
 
-                    SwitchCraftConfig.import_preferences(data)
-                    self._show_snack(i18n.get("import_success") or "Settings Imported. Please Restart.", "GREEN")
-                except Exception as ex:
-                    logger.error(f"Error importing settings: {ex}")
-                    self._show_snack(f"Import Failed: {ex}", "RED")
+        from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+        path = FilePickerHelper.pick_file(
+            allowed_extensions=["json"],
+            allow_multiple=False
+        )
 
-        elif context == "export_logs":
-            if e.path:
-                try:
-                    # e.path is the destination
-                    # We need to copy from self._log_source_path (set in _export_logs)
-                    src = getattr(self, "_log_source_path", None)
-                    if src:
-                        import shutil
-                        shutil.copy2(src, e.path)
-                        self._show_snack(f"Logs exported to {e.path}", "GREEN")
-                    else:
-                        self._show_snack("Log copy failed: Source lost", "RED")
-                except Exception as ex:
-                    self._show_snack(f"Log export failed: {ex}", "RED")
+        if path:
+            # pick_file returns string if allow_multiple=False is intended or just first item
+            fpath = path[0] if isinstance(path, list) else path
 
-        # Reset context
-        self._picker_context = None
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+
+                SwitchCraftConfig.import_preferences(data)
+                self._show_snack(i18n.get("import_success") or "Settings Imported. Please Restart.", "GREEN")
+            except Exception as ex:
+                logger.error(f"Error importing settings: {ex}")
+                self._show_snack(f"Import Failed: {ex}", "RED")
+
+
 
     async def _export_logs(self, e):
         """Export logs to a file. Includes current session log and recent log files."""
@@ -1275,13 +1244,21 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 self._show_snack(f"Web Export Failed: {ex}", "RED")
         else:
             # Desktop: Save Dialog
-            self._log_source_path = source_path
-            self._picker_context = "export_logs"
-            await self.file_picker.save_file(
+            from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+
+            path = FilePickerHelper.save_file(
                 dialog_title=i18n.get("help_export_logs") or "Export Logs",
                 file_name=filename,
                 allowed_extensions=["log", "txt"]
             )
+
+            if path:
+                try:
+                   import shutil
+                   shutil.copy2(source_path, path)
+                   self._show_snack(f"Logs exported to {path}", "GREEN")
+                except Exception as ex:
+                   self._show_snack(f"Log export failed: {ex}", "RED")
 
 
 

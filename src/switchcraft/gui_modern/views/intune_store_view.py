@@ -361,6 +361,15 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             )
             detail_controls.append(self.title_field)
 
+
+            # Editable Version Field
+            self.version_field = ft.TextField(
+                label=i18n.get("field_version") or "Version",
+                value=app.get("displayVersion", ""),
+                expand=True
+            )
+            detail_controls.append(self.version_field)
+
             # Metadata (read-only)
             meta_rows = [
                 (i18n.get("field_id", default="ID"), app.get("id")),
@@ -560,6 +569,9 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             # Check fields
             if hasattr(self, 'title_field') and self.title_field.value != app.get('displayName'):
                 update_data['displayName'] = self.title_field.value
+
+            if hasattr(self, 'version_field') and self.version_field.value != app.get('displayVersion'):
+                update_data['displayVersion'] = self.version_field.value
 
             if hasattr(self, 'description_field') and self.description_field.value != app.get('description'):
                 update_data['description'] = self.description_field.value

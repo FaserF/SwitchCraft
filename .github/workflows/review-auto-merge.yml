@@ -61,7 +61,8 @@ jobs:
 
           # 2. Check PR Author Permissions
           PR_AUTHOR=$(gh pr view "$PR_NUMBER" --json author --jq '.author.login')
-          if [[ "$PR_AUTHOR" == *"[bot]" ]]; then
+          echo "PR Author: $PR_AUTHOR"
+          if [[ "$PR_AUTHOR" == *"[bot]" || "$PR_AUTHOR" == "app/renovate" ]]; then
              echo "PR Author is a Bot. Allowed."
           else
              PERM=$(gh api "repos/$REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission')

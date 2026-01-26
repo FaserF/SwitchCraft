@@ -581,7 +581,7 @@ class IntuneService:
         else:
             # Default limits and select to improve performance
             params["$top"] = "100"
-            params["$select"] = "id,displayName,publisher,appType,largeIcon,iconUrl,logoUrl"
+            params["$select"] = "id,displayName,publisher,appType,largeIcon,iconUrl,logoUrl,displayVersion"
 
         try:
             resp = requests.get(url, headers=headers, params=params, timeout=30, stream=False)

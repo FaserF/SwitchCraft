@@ -31,12 +31,12 @@ VSVersionInfo(
         '040904B0',
         [StringStruct('CompanyName', 'FaserF'),
         StringStruct('FileDescription', 'SwitchCraft - Advanced Silent Switch & Packaging Tool'),
-        StringStruct('FileVersion', '2026.1.4.0'),
+        StringStruct('FileVersion', '2026.1.5.0'),
         StringStruct('InternalName', 'SwitchCraft'),
         StringStruct('LegalCopyright', 'Copyright (c) 2026 FaserF'),
         StringStruct('OriginalFilename', 'SwitchCraft.exe'),
         StringStruct('ProductName', 'SwitchCraft'),
-        StringStruct('ProductVersion', '2026.1.4.0')])
+        StringStruct('ProductVersion', '2026.1.5.0')])
       ]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])
   ]

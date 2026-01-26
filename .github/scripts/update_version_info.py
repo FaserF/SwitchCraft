@@ -36,10 +36,11 @@ def update_version_info(version_str, file_path='file_version_info.txt'):
     content = re.sub(r'prodvers=\(\d+, \d+, \d+, \d+\)', f'prodvers={tuple_str}', content)
 
     # Update StringStructs
+    # Update StringStructs
     # FileVersion should be numeric only
-    content = re.sub(r"StringStruct\(u'FileVersion', u'[^']+'\)", f"StringStruct(u'FileVersion', u'{full_version_str}')", content)
+    content = re.sub(r"StringStruct\(u?'FileVersion', u?'[^']+'\)", f"StringStruct(u'FileVersion', u'{full_version_str}')", content)
     # ProductVersion can include suffix for display
-    content = re.sub(r"StringStruct\(u'ProductVersion', u'[^']+'\)", f"StringStruct(u'ProductVersion', u'{display_version_str}')", content)
+    content = re.sub(r"StringStruct\(u?'ProductVersion', u?'[^']+'\)", f"StringStruct(u'ProductVersion', u'{display_version_str}')", content)
 
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(content)
