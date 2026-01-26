@@ -63,7 +63,8 @@ class TestIntuneServiceCore(unittest.TestCase):
 
         result = self.service.download_tool()
         self.assertTrue(result)
-        mock_get.assert_called_once()
+        # Check that the actual download URL was requested
+        mock_get.assert_any_call(self.service.TOOL_URL, stream=True, timeout=30)
 
     def test_create_intunewin_requires_tool(self):
         """Test that create_intunewin requires the tool to be available."""

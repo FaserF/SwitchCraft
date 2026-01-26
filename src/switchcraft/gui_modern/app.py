@@ -115,7 +115,7 @@ class ModernApp:
         # The loading screen will be replaced in build_ui()
 
         # Update Page Properties
-        self.page.title = "SwitchCraft Web"
+        self.page.title = "SwitchCraft Web" if self.page.web and sys.platform == "emscripten" else "SwitchCraft"
         if self.page.web:
             self.page.favicon = "favicon.png"
         elif not self.page.favicon:
@@ -554,7 +554,6 @@ class ModernApp:
         self.page.update()
 
     def setup_page(self):
-        self.page.title = "SwitchCraft Web"
         # self.page.title = f"SwitchCraft v{__version__}"
         # Parse theme
         theme_pref = SwitchCraftConfig.get_value("Theme", "System")
@@ -1207,8 +1206,11 @@ class ModernApp:
 
 
         layout_controls = []
-        if self.banner_container:
+        if hasattr(self, "banner_container") and self.banner_container and self.banner_container.content:
              layout_controls.append(self.banner_container)
+
+        if hasattr(self, "dev_banner_container") and self.dev_banner_container and self.dev_banner_container.content:
+             layout_controls.append(self.dev_banner_container)
 
         layout_controls.append(self.sidebar)
 

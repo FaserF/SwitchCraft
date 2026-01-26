@@ -445,7 +445,7 @@ def main(page: ft.Page):
     # --- End Patching ---
 
     # --- Page Configuration ---
-    page.title = "SwitchCraft Web" if page.web else "SwitchCraft"
+    page.title = "SwitchCraft Web" if page.web and sys.platform == "emscripten" else "SwitchCraft"
 
     # Set favicon for web mode
     try:

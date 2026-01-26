@@ -270,6 +270,19 @@ try {
     Write-Warning "Failed to update file_version_info.txt: $_"
 }
 
+# --- Update Source Versions (for runtime consistency) ---
+Write-Host "`nSyncing version to source files..." -ForegroundColor Gray
+try {
+    if (Test-Path "$RepoRoot/src/switchcraft/__init__.py") {
+        (Get-Content "$RepoRoot/src/switchcraft/__init__.py") -replace '__version__ = ".*"', "__version__ = `"$AppVersion`"" | Set-Content "$RepoRoot/src/switchcraft/__init__.py"
+    }
+    if (Test-Path $PyProjectFile) {
+        (Get-Content $PyProjectFile) -replace 'version = ".*"', "version = `"$AppVersion`"" | Set-Content $PyProjectFile
+    }
+} catch {
+    Write-Warning "Failed to sync source versions: $_"
+}
+
 # Setup Dist dir
 $DistDir = Join-Path $RepoRoot "dist"
 if (-not (Test-Path $DistDir)) {
