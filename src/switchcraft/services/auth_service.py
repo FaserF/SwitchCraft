@@ -77,7 +77,7 @@ class AuthService:
         """
         headers = {"Accept": "application/json"}
         data = {
-            "client_id": cls.CLIENT_ID,
+            "client_id": cls.get_client_id() or "Ov23liFQxD8H5In5LqBM",
             "device_code": device_code,
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
         }
@@ -116,7 +116,7 @@ class AuthService:
 
         headers = {"Accept": "application/json"}
         data = {
-            "client_id": cls.CLIENT_ID,
+            "client_id": cls.get_client_id() or "Ov23liFQxD8H5In5LqBM",
             "device_code": device_code,
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
         }

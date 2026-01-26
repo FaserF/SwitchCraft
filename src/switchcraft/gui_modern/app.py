@@ -153,7 +153,10 @@ class ModernApp:
 
         # Now add listener
         self.notification_service.add_listener(self._on_notification_update)
-        # Sync initial state (badge, etc)
+        # Sync initial state (badge, etc) WITHOUT triggering system toasts for old ones
+        notifs = self.notification_service.get_notifications()
+        if notifs:
+            self._last_notif_id = notifs[0]["id"]
         self._on_notification_update()
 
         # Back button (Early init for AppBar)
@@ -269,14 +272,29 @@ class ModernApp:
             url = self._get_help_url(current_idx)
             logger.info(f"Opening help for index {current_idx}: {url}")
 
-            # Use page.launch_url for cross-platform compatibility (Web/Desktop)
+            if not url:
+                return
+
+            # Try usage of webbrowser for desktop (more reliable)
+            if not IS_WEB:
+                try:
+                    import webbrowser
+                    webbrowser.open(url)
+                    return
+                except Exception as wb_ex:
+                    logger.warning(f"webbrowser.open failed: {wb_ex}")
+
+            # Fallback to Flet's launch_url (Web or fallback)
             self.page.launch_url(url)
 
         except Exception as ex:
             logger.error(f"Failed to open help: {ex}")
-            self.page.snack_bar = ft.SnackBar(ft.Text(f"Failed to open help: {ex}"), bgcolor="RED")
-            self.page.snack_bar.open = True
-            self.page.update()
+            try:
+                self.page.snack_bar = ft.SnackBar(ft.Text(f"Failed to open help: {ex}"), bgcolor="RED")
+                self.page.snack_bar.open = True
+                self.page.update()
+            except Exception:
+                pass
 
     def _terminate_splash(self):
         """

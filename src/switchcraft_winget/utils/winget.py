@@ -340,7 +340,7 @@ class WingetHelper:
         try:
             # Use 'winget show' which provides full manifest details
             # Add --disable-interactivity to prevent any interactive prompts
-            cmd = ["winget", "show", "--id", package_id, "--source", "winget",
+            cmd = ["winget", "show", "--id", package_id,
                    "--disable-interactivity"]
             kwargs = self._get_subprocess_kwargs()
             logger.debug(f"Getting package details via CLI for: {package_id}")

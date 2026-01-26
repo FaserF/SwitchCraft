@@ -823,38 +823,22 @@ class ModernSettingsView(ft.Column, ViewMixin):
         self._run_in_background(_run)
 
     def _on_github_login_click(self, e):
-        """Handle GitHub login button click."""
-        self._ensure_backend()
+        """Handle the GitHub login button click."""
         try:
-            logger.debug("_on_github_login_click STARTED")
-            # Visual feedback
-            if hasattr(e.control, 'text'):
-                e.control.text = "Clicked..."
-                e.control.update()
-            elif hasattr(e.control, 'content') and hasattr(e.control.content, 'controls'):
-                 # It's likely a row with Icon+Text
-                 for c in e.control.content.controls:
-                     if isinstance(c, ft.Text):
-                         c.value = "Clicked..."
-                 e.control.update()
-
-            logger.info("GitHub login clicked (direct handler)")
+            logger.info("[GITHUB_LOGIN] Button clicked. Context: " + ("Desktop" if not IS_WEB else "Web"))
             self._ensure_backend() # Restore context first
+
             # Show snack immediately
-            self._show_snack("Starting GitHub Login...", "BLUE")
+            self.app_page.snack_bar = ft.SnackBar(ft.Text("Starting GitHub Login flow..."), bgcolor="BLUE")
+            self.app_page.snack_bar.open = True
+            self.app_page.update()
+
+            logger.info("[GITHUB_LOGIN] Showing permission dialog...")
             # Proceed to permission dialog
             self._show_permission_dialog(self._start_github_login)
-            logger.debug("_on_github_login_click FINISHED")
+            logger.debug("[GITHUB_LOGIN] _on_github_login_click method finished")
         except Exception as ex:
-            logger.exception(f"CRITICAL: Failed in _on_github_login_click: {ex}")
-            # Try to show error on button
-            try:
-                if hasattr(e.control, 'text'):
-                    e.control.text = f"Err: {str(ex)[:20]}"
-                    e.control.bgcolor = "RED"
-                    e.control.update()
-            except:
-                pass
+            logger.exception(f"[GITHUB_LOGIN] CRITICAL error in _on_github_login_click: {ex}")
             self._show_snack(f"Login Error: {ex}", "RED")
 
     def _show_permission_dialog(self, callback):
@@ -973,6 +957,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 # We run this in a thread executor if it's synchronous, or directly if async
                 # AuthService.initiate_device_flow is likely sync (requests), so we wrap it
                 import asyncio
+                from switchcraft.services.auth_service import AuthService
 
                 logger.debug("Starting GitHub login flow (Async)...")
 

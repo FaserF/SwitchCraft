@@ -401,16 +401,16 @@ class ViewMixin:
              return False
 
         try:
-            # Method 1: Modern API (Preferred)
-            if hasattr(page, 'open'):
-                try:
-                    logger.debug("Attempting to open dialog using page.open()...")
-                    page.open(dlg)
-                    page.update()
-                    logger.info("Dialog opened successfully using page.open()")
-                    return True
-                except Exception as e:
-                    logger.warning(f"page.open(dlg) failed: {e}. Falling back to legacy mode.")
+            # Method 1: Modern API (Preferred) - DISABLED due to visibility issues on Windows Desktop
+            # if hasattr(page, 'open'):
+            #     try:
+            #         logger.debug("Attempting to open dialog using page.open()...")
+            #         page.open(dlg)
+            #         page.update()
+            #         logger.info("Dialog opened successfully using page.open()")
+            #         return True
+            #     except Exception as e:
+            #         logger.warning(f"page.open(dlg) failed: {e}. Falling back to legacy mode.")
 
             # Method 2: Legacy API (Fallback)
             logger.debug("Attempting to open dialog using legacy page.dialog...")
