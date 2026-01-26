@@ -114,6 +114,7 @@ export default defineConfig({
                     collapsed: true,
                     items: [
                         { text: 'Building from Source', link: '/building' },
+                        { text: 'Versioning Schema', link: '/versioning' },
                         { text: 'CI Architecture', link: '/CI_Architecture' },
                         { text: 'Debugging API', link: '/Debugging_API' }
                     ]

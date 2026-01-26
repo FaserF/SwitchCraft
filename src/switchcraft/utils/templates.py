@@ -53,7 +53,16 @@ class TemplateGenerator:
                 content = self.template_path.read_text(encoding="utf-8")
             else:
                 logger.error(f"Template not found: {self.template_path}")
-                return False
+                content = "" # trigger fallback
+
+            # Safety fallback for empty content
+            if not content or not content.strip():
+                logger.warning("Empty template content detected. Falling back to internal default.")
+                if self.DEFAULT_TEMPLATE_PATH.exists():
+                     content = self.DEFAULT_TEMPLATE_PATH.read_text(encoding="utf-8")
+                else:
+                     logger.error(f"Default template missing at {self.DEFAULT_TEMPLATE_PATH}")
+                     return False
 
             # Add global SwitchCraft metadata
             from switchcraft import __version__

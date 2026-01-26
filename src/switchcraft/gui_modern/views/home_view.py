@@ -130,6 +130,21 @@ class ModernHomeView(ft.Container, ViewMixin):
         # 2. Try to get display name from Windows (full name instead of login name)
         if not username:
             try:
+                # Web Auth Check (Flet Auth)
+                if self.app_page.auth and self.app_page.auth.user:
+                     u = self.app_page.auth.user
+                     val = None
+                     # Could be dict or object depending on provider
+                     if hasattr(u, "name"): val = u.name
+                     elif hasattr(u, "get"): val = u.get("name")
+
+                     if isinstance(val, str) and val:
+                         username = val
+            except Exception:
+                 pass
+
+        if not username:
+            try:
                 import ctypes
                 GetUserNameExW = ctypes.windll.secur32.GetUserNameExW
                 NameDisplay = 3  # EXTENDED_NAME_FORMAT NameDisplay

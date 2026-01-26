@@ -43,7 +43,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
         self.controls = [
             ft.Container(
                 content=ft.Column([
-                    ft.Text("End-to-End Packaging Wizard", size=28, weight=ft.FontWeight.BOLD),
+                    ft.Text(i18n.get("wiz_title") or "End-to-End Packaging Wizard", size=28, weight=ft.FontWeight.BOLD),
                     self._build_stepper_header(),
                     ft.Divider(),
                     self.step_content_area,
@@ -89,11 +89,11 @@ class PackagingWizardView(ft.Column, ViewMixin):
             ft.Row: A row widget with the five step indicators centered and spaced by 20.
         """
         self.steps_indicators = [
-            self._create_step_indicator(0, "Select", ft.Icons.FILE_UPLOAD),
-            self._create_step_indicator(1, "Analyze", ft.Icons.ANALYTICS),
-            self._create_step_indicator(2, "Script", ft.Icons.CODE),
-            self._create_step_indicator(3, "Package", ft.Icons.INVENTORY),
-            self._create_step_indicator(4, "Upload", ft.Icons.CLOUD_UPLOAD),
+            self._create_step_indicator(0, i18n.get("wiz_step_select") or "Select", ft.Icons.FILE_UPLOAD),
+            self._create_step_indicator(1, i18n.get("wiz_step_analyze") or "Analyze", ft.Icons.ANALYTICS),
+            self._create_step_indicator(2, i18n.get("wiz_step_script") or "Script", ft.Icons.CODE),
+            self._create_step_indicator(3, i18n.get("wiz_step_package") or "Package", ft.Icons.INVENTORY),
+            self._create_step_indicator(4, i18n.get("wiz_step_upload") or "Upload", ft.Icons.CLOUD_UPLOAD),
         ]
         return ft.Row(self.steps_indicators, alignment=ft.MainAxisAlignment.CENTER, spacing=20)
 
@@ -119,10 +119,10 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
     def _build_nav_buttons(self):
         self.btn_prev = ft.FilledButton(
-            content=ft.Text("Previous"), on_click=self._prev_step, disabled=True
+            content=ft.Text(i18n.get("btn_back") or "Previous"), on_click=self._prev_step, disabled=True
         )
         self.btn_next = ft.FilledButton(
-            content=ft.Text("Next"), on_click=self._next_step, bgcolor="BLUE", color="WHITE"
+            content=ft.Text(i18n.get("btn_next") or "Next"), on_click=self._next_step, bgcolor="BLUE", color="WHITE"
         )
         return ft.Row(
             [self.btn_prev, ft.Container(expand=True), self.btn_next],
@@ -141,23 +141,23 @@ class PackagingWizardView(ft.Column, ViewMixin):
         content = None
         if index == 0:
             content = self._step_select_ui()
-            self.btn_next.text = "Analyze >"
+            self.btn_next.text = i18n.get("wiz_btn_analyze") or "Analyze >"
             self.btn_prev.disabled = True
         elif index == 1:
             content = self._step_analyze_ui()
-            self.btn_next.text = "Generate Script >"
+            self.btn_next.text = i18n.get("wiz_btn_gen_script") or "Generate Script >"
             self.btn_prev.disabled = False
         elif index == 2:
             content = self._step_script_ui()
-            self.btn_next.text = "Package >"
+            self.btn_next.text = i18n.get("wiz_btn_package") or "Package >"
             self.btn_prev.disabled = False
         elif index == 3:
             content = self._step_package_ui()
-            self.btn_next.text = "Upload to Intune >"
+            self.btn_next.text = i18n.get("wiz_btn_upload") or "Upload to Intune >"
             self.btn_prev.disabled = False
         elif index == 4:
             content = self._step_upload_ui()
-            self.btn_next.text = "Finish"
+            self.btn_next.text = i18n.get("wiz_btn_finish") or "Finish"
             self.btn_prev.disabled = False
 
         self.step_content_area.content = content
@@ -178,13 +178,13 @@ class PackagingWizardView(ft.Column, ViewMixin):
             self.packaging_mode = self.mode_radio.value
 
             if not self.installer_path:
-                self._show_snack("Please select a file first", "RED")
+                self._show_snack(i18n.get("wiz_select_file_first") or "Please select a file first", "RED")
                 return
 
             # Validate LOB
             if self.packaging_mode == "lob":
                 if not self.installer_path.lower().endswith(".msi"):
-                     self._show_snack("LOB Mode requires an .msi file", "RED")
+                     self._show_snack(i18n.get("wiz_lob_msi_req") or "LOB Mode requires an .msi file", "RED")
                      return
 
         elif self.current_step == 1:
@@ -201,34 +201,34 @@ class PackagingWizardView(ft.Column, ViewMixin):
         elif self.current_step == 3:
             # Check package
             if not self.package_path or not Path(self.package_path).exists():
-                self._show_snack("Package creation failed or not executed", "RED")
+                self._show_snack(i18n.get("wiz_pkg_failed") or "Package creation failed or not executed", "RED")
                 return
 
         if self.current_step < 4:
             self._load_step(self.current_step + 1)
         else:
             # Finish
-            self._show_snack("Wizard Completed!", "GREEN")
+            self._show_snack(i18n.get("wiz_finished") or "Wizard Completed!", "GREEN")
 
     def _step_select_ui(self):
         self.mode_radio = ft.RadioGroup(
             content=ft.Row([
-                ft.Radio(value="win32", label="Win32 App (Standard)"),
-                ft.Radio(value="lob", label="Direct MSI (LOB)")
+                ft.Radio(value="win32", label=i18n.get("wiz_mode_win32") or "Win32 App (Standard)"),
+                ft.Radio(value="lob", label=i18n.get("wiz_mode_lob") or "Direct MSI (LOB)")
             ]),
             value=self.packaging_mode
         )
 
-        self.file_text = ft.Text(self.installer_path or "No file selected", size=16)
+        self.file_text = ft.Text(self.installer_path or (i18n.get("wiz_no_file") or "No file selected"), size=16)
 
         # Tab 1: Local File
         local_content = ft.Container(
             content=ft.Column([
                 ft.Icon(ft.Icons.FILE_UPLOAD, size=60, color="BLUE_400"),
-                ft.Text("Select Installer", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text("Supported: .exe, .msi", color="ON_SURFACE_VARIANT"),
+                ft.Text(i18n.get("wiz_select_installer") or "Select Installer", size=24, weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("wiz_supported_formats") or "Supported: .exe, .msi", color="ON_SURFACE_VARIANT"),
                 ft.Container(height=20),
-                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.FOLDER_OPEN), ft.Text("Browse File...")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._pick_file),
+                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.FOLDER_OPEN), ft.Text(i18n.get("btn_browse") or "Browse File...")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._pick_file),
                 ft.Container(height=10),
                 self.file_text
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
@@ -244,10 +244,10 @@ class PackagingWizardView(ft.Column, ViewMixin):
         url_content = ft.Container(
             content=ft.Column([
                 ft.Icon(ft.Icons.CLOUD_DOWNLOAD, size=60, color="ORANGE_400"),
-                ft.Text("Download from Web", size=24, weight=ft.FontWeight.BOLD),
-                ft.Text("Enter a direct link to an .exe or .msi file", color="ON_SURFACE_VARIANT"),
+                ft.Text(i18n.get("wiz_download_web") or "Download from Web", size=24, weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("wiz_download_hint") or "Enter a direct link to an .exe or .msi file", color="ON_SURFACE_VARIANT"),
                 ft.Container(height=20),
-                ft.Row([self.url_field, ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.DOWNLOAD), ft.Text("Download")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._start_download)]),
+                ft.Row([self.url_field, ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.DOWNLOAD), ft.Text(i18n.get("btn_download") or "Download")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._start_download)]),
                 ft.Container(height=10),
                 self.download_progress,
                 self.download_status
@@ -276,19 +276,19 @@ class PackagingWizardView(ft.Column, ViewMixin):
             on_change=on_source_change
         )
         tabs.tabs = [
-                ft.Tab(label="Local File", icon=ft.Icons.COMPUTER),
-                ft.Tab(label="Download URL", icon=ft.Icons.LINK),
+                ft.Tab(label=i18n.get("local_file") or "Local File", icon=ft.Icons.COMPUTER),
+                ft.Tab(label=i18n.get("download_url") or "Download URL", icon=ft.Icons.LINK),
             ]
 
         self.autopilot_btn = ft.OutlinedButton(
-            "Auto-Pilot (Magic Mode) 🪄",
+            i18n.get("wiz_autopilot") or "Auto-Pilot (Magic Mode) 🪄",
             icon=ft.Icons.AUTO_FIX_HIGH,
             style=ft.ButtonStyle(color="PURPLE_200"),
             on_click=self._run_autopilot
         )
 
         return ft.Column([
-            ft.Text("Select Packaging Mode", weight=ft.FontWeight.BOLD),
+            ft.Text(i18n.get("wiz_mode_select") or "Select Packaging Mode", weight=ft.FontWeight.BOLD),
             self.mode_radio,
             ft.Divider(),
             tabs,
@@ -299,11 +299,11 @@ class PackagingWizardView(ft.Column, ViewMixin):
     def _start_download(self, e):
         url = self.url_field.value
         if not url:
-            self.download_status.value = "Please enter a URL"
+            self.download_status.value = i18n.get("wiz_enter_url") or "Please enter a URL"
             self.update()
             return
 
-        self.download_status.value = "Starting download..."
+        self.download_status.value = i18n.get("wiz_download_start") or "Starting download..."
         self.download_progress.visible = True
         self.update()
 
@@ -334,7 +334,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
                 self.installer_path = str(target_path)
                 self.file_text.value = str(target_path) # sync with other tab
-                self.download_status.value = f"Downloaded: {filename}"
+                self.download_status.value = (i18n.get("wiz_download_success") or "Downloaded: {file}").format(file=filename)
                 self.download_status.color = "GREEN"
                 self.download_progress.visible = False
             except Exception as ex:
@@ -369,7 +369,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
         return ft.Column([
             ft.Text(
-                i18n.get("analyzing_installer") or "Analyzing Installer...",
+                i18n.get("wiz_analyzing") or "Analyzing Installer...",
                 size=20,
                 weight=ft.FontWeight.BOLD
             ),
@@ -382,6 +382,21 @@ class PackagingWizardView(ft.Column, ViewMixin):
         ], scroll=ft.ScrollMode.AUTO)
 
     def _run_analysis(self):
+        # Check for large file size (USER REQUEST: Warning + ETA)
+        try:
+            if self.installer_path:
+                path_obj = Path(self.installer_path)
+                if path_obj.exists():
+                    size_mb = path_obj.stat().st_size / (1024 * 1024)
+                    if size_mb > 400: # Threshold: 400MB
+                        eta_sec = int(size_mb / 20)
+                        eta_str = f"{eta_sec // 60}min {eta_sec % 60}s" if eta_sec > 60 else f"{eta_sec}s"
+
+                        msg = (i18n.get("wiz_large_file_warn") or "Large file detected ({size} MB). Analysis may take longer (~{eta}).").format(size=int(size_mb), eta=eta_str)
+                        self._show_snack(msg, "ORANGE")
+        except Exception as e:
+            logger.warning(f"Failed to check file size: {e}")
+
         self.analysis_status.value = ""
         self.analysis_progress.visible = True
         self.analysis_progress.value = None  # Indeterminate mode
@@ -416,7 +431,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
                         border_radius=8
                     )
                     self.analysis_error_container.visible = True
-                    self.analysis_status.value = i18n.get("analysis_failed") or "Analysis failed"
+                    self.analysis_status.value = i18n.get("wiz_analysis_failed") or "Analysis failed"
                     self.analysis_status.color = "RED"
                     self.analysis_progress.visible = False
                     self.update()
@@ -424,7 +439,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
                 # Success - populate table
                 self.analysis_progress.visible = False
-                self.analysis_status.value = i18n.get("analysis_complete") or "Analysis Complete"
+                self.analysis_status.value = i18n.get("wiz_analysis_complete") or "Analysis Complete"
                 self.analysis_status.color = "GREEN"
 
                 info = res.info
@@ -469,6 +484,8 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
     # --- Step 2: Script ---
     def _step_script_ui(self):
+        # Refresh config (User might have updated settings)
+        self.signing_cert = SwitchCraftConfig.get_value("SigningCertThumbprint")
         self.script_field = ft.TextField(
             label="PowerShell Install Script",
             multiline=True,
@@ -481,17 +498,21 @@ class PackagingWizardView(ft.Column, ViewMixin):
         if not self.generated_script_path:
              self._generate_script_content()
 
+        enabled_txt = i18n.get("wiz_enabled") or "Enabled"
+        disabled_txt = i18n.get("wiz_disabled_no_cert") or "Disabled (No Cert Configured)"
+        status_txt = enabled_txt if self.signing_cert else disabled_txt
+
         sign_status = ft.Row([
             ft.Icon(ft.Icons.VERIFIED_USER, color="GREEN" if self.signing_cert else "GREY"),
-            ft.Text(f"Auto-Signing: {'Enabled' if self.signing_cert else 'Disabled (No Cert Configured)'}",
+            ft.Text((i18n.get("wiz_auto_sign") or "Auto-Signing: {status}").format(status=status_txt),
                     color="GREEN" if self.signing_cert else "GREY")
         ])
 
         return ft.Column([
-            ft.Text("Review & Edit Script", size=20, weight=ft.FontWeight.BOLD),
+            ft.Text(i18n.get("wiz_review_script") or "Review & Edit Script", size=20, weight=ft.FontWeight.BOLD),
             sign_status,
             self.script_field,
-            ft.FilledButton(content=ft.Text("Regenerate"), on_click=lambda _: self._generate_script_content())
+            ft.FilledButton(content=ft.Text(i18n.get("wiz_regenerate") or "Regenerate"), on_click=lambda _: self._generate_script_content())
         ], scroll=ft.ScrollMode.AUTO)
 
     def _generate_script_content(self):
@@ -528,7 +549,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
              return True
         except Exception as e:
-            self._show_snack(f"Failed to save script: {e}", "RED")
+            self._show_snack((i18n.get("wiz_save_fail") or "Failed to save script: {error}").format(error=e), "RED")
             return False
 
     def _sign_script(self, path):
@@ -543,21 +564,21 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
             # If stored in LocalMachine, change path. Config should ideally specify.
 
             subprocess.run(cmd, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
-            self._show_snack("Script Signed Successfully!", "GREEN")
+            self._show_snack(i18n.get("wiz_script_signed") or "Script Signed Successfully!", "GREEN")
         except Exception as e:
             logger.error(f"Signing failed: {e}")
-            self._show_snack(f"Signing Warning: {e}", "ORANGE")
+            self._show_snack((i18n.get("wiz_sign_warn") or "Signing Warning: {error}").format(error=e), "ORANGE")
 
     def _step_package_ui(self):
-        self.pkg_status = ft.Text("Ready to package.", size=16)
+        self.pkg_status = ft.Text(i18n.get("wiz_ready_pkg") or "Ready to package.", size=16)
         self.pkg_btn = ft.FilledButton(
-            content=ft.Text("Start Packaging"), on_click=self._run_packaging, bgcolor="GREEN", color="WHITE"
+            content=ft.Text(i18n.get("wiz_start_pkg") or "Start Packaging"), on_click=self._run_packaging, bgcolor="GREEN", color="WHITE"
         )
         return ft.Column([
-            ft.Text("Create Intune Package (.intunewin)", size=20, weight=ft.FontWeight.BOLD),
-            ft.Text(f"Source: {Path(self.installer_path).parent}", italic=True),
+            ft.Text(i18n.get("wiz_create_pkg") or "Create Intune Package (.intunewin)", size=20, weight=ft.FontWeight.BOLD),
+            ft.Text(f"{i18n.get('wiz_source') or 'Source:'} {Path(self.installer_path).parent}", italic=True),
             # Split line to avoid E501
-            ft.Text(f"Setup File: {Path(self.generated_script_path).name if self.generated_script_path else 'N/A'}",
+            ft.Text(f"{i18n.get('wiz_setup_file') or 'Setup File:'} {Path(self.generated_script_path).name if self.generated_script_path else 'N/A'}",
                     italic=True),
             ft.Container(height=20),
             self.pkg_status,
@@ -565,36 +586,119 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.AUTO)
 
     def _run_packaging(self, e):
-        self.pkg_status.value = "Packaging in progress..."
+        self.pkg_status.value = i18n.get("wiz_pkg_start") or "Starting packaging process..."
         self.pkg_btn.disabled = True
         self.update()
 
         def _bg():
+            import shutil
+            staging_dir = None
             try:
-                base_dir = Path(self.installer_path).parent
-                setup_file = Path(self.generated_script_path).name
-                self.intune_service.create_intunewin(str(base_dir), setup_file, str(base_dir), quiet=True)
+                original_dir = Path(self.installer_path).parent
+                setup_file_name = Path(self.generated_script_path).name
+
+                source_dir = original_dir
+                try:
+                    all_files = list(original_dir.glob("*"))
+                    file_count = len(all_files)
+                except Exception:
+                    file_count = 0
+
+                # Determine if staging is needed (e.g. > 10 files in folder)
+                if file_count > 10:
+                    self.pkg_status.value = i18n.get("wiz_stage_clean") or "Preparing clean build environment (Staging)..."
+                    self.pkg_status.color = "BLUE"
+                    try:
+                        self.update()
+                    except: pass
+
+                    staging_dir = Path(tempfile.mkdtemp(prefix="SC_Pkg_"))
+
+                    # Copy Installer
+                    inst_src = Path(self.installer_path)
+                    shutil.copy2(inst_src, staging_dir / inst_src.name)
+
+                    # Copy Script
+                    script_src = Path(self.generated_script_path)
+                    shutil.copy2(script_src, staging_dir / script_src.name)
+
+                    logger.info(f"Staged build in {staging_dir}")
+                    source_dir = staging_dir
+
+                # Check Total Size
+                try:
+                    total_size = sum(f.stat().st_size for f in source_dir.glob("**/*") if f.is_file())
+                    size_mb = total_size / (1024*1024)
+
+                    if size_mb > 500:
+                       msg = (i18n.get("wiz_large_pkg") or "Large package ({size} MB). This might take a few minutes...").format(size=int(size_mb))
+                       self.pkg_status.value = msg
+                       self.pkg_status.color = "ORANGE"
+                       try:
+                           self.update()
+                       except: pass
+                except Exception as e:
+                    logger.warning(f"Failed to check package size: {e}")
+
+                def on_progress(line):
+                    text = line.strip()
+                    if text:
+                        if len(text) > 80: text = text[:77] + "..."
+                        self.pkg_status.value = f"Running: {text}"
+                        try:
+                            self.update()
+                        except:
+                            pass
+
+                self.intune_service.create_intunewin(
+                    str(source_dir),
+                    setup_file_name,
+                    str(source_dir),
+                    quiet=True,
+                    progress_callback=on_progress
+                )
 
                 # Assume output
-                pkg = base_dir / (setup_file + ".intunewin")
+                pkg_name = setup_file_name + ".intunewin"
+                pkg = source_dir / pkg_name
                 if not pkg.exists():
-                    # try alternate name
-                    pkg = base_dir / (Path(setup_file).stem + ".intunewin")
+                     # try stem
+                     pkg = source_dir / (Path(setup_file_name).stem + ".intunewin")
 
                 if pkg.exists():
-                    self.package_path = str(pkg)
-                    self.pkg_status.value = f"Success: {pkg.name}"
+                    final_path = pkg
+
+                    # If we staged, move result back to original dir (or user documents?)
+                    if staging_dir:
+                        dest = original_dir / pkg.name
+                        shutil.move(str(pkg), str(dest))
+                        final_path = dest
+                        # Cleanup staging
+                        shutil.rmtree(staging_dir, ignore_errors=True)
+                        staging_dir = None
+
+                    self.package_path = str(final_path)
+                    self.pkg_status.value = f"Success: {final_path.name}"
                     self.pkg_status.color = "GREEN"
                 else:
-                    self.pkg_status.value = "Failed: .intunewin not found"
+                    self.pkg_status.value = "Failed: .intunewin output not found"
                     self.pkg_status.color = "RED"
+
             except Exception as ex:
+                logger.error(f"Packaging failed: {ex}")
                 self.pkg_status.value = f"Error: {ex}"
                 self.pkg_status.color = "RED"
             finally:
+                if staging_dir:
+                    try: shutil.rmtree(staging_dir, ignore_errors=True)
+                    except: pass
+
                 self.pkg_btn.disabled = False
                 if self.page:
-                    self.update()
+                    try:
+                        self.update()
+                    except:
+                        pass
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -605,35 +709,35 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         client = SwitchCraftConfig.get_value("IntuneClientID", "")
         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret") or ""
 
-        self.txt_tenant = ft.TextField(label="Tenant ID", value=tenant, password=True, can_reveal_password=True)
-        self.txt_client = ft.TextField(label="Client ID", value=client)
-        self.txt_secret = ft.TextField(label="Client Secret", value=secret, password=True, can_reveal_password=True)
+        self.txt_tenant = ft.TextField(label=i18n.get("settings_entra_tenant") or "Tenant ID", value=tenant, password=True, can_reveal_password=True)
+        self.txt_client = ft.TextField(label=i18n.get("settings_entra_client") or "Client ID", value=client)
+        self.txt_secret = ft.TextField(label=i18n.get("settings_entra_secret") or "Client Secret", value=secret, password=True, can_reveal_password=True)
 
         # App Info (Pre-filled)
         info = self.analysis_result.info if self.analysis_result else None
 
-        self.txt_app_name = ft.TextField(label="Display Name", value=info.product_name if info else "New App")
-        self.txt_publisher = ft.TextField(label="Publisher", value=info.manufacturer if info else "Unknown")
+        self.txt_app_name = ft.TextField(label=i18n.get("winget_filter_name") or "Display Name", value=info.product_name if info else "New App")
+        self.txt_publisher = ft.TextField(label=i18n.get("winget_filter_publisher") or "Publisher", value=info.manufacturer if info else "Unknown")
         self.txt_desc = ft.TextField(label="Description", value=f"Packaged by SwitchCraft based on {Path(self.installer_path).name if self.installer_path else 'installer'}", multiline=True)
 
-        self.upload_status = ft.Text("Waiting for authentication...", italic=True)
-        self.btn_upload = ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CLOUD_UPLOAD), ft.Text("Upload to Intune")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._run_upload, disabled=True)
-        self.btn_connect = ft.FilledButton(content=ft.Text("Connect"), on_click=self._connect_intune)
+        self.upload_status = ft.Text(i18n.get("wiz_wait_auth") or "Waiting for authentication...", italic=True)
+        self.btn_upload = ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CLOUD_UPLOAD), ft.Text(i18n.get("wiz_btn_upload_intune") or "Upload to Intune")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._run_upload, disabled=True)
+        self.btn_connect = ft.FilledButton(content=ft.Text(i18n.get("wiz_btn_connect") or "Connect"), on_click=self._connect_intune)
 
         return ft.Column([
-            ft.Text("Upload to Microsoft Intune", size=20, weight=ft.FontWeight.BOLD),
-            ft.Text("Credentials", weight=ft.FontWeight.BOLD),
+            ft.Text(i18n.get("wiz_upload_title") or "Upload to Microsoft Intune", size=20, weight=ft.FontWeight.BOLD),
+            ft.Text(i18n.get("wiz_credentials") or "Credentials", weight=ft.FontWeight.BOLD),
             self.txt_tenant,
             self.txt_client,
             self.txt_secret,
             self.btn_connect,
             ft.Divider(),
-            ft.Text("App Details", weight=ft.FontWeight.BOLD),
+            ft.Text(i18n.get("wiz_app_details") or "App Details", weight=ft.FontWeight.BOLD),
             self.txt_app_name,
             self.txt_publisher,
             self.txt_desc,
             ft.Divider(),
-            ft.Text("Supersedence (Upgrade)", weight=ft.FontWeight.BOLD),
+            ft.Text(i18n.get("wiz_supersedence") or "Supersedence (Upgrade)", weight=ft.FontWeight.BOLD),
             self._build_supersedence_ui(),
             ft.Divider(),
             self.upload_status,
@@ -646,10 +750,10 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         secret = self.txt_secret.value
 
         if not all([tenant, client, secret]):
-            self._show_snack("Please fill all credentials", "RED")
+            self._show_snack(i18n.get("settings_verify_incomplete") or "Please fill all credentials", "RED")
             return
 
-        self.upload_status.value = "Authenticating..."
+        self.upload_status.value = i18n.get("wiz_auth_progress") or "Authenticating..."
         self.update()
 
         def _bg():
@@ -662,7 +766,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                     self.upload_status.color = "RED"
                 else:
                      self.token = token # Store for upload
-                     self.upload_status.value = "Connected! Ready to upload."
+                     self.upload_status.value = i18n.get("wiz_connected") or "Connected! Ready to upload."
                      self.upload_status.color = "GREEN"
                      self.btn_upload.disabled = False
 
@@ -671,18 +775,18 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                      SwitchCraftConfig.set_value("IntuneClientID", client)
                      SwitchCraftConfig.set_secret("IntuneClientSecret", secret) # Use set_secret if available, else standard?
             except Exception as ex:
-                self.upload_status.value = f"Auth Failed: {ex}"
+                self.upload_status.value = (i18n.get("wiz_auth_failed") or "Auth Failed: {error}").format(error=ex)
                 self.upload_status.color = "RED"
             self.update()
 
         threading.Thread(target=_bg, daemon=True).start()
 
     def _build_supersedence_ui(self):
-        self.search_supersede_field = ft.TextField(label="Search App to Replace", height=40, expand=True)
-        self.supersede_status = ft.Text("None selected", italic=True, size=12)
-        self.supersede_option = ft.Dropdown(label="Select App", options=[], visible=False)
+        self.search_supersede_field = ft.TextField(label=i18n.get("wiz_search_supersede") or "Search App to Replace", height=40, expand=True)
+        self.supersede_status = ft.Text(i18n.get("wiz_none_selected") or "None selected", italic=True, size=12)
+        self.supersede_option = ft.Dropdown(label=i18n.get("wiz_select_app") or "Select App", options=[], visible=False)
         self.supersede_option.on_change = self._on_supersede_select
-        self.supersede_uninstall = ft.Switch(label="Uninstall previous version?", value=True)
+        self.supersede_uninstall = ft.Switch(label=i18n.get("wiz_uninstall_prev") or "Uninstall previous version?", value=True)
 
         return ft.Column([
             ft.Row([
@@ -696,7 +800,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
     def _on_search_supersedence(self, e):
         if not hasattr(self, 'token'):
-             self._show_snack("Connect to Intune first", "RED")
+             self._show_snack(i18n.get("connect_first") or "Connect to Intune first", "RED")
              return
 
         query = self.search_supersede_field.value
@@ -730,12 +834,13 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
 
 
-    def _run_upload(self, e):
-        if not hasattr(self, 'token'):
-            self._show_snack("Not authenticated", "RED")
-            return
 
-        self.upload_status.value = "Starting upload..."
+
+    def _run_upload(self, e):
+        if hasattr(self, 'package_path') and self.packaging_mode == "lob":
+             pass
+
+        self.upload_status.value = i18n.get("wiz_upload_start") or "Starting upload..."
         self.btn_upload.disabled = True
         self.update()
 
@@ -775,7 +880,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                     "productVersionOperator": "notConfigured",
                     "productVersion": None
                 })
-                self.upload_status.value = f"Starting upload... (Auto-Detected MSI Rule: {info.product_code})"
+                self.upload_status.value = (i18n.get("upload_start_auth_rule") or "Starting upload... (Auto-Detected MSI Rule: {code})").format(code=info.product_code)
             elif info and info.product_name:
                  # Fallback to File detection?
                  pass
@@ -783,7 +888,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
             if detection_rules:
                 app_info["detectionRules"] = detection_rules
             else:
-                self._show_snack("Warning: No detection rules generated (Win32)", "ORANGE")
+                self._show_snack(i18n.get("warn_no_detection_rules") or "Warning: No detection rules generated (Win32)", "ORANGE")
 
         self.update()
 
@@ -810,7 +915,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
                 # Handle Supersedence
                 if self.supersede_app_id:
-                    self.upload_status.value = "Configuring Supersedence..."
+                    self.upload_status.value = i18n.get("config_supersedence") or "Configuring Supersedence..."
                     self.update()
                     self.intune_service.add_supersedence(
                         self.token,
@@ -819,10 +924,10 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                         uninstall_prev=self.supersede_uninstall.value
                     )
 
-                self.upload_status.value = "Upload Complete! App is now in Intune."
+                self.upload_status.value = i18n.get("upload_complete_intune") or "Upload Complete! App is now in Intune."
                 self.upload_status.color = "GREEN"
             except Exception as ex:
-                self.upload_status.value = f"Upload Error: {ex}"
+                self.upload_status.value = (i18n.get("wiz_upload_failed") or "Upload Error: {error}").format(error=ex)
                 self.upload_status.color = "RED"
             finally:
                 self.btn_upload.disabled = False
@@ -839,7 +944,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         4. Upload
         """
         if not self.installer_path:
-             self._show_snack("Please select a file first", "RED")
+             self._show_snack(i18n.get("wiz_select_file_first") or "Please select a file first", "RED")
              return
 
         # Check creds
@@ -847,14 +952,14 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         client = SwitchCraftConfig.get_value("IntuneClientID")
         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
         if not all([tenant, client, secret]):
-             self._show_snack("Intune Credentials missing in Settings", "RED")
+             self._show_snack(i18n.get("settings_verify_incomplete") or "Intune Credentials missing in Settings", "RED")
              return
 
         self._show_snack("Starting Auto-Pilot...", "PURPLE")
 
         # We need a progress dialog or overlying status
         self.autopilot_dlg = ft.AlertDialog(
-            title=ft.Text("Auto-Pilot Running 🪄"),
+            title=ft.Text(i18n.get("wiz_autopilot") or "Auto-Pilot Running 🪄"),
             content=ft.Column([
                 ft.ProgressBar(),
                 ft.Text("Please wait, performing magic...", key="status_txt")
@@ -871,11 +976,11 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
         def _update_status(msg):
             # Hacky way to update dialog content if we don't have ref
-            self.autopilot_dlg.content.controls[1].value = msg
             try:
+                self.autopilot_dlg.content.controls[1].value = msg
                 if self.autopilot_dlg.page:
                     self.autopilot_dlg.update()
-            except RuntimeError:
+            except Exception:
                 pass
 
         def _bg():
@@ -906,12 +1011,12 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
                 # Sign if needed
                 if self.signing_cert:
-                    _update_status("Signing Script...")
+                    _update_status(i18n.get("wiz_auto_sign_status") or "Signing Script...")
                     self._sign_script(str(script_path)) # reusing existing method (might fail if UI thread req? No, uses subprocess)
 
                 # 3. Package (Win32 Only)
                 if self.packaging_mode == "win32":
-                    _update_status("Step 3/4: Packaging .intunewin...")
+                    _update_status(i18n.get("wiz_pkg_start_status") or "Step 3/4: Packaging .intunewin...")
                     base_dir = Path(self.installer_path).parent
                     self.intune_service.create_intunewin(str(base_dir), installer_name, str(base_dir), quiet=True)
                     # Deduce package path
@@ -920,11 +1025,11 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                         pkg = base_dir / (Path(installer_name).stem + ".intunewin")
 
                     if not pkg.exists():
-                        raise Exception("Package creation failed")
+                        raise Exception(i18n.get("wiz_pkg_failed_msg") or "Package creation failed")
                     self.package_path = str(pkg)
 
                 # 4. Upload
-                _update_status("Step 4/4: Uploading to Intune...")
+                _update_status(i18n.get("wiz_upload_start_status") or "Step 4/4: Uploading to Intune...")
 
                 # Auth
                 token = self.intune_service.authenticate(tenant, client, secret)
@@ -932,8 +1037,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
 
                 # Prepare Info
                 app_info = {
-                    "displayName": info.product_name or "New App",
-                    "description": "Uploaded via SwitchCraft Magic Mode",
+                    "displayName": info.product_name or (i18n.get("wiz_new_app") or "New App"),
+                    "description": i18n.get("wiz_autopilot_desc") or "Uploaded via SwitchCraft Magic Mode",
                     "publisher": info.manufacturer or "Unknown",
                 }
 
@@ -964,16 +1069,16 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                 else:
                      self.intune_service.upload_win32_app(token, self.package_path, app_info)
 
-                _update_status("Magic Complete! ✨")
-                self.autopilot_dlg.title = ft.Text("Success!")
-                self.autopilot_dlg.actions = [ft.TextButton("Close", on_click=lambda e: self._close_autopilot())]
+                _update_status(i18n.get("wiz_autopilot_complete") or "Magic Complete! ✨")
+                self.autopilot_dlg.title = ft.Text(i18n.get("wiz_success") or "Success!")
+                self.autopilot_dlg.actions = [ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_autopilot())]
                 self.autopilot_dlg.update()
 
             except Exception as ex:
                 if self.autopilot_dlg.open:
-                     self.autopilot_dlg.title = ft.Text("Magic Failed 💀")
+                     self.autopilot_dlg.title = ft.Text(i18n.get("wiz_autopilot_failed") or "Magic Failed 💀")
                      _update_status(f"Error: {ex}")
-                     self.autopilot_dlg.actions = [ft.TextButton("Close", on_click=lambda e: self._close_autopilot())]
+                     self.autopilot_dlg.actions = [ft.TextButton(i18n.get("btn_close") or "Close", on_click=lambda e: self._close_autopilot())]
                      try:
                         if self.autopilot_dlg.page:
                             self.autopilot_dlg.update()

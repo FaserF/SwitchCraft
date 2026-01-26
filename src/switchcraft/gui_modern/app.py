@@ -5,7 +5,7 @@ import threading
 import sys
 
 import flet as ft
-from switchcraft import __version__, IS_WEB
+from switchcraft import __version__, IS_WEB, IS_DEMO
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 
@@ -632,7 +632,25 @@ class ModernApp:
         if hasattr(self.page, "on_drop"):
             self.page.on_drop = self.handle_window_drop
 
-        self.banner_container = ft.Container() # Placeholder
+        self.banner_container = ft.Container()
+        self.dev_banner_container = ft.Container()
+
+        # Demo Banner
+        if IS_DEMO:
+             self.banner_container = ft.Container(
+                content=ft.Row(
+                    [
+                        ft.Icon(ft.Icons.INFO_OUTLINE, color="WHITE"),
+                        ft.Text(
+                            "Demo Mode: Functionality is limited. Changes are not saved persistently.",
+                            color="WHITE",
+                        ),
+                    ],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                ),
+                bgcolor="GREEN_900", # Dark Green
+                padding=5,
+             )
 
         # Run Startup Update Check
         self._check_startup_updates()

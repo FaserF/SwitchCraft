@@ -586,7 +586,6 @@ def main(page: ft.Page):
             elif hasattr(page, "window_prevent_close"):
                 page.window_prevent_close = False
         except Exception:
-        except Exception:
             pass
 
         # CRITICAL: Close Splash Screen on Error if it's still running

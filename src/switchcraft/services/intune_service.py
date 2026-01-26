@@ -451,6 +451,7 @@ class IntuneService:
             "displayName": app_info.get("displayName", "New App"),
             "description": app_info.get("description", "Uploaded by SwitchCraft"),
             "publisher": app_info.get("publisher", "Unknown"),
+            "displayVersion": app_info.get("displayVersion"),
             "installCommandLine": app_info.get("installCommandLine", "install.cmd"),
             "uninstallCommandLine": app_info.get("uninstallCommandLine", "uninstall.cmd"),
             "applicableArchitectures": "x64", # Defaulting to x64

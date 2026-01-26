@@ -479,6 +479,21 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         if self.analyzing:
             return
 
+        # Check for large file size (USER REQUEST: Warning + ETA)
+        try:
+            path_obj = Path(filepath)
+            if path_obj.exists():
+                size_mb = path_obj.stat().st_size / (1024 * 1024)
+                if size_mb > 400: # Threshold: 400MB
+                    # Estimate: ~20MB/s processing speed
+                    eta_sec = int(size_mb / 20)
+                    eta_str = f"{eta_sec // 60}min {eta_sec % 60}s" if eta_sec > 60 else f"{eta_sec}s"
+
+                    msg = i18n.get("large_file_warning", size=int(size_mb), eta=eta_str) or f"Large file detected ({int(size_mb)} MB). Analysis may take longer (~{eta_str})."
+                    self._show_snack(msg, "ORANGE")
+        except Exception as e:
+            logger.warning(f"Failed to check file size: {e}")
+
         self.analyzing = True
         self.progress_bar.visible = True
         self.status_text.value = f"Analyzing {Path(filepath).name}..."

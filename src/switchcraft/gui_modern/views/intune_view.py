@@ -184,6 +184,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
         # UI Elements
         self.up_file_field = ft.TextField(label=i18n.get("lbl_intunewin_file") or ".intunewin File", expand=True)
         self.up_display_name = ft.TextField(label=i18n.get("lbl_display_name") or "Display Name", expand=True)
+        self.up_version = ft.TextField(label=i18n.get("lbl_version") or "App Version", expand=False, width=150)
         self.up_description = ft.TextField(label=i18n.get("lbl_description") or "Description", multiline=True, min_lines=2)
         self.up_publisher = ft.TextField(label=i18n.get("lbl_publisher") or "Publisher")
         self.up_install_cmd = ft.TextField(label=i18n.get("lbl_install_cmd") or "Install Command")
@@ -214,12 +215,18 @@ class ModernIntuneView(ft.Column, ViewMixin):
             self.up_status.value = "Connecting..."
             if self.page:
                 self.update()
+
+            # Capture credentials in main thread (preserving ContextVar/Backend)
+            t_id = SwitchCraftConfig.get_value("IntuneTenantID", "")
+            c_id = SwitchCraftConfig.get_value("IntuneClientID", "")
+            c_sec = SwitchCraftConfig.get_secure_value("IntuneClientSecret") or ""
+
             def _bg():
                 try:
-                    # Reload credentials from config to ensure we have the latest values
-                    self.tenant_id = SwitchCraftConfig.get_value("IntuneTenantID", "")
-                    self.client_id = SwitchCraftConfig.get_value("IntuneClientID", "")
-                    self.client_secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret") or ""
+                    # Use captured credentials
+                    self.tenant_id = t_id
+                    self.client_id = c_id
+                    self.client_secret = c_sec
 
                     if not self.tenant_id or not self.client_id or not self.client_secret:
                         def update_fail_creds():
@@ -395,7 +402,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
                 ft.Text(i18n.get("hdr_app_details") or "New App Details", weight=ft.FontWeight.BOLD),
                 ft.Row([self.up_file_field, btn_pick]),
-                self.up_display_name,
+                ft.Row([self.up_display_name, self.up_version]),
                 self.up_publisher,
                 self.up_description,
                 ft.Row([self.up_install_cmd, self.up_uninstall_cmd]),
@@ -420,6 +427,8 @@ class ModernIntuneView(ft.Column, ViewMixin):
             # Fill basic fields
             if app_data.get("displayName"):
                 self.up_display_name.value = app_data.get("displayName", "")
+            if app_data.get("displayVersion"):
+                self.up_version.value = app_data.get("displayVersion", "")
             if app_data.get("description"):
                 self.up_description.value = app_data.get("description", "")
             if app_data.get("publisher"):
@@ -594,6 +603,26 @@ class ModernIntuneView(ft.Column, ViewMixin):
             This background task calls the Intune service to create a .intunewin package from the provided setup file and source/output folders, forwarding progress lines to the view's logger. On success it attempts to locate the produced .intunewin file, shows an alert dialog with the package path and an "Open Folder" action that opens the file explorer to the package. On failure it logs the exception and shows a failure snack message.
             """
             try:
+                # Calculate Size & ETA
+                try:
+                    src_path = Path(source)
+                    total_size = sum(f.stat().st_size for f in src_path.glob("**/*") if f.is_file())
+                    size_mb = total_size / (1024 * 1024)
+
+                    if size_mb > 400:
+                        # Estimate: 15 MB/s processing speed
+                        eta_seconds = size_mb / 15
+                        eta_min = int(eta_seconds // 60)
+                        eta_sec = int(eta_seconds % 60)
+
+                        warn_msg = (i18n.get("pkg_large_file_warn") or "⚠️ Large folder ({size} MB). This might take some time.").format(size=int(size_mb))
+                        eta_msg = (i18n.get("pkg_eta") or "Estimated time: ~{min}m {sec}s").format(min=eta_min, sec=eta_sec)
+
+                        self._log(warn_msg)
+                        self._log(eta_msg)
+                except Exception as calc_ex:
+                    logger.warning(f"Failed to calculate folder size: {calc_ex}")
+
                 self.intune_service.create_intunewin(
                     source_folder=source,
                     setup_file=setup,
@@ -660,6 +689,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
             "displayName": self.up_display_name.value,
             "description": self.up_description.value,
             "publisher": self.up_publisher.value,
+            "displayVersion": self.up_version.value,
             "installCommandLine": self.up_install_cmd.value,
             "uninstallCommandLine": self.up_uninstall_cmd.value
         }
