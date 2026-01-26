@@ -417,12 +417,12 @@ jobs:
           VERSION="${{ needs.prepare_release.outputs.version }}"
           python .github/scripts/generate_winget_manifests.py --version "$VERSION" >> "$GITHUB_STEP_SUMMARY"
 
-  cleanup_releases:
-    name: Cleanup Old Releases
-    needs: [prepare_release]
+  cleanup_docker:
+    name: Cleanup Old Docker Images
+    needs: [docker_build]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v6
       - name: Set up Python
@@ -431,9 +431,9 @@ jobs:
           python-version: '3.14'
       - name: Install Dependencies
         run: pip install requests
-      - name: Cleanup Old Releases
+      - name: Cleanup Old Docker Versions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          python .github/scripts/cleanup_releases.py
+          python .github/scripts/cleanup_docker_images.py
