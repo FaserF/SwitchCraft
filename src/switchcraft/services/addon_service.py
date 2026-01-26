@@ -28,6 +28,7 @@ class AddonService:
     def get_addon_dir():
         """Returns the base directory for addons."""
         from switchcraft import IS_WEB
+        import sys
         if IS_WEB:
             # In Web/Pyodide, we use the 'switchcraft.addons' package directory
             # assuming addons are baked into the package.

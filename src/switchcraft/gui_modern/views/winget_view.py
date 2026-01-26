@@ -40,6 +40,14 @@ class ModernWingetView(ft.Row, ViewMixin):
                 except Exception:
                     pass
 
+        # Robustness: Check if we can still try to fallback to a local module if addon fails
+        if not self.winget:
+             try:
+                 from switchcraft_winget.utils.winget import WingetHelper
+                 self.winget = WingetHelper()
+             except ImportError:
+                 pass
+
         self.current_pkg = None
 
         if not self.winget:
