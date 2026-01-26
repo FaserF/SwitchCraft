@@ -85,8 +85,8 @@ class WingetView(ctk.CTkFrame):
         self.right_pane.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
         self.right_pane.grid_columnconfigure(0, weight=1)
 
-        self.lbl_details_title = ctk.CTkLabel(self.right_pane, text=i18n.get("manual_select"), font=ctk.CTkFont(size=18, weight="bold"))
-        self.lbl_details_title.pack(pady=20)
+        self.lbl_details_title = ctk.CTkLabel(self.right_pane, text=i18n.get("manual_select"), font=ctk.CTkFont(size=18, weight="bold"), anchor="w")
+        self.lbl_details_title.pack(pady=20, padx=20, fill="x")
 
         self.details_content = ctk.CTkScrollableFrame(self.right_pane, fg_color="transparent")
         self.details_content.pack(fill="both", expand=True, padx=10, pady=10)
@@ -252,10 +252,15 @@ class WingetView(ctk.CTkFrame):
 
         add_row("Manifest URL", manifest_url, link=True)
 
-        add_row("License", info.get("license"))
-        add_row("License URL", info.get("license_url"), link=True)
-        add_row("Installer Type", info.get("installer_type"))
-        add_row("SHA256", info.get("sha256"))
+        add_row(i18n.get("field_license") or "License", info.get("License") or info.get("license"))
+        add_row("License URL", info.get("LicenseUrl") or info.get("license_url"), link=True)
+        add_row(i18n.get("field_type") or "Installer Type", info.get("InstallerType") or info.get("installer_type"))
+        add_row("Release Date", info.get("ReleaseDate"))
+        add_row("SHA256", info.get("sha256") or info.get("InstallerSha256"))
+
+        # AutoUpdate Tip
+        tip_text = i18n.get("winget_tip_autoupdate") or "Tip: Use Winget-AutoUpdate to keep apps fresh!"
+        ctk.CTkLabel(self.details_content, text=tip_text, font=ctk.CTkFont(size=11, slant="italic"), text_color="gray", anchor="w").pack(pady=(20, 0), padx=10, fill="x")
 
         # Actions
         ctk.CTkLabel(self.details_content, text=i18n.get("winget_actions"), font=ctk.CTkFont(weight="bold", size=14)).pack(pady=(20, 10))

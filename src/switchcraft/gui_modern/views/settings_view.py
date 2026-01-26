@@ -12,6 +12,7 @@ from switchcraft.services.sync_service import SyncService
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft import IS_WEB  # Fix: Import IS_WEB correctly from switchcraft
 
 logger = logging.getLogger(__name__)
 
@@ -626,7 +627,6 @@ class ModernSettingsView(ft.Column, ViewMixin):
             """
             try:
                 from switchcraft.utils.logging_handler import get_session_handler
-                import webbrowser
 
                 logger.info("Opening GitHub issue reporter...")
                 url = get_session_handler().get_github_issue_link()
@@ -1003,7 +1003,13 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 )
 
                 self._close_dialog(loading_dlg)
-                self._open_dialog_safe(dlg)
+
+                # Fix: Use modern open() method directly for better visibility/reliability
+                try:
+                    self.page.open(dlg)
+                except Exception as e:
+                    logger.warning(f"Failed to open GitHub login dialog via page.open: {e}")
+                    self._open_dialog_safe(dlg) # Fallback
 
                 # 3. Poll for Token (Async Loop)
                 device_code = flow.get("device_code")
@@ -1114,7 +1120,6 @@ class ModernSettingsView(ft.Column, ViewMixin):
         """
         from switchcraft import IS_WEB
         import base64
-        import json
 
         prefs = SwitchCraftConfig.export_preferences()
         json_str = json.dumps(prefs, indent=4)
@@ -1150,7 +1155,6 @@ class ModernSettingsView(ft.Column, ViewMixin):
         Import settings via FilePicker.
         """
         from switchcraft import IS_WEB
-        import json
 
         if IS_WEB:
              self._show_snack("Settings import not supported in web version yet", "ORANGE")
@@ -2006,7 +2010,6 @@ class ModernSettingsView(ft.Column, ViewMixin):
         3. LocalMachine\\My certificate store (GPO-deployed certificates)
         """
         import subprocess
-        import json
 
         # First, check if GPO/Policy has configured a certificate
         # SwitchCraftConfig.get_value() already checks Policy paths first

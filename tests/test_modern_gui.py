@@ -30,9 +30,14 @@ def test_view_imports():
         "stack_manager_view",
         "dashboard_view",
         "library_view",
+        "category_view",
+        "crash_view",
+        "sap_wizard_view",
+        "script_upload_view",
+        "wingetcreate_view",
     ]
     for view_name in view_names:
         try:
             importlib.import_module(f"switchcraft.gui_modern.views.{view_name}")
-        except ImportError as e:
+        except Exception as e:
             pytest.fail(f"Failed to import view '{view_name}': {e}")

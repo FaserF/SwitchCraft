@@ -1,10 +1,8 @@
 import os
 import logging
-import subprocess
 from pathlib import Path
 from typing import List, Optional
 from switchcraft.utils.shell_utils import ShellUtils
-from switchcraft.utils.i18n import i18n
 import xml.etree.ElementTree as ET
 
 logger = logging.getLogger(__name__)

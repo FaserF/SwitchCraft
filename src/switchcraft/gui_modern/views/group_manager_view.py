@@ -481,9 +481,9 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self._run_task_safe(update_ui)
                     except Exception as ex:
                         logger.error(f"Failed to create group: {ex}", exc_info=True)
-                        def show_error():
+                        def show_error(error=ex):
                             try:
-                                msg = f"Creation failed: {ex}"
+                                msg = f"Creation failed: {error}"
                                 self._show_snack(msg, "RED")
                             except Exception:
                                 pass
@@ -549,9 +549,9 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self._run_task_safe(update_ui)
                     except Exception as ex:
                         logger.error(f"Failed to delete group: {ex}", exc_info=True)
-                        def show_error():
+                        def show_error(error=ex):
                             try:
-                                msg = f"Deletion failed: {ex}"
+                                msg = f"Deletion failed: {error}"
                                 self._show_snack(msg, "RED")
                             except Exception:
                                 pass
@@ -699,12 +699,12 @@ class GroupManagerView(ft.Column, ViewMixin):
                 except Exception as ex:
                     import logging
                     logging.getLogger(__name__).error(f"Error loading members: {ex}", exc_info=True)
-                    def show_error():
+                    def show_error(error=ex):
                         try:
                             if members_list:
                                 members_list.controls.clear()
                                 error_tmpl = i18n.get("error_loading_members") or "Error loading members: {error}"
-                                msg = error_tmpl.format(error=ex)
+                                msg = error_tmpl.format(error=error)
                                 members_list.controls.append(ft.Text(msg, color="RED"))
                                 if self.app_page:
                                     self.app_page.update()
@@ -764,12 +764,12 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self._run_task_safe(update_results)
                     except Exception as ex:
                         logger.error(f"Error searching users: {ex}", exc_info=True)
-                        def show_error():
+                        def show_error(error=ex):
                             try:
                                 if results_list:
                                     results_list.controls.clear()
                                     error_tmpl = i18n.get("error_search_failed") or "Search failed: {error}"
-                                    results_list.controls.append(ft.Text(error_tmpl.format(error=ex), color="RED"))
+                                    results_list.controls.append(ft.Text(error_tmpl.format(error=error), color="RED"))
                                     add_dlg.update()
                             except Exception as ex2:
                                 logger.error(f"Error showing search error: {ex2}", exc_info=True)

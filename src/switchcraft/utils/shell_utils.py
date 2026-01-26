@@ -101,7 +101,6 @@ class ShellUtils:
         Wraps subprocess.Popen with Wine awareness.
         Returns None in WASM environment.
         """
-        from switchcraft import IS_DEMO
 
         if sys.platform == "emscripten" or sys.platform == "wasi":
             logger.debug(f"Skipping Popen in WASM environment: {cmd}")

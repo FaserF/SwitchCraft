@@ -2,7 +2,6 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional, Dict, List
-import secrets
 import bcrypt
 from switchcraft.utils.crypto import SimpleCrypto
 

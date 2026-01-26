@@ -462,9 +462,9 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     self._run_task_safe(_update_assignments_ui)
                 except Exception as ex:
                     logger.exception("Failed to load assignments")
-                    def _show_error():
+                    def _show_error(error=ex):
                         self.assignments_col.controls.clear()
-                        msg = f"{i18n.get('error') or 'Error'}: {ex}"
+                        msg = f"{i18n.get('error') or 'Error'}: {error}"
                         self.assignments_col.controls.append(ft.Text(msg, color="red", selectable=True))
                         self.update()
                     self._run_task_safe(_show_error)

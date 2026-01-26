@@ -903,7 +903,6 @@ def detection_test(rule_type, key, value_name, expected, product_code, file_path
         switchcraft detection test --type file --path "C:\\App\\app.exe" --version "2.0"
         switchcraft detection test --type script --script detect.ps1
     """
-    import subprocess
 
     if rule_type == 'registry':
         if not key or not value_name:
@@ -966,7 +965,7 @@ def _test_registry(key_path, value_name, expected_value):
             else:
                 print(f"[green]✓ DETECTED[/green] - {value_name} exists, value: {actual_value}")
     except FileNotFoundError:
-        print(f"[yellow]✗ NOT DETECTED[/yellow] - Key or value not found")
+        print("[yellow]✗ NOT DETECTED[/yellow] - Key or value not found")
     except Exception as e:
         print(f"[red]Error: {e}[/red]")
 
@@ -1060,7 +1059,7 @@ def _test_script(script_file):
         )
 
         if result.returncode == 0:
-            print(f"[green]✓ DETECTED[/green] - Script exited with code 0")
+            print("[green]✓ DETECTED[/green] - Script exited with code 0")
             if result.stdout.strip():
                 print(f"Output: {result.stdout.strip()}")
         else:
@@ -1629,7 +1628,7 @@ def stacks_deploy(name, dry_run):
                 print(f"  [red]✗ {item} - {e}[/red]")
 
     if not dry_run:
-        print(f"[green]Stack deployment complete.[/green]")
+        print("[green]Stack deployment complete.[/green]")
 
 
 # --- Library Group ---

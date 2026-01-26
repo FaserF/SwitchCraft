@@ -210,7 +210,7 @@ class ExchangeView(ft.Column, ViewMixin):
                 results = self.exchange_service.search_messages(token, mailbox, "")
                 self._run_task_with_fallback(lambda: self._display_mail_results(results))
             except Exception as ex:
-                self._run_task_with_fallback(lambda: self._show_error(str(ex)))
+                self._run_task_with_fallback(lambda error=ex: self._show_error(str(error)))
 
         threading.Thread(target=_load, daemon=True).start()
 
@@ -295,7 +295,7 @@ class ExchangeView(ft.Column, ViewMixin):
                 if self.exchange_service.set_oof_settings(token, mailbox, oof_data):
                     self._run_task_with_fallback(lambda: self._show_snack("OOF settings updated!", "GREEN"))
             except Exception as ex:
-                self._run_task_with_fallback(lambda: self._show_error(str(ex)))
+                self._run_task_with_fallback(lambda error=ex: self._show_error(str(error)))
 
         threading.Thread(target=_save, daemon=True).start()
 
@@ -384,7 +384,7 @@ class ExchangeView(ft.Column, ViewMixin):
                 self._run_task_with_fallback(self._update_ui)
             except Exception as ex:
                 logger.error(f"Failed to load exchange data: {ex}")
-                self._run_task_with_fallback(lambda: self._show_error(str(ex)))
+                self._run_task_with_fallback(lambda error=ex: self._show_error(str(error)))
 
         threading.Thread(target=_bg, daemon=True).start()
 

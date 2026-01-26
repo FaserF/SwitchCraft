@@ -8,6 +8,7 @@ from switchcraft.utils.i18n import i18n
 from pathlib import Path
 from switchcraft.services.notification_service import NotificationService
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +144,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             content=self.details_area,
             expand=True,
             padding=20,
+            alignment=ft.Alignment(-1, -1), # Use Alignment constructor for better compatibility
             margin=ft.Margin.only(right=20, top=20, bottom=20, left=10),
             visible=False  # Initially hidden until details are loaded
         )
@@ -367,7 +369,7 @@ class ModernWingetView(ft.Row, ViewMixin):
         # Create new loading area immediately - use _run_task_safe to ensure UI updates happen on main thread
         def _show_loading():
             try:
-                loading_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+                loading_area = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True, horizontal_alignment=ft.CrossAxisAlignment.START)
                 loading_area.controls.append(ft.ProgressBar())
                 loading_area.controls.append(ft.Text(i18n.get("loading_package_details") or "Loading package details...", color="GREY_500", italic=True))
                 self.details_area = loading_area
@@ -523,7 +525,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 ft.Column([
                     ft.Text(info.get('Name', i18n.get("unknown") or "Unknown"), size=28, weight=ft.FontWeight.BOLD),
                     ft.Text(info.get('Id', ''), color="ON_SURFACE_VARIANT", size=14)
-                ], spacing=4, expand=True)
+                ], spacing=4, expand=True, horizontal_alignment=ft.CrossAxisAlignment.START)
             ],
             spacing=15,
             vertical_alignment=ft.CrossAxisAlignment.START
@@ -532,14 +534,19 @@ class ModernWingetView(ft.Row, ViewMixin):
 
         # Version Badge
         version = info.get('Version', i18n.get("unknown") or "Unknown")
+        # Release Date (New)
+        release_date = info.get('ReleaseDate')
+        release_date_text = f" • {release_date}" if release_date else ""
+
         detail_controls.append(
-            ft.Container(
-                content=ft.Text(f"v{version}", color="WHITE", size=12),
-                bgcolor="BLUE_700",
-                padding=ft.Padding(8, 4, 8, 4),
-                border_radius=4,
-                margin=ft.Margin(0, 8, 0, 8)
-            )
+            ft.Row([
+                ft.Container(
+                    content=ft.Text(f"v{version}{release_date_text}", color="WHITE", size=12),
+                    bgcolor="BLUE_700",
+                    padding=ft.Padding(8, 4, 8, 4),
+                    border_radius=4,
+                )
+            ], alignment=ft.MainAxisAlignment.START)
         )
 
         detail_controls.append(ft.Divider())
@@ -607,9 +614,9 @@ class ModernWingetView(ft.Row, ViewMixin):
                     ft.Row([
                         ft.Icon(ft.Icons.LABEL, size=16, color="GREY_500"),
                         ft.Text(f"{i18n.get('field_tags') or 'Tags'}: ", weight=ft.FontWeight.BOLD, size=14),
-                    ], spacing=4)
+                    ], spacing=4, alignment=ft.MainAxisAlignment.START)
                 )
-                detail_controls.append(ft.Row(tag_chips, wrap=True, spacing=6))
+                detail_controls.append(ft.Row(tag_chips, wrap=True, spacing=6, alignment=ft.MainAxisAlignment.START))
 
         detail_controls.append(ft.Container(height=12))
 
@@ -702,11 +709,24 @@ class ModernWingetView(ft.Row, ViewMixin):
         btn_deploy = ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CLOUD_UPLOAD), ft.Text(i18n.get("btn_deploy_package") or "Deploy / Package...")], alignment=ft.MainAxisAlignment.CENTER), bgcolor="BLUE", color="WHITE")
         btn_deploy.on_click = lambda e: self._open_deploy_menu(info)
 
-        detail_controls.append(ft.Row([btn_copy, btn_local, btn_deploy], wrap=True, spacing=8))
+        action_buttons = [btn_copy, btn_local, btn_deploy]
+
+        # Download Button (New)
+        installer_url = info.get('InstallerUrl')
+        if installer_url:
+            btn_download = ft.FilledButton(
+                content=ft.Row([ft.Icon(ft.Icons.DOWNLOAD_FOR_OFFLINE), ft.Text("Download Installer")], alignment=ft.MainAxisAlignment.CENTER),
+                bgcolor="TEAL_600",
+                color="WHITE",
+                on_click=lambda e, url=installer_url: self._open_url(url)
+            )
+            action_buttons.insert(1, btn_download) # Insert after copy, before install local
+
+        detail_controls.append(ft.Row(action_buttons, wrap=True, spacing=8, alignment=ft.MainAxisAlignment.START))
 
         # Tip
         detail_controls.append(ft.Container(height=20))
-        detail_controls.append(ft.Text(i18n.get("winget_tip_autoupdate") or "Tip: Use SwitchCraft Winget-AutoUpdate to keep apps fresh!", color="ON_SURFACE_VARIANT", italic=True))
+        detail_controls.append(ft.Text(i18n.get("winget_tip_autoupdate") or "Tip: Use Winget-AutoUpdate to keep apps fresh!", color="ON_SURFACE_VARIANT", italic=True))
 
         # CRITICAL: Create a NEW Column instance with all controls
         # This forces Flet to recognize the change
@@ -1032,7 +1052,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             return
 
         pkg_id = self.current_pkg.get('Id')
-        cmd = f"winget install --id {pkg_id} --silent --accept-package-agreements --accept-source-agreements"
+        # Fix: Removed unused 'cmd' variable
 
         def _run():
             import subprocess

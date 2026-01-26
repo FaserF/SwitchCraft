@@ -1,6 +1,5 @@
 from pathlib import Path
 import os
-import json
 import threading
 import sys
 
@@ -9,8 +8,6 @@ from switchcraft import __version__, IS_WEB, IS_DEMO
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 
-from switchcraft.gui_modern.views.script_upload_view import ScriptUploadView
-from switchcraft.gui_modern.views.macos_wizard_view import MacOSWizardView
 from switchcraft.services.notification_service import NotificationService
 from switchcraft.services.addon_service import AddonService
 from switchcraft.gui_modern.controls.sidebar import HoverSidebar

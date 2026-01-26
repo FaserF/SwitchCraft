@@ -1,6 +1,7 @@
 import flet as ft
 import json
 import logging
+import threading
 from pathlib import Path
 from switchcraft.utils.i18n import i18n
 from switchcraft.services.notification_service import NotificationService
@@ -364,7 +365,7 @@ class StackManagerView(ft.Column, ViewMixin):
             except Exception as e:
                 logger.error(f"Stack deployment failed: {e}")
                 self._run_task_with_fallback(
-                    lambda: self._show_snack(f"Deployment error: {e}", "RED")
+                    lambda err=e: self._show_snack(f"Deployment error: {err}", "RED")
                 )
 
         threading.Thread(target=_deploy_worker, daemon=True).start()

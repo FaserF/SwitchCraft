@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess
 
 # Add src to path BEFORE importing switchcraft modules
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -848,19 +849,19 @@ if __name__ == "__main__":
             import pyi_splash
             if pyi_splash.is_alive():
                 pyi_splash.close()
-        except:
+        except Exception:
             pass
 
         if splash_proc:
             try:
                 splash_proc.terminate()
-            except:
+            except Exception:
                 pass
 
         # Write crash dump for early failure
         try:
             write_crash_dump(sys.exc_info())
-        except:
+        except Exception:
             pass
 
         # If it's a windowed app with no console, we should try to show a message box

@@ -713,7 +713,7 @@
     "winget_deploy_wau_desc": "Am besten für automatische Updates.",
     "winget_deploy_package_desc": "Installer herunterladen und für Intune vorbereiten.",
     "winget_deploy_script_desc": "PowerShell-Skript für die Bereitstellung generieren.",
-    "winget_tip_autoupdate": "Tipp: Nutze SwitchCraft Winget-AutoUpdate, um Apps aktuell zu halten!",
+    "winget_tip_autoupdate": "Tipp: Nutze Winget-AutoUpdate, um Apps aktuell zu halten!",
     "field_created": "Erstellt",
     "field_owner": "Besitzer",
     "field_app_type": "App-Typ",
