@@ -36,7 +36,7 @@ VSVersionInfo(
         StringStruct('LegalCopyright', 'Copyright (c) 2026 FaserF'),
         StringStruct('OriginalFilename', 'SwitchCraft.exe'),
         StringStruct('ProductName', 'SwitchCraft'),
-        StringStruct(u'ProductVersion', u'2026.1.5b3.dev0+30b1775')])
+        StringStruct(u'ProductVersion', u'2026.1.5.0')])
       ]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])
   ]
