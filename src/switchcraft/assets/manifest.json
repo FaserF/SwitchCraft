@@ -1,32 +1,22 @@
 {
-    "name": "SwitchCraft",
-    "short_name": "SwitchCraft",
-    "start_url": ".",
-    "display": "standalone",
-    "background_color": "#202020",
-    "theme_color": "#202020",
-    "description": "SwitchCraft - Enterprise Application Management",
-    "icons": [
-        {
-            "src": "icon-192.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        },
-        {
-            "src": "icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        },
-        {
-            "src": "switchcraft_logo.png",
-            "sizes": "any",
-            "type": "image/png"
-        },
-        {
-            "src": "apple-touch-icon.png",
-            "sizes": "180x180",
-            "type": "image/png"
-        }
-    ],
-    "version": "2026.1.5b3"
+  "name": "SwitchCraft",
+  "short_name": "SwitchCraft",
+  "id": "/",
+  "start_url": "./?pwa=1",
+  "display": "standalone",
+  "background_color": "#111315",
+  "theme_color": "#0066cc",
+  "description": "SwitchCraft Modern Software Management (v2026.1.5b3.dev0+f487e59)",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }

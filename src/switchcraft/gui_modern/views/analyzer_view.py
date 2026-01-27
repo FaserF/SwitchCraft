@@ -50,17 +50,13 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         self.progress_bar = ft.ProgressBar(width=400, visible=False)
         self.addon_warning = ft.Container(visible=False)
 
-        # File Picker for Native/Web Support
-        self.file_picker = ft.FilePicker()
-        self.file_picker.on_result = self._on_file_picker_result
-        self.file_picker.on_upload = self._on_file_upload
-
         async def on_drop_click(e):
-             # Use Flet's FilePicker instead of blocking helper
-             await self.file_picker.pick_files(
-                 allow_multiple=False,
+             # Use FilePickerHelper (Tkinter) instead of Flet's potentially buggy FilePicker
+             path = FilePickerHelper.pick_file(
                  allowed_extensions=["exe", "msi", "ps1", "bat", "cmd", "vbs", "msp"]
              )
+             if path:
+                 self.start_analysis(path)
 
         def on_drag_enter(e):
             self.drop_zone.border = ft.Border.all(4, "BLUE_400")
@@ -224,8 +220,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         ]
 
-        # Add FilePicker to controls (it's invisible but needs to be in the tree)
-        self.controls.append(self.file_picker)
+        # Add FilePicker removed in favor of FilePickerHelper (Tkinter) logic
 
         self._check_addon()
 
@@ -651,9 +646,9 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             )
 
         action_buttons = ft.Row([
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.AUTO_FIX_HIGH), ft.Text(i18n.get("btn_auto_deploy") or "Auto Deploy (All-in-One)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE"), on_click=lambda _: self._run_all_in_one_flow(result)),
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text(i18n.get("btn_test_locally") or "Test Locally (Admin)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="GREEN_700", color="WHITE"), on_click=lambda _: self._run_local_test_action(info.file_path, info.install_switches)),
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.DESCRIPTION), ft.Text(i18n.get("btn_winget_manifest") or "Winget Manifest")], alignment=ft.MainAxisAlignment.CENTER), on_click=lambda _: self._open_manifest_dialog(info)),
+            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.AUTO_FIX_HIGH), ft.Text(i18n.get("btn_auto_deploy") or "Auto Deploy (All-in-One)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE"), on_click=self._safe_event_handler(lambda _: self._run_all_in_one_flow(result), "Auto Deploy")),
+            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text(i18n.get("btn_test_locally") or "Test Locally (Admin)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="GREEN_700", color="WHITE"), on_click=self._safe_event_handler(lambda _: self._run_local_test_action(info.file_path, info.install_switches), "Test Locally")),
+            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.DESCRIPTION), ft.Text(i18n.get("btn_winget_manifest") or "Winget Manifest")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(lambda _: self._open_manifest_dialog(info), "Winget Manifest")),
         ], wrap=True)
         self.results_column.controls.append(action_buttons)
 
@@ -687,9 +682,9 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         # 7. Deployment Actions (Intune, IntuneWin)
         self.results_column.controls.append(
             ft.Row([
-                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CODE), ft.Text(i18n.get("generate_intune_script") or "Generate Intune Script")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._on_click_create_script),
-                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.INVENTORY), ft.Text(i18n.get("btn_create_intunewin") or "Create .intunewin")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._on_click_create_intunewin),
-                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.TERMINAL), ft.Text(i18n.get("btn_manual_cmds") or "Manual Commands")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._show_manual_cmds),
+                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CODE), ft.Text(i18n.get("generate_intune_script") or "Generate Intune Script")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._on_click_create_script, "Generate Script")),
+                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.INVENTORY), ft.Text(i18n.get("btn_create_intunewin") or "Create .intunewin")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._on_click_create_intunewin, "Create Intunewin")),
+                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.TERMINAL), ft.Text(i18n.get("btn_manual_cmds") or "Manual Commands")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._show_manual_cmds, "Manual Commands")),
             ], wrap=True)
         )
 
@@ -761,7 +756,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         # 12. View Detailed Button
         self.results_column.controls.append(
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.ZOOM_IN), ft.Text(i18n.get("view_full_params") or "View Detailed Analysis Data")], alignment=ft.MainAxisAlignment.CENTER), on_click=lambda _: self._show_detailed_parameters(result))
+            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.ZOOM_IN), ft.Text(i18n.get("view_full_params") or "View Detailed Analysis Data")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(lambda _: self._show_detailed_parameters(result), "View Details"))
         )
 
         self.update()

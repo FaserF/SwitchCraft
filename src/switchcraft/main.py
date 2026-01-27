@@ -95,28 +95,7 @@ if __name__ == "__main__":
 # Now do heavy imports
 import flet as ft # noqa: E402
 
-# --- MONKEY PATCH: Fix web_entry.py legacy ft.run call ---
-# web_entry.py (generated) calls ft.run(target=...) but Pyodide flet might expect ft.app or different sig.
-def flexible_run(*args, **kwargs):
-    # Extract target from kwargs or args
-    target = kwargs.get("target")
-    if not target and args:
-        target = args[0]
-
-    # Use run() if available (Flet 0.80.0+), else app()
-    clean_kwargs = {k: v for k, v in kwargs.items() if k != "target"}
-    if hasattr(ft, "_original_run") and ft._original_run:
-        return ft._original_run(target, **clean_kwargs)
-    elif hasattr(ft, "run") and ft.run != flexible_run:
-        return ft.run(target, **clean_kwargs)
-
-    return ft.app(target=target, **clean_kwargs)
-
-# Save original run and override
-if not hasattr(ft, "_original_run"):
-    ft._original_run = getattr(ft, "run", None)
-ft.run = flexible_run
-# ---------------------------------------------------------
+# Monkey patch removed - using standard methods
 
 # Flet Universal Compatibility Patch
 def patch_flet():
@@ -839,10 +818,7 @@ if __name__ == "__main__":
             pass
 
     try:
-        if hasattr(ft, "run"):
-            ft.run(main)
-        else:
-            ft.app(target=main, assets_dir="assets")
+        ft.run(main, assets_dir="assets")
     except Exception as e:
         # Fallback for early failures (before main() handles it)
         try:

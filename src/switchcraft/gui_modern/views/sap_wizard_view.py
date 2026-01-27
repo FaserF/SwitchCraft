@@ -87,15 +87,14 @@ class SapWizardView(ft.Column, ViewMixin):
                 self.update()
 
         path_text = ft.Text(self.server_path or "No path selected", italic=True)
-        fp = ft.FilePicker()
-        fp.on_result = on_pick_server
-        self.app_page.overlay.append(fp)
+
+        # Use FilePickerHelper (Tkinter) instead of Flet's FilePicker
 
         return ft.Column([
             ft.Text(i18n.get("sap_step1_title") or "1. Select SAP Installation Server", size=18, weight=ft.FontWeight.BOLD),
             ft.Text(i18n.get("sap_step1_desc") or "Point to the root folder of your SAP nwsetupadmin server."),
             ft.Row([
-                ft.FilledButton(i18n.get("btn_browse_folder") or "Browse Server Folder", icon=ft.Icons.FOLDER_OPEN, on_click=lambda _: fp.get_directory_path()),
+                ft.FilledButton(i18n.get("btn_browse_folder") or "Browse Server Folder", icon=ft.Icons.FOLDER_OPEN, on_click=lambda _: on_pick_server(ft.FilePickerResultEvent(path=FilePickerHelper.pick_directory(), files=None))),
                 path_text
             ]),
             ft.Divider(height=20, color="TRANSPARENT"),

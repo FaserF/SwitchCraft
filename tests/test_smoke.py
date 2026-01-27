@@ -29,8 +29,14 @@ class TestSmoke(unittest.TestCase):
 
     def test_cli_version(self):
         """Verify CLI --version runs without error."""
+        import os
+        env = os.environ.copy()
+        # Add src to PYTHONPATH so it finds switchcraft module without installation
+        src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
+        env["PYTHONPATH"] = src_path + os.pathsep + env.get("PYTHONPATH", "")
+
         cmd = [sys.executable, "-m", "switchcraft.main", "--version"]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
         self.assertEqual(result.returncode, 0)
         self.assertIn("SwitchCraft", result.stdout)
 
