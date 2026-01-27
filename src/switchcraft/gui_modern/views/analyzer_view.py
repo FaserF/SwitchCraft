@@ -647,9 +647,9 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             )
 
         action_buttons = ft.Row([
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.AUTO_FIX_HIGH), ft.Text(i18n.get("btn_auto_deploy") or "Auto Deploy (All-in-One)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE"), on_click=self._safe_event_handler(lambda _: self._run_all_in_one_flow(result), "Auto Deploy")),
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text(i18n.get("btn_test_locally") or "Test Locally (Admin)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="GREEN_700", color="WHITE"), on_click=self._safe_event_handler(lambda _: self._run_local_test_action(info.file_path, info.install_switches), "Test Locally")),
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.DESCRIPTION), ft.Text(i18n.get("btn_winget_manifest") or "Winget Manifest")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(lambda _: self._open_manifest_dialog(info), "Winget Manifest")),
+            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.AUTO_FIX_HIGH), ft.Text(i18n.get("btn_auto_deploy") or "Auto Deploy (All-in-One)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE"), on_click=lambda _: self._run_all_in_one_flow(result)),
+            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text(i18n.get("btn_test_locally") or "Test Locally (Admin)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="GREEN_700", color="WHITE"), on_click=lambda _: self._run_local_test_action(info.file_path, info.install_switches)),
+            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.DESCRIPTION), ft.Text(i18n.get("btn_winget_manifest") or "Winget Manifest")], alignment=ft.MainAxisAlignment.CENTER), on_click=lambda _: self._open_manifest_dialog(info)),
         ], wrap=True)
         self.results_column.controls.append(action_buttons)
 
@@ -661,7 +661,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             ft.Container(
                 content=ft.Column([
                     ft.Text(i18n.get("silent_switches") or "Silent Install Parameters", weight=ft.FontWeight.BOLD),
-                    ft.TextField(value=switches_str, read_only=True, text_style=ft.TextStyle(color=color, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=self._safe_event_handler(lambda _, s=switches_str: self._copy_to_clipboard(s), "Copy switches"))),
+                    ft.TextField(value=switches_str, read_only=True, text_style=ft.TextStyle(color=color, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=switches_str: self._copy_to_clipboard(s))),
                 ]),
                 padding=10, bgcolor="SURFACE_CONTAINER_HIGHEST", border_radius=5
             )
@@ -674,7 +674,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 ft.Container(
                     content=ft.Column([
                         ft.Text(i18n.get("silent_uninstall") or "Silent Uninstall Parameters", weight=ft.FontWeight.BOLD, color="RED_400"),
-                        ft.TextField(value=un_switches, read_only=True, text_style=ft.TextStyle(color="RED_200", font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=self._safe_event_handler(lambda _, s=un_switches: self._copy_to_clipboard(s), "Copy uninstall switches"))),
+                        ft.TextField(value=un_switches, read_only=True, text_style=ft.TextStyle(color="RED_200", font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=un_switches: self._copy_to_clipboard(s))),
                     ]),
                     padding=10, bgcolor="SURFACE_CONTAINER_HIGHEST", border_radius=5
                 )
@@ -685,7 +685,6 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             ft.Row([
                 ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CODE), ft.Text(i18n.get("generate_intune_script") or "Generate Intune Script")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._on_click_create_script, "Generate Script")),
                 ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.INVENTORY), ft.Text(i18n.get("btn_create_intunewin") or "Create .intunewin")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._on_click_create_intunewin, "Create Intunewin")),
-                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.TERMINAL), ft.Text(i18n.get("btn_manual_cmds") or "Manual Commands")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._show_manual_cmds, "Manual Commands")),
             ], wrap=True)
         )
 
@@ -715,7 +714,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                         title=ft.Text(f"{name} ({n_type})"),
                         subtitle=ft.Text(details, font_family="Consolas", size=11),
                         leading=ft.Icon(ft.Icons.SUBDIRECTORY_ARROW_RIGHT),
-                        trailing=ft.IconButton(ft.Icons.COPY, on_click=self._safe_event_handler(lambda _, s=sw_text: self._copy_to_clipboard(s), "Copy nested switches")) if sw_text else None
+                        trailing=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=sw_text: self._copy_to_clipboard(s)) if sw_text else None
                     )
                 )
 
@@ -756,9 +755,43 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 )
             )
 
-        # 12. View Detailed Button
+        # 12. View Detailed Button (Converted to Inline ExpansionTile)
         self.results_column.controls.append(
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.ZOOM_IN), ft.Text(i18n.get("view_full_params") or "View Detailed Analysis Data")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(lambda _: self._show_detailed_parameters(result), "View Details"))
+            ft.ExpansionTile(
+                title=ft.Row([ft.Icon(ft.Icons.ZOOM_IN), ft.Text(i18n.get("view_full_params") or "Detailed Analysis Data")], alignment=ft.MainAxisAlignment.START),
+                controls=[
+                    ft.Text(f"Analysis Details for {Path(info.file_path).name}", weight=ft.FontWeight.BOLD, size=18, selectable=True),
+                    ft.Markdown(f"**Installer Type:** {info.installer_type}\n**Product:** {info.product_name}\n**Version:** {info.product_version}", selectable=True),
+                    ft.Divider(),
+                    ft.Text("Raw Analysis Output:", weight=ft.FontWeight.BOLD),
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Text(result.brute_force_data or "No raw data available.", font_family="Consolas", size=10, selectable=True),
+                        ], scroll=ft.ScrollMode.AUTO),
+                        height=300, bgcolor="BLACK", padding=10, border_radius=5, width=float("inf")
+                    )
+                ]
+            )
+        )
+
+        # 13. Install Commands (Inline) (Was Manual Commands Dialog)
+        path = info.file_path
+        switches = " ".join(info.install_switches)
+        self.results_column.controls.append(
+             ft.ExpansionTile(
+                title=ft.Row([ft.Icon(ft.Icons.TERMINAL), ft.Text(i18n.get("btn_manual_cmds") or "Install Commands")], alignment=ft.MainAxisAlignment.START),
+                controls=[
+                     ft.Container(
+                         content=ft.Column([
+                            ft.Text("CMD / Batch:", weight=ft.FontWeight.BOLD),
+                            ft.TextField(value=f'"{path}" {switches}', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, cmd=f'"{path}" {switches}': self._copy_to_clipboard(cmd))),
+                            ft.Text("PowerShell:", weight=ft.FontWeight.BOLD),
+                            ft.TextField(value=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, cmd=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait': self._copy_to_clipboard(cmd))),
+                        ], spacing=10),
+                        padding=10
+                     )
+                ]
+            )
         )
 
         self._safe_update()
@@ -1102,7 +1135,15 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 ft.FilledButton(content=ft.Text(i18n.get("btn_run_now") or "Run Now (Admin)"), bgcolor="GREEN_700", color="WHITE", on_click=on_confirm),
             ],
         )
-        self._open_dialog_safe(local_dlg)
+        if not self._open_dialog_safe(local_dlg):
+             # Defensive Fallback
+            try:
+                if self.app_page:
+                    self.app_page.open(local_dlg)
+                    self.app_page.update()
+            except Exception as e:
+                logger.error(f"Manual fallback test dialog open failed: {e}")
+                self._show_snack("Failed to open Test dialog", "RED")
 
     def _open_manifest_dialog(self, info):
         # Quick manifest generation using WingetManifestService
@@ -1161,33 +1202,19 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             ],
         )
 
-        self._open_dialog_safe(dlg)
+        if not self._open_dialog_safe(dlg):
+            # Defensive Fallback if mixin failed silently
+            try:
+                if self.app_page:
+                    self.app_page.open(dlg)
+                    self.app_page.update()
+                elif self.page:
+                    self.page.open(dlg)
+                    self.page.update()
+            except Exception as e:
+                logger.error(f"Manual fallback dialog open failed: {e}")
+                self._show_snack("Failed to open Winget Manifest dialog", "RED")
 
-    def _show_detailed_parameters(self, result: AnalysisResult):
-        info = result.info
-        content = ft.Column([
-            ft.Text(f"Analysis Details for {Path(info.file_path).name}", weight=ft.FontWeight.BOLD, size=18),
-            ft.Markdown(f"**Installer Type:** {info.installer_type}\n**Product:** {info.product_name}\n**Version:** {info.product_version}"),
-            ft.Divider(),
-            ft.Text("Raw Analysis Output:", weight=ft.FontWeight.BOLD),
-            ft.Container(
-                content=ft.Column([
-                    ft.Text(result.brute_force_data or "No raw data available.", font_family="Consolas", size=10),
-                ], scroll=ft.ScrollMode.AUTO),
-                height=300, bgcolor="BLACK", padding=10, border_radius=5, width=float("inf")
-            )
-        ], scroll=ft.ScrollMode.AUTO, tight=True)
-
-        def close_dlg(e):
-            self._close_dialog(dlg)
-
-        dlg = ft.AlertDialog(
-            title=ft.Text(i18n.get("detailed_params_title") or "Detailed Parameters Analysis"),
-            content=content,
-            actions=[ft.TextButton(i18n.get("btn_cancel") or "Close", on_click=close_dlg)],
-        )
-
-        self._open_dialog_safe(dlg)
 
     def _copy_to_clipboard(self, text: str):
         """Copy text to clipboard using Flet first, then fallbacks."""
@@ -1292,22 +1319,6 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         threading.Thread(target=_bg, daemon=True).start()
 
-    def _show_manual_cmds(self, e):
-        if not self.current_info:
-            return
-        switches = " ".join(self.current_info.install_switches)
-        path = self.current_info.file_path
-
-        dlg = ft.AlertDialog(
-            title=ft.Text(i18n.get("btn_manual_cmds") or "Install Commands"),
-            content=ft.Column([
-                ft.Text("CMD / Batch:", weight=ft.FontWeight.BOLD),
-                ft.TextField(value=f'"{path}" {switches}', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=self._safe_event_handler(lambda _, cmd=f'"{path}" {switches}': self._copy_to_clipboard(cmd), "Copy CMD"))),
-                ft.Text("PowerShell:", weight=ft.FontWeight.BOLD),
-                ft.TextField(value=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=self._safe_event_handler(lambda _, cmd=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait': self._copy_to_clipboard(cmd), "Copy PS"))),
-            ], height=240, spacing=10),
-        )
-        self._open_dialog_safe(dlg)
 
     def _add_history_entry(self, info, status):
         try:
