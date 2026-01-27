@@ -39,7 +39,7 @@ class ExchangeView(ft.Column, ViewMixin):
                         ft.Container(height=20),
                         ft.FilledButton(
                             content=ft.Row([ft.Icon(ft.Icons.SETTINGS), ft.Text(i18n.get("tab_settings") or "Go to Settings")], alignment=ft.MainAxisAlignment.CENTER),
-                            on_click=self._go_to_settings
+                            on_click=self._safe_event_handler(self._go_to_settings, "Go to settings from Exchange")
                         )
                     ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                     expand=True,
@@ -99,7 +99,7 @@ class ExchangeView(ft.Column, ViewMixin):
             selected_index=0,
             animation_duration=300,
             expand=True,
-            on_change=self._on_tab_change
+            on_change=self._safe_event_handler(self._on_tab_change, "Exchange tab change")
         )
         self.tabs.tabs = [
                 ft.Tab(label=i18n.get("ex_tab_mail_flow") or "Mail Flow", icon=ft.Icons.SEARCH),
@@ -152,23 +152,23 @@ class ExchangeView(ft.Column, ViewMixin):
             label="Range",
             value="7",
             options=[
-                ft.dropdown.Option("7", "Last 7 Days"),
-                ft.dropdown.Option("30", "Last 30 Days"),
+                ft.dropdown.Option("7", i18n.get("ex_range_7") or "Last 7 Days"),
+                ft.dropdown.Option("30", i18n.get("ex_range_30") or "Last 30 Days"),
             ],
             width=150
         )
-        self.mf_range_dd.on_change = self._on_date_range_change
+        self.mf_range_dd.on_change = self._safe_event_handler(self._on_date_range_change, "Mail flow range change")
 
         return ft.Column([
             ft.Row([
                 ft.Text(i18n.get("ex_dash_filters") or "Dashboard Filters", weight=ft.FontWeight.BOLD),
                 ft.Container(expand=True),
-                ft.IconButton(ft.Icons.REFRESH, on_click=self._refresh_data, tooltip=i18n.get("refresh") or "Refresh"),
+                ft.IconButton(ft.Icons.REFRESH, on_click=self._safe_event_handler(self._refresh_data, "Refresh mail flow"), tooltip=i18n.get("refresh") or "Refresh"),
             ]),
             ft.Row([
                 self.mf_mailbox,
                 self.mf_range_dd,
-                ft.IconButton(ft.Icons.SEARCH, on_click=self._run_mail_search, tooltip=i18n.get("ex_btn_search"))
+                ft.IconButton(ft.Icons.SEARCH, on_click=self._safe_event_handler(self._run_mail_search, "Search mail flow"), tooltip=i18n.get("ex_btn_search"))
             ], spacing=10),
             ft.Divider(),
             ft.Container(
@@ -197,7 +197,7 @@ class ExchangeView(ft.Column, ViewMixin):
     def _run_mail_search(self, e):
         mailbox = self.mf_mailbox.value.strip()
         if not mailbox:
-            self._show_error("Please enter a mailbox SMTP address.")
+            self._show_error(i18n.get("ex_err_enter_mailbox") or "Please enter a mailbox SMTP address.")
             return
 
         self.mf_results.controls = [ft.ProgressRing()]
@@ -227,7 +227,7 @@ class ExchangeView(ft.Column, ViewMixin):
                     ft.ListTile(
                         leading=ft.Icon(ft.Icons.EMAIL),
                         title=ft.Text(subject, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
-                        subtitle=ft.Text(f"From: {sender} | {received}"),
+                        subtitle=ft.Text(i18n.get("ex_msg_from", sender=sender, received=received) or f"From: {sender} | {received}"),
                         dense=True
                     )
                 )
@@ -241,7 +241,7 @@ class ExchangeView(ft.Column, ViewMixin):
             options=[
                 ft.dropdown.Option("disabled", i18n.get("ex_oof_disabled") or "Disabled"),
                 ft.dropdown.Option("alwaysEnabled", i18n.get("ex_oof_enabled") or "Enabled"),
-                ft.dropdown.Option("scheduled", "Scheduled"),
+                ft.dropdown.Option("scheduled", i18n.get("ex_lbl_scheduled") or "Scheduled"),
             ],
             value="disabled"
         )
@@ -251,13 +251,13 @@ class ExchangeView(ft.Column, ViewMixin):
         return ft.Column([
             ft.Row([
                 self.oof_mailbox,
-                ft.IconButton(ft.Icons.REFRESH, on_click=lambda _: self._load_oof_data())
+                ft.IconButton(ft.Icons.REFRESH, on_click=self._safe_event_handler(lambda _: self._load_oof_data(), "Refresh OOF"))
             ]),
             ft.Divider(),
             self.oof_status,
             self.oof_internal,
             self.oof_external,
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.SAVE), ft.Text(i18n.get("ex_btn_save_oof") or "Save")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._save_oof_data)
+            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.SAVE), ft.Text(i18n.get("ex_btn_save_oof") or "Save")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._save_oof_data, "Save OOF"))
         ], scroll=ft.ScrollMode.AUTO, expand=True)
 
     def _load_oof_data(self):
@@ -293,7 +293,7 @@ class ExchangeView(ft.Column, ViewMixin):
             try:
                 token = self._get_token()
                 if self.exchange_service.set_oof_settings(token, mailbox, oof_data):
-                    self._run_task_with_fallback(lambda: self._show_snack("OOF settings updated!", "GREEN"))
+                    self._run_task_with_fallback(lambda: self._show_snack(i18n.get("ex_oof_saved") or "OOF settings updated!", "GREEN"))
             except Exception as ex:
                 self._run_task_with_fallback(lambda error=ex: self._show_error(str(error)))
 
@@ -307,7 +307,7 @@ class ExchangeView(ft.Column, ViewMixin):
         return ft.Column([
             ft.Row([
                 self.del_mailbox,
-                ft.IconButton(ft.Icons.REFRESH, on_click=lambda _: self._load_delegation_data())
+                ft.IconButton(ft.Icons.REFRESH, on_click=self._safe_event_handler(lambda _: self._load_delegation_data(), "Refresh delegation"))
             ]),
             ft.Divider(),
             ft.Text(i18n.get("ex_delegates_title") or "Delegates", weight=ft.FontWeight.BOLD),
@@ -337,7 +337,7 @@ class ExchangeView(ft.Column, ViewMixin):
     def _display_delegates(self, delegates):
         self.del_list.controls = []
         if not delegates:
-            self.del_list.controls.append(ft.Text("No delegates found or permissions insufficient.", italic=True))
+            self.del_list.controls.append(ft.Text(i18n.get("ex_no_delegates") or "No delegates found or permissions insufficient.", italic=True))
         else:
             for d in delegates:
                 name = d.get("displayName", "Unknown")
@@ -409,9 +409,9 @@ class ExchangeView(ft.Column, ViewMixin):
         total_blocked = sum(d["blocked"] for d in self.mail_flow_data)
 
         self.stats_row.controls = [
-            self._stat_card("Sent", str(total_sent), ft.Icons.SEND, "BLUE"),
-            self._stat_card("Recv", str(total_recv), ft.Icons.MOVE_TO_INBOX, "GREEN"),
-            self._stat_card("Blocked", str(total_blocked), ft.Icons.BLOCK, "RED"),
+            self._stat_card(i18n.get("ex_stat_sent") or "Sent", str(total_sent), ft.Icons.SEND, "BLUE"),
+            self._stat_card(i18n.get("ex_stat_recv") or "Recv", str(total_recv), ft.Icons.MOVE_TO_INBOX, "GREEN"),
+            self._stat_card(i18n.get("ex_stat_blocked") or "Blocked", str(total_blocked), ft.Icons.BLOCK, "RED"),
         ]
 
     def _stat_card(self, label, value, icon, color):
@@ -448,4 +448,4 @@ class ExchangeView(ft.Column, ViewMixin):
 
     def _show_error(self, message: str):
         """Show error message."""
-        self._show_snack(f"Exchange Error: {message}", "RED")
+        self._show_snack(i18n.get("ex_err_prefix", message=message) or f"Exchange Error: {message}", "RED")

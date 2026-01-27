@@ -1,5 +1,6 @@
 import flet as ft
 from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 DESCRIPTION_MAP = {
     "Home": "desc_home",
@@ -43,7 +44,7 @@ DESCRIPTION_MAP = {
     "SAP-Management": "sap_card_desc"
 }
 
-class CategoryView(ft.Container):
+class CategoryView(ft.Container, ViewMixin):
     def __init__(self, page: ft.Page, category_name: str, items: list, on_navigate, app_destinations):
         super().__init__()
         self.app_page = page
@@ -114,8 +115,8 @@ class CategoryView(ft.Container):
             border_radius=15,
             padding=ft.Padding(20, 20, 20, 20),
             ink=True,
-            on_click=lambda e: self.on_navigate(idx),
+            on_click=self._safe_event_handler(lambda e: self.on_navigate(idx), "Category click"),
             border=ft.Border.all(1, "OUTLINE_VARIANT"),
             animate_scale=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
-            on_hover=lambda e: setattr(e.control, "scale", 1.05 if e.data == "true" else 1.0) or e.control.update()
+            on_hover=self._safe_event_handler(lambda e: setattr(e.control, "scale", 1.05 if e.data == "true" else 1.0) or self._safe_update(e.control), "Category hover")
         )

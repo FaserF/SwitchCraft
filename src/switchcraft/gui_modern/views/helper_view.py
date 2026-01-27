@@ -41,7 +41,7 @@ class ModernHelperView(ft.Column, ViewMixin):
             focused_border_color="BLUE_600",
             filled=True,
             bgcolor="GREY_900",
-            on_submit=self.send_message
+            on_submit=self._safe_event_handler(self.send_message, "Send AI message")
         )
 
         # Initial Welcome Message
@@ -80,8 +80,8 @@ class ModernHelperView(ft.Column, ViewMixin):
                     self.input_field,
                     ft.IconButton(
                         ft.Icons.SEND_ROUNDED,
-                        on_click=self.send_message,
-                        tooltip="Send message",
+                        on_click=self._safe_event_handler(self.send_message, "Send AI message button"),
+                        tooltip=i18n.get("ai_btn_send") or "Send message",
                         icon_color="WHITE",
                         bgcolor="BLUE_600",
                         style=ft.ButtonStyle(
@@ -115,7 +115,7 @@ class ModernHelperView(ft.Column, ViewMixin):
                 content=ft.Row([ft.Icon(ft.Icons.EXTENSION), ft.Text(i18n.get("btn_go_to_addons") or "Go to Addon Manager")], alignment=ft.MainAxisAlignment.CENTER),
                 bgcolor="BLUE_700",
                 color="WHITE",
-                on_click=go_to_addons
+                on_click=self._safe_event_handler(go_to_addons, "Go to addons from AI")
             )
         ]
 
@@ -132,7 +132,7 @@ class ModernHelperView(ft.Column, ViewMixin):
             text,
             selectable=True,
             extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-            on_tap_link=lambda e: self._launch_url(e.data),
+            on_tap_link=self._safe_event_handler(lambda e: self._launch_url(e.data), "AI link tap"),
         ) if not is_user else ft.Text(text, selectable=True, color="WHITE")
 
         # Copy button handler
@@ -159,8 +159,8 @@ class ModernHelperView(ft.Column, ViewMixin):
                                 ft.Icons.COPY,
                                 icon_size=16,
                                 icon_color="GREY_400",
-                                tooltip="Copy message",
-                                on_click=copy_handler
+                                tooltip=i18n.get("btn_copy") or "Copy message",
+                                on_click=self._safe_event_handler(copy_handler, "Copy AI message")
                             )
                         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, spacing=10),
                         content
@@ -174,7 +174,7 @@ class ModernHelperView(ft.Column, ViewMixin):
             ], alignment=align)
         )
         try:
-            self.update()
+            self._safe_update()
         except:
             pass
 
@@ -184,12 +184,12 @@ class ModernHelperView(ft.Column, ViewMixin):
             return
 
         self.input_field.value = ""
-        self.add_message("You", user_msg, is_user=True)
+        self.add_message(i18n.get("ai_you") or "You", user_msg, is_user=True)
 
         # Show typing indicator
-        typing_indicator = ft.Text("AI is typing...", italic=True, color="ON_SURFACE_VARIANT")
+        typing_indicator = ft.Text(i18n.get("ai_typing") or "AI is typing...", italic=True, color="ON_SURFACE_VARIANT")
         self.chat_history.controls.append(typing_indicator)
-        self.update()
+        self._safe_update()
         self.input_field.focus()
 
         def _get_response():
@@ -197,11 +197,11 @@ class ModernHelperView(ft.Column, ViewMixin):
                 response = self.ai_service.ask(user_msg)
                 if typing_indicator in self.chat_history.controls:
                     self.chat_history.controls.remove(typing_indicator)
-                self.add_message("AI", response, is_user=False)
+                self.add_message(i18n.get("ai_assistant") or "AI", response, is_user=False)
             except Exception as ex:
                 if typing_indicator in self.chat_history.controls:
                     self.chat_history.controls.remove(typing_indicator)
-                self.add_message("AI Error", str(ex), is_user=False, is_error=True)
-            self.update()
+                self.add_message(i18n.get("ai_error") or "AI Error", str(ex), is_user=False, is_error=True)
+            self._safe_update()
 
         threading.Thread(target=_get_response, daemon=True).start()

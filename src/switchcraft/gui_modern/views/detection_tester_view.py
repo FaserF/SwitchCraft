@@ -4,6 +4,8 @@ import subprocess
 import os
 from pathlib import Path
 import sys
+from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 # Windows-specific imports (lazy loaded when needed)
 winreg = None
@@ -18,7 +20,7 @@ if sys.platform == 'win32':
 logger = logging.getLogger(__name__)
 
 
-class DetectionTesterView(ft.Column):
+class DetectionTesterView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True)
         self.app_page = page
@@ -26,28 +28,28 @@ class DetectionTesterView(ft.Column):
         # State
         self.rule_type = ft.Dropdown(
             options=[
-                ft.dropdown.Option("File", "File Path"),
-                ft.dropdown.Option("Registry", "Registry Key"),
-                ft.dropdown.Option("MSI", "MSI Product Code"),
-                ft.dropdown.Option("Version", "File Version"),
-                ft.dropdown.Option("Script", "PowerShell Script"),
+                ft.dropdown.Option("File", i18n.get("det_file") or "File Path"),
+                ft.dropdown.Option("Registry", i18n.get("det_reg") or "Registry Key"),
+                ft.dropdown.Option("MSI", i18n.get("det_msi") or "MSI Product Code"),
+                ft.dropdown.Option("Version", i18n.get("det_ver") or "File Version"),
+                ft.dropdown.Option("Script", i18n.get("det_ps") or "PowerShell Script"),
             ],
             value="File",
-            label="Detection Type",
+            label=i18n.get("det_type") or "Detection Type",
         )
-        self.rule_type.on_change = self._on_type_change
+        self.rule_type.on_change = self._safe_event_handler(self._on_type_change, "Detection type change")
 
         # Input Fields
-        self.path_field = ft.TextField(label="Path / Key / Code", expand=True)
+        self.path_field = ft.TextField(label=i18n.get("lbl_path_key_code") or "Path / Key / Code", expand=True)
         self.prop_field = ft.TextField(
-            label="Value Name (Optional for Registry)", visible=False, expand=True
+            label=i18n.get("lbl_val_name") or "Value Name (Optional for Registry)", visible=False, expand=True
         )
         self.val_field = ft.TextField(
-            label="Expected Value (Optional)", visible=False, expand=True
+            label=i18n.get("lbl_expected_val") or "Expected Value (Optional)", visible=False, expand=True
         )
 
         self.operator_dd = ft.Dropdown(
-            label="Operator",
+            label=i18n.get("lbl_operator") or "Operator",
             options=[
                 ft.dropdown.Option("=="),
                 ft.dropdown.Option(">="),
@@ -57,7 +59,7 @@ class DetectionTesterView(ft.Column):
             width=100
         )
         self.script_field = ft.TextField(
-            label="PowerShell Script (Return 0 = Detected, Non-0 = Not Detected)",
+            label=i18n.get("lbl_ps_script_desc") or "PowerShell Script (Return 0 = Detected, Non-0 = Not Detected)",
             multiline=True,
             min_lines=5,
             visible=False,
@@ -65,10 +67,10 @@ class DetectionTesterView(ft.Column):
         )
 
         self.check_btn = ft.FilledButton(
-            content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text("Test Detection")], alignment=ft.MainAxisAlignment.CENTER),
+            content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text(i18n.get("btn_test_det") or "Test Detection")], alignment=ft.MainAxisAlignment.CENTER),
             bgcolor="GREEN",
             color="WHITE",
-            on_click=self._run_check
+            on_click=self._safe_event_handler(self._run_check, "Run detection check")
         )
 
         self.result_area = ft.Container(
@@ -81,17 +83,17 @@ class DetectionTesterView(ft.Column):
 
         if sys.platform != "win32":
             self.controls = [
-                ft.Text("Live Detection Tester", size=28, weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("title_det_tester") or "Live Detection Tester", size=28, weight=ft.FontWeight.BOLD),
                 ft.Container(height=20),
                 ft.Row([
                     ft.Icon(ft.Icons.WARNING, color="ORANGE", size=40),
-                    ft.Text("This feature is only available on Windows.", size=16)
+                    ft.Text(i18n.get("win_only_feature") or "This feature is only available on Windows.", size=16)
                 ])
             ]
         else:
             self.controls = [
-                ft.Text("Live Detection Tester", size=28, weight=ft.FontWeight.BOLD),
-                ft.Text("Verify your Intune detection rules locally before uploading.", size=16, color="ON_SURFACE_VARIANT"),
+                ft.Text(i18n.get("title_det_tester") or "Live Detection Tester", size=28, weight=ft.FontWeight.BOLD),
+                ft.Text(i18n.get("det_tester_desc") or "Verify your Intune detection rules locally before uploading.", size=16, color="ON_SURFACE_VARIANT"),
                 ft.Container(height=20),
                 ft.Row([self.rule_type, self.operator_dd, self.path_field]),
                 self.script_field,
@@ -105,17 +107,17 @@ class DetectionTesterView(ft.Column):
     def _on_type_change(self, e):
         t = self.rule_type.value
         if t == "Registry":
-            self.path_field.label = "Registry Key (HKLM\\Software\\...)"
+            self.path_field.label = i18n.get("det_reg") or "Registry Key (HKLM\\Software\\...)"
             self.prop_field.visible = True
             self.val_field.visible = True
             self.path_field.hint_text = "HKLM\\SOFTWARE\\Google\\Chrome\\BLBeacon"
         elif t == "File":
-            self.path_field.label = "File or Folder Path"
+            self.path_field.label = i18n.get("det_file") or "File or Folder Path"
             self.prop_field.visible = False
             self.val_field.visible = False
             self.path_field.hint_text = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
         elif t == "MSI":
-            self.path_field.label = "Product Code (GUID)"
+            self.path_field.label = i18n.get("det_msi") or "Product Code (GUID)"
             self.prop_field.visible = False
             self.val_field.visible = False
             self.path_field.hint_text = "{8A69D345-D564-463C-AFF1-A69D9E530F96}"
@@ -123,8 +125,8 @@ class DetectionTesterView(ft.Column):
             self.script_field.visible = False
             self.path_field.visible = True
         elif t == "Version":
-            self.path_field.label = "File Path"
-            self.val_field.label = "Target Version"
+            self.path_field.label = i18n.get("det_ver") or "File Path"
+            self.val_field.label = i18n.get("lbl_target_ver") or "Target Version"
             self.val_field.visible = True
             self.operator_dd.visible = True
             self.prop_field.visible = False
@@ -136,17 +138,17 @@ class DetectionTesterView(ft.Column):
             self.val_field.visible = False
             self.operator_dd.visible = False
             self.script_field.visible = True
-        self.update()
+        self._safe_update()
 
     def _run_check(self, e):
         t = self.rule_type.value
         path = self.path_field.value
 
         if t != "Script" and not path:
-            self._display_result(False, "Path/Key is required")
+            self._display_result(False, i18n.get("err_path_required") or "Path/Key is required")
             return
         if t == "Script" and not self.script_field.value:
-            self._display_result(False, "Script content is required")
+            self._display_result(False, i18n.get("err_script_required") or "Script content is required")
             return
 
         detected = False
@@ -176,7 +178,7 @@ class DetectionTesterView(ft.Column):
             self._display_result(detected, msg)
 
         except Exception as ex:
-            self._display_result(False, f"Error: {ex}")
+            self._display_result(False, f"{i18n.get('error') or 'Error'}: {ex}")
 
     def _check_registry(self, key_path, value_name, expected_value):
         # Parse HIVE
@@ -334,9 +336,9 @@ class DetectionTesterView(ft.Column):
         self.result_area.content = ft.Row([
             ft.Icon(icon, color=color, size=40),
             ft.Column([
-                ft.Text("DETECTED" if detected else "NOT DETECTED", size=20, weight=ft.FontWeight.BOLD, color=color),
+                ft.Text(i18n.get("msg_detected") if detected else i18n.get("msg_not_detected"), size=20, weight=ft.FontWeight.BOLD, color=color),
                 ft.Text(message, color="WHITE")
             ])
         ])
         self.result_area.bgcolor = "GREEN_900" if detected else "RED_900"
-        self.update()
+        self._safe_update()

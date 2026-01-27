@@ -30,11 +30,11 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
 
         # UI Components
         self.search_field = ft.TextField(
-            hint_text=i18n.get("search_intune_apps", default="Search Intune Apps..."),
+            hint_text=i18n.get("search_intune_apps") or "Search Intune Apps...",
             expand=True,
-            on_submit=self._run_search
+            on_submit=self._safe_event_handler(self._run_search, "Intune Store search submit")
         )
-        self.btn_search = ft.IconButton(ft.Icons.SEARCH, on_click=self._run_search)
+        self.btn_search = ft.IconButton(ft.Icons.SEARCH, on_click=self._safe_event_handler(self._run_search, "Intune Store search click"))
 
         self.results_list = ft.ListView(expand=True, spacing=5)
         self.details_area = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO)
@@ -87,7 +87,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                         ft.Container(height=20),
                         ft.FilledButton(
                             content=ft.Row([ft.Icon(ft.Icons.SETTINGS), ft.Text(i18n.get("tab_settings") or "Go to Settings")], alignment=ft.MainAxisAlignment.CENTER),
-                            on_click=lambda _: self._switch_to_settings()
+                            on_click=self._safe_event_handler(lambda _: self._switch_to_settings(), "Switch to settings")
                         )
                     ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                     expand=True,
@@ -127,9 +127,9 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         query = self.search_field.value
         self.results_list.controls.clear()
         self.results_list.controls.append(ft.ProgressBar())
-        self.results_list.controls.append(ft.Text(i18n.get("searching", default="Searching..."), color="GREY_500", italic=True))
+        self.results_list.controls.append(ft.Text(i18n.get("msg_searching") or "Searching...", color="GREY_500", italic=True))
         try:
-            self.update()
+            self._safe_update()
         except Exception as ex:
             logger.debug(f"Error updating view in _run_search: {ex}")
             # Try updating just the results list if view update fails
@@ -220,14 +220,14 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             ft.Container(
                 content=ft.Column([
                     ft.Icon(ft.Icons.ERROR, color="RED", size=40),
-                    ft.Text(f"Error: {msg}", color="red", size=14, selectable=True),
-                    ft.Text("Please check your connection and credentials.", color="GREY_500", size=12, italic=True)
+                    ft.Text((i18n.get("err_failed_prefix") or "Error: {error}").format(error=msg), color="red", size=14, selectable=True),
+                    ft.Text(i18n.get("msg_check_settings_creds") or "Please check your connection and credentials.", color="GREY_500", size=12, italic=True)
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                 padding=20,
                 alignment=ft.Alignment(0, 0)
             )
         )
-        self.update()
+        self._safe_update()
 
     def _update_list(self, apps):
         """
@@ -240,7 +240,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         """
         self.results_list.controls.clear()
         if not apps:
-            self.results_list.controls.append(ft.Text("No apps found."))
+            self.results_list.controls.append(ft.Text(i18n.get("msg_no_apps_found") or "No apps found."))
         else:
             for app in apps:
                 # Try to get logo - robust extraction
@@ -269,10 +269,10 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     leading=leading_widget,
                     title=ft.Text(app.get("displayName", i18n.get("unknown") or "Unknown")),
                     subtitle=ft.Text(app.get("publisher", "")),
-                    on_click=lambda e, a=app_copy: self._handle_app_click(a)
+                    on_click=self._safe_event_handler(lambda e, a=app_copy: self._handle_app_click(a), f"Intune app click: {app.get('displayName')}")
                 )
                 self.results_list.controls.append(tile)
-        self.update()
+        self._safe_update()
 
     def _handle_app_click(self, app):
         """
@@ -314,7 +314,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
             self.right_pane.visible = True
 
             # Force update
-            self.update()
+            self._safe_update()
 
             # Logo and Title - robust extraction
             logo_url = None
@@ -426,8 +426,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                         # Marshal UI updates to main thread via _run_task_safe
                         def _show_no_token():
                             self.assignments_col.controls.clear()
-                            self.assignments_col.controls.append(ft.Text(i18n.get("intune_not_configured") or "Intune not configured.", italic=True, selectable=True))
-                            self.update()
+                            self.assignments_col.controls.append(ft.Text(i18n.get("err_missing_creds") or "Intune not configured.", italic=True, selectable=True))
+                            self._safe_update()
                         self._run_task_safe(_show_no_token)
                         return
 
@@ -457,16 +457,16 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                                     on_click=lambda e: self._add_assignment_row()
                                 )
                             )
-                        self.update()
+                        self._safe_update()
 
                     self._run_task_safe(_update_assignments_ui)
                 except Exception as ex:
                     logger.exception("Failed to load assignments")
                     def _show_error(error=ex):
                         self.assignments_col.controls.clear()
-                        msg = f"{i18n.get('error') or 'Error'}: {error}"
+                        msg = (i18n.get("err_failed_prefix") or "Error: {error}").format(error=error)
                         self.assignments_col.controls.append(ft.Text(msg, color="red", selectable=True))
-                        self.update()
+                        self._safe_update()
                     self._run_task_safe(_show_error)
 
             threading.Thread(target=_load_assignments, daemon=True).start()
@@ -507,45 +507,45 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                         content=ft.Row([ft.Icon(ft.Icons.OPEN_IN_NEW), ft.Text(i18n.get("btn_open_in_intune") or "Open in Intune")], alignment=ft.MainAxisAlignment.CENTER),
                         bgcolor="BLUE_700",
                         color="WHITE",
-                        on_click=lambda e, a=app: self._open_in_intune(a)
+                        on_click=self._safe_event_handler(lambda e, a=app: self._open_in_intune(a), f"Open in Intune: {app.get('displayName')}")
                     ),
                     ft.FilledButton(
                         content=ft.Row([ft.Icon(ft.Icons.SAVE), ft.Text(i18n.get("btn_save_changes") or "Save Changes")], alignment=ft.MainAxisAlignment.CENTER),
                         bgcolor="GREEN",
                         color="WHITE",
-                        on_click=lambda e, a=app: self._save_changes(a)
+                        on_click=self._safe_event_handler(lambda e, a=app: self._save_changes(a), f"Save app changes: {app.get('displayName')}")
                     ),
                     ft.FilledButton(
                         content=ft.Row([ft.Icon(ft.Icons.CLOUD_UPLOAD), ft.Text(i18n.get("btn_deploy_assignment") or "Deploy / Assign...")], alignment=ft.MainAxisAlignment.CENTER),
                         bgcolor="BLUE",
                         color="WHITE",
-                        on_click=lambda e, a=app: self._show_deployment_dialog(a)
+                        on_click=self._safe_event_handler(lambda e, a=app: self._show_deployment_dialog(a), f"Show deployment dialog: {app.get('displayName')}")
                     )
                 ], wrap=True)
             )
 
             # Update controls in place
             self.details_area.controls = detail_controls
-            self.update()
+            self._safe_update()
 
             logger.info(f"Details displayed for: {app.get('displayName', 'Unknown')}")
         except Exception as ex:
             logger.exception(f"Failed to show app details: {ex}")
             self.details_area.controls.clear()
-            self.details_area.controls.append(ft.Text(f"{i18n.get('error') or 'Error'}: {str(ex)}", color="red", selectable=True))
+            self.details_area.controls.append(ft.Text((i18n.get("err_failed_prefix") or "Error: {error}").format(error=str(ex)), color="red", selectable=True))
             if hasattr(self, 'app_page'):
-                self.app_page.update()
+                self._safe_update(self.app_page)
             else:
-                self.update()
+                self._safe_update()
 
     def _replace_title_icon(self, title_row, image):
         """Replace the icon in title_row with the loaded image."""
         try:
             if len(title_row.controls) >= 2 and isinstance(title_row.controls[0], ft.Icon):
                 title_row.controls[0] = image
-                title_row.update()
+                self._safe_update(title_row)
                 if hasattr(self, 'app_page'):
-                    self.app_page.update()
+                    self._safe_update(self.app_page)
         except Exception as ex:
             logger.debug(f"Failed to replace title icon: {ex}")
 
@@ -606,29 +606,29 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                     self._run_task_safe(lambda: self._show_details(app))
                 except Exception as ex:
                     logger.error(f"Failed to save changes: {ex}")
-                    msg = f"Failed to save: {ex}"
+                    msg = (i18n.get("msg_save_failed") or "Failed to save: {error}").format(error=ex)
                     self._run_task_safe(lambda: self._show_snack(msg, "RED"))
 
             threading.Thread(target=_bg_save, daemon=True).start()
 
         except Exception as ex:
             logger.error(f"Error preparing save: {ex}")
-            self._show_snack(f"Error: {ex}", "RED")
+            self._show_snack((i18n.get("err_failed_prefix") or "Error: {error}").format(error=ex), "RED")
 
     def _show_deployment_dialog(self, app):
         """
         Show dialog to assign (deploy) the app to a group.
         """
         if not self._get_token():
-            self._show_snack("Intune not configured.", "RED")
+            self._show_snack(i18n.get("err_missing_creds") or "Intune not configured.", "RED")
             return
 
         # Components
         search_box = ft.TextField(
-            label=i18n.get("search_groups") or "Search Groups",
-            hint_text="Start typing group name...",
+            label=i18n.get("field_search_groups") or "Search Groups",
+            hint_text=i18n.get("msg_search_groups_hint") or "Start typing group name...",
             autofocus=True,
-            on_submit=lambda e: _search_groups(e.control.value)
+            on_submit=self._safe_event_handler(lambda e: _search_groups(e.control.value), "Group search submit")
         )
         groups_list = ft.ListView(height=200, spacing=5)
 
@@ -648,7 +648,7 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
         def _search_groups(query):
             groups_list.controls.clear()
             groups_list.controls.append(ft.ProgressBar())
-            groups_list.update()
+            self._safe_update(groups_list)
 
             def _bg():
                 try:
@@ -662,40 +662,40 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
 
                     groups_list.controls.clear()
                     if not groups:
-                        groups_list.controls.append(ft.Text("No groups found."))
+                        groups_list.controls.append(ft.Text(i18n.get("msg_no_groups_found") or "No groups found."))
                     else:
                         for g in groups:
                             def _select(e, gid=g['id'], gname=g['displayName']):
                                 selected_group_id[0] = gid
                                 search_box.value = gname
-                                search_box.update()
+                                self._safe_update(search_box)
                                 # Visual feedback could be improved but simple selection for now
-                                self._show_snack(f"Selected: {gname}", "BLUE")
+                                self._show_snack((i18n.get("msg_selected_prefix") or "Selected: {name}").format(name=gname), "BLUE")
 
                             groups_list.controls.append(
                                 ft.ListTile(
                                     title=ft.Text(g.get('displayName', 'Unknown')),
                                     subtitle=ft.Text(g.get('mail', g.get('description', ''))),
                                     leading=ft.Icon(ft.Icons.GROUP),
-                                    on_click=_select
+                                    on_click=self._safe_event_handler(_select, f"Group select: {g.get('displayName')}")
                                 )
                             )
-                    groups_list.update()
+                    self._safe_update(groups_list)
                 except Exception as ex:
                     logger.error(f"Group search failed: {ex}")
                     groups_list.controls.clear()
-                    groups_list.controls.append(ft.Text(f"Error: {ex}", color="RED"))
-                    groups_list.update()
+                    groups_list.controls.append(ft.Text((i18n.get("err_failed_prefix") or "Error: {error}").format(error=ex), color="RED"))
+                    self._safe_update(groups_list)
 
             threading.Thread(target=_bg, daemon=True).start()
 
         def _confirm_assign(e):
             if not selected_group_id[0]:
-                self._show_snack("Please select a group first.", "RED")
+                self._show_snack(i18n.get("err_select_group") or "Please select a group first.", "RED")
                 return
 
             dlg.open = False
-            self.app_page.update()
+            self._safe_update(self.app_page)
 
             intent = intent_dropdown.value
             group_id = selected_group_id[0]
@@ -706,12 +706,12 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 try:
                     token = self._get_token()
                     self.intune_service.assign_to_group(token, app['id'], group_id, intent)
-                    self._show_snack(f"Successfully assigned as {intent}!", "GREEN")
+                    self._show_snack((i18n.get("msg_assign_success") or "Successfully assigned as {intent}!").format(intent=intent), "GREEN")
                     # Refresh details
                     # Use run_task_safe to ensure thread safety when calling show_details
                     self._run_task_safe(lambda: self._show_details(app))
                 except Exception as ex:
-                    self._show_snack(f"Assignment failed: {ex}", "RED")
+                    self._show_snack((i18n.get("err_assign_failed") or "Assignment failed: {error}").format(error=ex), "RED")
 
             threading.Thread(target=_deploy_bg, daemon=True).start()
 
@@ -721,8 +721,8 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 content=ft.Column([
                     search_box,
                     ft.FilledButton(
-                        content=ft.Row([ft.Icon(ft.Icons.SEARCH), ft.Text(i18n.get("search") or "Search")], alignment=ft.MainAxisAlignment.CENTER),
-                        on_click=lambda e: _search_groups(search_box.value)
+                        content=ft.Row([ft.Icon(ft.Icons.SEARCH), ft.Text(i18n.get("btn_search") or "Search")], alignment=ft.MainAxisAlignment.CENTER),
+                        on_click=self._safe_event_handler(lambda e: _search_groups(search_box.value), "Group search click")
                     ),
                     ft.Divider(),
                     ft.Text(i18n.get("select_group") or "Select Group:", weight="bold"),
@@ -734,14 +734,12 @@ class ModernIntuneStoreView(ft.Column, ViewMixin):
                 height=450
             ),
             actions=[
-                ft.TextButton(i18n.get("cancel") or "Cancel", on_click=lambda e: setattr(dlg, 'open', False) or self.app_page.update()),
-                ft.FilledButton(content=ft.Text(i18n.get("assign") or "Assign"), on_click=_confirm_assign, bgcolor="BLUE", color="WHITE")
+                ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=self._safe_event_handler(lambda e: self._close_dialog(dlg), "Cancel deployment")),
+                ft.FilledButton(content=ft.Text(i18n.get("btn_assign") or "Assign"), on_click=self._safe_event_handler(_confirm_assign, "Confirm assignment"), bgcolor="BLUE", color="WHITE")
             ]
         )
 
-        self.app_page.dialog = dlg
-        dlg.open = True
-        self.app_page.update()
+        self._open_dialog_safe(dlg)
 
         # Trigger initial load if search is empty? Maybe top groups.
         _search_groups("")

@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 class AnalysisResult:
     info: InstallerInfo
     winget_url: Optional[str] = None
+    winget_id: Optional[str] = None
+    winget_reason: Optional[str] = None
     brute_force_data: Optional[str] = None
     nested_data: Optional[Dict] = None
     silent_disabled_info: Optional[Dict] = None
@@ -172,7 +174,12 @@ class AnalysisController:
                     winget_mod = addon_service.import_addon_module("winget", "utils.winget")
                     if winget_mod and info.product_name:
                         winget = winget_mod.WingetHelper()
-                        winget_url = winget.search_by_name(info.product_name)
+                        results = winget.search_packages(info.product_name)
+                        if results:
+                            first = results[0]
+                            winget_id = first.get("Id")
+                            winget_url = winget.search_by_name(info.product_name)
+                            winget_reason = f"matched by name '{info.product_name}'"
                 except Exception as e:
                     logger.error(f"Winget search failed: {e}")
             else:
@@ -197,6 +204,8 @@ class AnalysisController:
             return AnalysisResult(
                 info=info,
                 winget_url=winget_url,
+                winget_id=winget_id,
+                winget_reason=winget_reason,
                 brute_force_data=brute_force_data,
                 nested_data=nested_data,
                 silent_disabled_info=silent_disabled,

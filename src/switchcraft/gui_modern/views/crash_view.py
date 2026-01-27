@@ -1,7 +1,9 @@
 import flet as ft
 import traceback
+from switchcraft.utils.i18n import i18n
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
-class CrashDumpView(ft.Container):
+class CrashDumpView(ft.Container, ViewMixin):
     def __init__(self, page: ft.Page, error: Exception, traceback_str: str = None):
         """
         Initialize a crash view container that displays an error message, selectable traceback, and action buttons for copying, closing, or reloading the application.
@@ -25,12 +27,12 @@ class CrashDumpView(ft.Container):
         self.content = ft.Column(
             controls=[
                 ft.Icon(ft.Icons.ERROR_OUTLINE, color="RED_400", size=64),
-                ft.Text("Something went wrong", size=32, weight=ft.FontWeight.BOLD, color="WHITE"),
-                ft.Text("An unexpected error occurred while loading this view.", size=16, color="GREY_400"),
+                ft.Text(i18n.get("crash_title") or "Something went wrong", size=32, weight=ft.FontWeight.BOLD, color="WHITE"),
+                ft.Text(i18n.get("crash_subtitle") or "An unexpected error occurred while loading this view.", size=16, color="GREY_400"),
                 ft.Container(height=20),
                 ft.Container(
                     content=ft.Column([
-                        ft.Text(f"Error: {str(error)}", color="RED_200", weight=ft.FontWeight.BOLD, selectable=True),
+                        ft.Text(f"{i18n.get('error') or 'Error'}: {str(error)}", color="RED_200", weight=ft.FontWeight.BOLD, selectable=True),
                         ft.Divider(color="GREY_700"),
                         ft.Text(traceback_str, font_family="Consolas", size=12, color="WHITE", selectable=True)
                     ], scroll=ft.ScrollMode.AUTO),
@@ -41,9 +43,9 @@ class CrashDumpView(ft.Container):
                 ),
                 ft.Container(height=20),
                 ft.Row([
-                    ft.FilledButton("Copy Error", icon=ft.Icons.COPY, on_click=self._copy_error),
-                    ft.FilledButton("Close App", icon=ft.Icons.CLOSE, on_click=self._close_app, style=ft.ButtonStyle(bgcolor="RED_900", color="WHITE")),
-                    ft.FilledButton("Reload App", icon=ft.Icons.REFRESH, on_click=lambda e: self._reload_app(page)),
+                    ft.FilledButton(i18n.get("btn_copy_error") or "Copy Error", icon=ft.Icons.COPY, on_click=self._safe_event_handler(self._copy_error, "Copy crash error")),
+                    ft.FilledButton(i18n.get("btn_close_app") or "Close App", icon=ft.Icons.CLOSE, on_click=self._safe_event_handler(self._close_app, "Close app from crash"), style=ft.ButtonStyle(bgcolor="RED_900", color="WHITE")),
+                    ft.FilledButton(i18n.get("btn_reload_app") or "Reload App", icon=ft.Icons.REFRESH, on_click=self._safe_event_handler(lambda e: self._reload_app(page), "Reload app from crash")),
                 ], alignment=ft.MainAxisAlignment.END)
             ],
             expand=True
@@ -69,16 +71,16 @@ class CrashDumpView(ft.Container):
 
         if success:
              try:
-                 self.app_page.snack_bar = ft.SnackBar(ft.Text("Error details copied to clipboard"))
+                 self.app_page.snack_bar = ft.SnackBar(ft.Text(i18n.get("error_copied") or "Error details copied to clipboard"))
                  self.app_page.snack_bar.open = True
-                 self.app_page.update()
+                 self._safe_update(self.app_page)
              except Exception:
                  pass
         else:
              try:
-                 self.app_page.snack_bar = ft.SnackBar(ft.Text("Failed to copy to clipboard"), bgcolor="RED")
+                 self.app_page.snack_bar = ft.SnackBar(ft.Text(i18n.get("error_copy_failed") or "Failed to copy to clipboard"), bgcolor="RED")
                  self.app_page.snack_bar.open = True
-                 self.app_page.update()
+                 self._safe_update(self.app_page)
              except Exception:
                  pass
 
@@ -98,9 +100,9 @@ class CrashDumpView(ft.Container):
         # Disable button to prevent multiple clicks
         if hasattr(e, 'control'):
             e.control.disabled = True
-            e.control.text = "Closing..."
+            e.control.text = i18n.get("closing") or "Closing..."
             try:
-                self.app_page.update()
+                self._safe_update(self.app_page)
             except Exception:
                 pass
 
@@ -145,8 +147,8 @@ class CrashDumpView(ft.Container):
         import logging
 
         page.clean()
-        page.add(ft.Text("Reloading...", size=20))
-        page.update()
+        page.add(ft.Text(i18n.get("reloading") or "Reloading...", size=20))
+        self._safe_update(page)
 
         # Robust Restart Logic with proper cleanup
         try:

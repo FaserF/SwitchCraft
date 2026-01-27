@@ -66,9 +66,8 @@ class ModernWingetView(ft.Row, ViewMixin):
                     from switchcraft.gui_modern.nav_constants import NavIndex
                     page.switchcraft_app.goto_tab(NavIndex.SETTINGS_HELP)
                 else:
-                    page.snack_bar = ft.SnackBar(ft.Text(i18n.get("please_navigate_manually") or "Please navigate to Addons tab manually"), bgcolor="ORANGE")
-                    page.snack_bar.open = True
-                    page.update()
+                    self._show_snack(i18n.get("please_navigate_manually") or "Please navigate to Addons tab manually", "ORANGE")
+                    self._safe_update()
 
             self.controls = [
                 ft.Column([
@@ -80,7 +79,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                         content=ft.Row([ft.Icon(ft.Icons.EXTENSION), ft.Text(i18n.get("btn_go_to_addons") or "Go to Addon Manager")], alignment=ft.MainAxisAlignment.CENTER),
                         bgcolor="BLUE_700",
                         color="WHITE",
-                        on_click=go_to_addons
+                        on_click=self._safe_event_handler(go_to_addons, "Go to Addon Manager")
                     )
                 ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
             ]
@@ -116,14 +115,14 @@ class ModernWingetView(ft.Row, ViewMixin):
             text_size=14,
             content_padding=ft.Padding(12, 0, 12, 0),
             border_radius=8,
-            on_submit=self._run_search
+            on_submit=self._safe_event_handler(self._run_search, "Winget search submit")
         )
 
         btn_search = ft.IconButton(
             icon=ft.Icons.SEARCH_ROUNDED,
             icon_color="BLUE_400",
             tooltip=i18n.get("search") or "Search",
-            on_click=self._run_search
+            on_click=self._safe_event_handler(self._run_search, "Winget search click")
         )
 
         # Left Pane with filter row
@@ -205,7 +204,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             )
         )
         try:
-            self.page.update()
+            self._safe_update()
         except Exception:
             pass
 
@@ -251,7 +250,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                         )
                     )
                     try:
-                        self.page.update()
+                        self._safe_update()
                     except Exception:
                         pass
                     return
@@ -279,7 +278,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                     )
                 )
                 try:
-                    self.page.update()
+                    self._safe_update()
                 except Exception:
                     pass
 
@@ -363,7 +362,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                     return handler
                 tile.on_click = self._safe_event_handler(make_click_handler(item), f"Load details for {item.get('Id', 'Unknown')}")
                 self.search_results.controls.append(tile)
-        self.update()
+        self._safe_update()
 
     def _load_details(self, short_info):
         # Validate input first
@@ -387,11 +386,9 @@ class ModernWingetView(ft.Row, ViewMixin):
                 self.right_pane.visible = True
 
                 # Update UI - CORRECT ORDER: Parent first
-                self.right_pane.update()
-                # self.details_area.update() # Not needed if parent updated with new content
-                self.update()
+                self._safe_update()
                 if hasattr(self, 'app_page'):
-                    self.app_page.update()
+                    self._safe_update(self.app_page)
                 logger.debug("Loading UI displayed successfully")
             except Exception as ex:
                 logger.error(f"Error showing loading UI: {ex}", exc_info=True)
@@ -467,9 +464,9 @@ class ModernWingetView(ft.Row, ViewMixin):
                     self.right_pane.content = self.details_area
                     self.right_pane.visible = True
                     try:
-                        self.details_area.update()
-                        self.right_pane.update()
-                        self.update()
+                        self._safe_update(self.details_area)
+                        self._safe_update(self.right_pane)
+                        self._safe_update()
                     except Exception as e:
                         logger.warning(f"Failed to update error UI after exception: {e}")
 
@@ -594,7 +591,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             if license_url:
                 license_row.append(ft.TextButton(
                     content=ft.Text(license_val or i18n.get("field_view_license") or "View License"),
-                    on_click=lambda e, url=license_url: self._open_url(url)
+                    on_click=self._safe_event_handler(lambda e, url=license_url: self._open_url(url), "Open license URL")
                 ))
             else:
                 license_row.append(ft.Text(license_val, size=14))
@@ -637,7 +634,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.HOME, size=16, color="BLUE_400"),
-                    ft.TextButton(content=ft.Text(i18n.get("field_homepage") or "Homepage"), on_click=lambda e, url=homepage: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_homepage") or "Homepage"), on_click=self._safe_event_handler(lambda e, url=homepage: self._open_url(url), "Open homepage"))
                 ], spacing=4)
             )
 
@@ -647,7 +644,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.BUSINESS, size=16, color="BLUE_400"),
-                    ft.TextButton(content=ft.Text(i18n.get("field_publisher_website") or "Publisher Website"), on_click=lambda e, url=pub_url: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_publisher_website") or "Publisher Website"), on_click=self._safe_event_handler(lambda e, url=pub_url: self._open_url(url), "Open publisher website"))
                 ], spacing=4)
             )
 
@@ -657,7 +654,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.PRIVACY_TIP, size=16, color="BLUE_400"),
-                    ft.TextButton(content=ft.Text(i18n.get("field_privacy_policy") or "Privacy Policy"), on_click=lambda e, url=privacy_url: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_privacy_policy") or "Privacy Policy"), on_click=self._safe_event_handler(lambda e, url=privacy_url: self._open_url(url), "Open privacy policy"))
                 ], spacing=4)
             )
 
@@ -667,7 +664,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.NEW_RELEASES, size=16, color="BLUE_400"),
-                    ft.TextButton(content=ft.Text(i18n.get("field_release_notes") or "Release Notes"), on_click=lambda e, url=release_notes_url: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_release_notes") or "Release Notes"), on_click=self._safe_event_handler(lambda e, url=release_notes_url: self._open_url(url), "Open release notes"))
                 ], spacing=4)
             )
 
@@ -690,7 +687,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.CODE, size=16, color="BLUE_400"),
-                    ft.TextButton(content=ft.Text(i18n.get("field_view_manifest_github") or "View Manifest on GitHub"), on_click=lambda e, url=manifest: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_view_manifest_github") or "View Manifest on GitHub"), on_click=self._safe_event_handler(lambda e, url=manifest: self._open_url(url), "Open GitHub manifest"))
                 ], spacing=4)
             )
 
@@ -701,7 +698,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             detail_controls.append(
                 ft.Row([
                     ft.Icon(ft.Icons.WEB, size=16, color="PURPLE_400"),
-                    ft.TextButton(content=ft.Text(i18n.get("field_view_winstall") or "View on winstall.app"), on_click=lambda e, url=winstall_url: self._open_url(url))
+                    ft.TextButton(content=ft.Text(i18n.get("field_view_winstall") or "View on winstall.app"), on_click=self._safe_event_handler(lambda e, url=winstall_url: self._open_url(url), "Open winstall.app"))
                 ], spacing=4)
             )
 
@@ -709,13 +706,13 @@ class ModernWingetView(ft.Row, ViewMixin):
 
         # Actions
         btn_copy = ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.COPY), ft.Text(i18n.get("btn_copy_command") or "Copy Command")], alignment=ft.MainAxisAlignment.CENTER), bgcolor="GREY_700", color="WHITE")
-        btn_copy.on_click = lambda e, i=info: self._copy_install_command(i)
+        btn_copy.on_click = self._safe_event_handler(lambda e, i=info: self._copy_install_command(i), "Copy install command")
 
         btn_local = ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.DOWNLOAD), ft.Text(i18n.get("btn_install_locally") or "Install Locally")], alignment=ft.MainAxisAlignment.CENTER), bgcolor="GREEN", color="WHITE")
-        btn_local.on_click = self._install_local
+        btn_local.on_click = self._safe_event_handler(self._install_local, "Install locally")
 
         btn_deploy = ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CLOUD_UPLOAD), ft.Text(i18n.get("btn_deploy_package") or "Deploy / Package...")], alignment=ft.MainAxisAlignment.CENTER), bgcolor="BLUE", color="WHITE")
-        btn_deploy.on_click = lambda e: self._open_deploy_menu(info)
+        btn_deploy.on_click = self._safe_event_handler(lambda e: self._open_deploy_menu(info), "Open deploy menu")
 
         action_buttons = [btn_copy, btn_local, btn_deploy]
 
@@ -726,7 +723,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 content=ft.Row([ft.Icon(ft.Icons.DOWNLOAD_FOR_OFFLINE), ft.Text("Download Installer")], alignment=ft.MainAxisAlignment.CENTER),
                 bgcolor="TEAL_600",
                 color="WHITE",
-                on_click=lambda e, url=installer_url: self._open_url(url)
+                on_click=self._safe_event_handler(lambda e, url=installer_url: self._open_url(url), "Download installer")
             )
             action_buttons.insert(1, btn_download) # Insert after copy, before install local
 
@@ -799,11 +796,11 @@ class ModernWingetView(ft.Row, ViewMixin):
                                     # Check if first control is an Icon
                                     if isinstance(control.controls[0], ft.Icon):
                                         control.controls[0] = img
-                                        control.update()
-                                        self.details_area.update()
-                                        self.right_pane.update()
+                                        self._safe_update(control)
+                                        self._safe_update(self.details_area)
+                                        self._safe_update(self.right_pane)
                                         if hasattr(self, 'app_page'):
-                                            self.app_page.update()
+                                            self._safe_update(self.app_page)
                                         break
                         except Exception as ex:
                             logger.debug(f"Failed to replace header icon: {ex}")
@@ -825,9 +822,9 @@ class ModernWingetView(ft.Row, ViewMixin):
         try:
             if len(header_row.controls) >= 2 and isinstance(header_row.controls[0], ft.Icon):
                 header_row.controls[0] = image
-                header_row.update()
+                self._safe_update(header_row)
                 if hasattr(self, 'app_page'):
-                    self.app_page.update()
+                    self._safe_update(self.app_page)
         except Exception as ex:
             logger.debug(f"Failed to replace header icon: {ex}")
 
@@ -836,7 +833,7 @@ class ModernWingetView(ft.Row, ViewMixin):
         pkg_id = info.get('Id', '')
         command = f"winget install --id {pkg_id} --accept-package-agreements --accept-source-agreements"
         self._copy_to_clipboard(command)
-        self._show_snack(f"Copied: {command}", "GREEN_700")
+        self._show_snack((i18n.get("msg_selected_prefix") or "Copied: {name}").format(name=command), "GREEN_700")
 
     def _open_url(self, url: str):
         """Open URL in default browser."""
@@ -873,8 +870,7 @@ class ModernWingetView(ft.Row, ViewMixin):
             info (dict): Package metadata dictionary expected to contain at least the 'Name' key used in the dialog title.
         """
         def close_dlg(e):
-            self.app_page.dialog.open = False
-            self.app_page.update()
+            self._close_dialog(dlg)
 
         dlg = ft.AlertDialog(
             title=ft.Text(f"Deploy {info.get('Name')}", size=20, weight=ft.FontWeight.BOLD),
@@ -885,32 +881,30 @@ class ModernWingetView(ft.Row, ViewMixin):
                 ft.FilledButton(
                     content=ft.Row([ft.Icon(ft.Icons.UPDATE), ft.Text("Winget-AutoUpdate (WAU)")], alignment=ft.MainAxisAlignment.CENTER),
                     style=ft.ButtonStyle(bgcolor="GREEN", color="WHITE"),
-                    on_click=lambda e: [close_dlg(e), self._deploy_wau(info)], width=250),
+                    on_click=self._safe_event_handler(lambda e: [close_dlg(e), self._deploy_wau(info)], "Deploy WAU"), width=250),
                 ft.Text(i18n.get("winget_deploy_wau_desc") or "Best for keeping apps updated automatically.", size=12, italic=True),
 
                 ft.Container(height=5),
                 ft.FilledButton(
-                    content=ft.Row([ft.Icon(ft.Icons.ARCHIVE), ft.Text("Download & Package")], alignment=ft.MainAxisAlignment.CENTER),
+                    content=ft.Row([ft.Icon(ft.Icons.ARCHIVE), ft.Text(i18n.get("btn_deploy_package") or "Download & Package")], alignment=ft.MainAxisAlignment.CENTER),
                     style=ft.ButtonStyle(bgcolor="BLUE", color="WHITE"),
-                    on_click=lambda e: [close_dlg(e), self._deploy_package(info)], width=250),
+                    on_click=self._safe_event_handler(lambda e: [close_dlg(e), self._deploy_package(info)], "Deploy package"), width=250),
                 ft.Text(i18n.get("winget_deploy_package_desc") or "Download installer and prepare for Intune.", size=12, italic=True),
 
                 ft.Container(height=5),
                 ft.FilledButton(
-                    content=ft.Row([ft.Icon(ft.Icons.CODE), ft.Text("Create Install Script")], alignment=ft.MainAxisAlignment.CENTER),
+                    content=ft.Row([ft.Icon(ft.Icons.CODE), ft.Text(i18n.get("btn_gen_intune_script") or "Create Install Script")], alignment=ft.MainAxisAlignment.CENTER),
                     style=ft.ButtonStyle(bgcolor="GREY_700", color="WHITE"),
-                    on_click=lambda e: [close_dlg(e), self._deploy_script(info)], width=250),
+                    on_click=self._safe_event_handler(lambda e: [close_dlg(e), self._deploy_script(info)], "Deploy script"), width=250),
                 ft.Text(i18n.get("winget_deploy_script_desc") or "Generate PowerShell script for deployment.", size=12, italic=True),
             ], height=300, width=400, alignment=ft.MainAxisAlignment.CENTER),
-            actions=[ft.TextButton("Cancel", on_click=close_dlg)],
+            actions=[ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=close_dlg)],
         )
-        self.app_page.dialog = dlg
-        dlg.open = True
-        self.app_page.update()
+        self._open_dialog_safe(dlg)
 
     def _deploy_wau(self, info):
         self._launch_url("https://github.com/Romanitho/Winget-AutoUpdate")
-        self._show_snack("WAU info opened in browser.")
+        self._show_snack(i18n.get("notif_test_sent") or "WAU info opened in browser.")
 
 
     def _deploy_package(self, info):
@@ -919,7 +913,7 @@ class ModernWingetView(ft.Row, ViewMixin):
         import subprocess
 
         pkg_id = info.get('Id')
-        self._show_snack(f"Downloading {pkg_id} for packaging...", "BLUE")
+        self._show_snack((i18n.get("loading_package_details") or "Downloading {name} for packaging...").format(name=pkg_id), "BLUE")
 
         def _bg():
             try:
@@ -967,12 +961,12 @@ class ModernWingetView(ft.Row, ViewMixin):
                         logger.warning(f"Failed to trigger Winget download notification: {n_ex}")
                     # TODO: Maybe auto-switch to Analyzer?
                 else:
-                    self._show_snack("Download success but no installer found?", "ORANGE")
+                    self._show_snack(i18n.get("msg_no_groups_found") or "Download success but no installer found?", "ORANGE")
 
                 shutil.rmtree(tmp_dir)
 
             except Exception as ex:
-                self._show_snack(f"Download failed: {ex}", "RED")
+                self._show_snack((i18n.get("err_failed_prefix") or "Download failed: {error}").format(error=ex), "RED")
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -1015,7 +1009,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                     e: The event object from the confirmation button click that triggered the restart.
                 """
                 restart_dlg.open = False
-                self.app_page.update()
+                self._safe_update(self.app_page)
                 try:
                     import sys
                     import time
@@ -1057,8 +1051,8 @@ class ModernWingetView(ft.Row, ViewMixin):
                 title=ft.Text(i18n.get("admin_required_title") or "Admin Rights Required"),
                 content=ft.Text(i18n.get("admin_required_msg") or "Local testing requires administrative privileges. Would you like to restart SwitchCraft as Administrator?"),
                 actions=[
-                    ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=lambda _: setattr(restart_dlg, "open", False) or self.app_page.update()),
-                    ft.FilledButton(content=ft.Text(i18n.get("btn_restart_admin") or "Restart as Admin"), bgcolor="RED_700", color="WHITE", on_click=on_restart_confirm),
+                    ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=self._safe_event_handler(lambda _: setattr(restart_dlg, "open", False) or self._safe_update(self.app_page), "Cancel elevation")),
+                    ft.FilledButton(content=ft.Text(i18n.get("btn_restart_admin") or "Restart as Admin"), bgcolor="RED_700", color="WHITE", on_click=self._safe_event_handler(on_restart_confirm, "Confirm restart as admin")),
                 ],
             )
             self.app_page.open(restart_dlg)
@@ -1070,7 +1064,7 @@ class ModernWingetView(ft.Row, ViewMixin):
         def _run():
             import subprocess
             import sys
-            self._show_snack(f"Starting install for {pkg_id}...", "BLUE")
+            self._show_snack((i18n.get("msg_searching") or "Starting install for {name}...").format(name=pkg_id), "BLUE")
             try:
                 # Use list format instead of shell=True to avoid CMD window
                 cmd_list = ['winget', 'install', '--id', pkg_id, '--silent', '--accept-package-agreements', '--accept-source-agreements']
@@ -1100,7 +1094,7 @@ class ModernWingetView(ft.Row, ViewMixin):
 
                 threading.Thread(target=wait_for_proc, daemon=True).start()
             except Exception as ex:
-                self._show_snack(f"Failed to start install: {ex}", "RED")
+                self._show_snack((i18n.get("err_failed_prefix") or "Failed to start install: {error}").format(error=ex), "RED")
 
         _run()
 
@@ -1139,6 +1133,6 @@ exit $err
             try:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(script_content)
-                self._show_snack(f"Script saved to {path}", "GREEN")
+                self._show_snack((i18n.get("msg_save_success") or "Script saved to {name}").format(name=path), "GREEN")
             except Exception as ex:
-                self._show_snack(f"Save failed: {ex}", "RED")
+                self._show_snack((i18n.get("msg_save_failed") or "Save failed: {error}").format(error=ex), "RED")

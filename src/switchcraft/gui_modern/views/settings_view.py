@@ -812,13 +812,13 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     else:
                         self._show_snack(i18n.get("no_update_found") or "No updates available.", "GREY")
 
-                self.update()
+                self._safe_update()
 
             except Exception as ex:
                 logger.error(f"Error checking for updates: {ex}")
                 self.changelog_text.value = f"{i18n.get('update_check_failed') or 'Error fetching updates'}: {ex}"
                 self.latest_version_text.value = i18n.get("unknown") or "Unknown"
-                self.update()
+                self._safe_update()
 
         self._run_in_background(_run)
 
@@ -1320,7 +1320,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 self.test_conn_res.color = "RED"
                 self._show_snack(i18n.get("settings_verify_fail_msg", error=str(ex)) or "Graph Connection Failed", "RED")
 
-            self.update()
+            self._safe_update()
 
         self._run_in_background(_run)
 

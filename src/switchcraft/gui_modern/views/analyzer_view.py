@@ -79,7 +79,8 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         # Enhanced Drop Zone matching Legacy aesthetic (Logo + Blue/Purple gradient)
         # Show DnD hint only if dropzone is available
-        drop_hint = "Click to browse or Drag & Drop" if HAS_DROPZONE else "Click to browse"
+        browse_text = i18n.get("click_to_browse") or "Click to browse"
+        drop_hint = f"{browse_text} or Drag & Drop" if HAS_DROPZONE else browse_text
 
         drop_container = ft.Container(
             content=ft.Column(
@@ -653,14 +654,14 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         self.results_column.controls.append(action_buttons)
 
         # 5. Silent Installation Parameters
-        switches_str = " ".join(info.install_switches) if info.install_switches else "None detected"
+        switches_str = " ".join(info.install_switches) if info.install_switches else (i18n.get("none_detected") or "None detected")
         color = "GREEN" if info.install_switches else "ORANGE"
 
         self.results_column.controls.append(
             ft.Container(
                 content=ft.Column([
                     ft.Text(i18n.get("silent_switches") or "Silent Install Parameters", weight=ft.FontWeight.BOLD),
-                    ft.TextField(value=switches_str, read_only=True, text_style=ft.TextStyle(color=color, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=switches_str: self._copy_to_clipboard(s))),
+                    ft.TextField(value=switches_str, read_only=True, text_style=ft.TextStyle(color=color, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=self._safe_event_handler(lambda _, s=switches_str: self._copy_to_clipboard(s), "Copy switches"))),
                 ]),
                 padding=10, bgcolor="SURFACE_CONTAINER_HIGHEST", border_radius=5
             )
@@ -673,7 +674,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 ft.Container(
                     content=ft.Column([
                         ft.Text(i18n.get("silent_uninstall") or "Silent Uninstall Parameters", weight=ft.FontWeight.BOLD, color="RED_400"),
-                        ft.TextField(value=un_switches, read_only=True, text_style=ft.TextStyle(color="RED_200", font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=un_switches: self._copy_to_clipboard(s))),
+                        ft.TextField(value=un_switches, read_only=True, text_style=ft.TextStyle(color="RED_200", font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=self._safe_event_handler(lambda _, s=un_switches: self._copy_to_clipboard(s), "Copy uninstall switches"))),
                     ]),
                     padding=10, bgcolor="SURFACE_CONTAINER_HIGHEST", border_radius=5
                 )
@@ -714,7 +715,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                         title=ft.Text(f"{name} ({n_type})"),
                         subtitle=ft.Text(details, font_family="Consolas", size=11),
                         leading=ft.Icon(ft.Icons.SUBDIRECTORY_ARROW_RIGHT),
-                        trailing=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=sw_text: self._copy_to_clipboard(s)) if sw_text else None
+                        trailing=ft.IconButton(ft.Icons.COPY, on_click=self._safe_event_handler(lambda _, s=sw_text: self._copy_to_clipboard(s), "Copy nested switches")) if sw_text else None
                     )
                 )
 
@@ -743,11 +744,12 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         # 11. Winget Info
         if result.winget_url:
+            match_msg = i18n.get("winget_match_at", id=result.winget_id or "Unknown", reason=result.winget_reason or "matched")
             self.results_column.controls.append(
                 ft.Container(
                     content=ft.Row([
                         ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN"),
-                        ft.Text("Matches Winget Package!", weight=ft.FontWeight.BOLD, expand=True),
+                        ft.Text(match_msg, weight=ft.FontWeight.BOLD, expand=True),
                         ft.TextButton(i18n.get("view_winget") or "View on Web", on_click=lambda _: self._launch_url(result.winget_url))
                     ]),
                     padding=10, bgcolor="GREEN_900", border_radius=5
@@ -759,7 +761,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.ZOOM_IN), ft.Text(i18n.get("view_full_params") or "View Detailed Analysis Data")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(lambda _: self._show_detailed_parameters(result), "View Details"))
         )
 
-        self.update()
+        self._safe_update()
 
     def _build_param_explanations(self, params):
         known = []
@@ -850,8 +852,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         # Confirmation Dialog
         def start_flow(e):
-            dlg.open = False
-            self.update()
+            self._close_dialog(dlg)
             self._execute_all_in_one_sequence(result)
 
         dlg = ft.AlertDialog(
@@ -1131,16 +1132,14 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 self._show_snack(f"Manifests generated in: {out_dir}", "GREEN")
 
                 # Close dialog
-                dlg.open = False
-                self.app_page.update()
+                self._close_dialog(dlg)
 
                 self._open_path(out_dir)
             except Exception as ex:
                 self._show_snack(f"Generation failed: {ex}", "RED")
 
         def open_winget_manager(e):
-            dlg.open = False
-            self.app_page.update()
+            self._close_dialog(dlg)
             # If we had a router, we would navigate. For now, we just suggest it
             self._show_snack("Please use the 'WingetCreate Manager' from the side menu for advanced options.", "BLUE")
 
@@ -1180,8 +1179,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         ], scroll=ft.ScrollMode.AUTO, tight=True)
 
         def close_dlg(e):
-            dlg.open = False
-            self.app_page.update()
+            self._close_dialog(dlg)
 
         dlg = ft.AlertDialog(
             title=ft.Text(i18n.get("detailed_params_title") or "Detailed Parameters Analysis"),
@@ -1194,27 +1192,28 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
     def _copy_to_clipboard(self, text: str):
         """Copy text to clipboard using Flet first, then fallbacks."""
         # 1. Try Flet Page (Best for Web)
-        if self.app_page:
+        page = getattr(self, "app_page", None) or self.page
+        if page:
             try:
-                self.app_page.set_clipboard(text)
-                self._show_snack("Copied to clipboard!", "GREEN_700")
+                page.set_clipboard(text)
+                self._show_snack(i18n.get("copied_to_clipboard") or "Copied to clipboard!", "GREEN_700")
                 return
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Flet clipboard failed: {e}")
 
         # 2. Try Pyperclip
         try:
             import pyperclip
             pyperclip.copy(text)
-            self._show_snack("Copied to clipboard!", "GREEN_700")
+            self._show_snack(i18n.get("copied_to_clipboard") or "Copied to clipboard!", "GREEN_700")
         except ImportError:
             # 3. Fallback to Windows Clip via ShellUtils
             try:
                 from switchcraft.utils.shell_utils import ShellUtils
                 ShellUtils.run_command(['clip'], input=text.encode('utf-8'), check=True, silent=True)
-                self._show_snack("Copied to clipboard!", "GREEN_700")
-            except Exception:
-                self._show_snack("Failed to copy", "RED")
+                self._show_snack(i18n.get("copied_to_clipboard") or "Copied to clipboard!", "GREEN_700")
+            except Exception as ex:
+                self._show_snack(f"Failed to copy: {ex}", "RED")
 
     def _on_click_create_intunewin(self, e):
         # We need a source folder and output. For simplicity, use installer dir and create alongside.
@@ -1261,12 +1260,10 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                     except Exception as ex:
                         self._show_snack(f"Failed to open folder: {ex}", "RED")
 
-                    dlg.open = False
-                    self.app_page.update()
+                    self._close_dialog(dlg)
 
                 def close_dlg(e):
-                    dlg.open = False
-                    self.app_page.update()
+                    self._close_dialog(dlg)
 
                 dlg = ft.AlertDialog(
                     title=ft.Row([
@@ -1302,12 +1299,12 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         path = self.current_info.file_path
 
         dlg = ft.AlertDialog(
-            title=ft.Text("Manual Commands"),
+            title=ft.Text(i18n.get("btn_manual_cmds") or "Install Commands"),
             content=ft.Column([
                 ft.Text("CMD / Batch:", weight=ft.FontWeight.BOLD),
-                ft.TextField(value=f'"{path}" {switches}', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, cmd=f'"{path}" {switches}': self._copy_to_clipboard(cmd))),
+                ft.TextField(value=f'"{path}" {switches}', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=self._safe_event_handler(lambda _, cmd=f'"{path}" {switches}': self._copy_to_clipboard(cmd), "Copy CMD"))),
                 ft.Text("PowerShell:", weight=ft.FontWeight.BOLD),
-                ft.TextField(value=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, cmd=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait': self._copy_to_clipboard(cmd))),
+                ft.TextField(value=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=self._safe_event_handler(lambda _, cmd=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait': self._copy_to_clipboard(cmd), "Copy PS"))),
             ], height=240, spacing=10),
         )
         self._open_dialog_safe(dlg)

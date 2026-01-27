@@ -4,8 +4,9 @@ from switchcraft.utils.i18n import i18n
 from collections import defaultdict
 from datetime import datetime, timedelta
 from switchcraft.services.exchange_service import ExchangeService
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
-class DashboardView(ft.Column):
+class DashboardView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
         super().__init__(expand=True, scroll=ft.ScrollMode.AUTO, spacing=15)
         self.app_page = page
@@ -140,10 +141,7 @@ class DashboardView(ft.Column):
 
         # Force update of stats row
         if hasattr(self, 'stats_row'):
-            try:
-                self.stats_row.update()
-            except Exception:
-                pass
+            self._safe_update(self.stats_row)
 
         # Chart
         bars = []
@@ -216,20 +214,10 @@ class DashboardView(ft.Column):
 
 
         # Force update of all containers
-        # Force update of all containers
-        try:
-            if self.page:
-                try:
-                    self.stats_row.update()
-                    self.chart_container.update()
-                    self.recent_container.update()
-                    self.update()
-                except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).warning(f"Failed to update dashboard UI: {e}", exc_info=True)
-        except RuntimeError:
-            # Control not yet added to page, skip update
-            pass
+        self._safe_update(self.stats_row)
+        self._safe_update(self.chart_container)
+        self._safe_update(self.recent_container)
+        self._safe_update()
 
 
     def _stat_card(self, label, value, icon, color):
@@ -266,8 +254,7 @@ class DashboardView(ft.Column):
         # In a real app, this would open a dialog to select sender/recipient or use defaults.
         # For now, we'll verify permissions and trigger a mock send or alert.
         def close_dlg(e):
-             self.app_page.dialog.open = False
-             self.app_page.update()
+             self._close_dialog(dlg)
 
         def send_action(e):
              # Placeholder for real send logic requiring auth
@@ -277,29 +264,26 @@ class DashboardView(ft.Column):
              # Need a token - reusing Intune/Auth service or prompting login would be ideal.
              # self.exchange_service.authenticate(...)
              # For UI Demo:
-             self.app_page.dialog.open = False
-             self.app_page.update()
+             self._close_dialog(dlg)
 
-             self.app_page.snack_bar = ft.SnackBar(ft.Text(f"Mail flow started: {sender} -> {recipient} (Mock)"))
+             self.app_page.snack_bar = ft.SnackBar(ft.Text(i18n.get("mail_flow_started", sender=sender, recipient=recipient) or f"Mail flow started: {sender} -> {recipient} (Mock)"))
              self.app_page.snack_bar.open = True
-             self.app_page.update()
+             self._safe_update(self.app_page)
 
-        sender_field = ft.TextField(label="Sender (UPN)", value="admin@contoso.com")
-        recipient_field = ft.TextField(label="Recipient", value="user@contoso.com")
+        sender_field = ft.TextField(label=i18n.get("lbl_sender") or "Sender (UPN)", value="admin@contoso.com")
+        recipient_field = ft.TextField(label=i18n.get("lbl_recipient") or "Recipient", value="user@contoso.com")
 
         dlg = ft.AlertDialog(
-            title=ft.Text("Start Mail Flow Test"),
+            title=ft.Text(i18n.get("mail_flow_test_title") or "Start Mail Flow Test"),
             content=ft.Column([
-                ft.Text("Send a test email to verify mail flow."),
+                ft.Text(i18n.get("mail_flow_test_msg") or "Send a test email to verify mail flow."),
                 sender_field,
                 recipient_field
             ], height=200),
             actions=[
-                ft.TextButton("Cancel", on_click=close_dlg),
-                ft.FilledButton(content=ft.Text("Send"), on_click=send_action),
+                ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=self._safe_event_handler(close_dlg, "Close mail flow")),
+                ft.FilledButton(content=ft.Text(i18n.get("send") or "Send"), on_click=self._safe_event_handler(send_action, "Execute mail flow")),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
-        self.app_page.dialog = dlg
-        dlg.open = True
-        self.app_page.update()
+        self._open_dialog_safe(dlg)

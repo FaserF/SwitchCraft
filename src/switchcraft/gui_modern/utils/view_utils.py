@@ -106,6 +106,23 @@ class ViewMixin:
                 self._show_error_view(ex, error_context)
         return wrapped_handler
 
+    def _safe_update(self, control=None, *args):
+        """
+        Safely update the control/view or a specific child control.
+        Checks if the control is actually on a page to avoid RuntimeError.
+        """
+        try:
+            target = control if control else self
+            # Some controls might not have .page attribute exposed directly or correctly when detached
+            # But the standard Flet check is usually checking if it's on page.
+            if getattr(target, "page", None):
+                target.update()
+        except Exception:
+            # Control not added to page, or already removed, or updated in bad state
+            pass
+        except Exception as e:
+            logger.debug(f"Safe update failed (non-critical): {e}")
+
     def _show_snack(self, msg, color="GREEN"):
         """Show a snackbar message on the page using modern API."""
         try:

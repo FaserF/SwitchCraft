@@ -28,8 +28,8 @@ class ModernIntuneView(ft.Column, ViewMixin):
             self.controls = [
                 ft.Column([
                     ft.Icon(ft.Icons.WARNING_AMBER, size=50, color="orange"),
-                    ft.Text("IntuneWinAppUtil not found.", size=20, weight=ft.FontWeight.BOLD),
-                    ft.Text("This tool is required to package applications."),
+                    ft.Text(i18n.get("err_intunewin_not_found") or "IntuneWinAppUtil not found.", size=20, weight=ft.FontWeight.BOLD),
+                    ft.Text(i18n.get("msg_intunewin_req") or "This tool is required to package applications."),
                     btn_dl
                 ], alignment=ft.MainAxisAlignment.CENTER)
             ]
@@ -42,8 +42,8 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
     def _download_tool(self, e):
         e.control.disabled = True
-        e.control.text = "Downloading..."
-        self.update()
+        e.control.text = i18n.get("msg_downloading") or "Downloading..."
+        self._safe_update()
 
         def _bg():
             success = self.intune_service.download_tool()
@@ -53,8 +53,8 @@ class ModernIntuneView(ft.Column, ViewMixin):
                  def _fail():
                      e.control.disabled = False
                      e.control.text = i18n.get("btn_download_tool") or "Download Intune Tool"
-                     self._show_snack("Download failed. Check logs.", "RED")
-                     self.update()
+                     self._show_snack(i18n.get("err_download_failed") or "Download failed. Check logs.", "RED")
+                     self._safe_update()
                  self._run_task_safe(_fail)
 
         threading.Thread(target=_bg, daemon=True).start()
@@ -63,7 +63,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
         # Clear current controls and rebuild the view (now that tool is available)
         self.controls.clear()
         self._build_main_ui()
-        self.update()
+        self._safe_update()
 
     def _build_main_ui(self):
         """Build the main Intune Manager UI with tabs."""
@@ -78,12 +78,12 @@ class ModernIntuneView(ft.Column, ViewMixin):
                  self.tab_body.content = self.packager_content
              else:
                  self.tab_body.content = self.uploader_content
-             self.tab_body.update()
+             self._safe_update(self.tab_body)
 
         self.tabs = create_tabs(
             selected_index=0,
             animation_duration=300,
-            on_change=on_tab_change,
+            on_change=self._safe_event_handler(on_tab_change, "Intune tab change"),
             tabs=[
                 ft.Tab(
                     label=i18n.get("tab_packager") or "Packager",
@@ -125,20 +125,20 @@ class ModernIntuneView(ft.Column, ViewMixin):
                 # Always update source and output folders to match setup file location
                 self.source_field.value = parent
                 self.output_field.value = parent
-                self.update()
+                self._safe_update()
 
         def pick_folder(e, field):
             path = FilePickerHelper.pick_directory()
             if path:
                 field.value = path
-                self.update()
+                self._safe_update()
 
         def create_file_row():
-            btn = ft.IconButton(ft.Icons.FILE_OPEN, on_click=pick_setup_file)
+            btn = ft.IconButton(ft.Icons.FILE_OPEN, on_click=self._safe_event_handler(pick_setup_file, "Pick setup file"))
             return ft.Row([self.setup_field, btn])
 
         def create_folder_row(field):
-            btn = ft.IconButton(ft.Icons.FOLDER_OPEN, on_click=lambda e: pick_folder(e, field))
+            btn = ft.IconButton(ft.Icons.FOLDER_OPEN, on_click=self._safe_event_handler(lambda e: pick_folder(e, field), "Pick folder"))
             return ft.Row([field, btn])
 
         btn_create = ft.FilledButton(
@@ -148,7 +148,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                 color="WHITE",
             ),
             height=50,
-            on_click=self._run_creation
+            on_click=self._safe_event_handler(self._run_creation, "Run Intune creation")
         )
 
         return ft.Container(
@@ -194,7 +194,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
         self.btn_upload = ft.FilledButton(
             content=ft.Row([ft.Icon(ft.Icons.CLOUD_UPLOAD), ft.Text(i18n.get("btn_upload_intune") or "Upload to Intune")], alignment=ft.MainAxisAlignment.CENTER),
             disabled=True,
-            on_click=self._run_upload
+            on_click=self._safe_event_handler(self._run_upload, "Run Intune upload")
         )
 
         # Supersedence UI
@@ -205,16 +205,15 @@ class ModernIntuneView(ft.Column, ViewMixin):
             content=ft.Row([ft.Icon(ft.Icons.COPY), ft.Text(i18n.get("btn_copy_metadata") or "Copy Metadata")], alignment=ft.MainAxisAlignment.CENTER),
             disabled=True,
             visible=False,
-            on_click=self._copy_metadata_from_supersedence
+            on_click=self._safe_event_handler(self._copy_metadata_from_supersedence, "Copy supersedence metadata")
         )
         self.supersede_uninstall_sw = ft.Switch(label=i18n.get("lbl_uninstall_prev") or "Uninstall previous version?", value=True)
         self.supersede_status_text = ft.Text("", size=12, italic=True)
 
         # Connect Logic
         def connect(e):
-            self.up_status.value = "Connecting..."
-            if self.page:
-                self.update()
+            self.up_status.value = i18n.get("status_connecting") or "Connecting..."
+            self._safe_update()
 
             # Capture credentials in main thread (preserving ContextVar/Backend)
             t_id = SwitchCraftConfig.get_value("IntuneTenantID", "")
@@ -230,9 +229,9 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
                     if not self.tenant_id or not self.client_id or not self.client_secret:
                         def update_fail_creds():
-                            self.up_status.value = "Missing Credentials (check Settings)"
+                            self.up_status.value = i18n.get("err_missing_creds") or "Missing Credentials (check Settings)"
                             self.up_status.color = "RED"
-                            self.update()
+                            self._safe_update()
                         self._run_task_safe(update_fail_creds)
                         return
 
@@ -240,10 +239,10 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
                     def update_success():
                         self.token = auth_token
-                        self.up_status.value = "Connected"
+                        self.up_status.value = i18n.get("status_connected") or "Connected"
                         self.up_status.color = "GREEN"
                         self.btn_upload.disabled = False
-                        self.update()
+                        self._safe_update()
                     self._run_task_safe(update_success)
 
                 except Exception as ex:
@@ -251,9 +250,9 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     error_msg = str(ex)
                     logger.exception("Error in connection background thread")
                     def update_error():
-                        self.up_status.value = f"Connection Failed: {error_msg}"
+                        self.up_status.value = (i18n.get("err_conn_failed") or "Connection Failed: {error}").format(error=error_msg)
                         self.up_status.color = "RED"
-                        self.update()
+                        self._safe_update()
                     self._run_task_safe(update_error)
 
             threading.Thread(target=_bg, daemon=True).start()
@@ -283,7 +282,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
             self.supersede_search_progress.visible = True
             self.supersede_options.visible = False
             self.supersede_copy_btn.visible = False
-            self.update()
+            self._safe_update()
 
             def _bg():
                 """
@@ -320,7 +319,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                             self.supersede_options.visible = True
                             self.supersede_status_text.value = (i18n.get("found_apps") or "Found {count} apps").format(count=len(apps))
                             self.supersede_status_text.color = "GREEN"
-                        self.update()
+                        self._safe_update()
 
                     # Use run_task if available, otherwise update directly
                     self._run_task_safe(update_results)
@@ -330,11 +329,11 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     error_msg = str(ex)  # Capture error message for use in nested function
                     def update_error():
                         self.supersede_search_progress.visible = False
-                        self.supersede_status_text.value = f"{i18n.get('search_error') or 'Search Error'}: {error_msg}"
+                        self.supersede_status_text.value = (i18n.get("err_search_error") or "Search Error: {error}").format(error=error_msg)
                         self.supersede_status_text.color = "RED"
                         self.supersede_options.visible = False
                         self.supersede_copy_btn.visible = False
-                        self.update()
+                        self._safe_update()
 
                     self._run_task_safe(update_error)
 
@@ -361,9 +360,9 @@ class ModernIntuneView(ft.Column, ViewMixin):
                 # Fetch full details if not in cache
                 self._copy_metadata_from_supersedence(None)
 
-            self.update()
+            self._safe_update()
 
-        self.supersede_options.on_change = on_app_select
+        self.supersede_options.on_change = self._safe_event_handler(on_app_select, "Supersede app select")
 
         def pick_intunewin(e):
             """
@@ -377,9 +376,9 @@ class ModernIntuneView(ft.Column, ViewMixin):
                 self.up_file_field.value = path
                 # Try to extract info from intunewin file automatically
                 self._extract_info_from_intunewin(path)
-                self.update()
+                self._safe_update()
 
-        btn_pick = ft.IconButton(ft.Icons.FILE_OPEN, on_click=pick_intunewin)
+        btn_pick = ft.IconButton(ft.Icons.FILE_OPEN, on_click=self._safe_event_handler(pick_intunewin, "Pick IntuneWin file"))
 
         return ft.Container(
             content=ft.ListView([
@@ -388,7 +387,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                 ft.Divider(),
 
                 ft.Text(i18n.get("hdr_supersedence") or "Update Existing App (Supersedence)", weight=ft.FontWeight.BOLD, color="BLUE"),
-                ft.Row([self.search_supersede_field, ft.IconButton(ft.Icons.SEARCH, on_click=search_apps)]),
+                ft.Row([self.search_supersede_field, ft.IconButton(ft.Icons.SEARCH, on_click=self._safe_event_handler(search_apps, "Search Intune apps for supersedence"))]),
                 ft.Container(
                     content=ft.Column([
                         self.supersede_search_progress,
@@ -445,7 +444,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
             if intunewin_path and Path(intunewin_path).exists():
                 self._extract_info_from_intunewin(intunewin_path)
 
-            self.update()
+            self._safe_update()
         except Exception as ex:
             logger.warning(f"Error auto-filling from app data: {ex}")
 
@@ -510,7 +509,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
             return
 
         self.supersede_status_text.value = i18n.get("fetching_details") or "Fetching details..."
-        self.update()
+        self._safe_update()
 
         def _bg():
             """
@@ -543,7 +542,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
                     self.supersede_status_text.value = i18n.get("metadata_copied") or "Metadata copied!"
                     self.supersede_status_text.color = "GREEN"
-                    self.update()
+                    self._safe_update()
                     self._show_snack((i18n.get("metadata_copied_from") or "Metadata copied from {name}").format(name=full_app.get("displayName", "")), "GREEN")
 
                 # Use safe run_task helper to handle sync/async properly
@@ -553,9 +552,9 @@ class ModernIntuneView(ft.Column, ViewMixin):
                 logger.exception(f"Error copying metadata: {ex}")
                 error_msg = str(ex)  # Capture error message for use in nested function
                 def update_error():
-                    self.supersede_status_text.value = f"{i18n.get('copy_failed') or 'Copy Failed'}: {error_msg}"
+                    self.supersede_status_text.value = (i18n.get("err_copy_failed") or "Copy Failed: {error}").format(error=error_msg)
                     self.supersede_status_text.color = "RED"
-                    self.update()
+                    self._safe_update()
                 self._run_task_safe(update_error)
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -570,7 +569,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
         """
         def _update_ui():
             self.log_view.controls.append(ft.Text(msg, font_family="Consolas", size=12, color="GREEN_400"))
-            self.update()
+            self._safe_update()
         self._run_task_safe(_update_ui)
 
     def _run_creation(self, e):
@@ -630,7 +629,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     quiet=quiet,
                     progress_callback=lambda line: self._log(line.strip())
                 )
-                self._log("DONE! Package created successfully.")
+                self._log(i18n.get("msg_creation_done") or "DONE! Package created successfully.")
 
                 # Feedback logic verified in previous step
                 possible_names = [
@@ -674,12 +673,12 @@ class ModernIntuneView(ft.Column, ViewMixin):
                         # No need to wait as it's already completed
                         subprocess.run(['explorer', f'/select,{safe_path}'])
                     dlg.open = False
-                    self.app_page.update()
+                    self._safe_update(self.app_page)
 
                 dlg = ft.AlertDialog(
                     title=ft.Text(i18n.get("package_created_title") or "Package Created!", color="GREEN"),
-                    content=ft.Text(f"{i18n.get('location')}: {output_file}"),
-                    actions=[ft.FilledButton(content=ft.Text(i18n.get("open_folder") or "Open Folder"), on_click=open_folder)]
+                    content=ft.Text(f"{i18n.get('lbl_location') or 'Location'}: {output_file}"),
+                    actions=[ft.FilledButton(content=ft.Text(i18n.get("open_folder") or "Open Folder"), on_click=self._safe_event_handler(open_folder, "Open folder from created package"))]
                 )
                 def show_dialog():
                     self.app_page.open(dlg)
@@ -687,7 +686,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
             except Exception as ex:
                 self._log(f"ERROR: {ex}")
-                self._show_snack(f"Failed: {ex}", "RED")
+                self._show_snack((i18n.get("err_failed_prefix") or "Failed: {error}").format(error=ex), "RED")
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -695,7 +694,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
         # Upload Logic
         path = self.up_file_field.value
         if not path or not os.path.exists(path):
-            self._show_snack("Invalid File", "RED")
+            self._show_snack(i18n.get("err_invalid_file") or "Invalid File", "RED")
             return
 
         app_info = {
@@ -710,17 +709,17 @@ class ModernIntuneView(ft.Column, ViewMixin):
         child_supersede = self.supersede_options.value
         uninstall_prev = self.supersede_uninstall_sw.value
 
-        self.up_status.value = "Uploading..."
+        self.up_status.value = i18n.get("status_uploading") or "Uploading..."
         self.up_status.color = "BLUE"
         self.btn_upload.disabled = True
-        self.update()
+        self._safe_update()
 
         def _bg():
             try:
                 def update_progress(pct, msg):
                     def _u():
                         self.up_status.value = f"{int(pct*100)}% - {msg}"
-                        self.update()
+                        self._safe_update()
                     self._run_task_safe(_u)
 
                 # 1. Upload
@@ -734,17 +733,17 @@ class ModernIntuneView(ft.Column, ViewMixin):
                 # 2. Add Supersedence if selected
                 if child_supersede:
                     def update_sup():
-                        self.up_status.value = "Adding Supersedence..."
-                        self.update()
+                        self.up_status.value = i18n.get("status_adding_supersedence") or "Adding Supersedence..."
+                        self._safe_update()
                     self._run_task_safe(update_sup)
 
                     self.intune_service.add_supersedence(self.token, new_app_id, child_supersede, uninstall_prev=uninstall_prev)
 
                 def update_done():
-                    self.up_status.value = "Upload Complete!"
+                    self.up_status.value = i18n.get("status_upload_done") or "Upload Complete!"
                     self.up_status.color = "GREEN"
                     self.btn_upload.disabled = False
-                    self.update()
+                    self._safe_update()
                     # Trigger Desktop Notification
                     try:
                         NotificationService().add_notification(
@@ -763,18 +762,18 @@ class ModernIntuneView(ft.Column, ViewMixin):
                 logger.error(f"Upload failed: {ex}")
                 error_msg = str(ex)  # Capture error message for use in nested function
                 def update_fail():
-                    self.up_status.value = f"Error: {error_msg}"
+                    self.up_status.value = (i18n.get("err_upload_failed") or "Error: {error}").format(error=error_msg)
                     self.up_status.color = "RED"
                     self.btn_upload.disabled = False
-                    self.update()
+                    self._safe_update()
                 self._run_task_safe(update_fail)
 
         threading.Thread(target=_bg, daemon=True).start()
 
     def _show_success_dialog(self, app_id):
         dlg = ft.AlertDialog(
-            title=ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN"), ft.Text("Upload Successful")]),
-            content=ft.Text(f"App ID: {app_id}\nSupersedence configured if selected."),
-            actions=[ft.TextButton("Close", on_click=lambda e: setattr(dlg, "open", False) or self.app_page.update())]
+            title=ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN"), ft.Text(i18n.get("notif_intune_upload_complete_title") or "Upload Successful")]),
+            content=ft.Text((i18n.get("msg_app_id_sup") or "App ID: {id}\nSupersedence configured if selected.").format(id=app_id)),
+            actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=self._safe_event_handler(lambda e: self._close_dialog(dlg), "Close upload success dialog"))]
         )
         self.app_page.open(dlg)

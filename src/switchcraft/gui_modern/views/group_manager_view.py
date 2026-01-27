@@ -169,11 +169,11 @@ class GroupManagerView(ft.Column, ViewMixin):
         secret = SwitchCraftConfig.get_secure_value("IntuneClientSecret")
 
         if not all([tenant, client, secret]):
-            self._show_snack("Please configure Intune Credentials in Settings", "RED")
+            self._show_snack(i18n.get("intune_not_configured") or "Please configure Intune Credentials in Settings", "RED")
             return
 
         self.list_container.disabled = True
-        self.app_page.update()
+        self._safe_update(self.app_page)
 
         def _bg():
             try:
@@ -473,7 +473,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self.intune_service.create_group(self.token, name_field.value.strip(), desc_field.value or "")
                         def update_ui():
                             try:
-                                self._show_snack(f"Group '{name_field.value}' created!", "GREEN")
+                                self._show_snack(i18n.get("msg_group_created", name=name_field.value) or f"Group '{name_field.value}' created!", "GREEN")
                                 self._close_dialog(dlg)
                                 self._load_data()
                             except Exception as ex:
@@ -483,7 +483,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                         logger.error(f"Failed to create group: {ex}", exc_info=True)
                         def show_error(error=ex):
                             try:
-                                msg = f"Creation failed: {error}"
+                                msg = i18n.get("msg_creation_failed", error=error) or f"Creation failed: {error}"
                                 self._show_snack(msg, "RED")
                             except Exception:
                                 pass
@@ -538,7 +538,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                         self.intune_service.delete_group(self.token, grp_id)
                         def update_ui():
                             try:
-                                self._show_snack("Group deleted.", "GREEN")
+                                self._show_snack(i18n.get("msg_group_deleted") or "Group deleted.", "GREEN")
                                 self._close_dialog(dlg)
                                 self.selected_group = None
                                 self.delete_btn.disabled = True
@@ -551,7 +551,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                         logger.error(f"Failed to delete group: {ex}", exc_info=True)
                         def show_error(error=ex):
                             try:
-                                msg = f"Deletion failed: {error}"
+                                msg = i18n.get("msg_deletion_failed", error=error) or f"Deletion failed: {error}"
                                 self._show_snack(msg, "RED")
                             except Exception:
                                 pass
@@ -649,7 +649,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                 except Exception as ex:
                     logger.error(f"Failed to remove member {user_id} from group {group_id}: {ex}", exc_info=True)
                     # Marshal error UI update to main thread
-                    msg = f"Failed to remove member: {ex}"
+                    msg = i18n.get("msg_member_remove_failed", error=ex) or f"Failed to remove member: {ex}"
                     self._run_task_safe(lambda: self._show_snack(msg, "RED"))
             threading.Thread(target=_bg, daemon=True).start()
 
@@ -768,8 +768,8 @@ class GroupManagerView(ft.Column, ViewMixin):
                             try:
                                 if results_list:
                                     results_list.controls.clear()
-                                    error_tmpl = i18n.get("error_search_failed") or "Search failed: {error}"
-                                    results_list.controls.append(ft.Text(error_tmpl.format(error=error), color="RED"))
+                                    msg = i18n.get("msg_search_failed", error=error) or f"Search failed: {error}"
+                                    results_list.controls.append(ft.Text(msg, color="RED"))
                                     add_dlg.update()
                             except Exception as ex2:
                                 logger.error(f"Error showing search error: {ex2}", exc_info=True)
@@ -794,7 +794,7 @@ class GroupManagerView(ft.Column, ViewMixin):
                     except Exception as ex:
                         logger.error(f"Failed to add member {user_id} to group {group_id}: {ex}", exc_info=True)
                         # Marshal error UI update to main thread
-                        msg = f"Failed to add member: {ex}"
+                        msg = i18n.get("msg_member_add_failed", error=ex) or f"Failed to add member: {ex}"
                         self._run_task_safe(lambda: self._show_snack(msg, "RED"))
                 threading.Thread(target=_bg, daemon=True).start()
 
