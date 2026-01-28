@@ -119,12 +119,12 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
     def _build_nav_buttons(self):
         self.btn_prev = ft.ElevatedButton(
-            text=i18n.get("btn_back") or "Previous",
+            content=ft.Text(i18n.get("btn_back") or "Previous"),
             on_click=self._safe_event_handler(self._prev_step, "Previous step"),
             disabled=True
         )
         self.btn_next = ft.ElevatedButton(
-            text=i18n.get("btn_next") or "Next",
+            content=ft.Text(i18n.get("btn_next") or "Next"),
             on_click=self._safe_event_handler(self._next_step, "Next step"),
             style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE)
         )

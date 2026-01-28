@@ -760,6 +760,7 @@
     "msg_assign_success": "Erfolgreich als {intent} zugewiesen!",
     "msg_assigning_app": "App wird {group} zugewiesen...",
     "msg_check_settings_creds": "Bitte prüfen du Verbindung und Anmeldedaten.",
+    "msg_copied": "In die Zwischenablage kopiert!",
     "msg_creation_done": "FERTIG! Paket erfolgreich erstellt.",
     "msg_creation_failed": "Erstellung fehlgeschlagen: {error}",
     "msg_deletion_failed": "Löschen fehlgeschlagen: {error}",
