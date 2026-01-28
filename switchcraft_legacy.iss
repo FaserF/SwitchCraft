@@ -12,7 +12,7 @@
   #define MyAppVersionNumeric "2026.1.5"
 #endif
 #ifndef MyAppVersionInfo
-  #define MyAppVersionInfo "2026.1.5.50"
+  #define MyAppVersionInfo "2026.1.5.51"
 #endif
 #define MyAppPublisher "FaserF"
 #define MyAppURL "https://github.com/FaserF/SwitchCraft"
