@@ -1,7 +1,7 @@
 {
     "id": "ai",
     "name": "AI Assistant",
-    "version": "2026.1.5b3",
+    "version": "2026.1.5b4",
     "author": "SwitchCraft Internal",
     "description": "AI-powered assistance for packaging and scripting."
 }
