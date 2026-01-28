@@ -27,26 +27,38 @@ def create_addon(name, addon_id, files):
 
 def main():
     # AI Addon
-    ai_service_code = """
+    ai_src_dir = Path("src/switchcraft_ai")
+    ai_service = ai_src_dir / "service.py"
+    ai_manifest = ai_src_dir / "manifest.json"
+
+    if ai_service.exists() and ai_manifest.exists():
+        files = {
+            "service.py": ai_service.read_text(encoding="utf-8")
+        }
+        with open(ai_manifest, "r", encoding="utf-8") as f:
+            manifest = json.load(f)
+
+        # We use a custom manifest in create_addon, but we can bypass it
+        # Or just use the real values
+        base_dir = Path("src/switchcraft/assets/addons")
+        base_dir.mkdir(parents=True, exist_ok=True)
+        zip_path = base_dir / "ai.zip"
+        with zipfile.ZipFile(zip_path, 'w') as z:
+            z.writestr("manifest.json", json.dumps(manifest, indent=2))
+            z.writestr("service.py", files["service.py"])
+        print(f"Created {zip_path} from real source")
+    else:
+        # Mock / Fallback AI Addon (Previous logic)
+        ai_service_code = """
 class SwitchCraftAI:
     def __init__(self):
         self.ctx = {}
     def update_context(self, data):
         self.ctx = data
     def ask(self, query):
-        q = query.lower()
-        if "hi" in q or "hallo" in q:
-            return "Hallo! Ich bin der interner SwitchCraft AI Helper. Wie kann ich dir heute beim Paketieren helfen?"
-        if "who are you" in q or "wer bist du" in q:
-            return "Ich bin der integrierte SwitchCraft AI Assistent. Ich kann dir bei Silent-Switches, MSI-Properties und Intune-Deployments helfen."
-        if "silent" in q or "switches" in q:
-            sw = self.ctx.get("install_silent", "/S")
-            return f"Für dieses Paket wurden folgende Silent-Switches erkannt: `{sw}`. Du kannst diese im Packaging Wizard noch anpassen."
-        if "intune" in q:
-            return "Um Apps nach Intune hochzuladen, stelle sicher, dass du die Graph API Credentials in den Einstellungen hinterlegt hast."
-        return f"Ich habe deine Frage zu '{query}' verstanden, kann aber ohne aktive Verbindung zu Gemini oder OpenAI keine tiefergehende Analyse durchführen. Nutze den Packaging Wizard für automatische Erkennungen!"
+        return "Ich bin der interner SwitchCraft AI Helper. (Mock)"
 """
-    create_addon("AI Assistant", "ai", {"service.py": ai_service_code})
+        create_addon("AI Assistant", "ai", {"service.py": ai_service_code})
 
     # Advanced Addon
     create_addon("Advanced Features", "advanced", {"start.txt": "Advanced features enabled"})

@@ -20,6 +20,25 @@ class SwitchCraftAI:
         self.provider = SwitchCraftConfig.get_value("AIProvider", "local")
         self.model = SwitchCraftConfig.get_value("AIModel", "")
 
+        # --- Dynamic Library Loading for Vendored Deps (Gemini/GRPC) ---
+        # The addon may ship with a 'libs' folder containing google-generativeai and grpc.
+        # We must add this to sys.path BEFORE trying to import them.
+        import sys
+        import os
+        from pathlib import Path
+
+        # Calculate libs path relative to this file
+        base_dir = Path(__file__).parent
+        libs_dir = base_dir / "libs"
+
+        if libs_dir.exists():
+            libs_path_str = str(libs_dir)
+            if libs_path_str not in sys.path:
+                logger.debug(f"AI Service: Adding vendored libs to path: {libs_path_str}")
+                # Insert at request 0 to prefer bundled libs
+                sys.path.insert(0, libs_path_str)
+        # ---------------------------------------------------------------
+
         self.tools = [
             {
                 "type": "function",

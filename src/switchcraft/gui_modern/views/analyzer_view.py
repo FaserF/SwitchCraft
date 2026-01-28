@@ -603,19 +603,24 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
              self.update()
              return
 
-        # 1. Primary Info Table
-        table = ft.DataTable(
-            columns=[ft.DataColumn(ft.Text(i18n.get("table_header_field") or "Field")), ft.DataColumn(ft.Text(i18n.get("table_header_value") or "Value"))],
-            rows=[
-                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_product") or "Product")), ft.DataCell(ft.Text(info.product_name or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_version") or "Version")), ft.DataCell(ft.Text(info.product_version or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_manufacturer") or "Manufacturer")), ft.DataCell(ft.Text(info.manufacturer or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_type") or "Type")), ft.DataCell(ft.Text(info.installer_type or "Unknown"))]),
-                ft.DataRow([ft.DataCell(ft.Text(i18n.get("field_file") or "File")), ft.DataCell(ft.Text(info.file_path, size=11, font_family="Consolas"))]),
-            ],
-            width=float("inf"),
+        # 1. Primary Info Card
+        self.results_column.controls.append(
+            ft.Text(i18n.get("analysis_results") or "Analysis Results", size=20, weight=ft.FontWeight.BOLD)
         )
-        self.results_column.controls.append(table)
+
+        metadata_card = ft.Card(
+            content=ft.Container(
+                padding=15,
+                content=ft.Column([
+                    ft.Row([ft.Text(i18n.get("field_product") or "Product", weight=ft.FontWeight.BOLD, width=120), ft.Text(info.product_name or "Unknown", expand=True)], vertical_alignment=ft.CrossAxisAlignment.START),
+                    ft.Row([ft.Text(i18n.get("field_version") or "Version", weight=ft.FontWeight.BOLD, width=120), ft.Text(info.product_version or "Unknown", expand=True)], vertical_alignment=ft.CrossAxisAlignment.START),
+                    ft.Row([ft.Text(i18n.get("field_manufacturer") or "Manufacturer", weight=ft.FontWeight.BOLD, width=120), ft.Text(info.manufacturer or "Unknown", expand=True)], vertical_alignment=ft.CrossAxisAlignment.START),
+                    ft.Row([ft.Text(i18n.get("field_type") or "Type", weight=ft.FontWeight.BOLD, width=120), ft.Text(info.installer_type or "Unknown", expand=True)], vertical_alignment=ft.CrossAxisAlignment.START),
+                    ft.Row([ft.Text(i18n.get("field_file") or "File", weight=ft.FontWeight.BOLD, width=120), ft.Text(info.file_path, size=11, font_family="Consolas", color="GREY_400", expand=True, selectable=True)], vertical_alignment=ft.CrossAxisAlignment.START),
+                ], spacing=8)
+            )
+        )
+        self.results_column.controls.append(metadata_card)
 
         # 2. macOS Specific Info
         if info.installer_type and "MacOS" in info.installer_type:
@@ -654,67 +659,84 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 )
             )
 
-        action_buttons = ft.Row([
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.AUTO_FIX_HIGH), ft.Text(i18n.get("btn_auto_deploy") or "Auto Deploy (All-in-One)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE"), on_click=self._safe_event_handler(lambda _: self._run_all_in_one_flow(result), "Auto Deploy")),
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text(i18n.get("btn_test_locally") or "Test Locally (Admin)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="GREEN_700", color="WHITE"), on_click=self._safe_event_handler(lambda _: self._run_local_test_action(info.file_path, info.install_switches), "Run Local Test")),
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.DESCRIPTION), ft.Text(i18n.get("btn_winget_manifest") or "Winget Manifest")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(lambda _: self._open_manifest_dialog(info), "Open Winget Manifest")),
-        ], wrap=True)
-        self.results_column.controls.append(action_buttons)
 
         # 5. Silent Installation Parameters
         switches_str = " ".join(info.install_switches) if info.install_switches else (i18n.get("none_detected") or "None detected")
-        color = "GREEN" if info.install_switches else "ORANGE"
+        sw_color = "GREEN_400" if info.install_switches else "ORANGE_400"
 
-        self.results_column.controls.append(
-            ft.Container(
+        switches_card = ft.Card(
+            content=ft.Container(
+                padding=15,
                 content=ft.Column([
                     ft.Text(i18n.get("silent_switches") or "Silent Install Parameters", weight=ft.FontWeight.BOLD),
-                    ft.TextField(value=switches_str, read_only=True, text_style=ft.TextStyle(color=color, font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=switches_str: self._copy_to_clipboard(s))),
-                ]),
-                padding=10, bgcolor="SURFACE_CONTAINER_HIGHEST", border_radius=5
+                    ft.TextField(
+                        value=switches_str,
+                        read_only=True,
+                        text_style=ft.TextStyle(color=sw_color, font_family="Consolas"),
+                        suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=switches_str: self._copy_to_clipboard(s), tooltip="Copy to clipboard"),
+                        border_radius=8,
+                        bgcolor="BLACK26"
+                    ),
+                ], spacing=10)
             )
         )
+        self.results_column.controls.append(switches_card)
 
         # 6. Uninstall switches
         if info.uninstall_switches:
             un_switches = " ".join(info.uninstall_switches)
-            self.results_column.controls.append(
-                ft.Container(
+            uninstall_card = ft.Card(
+                content=ft.Container(
+                    padding=15,
                     content=ft.Column([
                         ft.Text(i18n.get("silent_uninstall") or "Silent Uninstall Parameters", weight=ft.FontWeight.BOLD, color="RED_400"),
-                        ft.TextField(value=un_switches, read_only=True, text_style=ft.TextStyle(color="RED_200", font_family="Consolas"), suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=un_switches: self._copy_to_clipboard(s))),
-                    ]),
-                    padding=10, bgcolor="SURFACE_CONTAINER_HIGHEST", border_radius=5
+                        ft.TextField(
+                            value=un_switches,
+                            read_only=True,
+                            text_style=ft.TextStyle(color="RED_200", font_family="Consolas"),
+                            suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, s=un_switches: self._copy_to_clipboard(s), tooltip="Copy to clipboard"),
+                            border_radius=8,
+                            bgcolor="BLACK26"
+                        ),
+                    ], spacing=10)
                 )
             )
+            self.results_column.controls.append(uninstall_card)
 
-        # 7. Deployment Actions (Intune, IntuneWin)
+        # Consolidated Actions Section
         self.results_column.controls.append(
-            ft.Row([
-                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CODE), ft.Text(i18n.get("generate_intune_script") or "Generate Intune Script")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._on_click_create_script, "Generate Script")),
-                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.INVENTORY), ft.Text(i18n.get("btn_create_intunewin") or "Create .intunewin")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._on_click_create_intunewin, "Create Intunewin")),
-            ], wrap=True)
-        )
-
-        # 7b. Additional Actions (Winget Manifest, Local Test, Auto-Deploy)
-        self.results_column.controls.append(
-            ft.Row([
-                ft.FilledButton(
-                    content=ft.Row([ft.Icon(ft.Icons.DESCRIPTION), ft.Text(i18n.get("btn_winget_manifest") or "Winget Manifest")], alignment=ft.MainAxisAlignment.CENTER),
-                    on_click=self._safe_event_handler(lambda e: self._open_manifest_dialog(info), "Open Winget Manifest"),
-                    style=ft.ButtonStyle(bgcolor="BLUE_700")
-                ),
-                ft.FilledButton(
-                    content=ft.Row([ft.Icon(ft.Icons.PLAY_CIRCLE), ft.Text(i18n.get("btn_local_test") or "Lokal Testen")], alignment=ft.MainAxisAlignment.CENTER),
-                    on_click=self._safe_event_handler(lambda e: self._run_local_test_action(info.file_path, info.install_switches), "Run Local Test"),
-                    style=ft.ButtonStyle(bgcolor="ORANGE_700")
-                ),
-                ft.FilledButton(
-                    content=ft.Row([ft.Icon(ft.Icons.ROCKET_LAUNCH), ft.Text(i18n.get("btn_auto_deploy") or "Auto-Bereitstellung")], alignment=ft.MainAxisAlignment.CENTER),
-                    on_click=self._safe_event_handler(lambda e: self._run_all_in_one_flow(result), "Auto Deploy"),
-                    style=ft.ButtonStyle(bgcolor="GREEN_700")
-                ),
-            ], wrap=True, spacing=10)
+            ft.Container(
+                padding=ft.Padding(10, 5, 10, 5),
+                content=ft.Column([
+                    ft.Text(i18n.get("app_actions") or "Quick Actions", weight=ft.FontWeight.BOLD, size=16),
+                    ft.Row([
+                        ft.ElevatedButton(
+                            content=ft.Row([ft.Icon(ft.Icons.ROCKET_LAUNCH), ft.Text(i18n.get("btn_auto_deploy") or "Auto Deploy")], alignment=ft.MainAxisAlignment.CENTER),
+                            on_click=self._safe_event_handler(lambda _: self._run_all_in_one_flow(result), "Auto Deploy"),
+                            style=ft.ButtonStyle(color=ft.Colors.WHITE, bgcolor=ft.Colors.GREEN_700)
+                        ),
+                        ft.ElevatedButton(
+                            content=ft.Row([ft.Icon(ft.Icons.PLAY_CIRCLE), ft.Text(i18n.get("btn_local_test") or "Lokal Testen")], alignment=ft.MainAxisAlignment.CENTER),
+                            on_click=self._safe_event_handler(lambda _: self._run_local_test_action(info.file_path, info.install_switches), "Run Local Test"),
+                            style=ft.ButtonStyle(color=ft.Colors.WHITE, bgcolor=ft.Colors.BLUE_700)
+                        ),
+                        ft.ElevatedButton(
+                            content=ft.Row([ft.Icon(ft.Icons.DESCRIPTION), ft.Text(i18n.get("btn_winget_manifest") or "Winget Manifest")], alignment=ft.MainAxisAlignment.CENTER),
+                            on_click=self._safe_event_handler(lambda _: self._open_manifest_dialog(info), "Open Winget Manifest"),
+                        ),
+                    ], wrap=True, spacing=10),
+                    ft.Row([
+                        ft.OutlinedButton(
+                            content=ft.Row([ft.Icon(ft.Icons.CODE), ft.Text(i18n.get("generate_intune_script") or "Intune Script")], alignment=ft.MainAxisAlignment.CENTER),
+                            on_click=self._safe_event_handler(self._on_click_create_script, "Generate Script")
+                        ),
+                        ft.OutlinedButton(
+                            content=ft.Row([ft.Icon(ft.Icons.INVENTORY), ft.Text(i18n.get("btn_create_intunewin") or "Create .intunewin")], alignment=ft.MainAxisAlignment.CENTER),
+                            on_click=self._safe_event_handler(self._on_click_create_intunewin, "Create Intunewin")
+                        ),
+                    ], wrap=True, spacing=10),
+                ], spacing=10)
+            )
         )
 
         # 8. Parameter Explanations
@@ -910,6 +932,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                  self._show_snack("Failed to generate script", "RED")
 
     def _run_all_in_one_flow(self, result: AnalysisResult):
+        logger.info(f"Auto Deploy clicked. Result: {result}")
         # info unused here
 
         # Confirmation Dialog
@@ -1043,6 +1066,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         threading.Thread(target=_bg, daemon=True).start()
 
     def _run_local_test_action(self, file_path, switches):
+        logger.info(f"Run Local Test clicked. Path: {file_path}, Switches: {switches}")
         """
         Prompt the user to run the installer locally with elevated privileges and execute it if confirmed.
 
@@ -1079,44 +1103,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 """
                 self._close_dialog(restart_dlg)
 
-                # Restart as admin
-                try:
-                    import sys
-                    import time
-                    import gc
-                    import logging
-
-                    if sys.platform != "win32":
-                         self._show_snack("Elevation only supported on Windows.", "RED")
-                         return
-
-                    # 1. Close all file handles and release resources
-                    try:
-                        logging.shutdown()
-                    except Exception:
-                        pass
-
-                    # 2. Force garbage collection
-                    gc.collect()
-
-                    # 3. Small delay to allow file handles to be released
-                    time.sleep(0.2)
-
-                    executable = sys.executable
-                    params = f'"{sys.argv[0]}"'
-                    if len(sys.argv) > 1:
-                        params += " " + " ".join(f'"{a}"' for a in sys.argv[1:])
-
-                    # 4. Launch as admin
-                    ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
-
-                    # 5. Give the new process a moment to start
-                    time.sleep(0.3)
-
-                    # 6. Exit
-                    sys.exit(0)
-                except Exception as ex:
-                    self._show_snack(f"Failed to elevate: {ex}", "RED")
+                self._restart_as_admin()
 
             restart_dlg = ft.AlertDialog(
                 title=ft.Text(i18n.get("admin_required_title") or "Admin Rights Required"),
@@ -1165,6 +1152,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         self._open_dialog_safe(local_dlg)
 
     def _open_manifest_dialog(self, info):
+        logger.info(f"Open Winget Manifest clicked. Info: {info}")
         # Quick manifest generation using WingetManifestService
         def generate_local(e):
             try:

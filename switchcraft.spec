@@ -75,14 +75,20 @@ datas = [
 from PyInstaller.utils.hooks import collect_all
 try:
     flet_datas, flet_binaries, flet_hiddenimports = collect_all('flet')
-    datas += flet_datas
+    # Filter out web and CLI related datas/hiddenimports
+    datas += [d for d in flet_datas if not any(x in d[0] for x in ['flet_web', 'flet_cli', 'bin/flet'])]
     binaries = flet_binaries
-    hidden_imports += flet_hiddenimports
+    hidden_imports += [h for h in flet_hiddenimports if not any(x in h for x in ['flet_web', 'flet.cli', 'flet_cli'])]
 
     fd_datas, fd_binaries, fd_hiddenimports = collect_all('flet_desktop')
-    datas += fd_datas
-    binaries += fd_binaries
-    hidden_imports += fd_hiddenimports
+    # Filter desktop binaries to exclude libmpv (28MB) which is for video/audio play
+    # We only need the core flutter/flet binaries for the GUI
+    datas += [d for d in fd_datas if 'flet_web' not in d[0]]
+
+    excluded_binaries = ['libmpv-2.dll', 'audioplayers_windows_plugin.dll', 'media_kit_libs_windows_video_plugin.dll', 'media_kit_video_plugin.dll']
+    binaries += [b for b in fd_binaries if not any(ex in b[0] for ex in excluded_binaries)]
+
+    hidden_imports += [h for h in fd_hiddenimports if 'flet_web' not in h]
 except Exception as e:
     print(f"WARNING: Failed to collect Flet bundle files: {e}")
     binaries = []
@@ -97,7 +103,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['flet.testing', 'numpy', 'scipy', 'skimage', 'pandas', 'matplotlib'],
+    excludes=['flet.testing', 'numpy', 'scipy', 'skimage', 'pandas', 'matplotlib', 'google.generativeai', 'grpc', 'openai', 'flet_web', 'pydantic', 'fastapi', 'starlette', 'uvicorn', 'websockets', 'pydantic_core'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

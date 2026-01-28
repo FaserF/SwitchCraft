@@ -995,42 +995,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                     e: The event object from the confirmation button click that triggered the restart.
                 """
                 self._close_dialog(restart_dlg)
-                try:
-                    import sys
-                    import time
-                    import gc
-                    import logging
-
-                    # 1. Close all file handles and release resources
-                    try:
-                        logging.shutdown()
-                    except Exception:
-                        pass
-
-                    # 2. Force garbage collection
-                    gc.collect()
-
-                    # 3. Small delay to allow file handles to be released
-                    time.sleep(0.2)
-
-                    executable = sys.executable
-                    params = f'"{sys.argv[0]}"'
-                    if len(sys.argv) > 1:
-                        params += " " + " ".join(f'"{a}"' for a in sys.argv[1:])
-
-                    # 4. Launch as admin
-                    if sys.platform == 'win32':
-                        ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
-                    else:
-                        raise NotImplementedError("Elevation not supported on this platform")
-
-                    # 5. Give the new process a moment to start
-                    time.sleep(0.3)
-
-                    # 6. Exit
-                    sys.exit(0)
-                except Exception as ex:
-                    self._show_snack(f"Failed to elevate: {ex}", "RED")
+                self._restart_as_admin()
 
             restart_dlg = ft.AlertDialog(
                 title=ft.Text(i18n.get("admin_required_title") or "Admin Rights Required"),

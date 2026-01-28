@@ -491,9 +491,36 @@ if ($Addons) {
     foreach ($Ad in $AddonList) {
         $SrcPath = Join-Path $RepoRoot "src/$Ad"
         $ZipPath = Join-Path $DistDir "$Ad.zip"
+
         if (Test-Path $SrcPath) {
+            # --- AI Addon Special Handling: Vendor Libs ---
+            if ($Ad -eq "switchcraft_ai") {
+                Write-Host "  [AI Addon] Vendoring dependencies (google-generativeai)..." -ForegroundColor Cyan
+                $LibsDir = Join-Path $SrcPath "libs"
+                if (-not (Test-Path $LibsDir)) { New-Item -ItemType Directory -Path $LibsDir | Out-Null }
+
+                try {
+                    # Install deps to target folder
+                    $PipCmd = if ($env:OS -match 'Windows_NT') { "python" } else { "python3" }
+                    # We install 'google-generativeai' and 'grpcio' specifically, and now 'openai' too.
+                    # This ensures the addon is fully self-contained for both providers.
+                    & $PipCmd -m pip install "google-generativeai" "openai" -t $LibsDir --upgrade --no-warn-script-location -q
+
+                    # Also need to cleanup .dist-info and __pycache__ to save space?
+                    # For now keep them to be safe.
+                } catch {
+                    Write-Warning "Failed to vendor AI libs: $_"
+                }
+            }
+            # ----------------------------------------------
+
             Compress-Archive -Path $SrcPath -DestinationPath $ZipPath -Force
             Write-Host "Packed: $Ad.zip" -ForegroundColor Green
+
+            # --- Cleanup Vendored Libs (Keep source clean) ---
+            if ($Ad -eq "switchcraft_ai" -and (Test-Path $LibsDir)) {
+                 Remove-Item $LibsDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
         }
         else {
             Write-Warning "Addon source not found: $SrcPath"

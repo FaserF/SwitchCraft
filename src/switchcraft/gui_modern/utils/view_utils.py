@@ -3,6 +3,7 @@ from switchcraft import IS_WEB
 import logging
 import asyncio
 import inspect
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,7 @@ class ViewMixin:
             A wrapped function that catches exceptions and shows them in CrashDumpView
         """
         def wrapped_handler(e):
+            print(f"DEBUG: Event triggered for {context}") # FORCE DEBUG OUTPUT
             try:
                 return handler(e)
             except Exception as ex:
@@ -137,7 +139,7 @@ class ViewMixin:
                 return
 
             # Create snackbar
-            sb = ft.SnackBar(ft.Text(msg), bgcolor=color)
+            sb = ft.SnackBar(ft.Text(str(msg)), bgcolor=color)
             page.snack_bar = sb
 
             # Try modern API
@@ -154,6 +156,69 @@ class ViewMixin:
             page.update()
         except Exception as e:
             logger.warning(f"Failed to show snackbar: {e}", exc_info=True)
+
+    def _copy_to_clipboard(self, text):
+        """Copy text to clipboard and show feedback."""
+        try:
+            page = getattr(self, "app_page", None) or getattr(self, "page", None)
+            if page:
+                page.set_clipboard(text)
+                self._show_snack(i18n.get("msg_copied") or "Copied to clipboard!", "GREEN")
+        except Exception as e:
+            logger.error(f"Failed to copy to clipboard: {e}")
+            self._show_snack("Failed to copy to clipboard", "RED")
+
+    def _restart_as_admin(self):
+        """
+        Restarts the current application with administrator privileges on Windows.
+        Handles both development (python) and production (frozen exe) environments.
+        """
+        import sys
+        import time
+        import gc
+        import logging
+        import ctypes
+
+        if sys.platform != "win32":
+            self._show_snack("Elevation is only supported on Windows.", "RED")
+            return
+
+        try:
+            # 1. Resource cleanup
+            try:
+                logging.shutdown()
+            except Exception:
+                pass
+            gc.collect()
+            time.sleep(0.2)
+
+            # 2. Determine executable and arguments
+            if getattr(sys, 'frozen', False):
+                # Frozen exe (PyInstaller)
+                executable = sys.executable
+                # For frozen apps, we just pass the arguments directly
+                params = " ".join(f'"{a}"' for a in sys.argv[1:])
+            else:
+                # Script mode (.py)
+                executable = sys.executable
+                params = f'"{sys.argv[0]}"'
+                if len(sys.argv) > 1:
+                    params += " " + " ".join(f'"{a}"' for a in sys.argv[1:])
+
+            # 3. Launch elevated
+            logger.info(f"Relaunching elevated: {executable} {params}")
+            ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
+
+            if int(ret) > 32:
+                # Success - allow process to exit
+                time.sleep(0.2)
+                sys.exit(0)
+            else:
+                raise RuntimeError(f"ShellExecute failed with code {ret}")
+
+        except Exception as e:
+            logger.error(f"Elevation restart failed: {e}")
+            self._show_snack(f"Failed to elevate: {e}", "RED")
 
     def _show_restricted_hint(self, feature_name: str = None):
         """Show a customized snackbar hint for features restricted in Demo or due to missing dependencies."""
@@ -439,12 +504,27 @@ class ViewMixin:
                 except Exception as e_modern:
                     logger.debug(f"Modern dialog open failed: {e_modern}")
 
-            # 2. Legacy Fallback
-            page.dialog = dlg
-            if hasattr(dlg, 'open'):
-                dlg.open = True
-            page.update()
-            return True
+            # 2. Legacy Fallback (page.dialog)
+            try:
+                page.dialog = dlg
+                if hasattr(dlg, 'open'):
+                    dlg.open = True
+                page.update()
+                return True
+            except Exception as e_legacy:
+                logger.debug(f"Legacy dialog text failed: {e_legacy}")
+
+            # 3. Third Fallback (Overlay)
+            try:
+                if hasattr(page, 'overlay'):
+                    page.overlay.append(dlg)
+                    dlg.open = True
+                    page.update()
+                    return True
+            except Exception as e_overlay:
+                logger.debug(f"Overlay dialog failed: {e_overlay}")
+
+            return False
 
         except Exception as e:
             logger.error(f"Failed to open dialog in any mode: {e}")
