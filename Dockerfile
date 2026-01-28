@@ -38,7 +38,8 @@ EXPOSE 8080
 ENV FLET_SERVER_IP=0.0.0.0
 ENV FLET_SERVER_PORT=8080
 ENV FLET_FORCE_WEB_SOCKET=true
-ENV FLET_SECRET=switchcraft_secure_session
+# FLET_SECRET should be passed at runtime for security
+# ENV FLET_SECRET=change_me_at_runtime
 ENV FLET_REMOTE_ADDR_HEADER=X-Forwarded-For
 ENV FLET_WEB_URL=http://localhost:8080
 ENV FLET_ENTRY_URL=http://localhost:8080
@@ -48,6 +49,13 @@ ENV SC_DISABLE_WINGET_INSTALL=1
 # Command to run the application in web mode
 # Create symlink for assets so Flet can find them at /app/assets
 RUN ln -s /app/src/switchcraft/assets /app/assets
+
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+# Set entrypoint
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Command to run the application using the Auth Proxy Server
 # Added --proxy-headers and --forwarded-allow-ips='*' to fix UUID hostname issues in Docker/K8s

@@ -1,4 +1,4 @@
-__version__ = "2026.1.5b4"
+__version__ = "2026.1.5b4.dev0+4d8700a"
 
 import sys
 IS_WEB = sys.platform == "emscripten"
