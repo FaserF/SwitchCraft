@@ -124,22 +124,34 @@ class ViewMixin:
             logger.debug(f"Safe update failed (non-critical): {e}")
 
     def _show_snack(self, msg, color="GREEN"):
-        """Show a snackbar message on the page using modern API."""
+        """Show a snackbar message on the page with robust compatibility."""
         try:
             page = getattr(self, "app_page", None)
             if not page:
                 try:
                     page = self.page
                 except (RuntimeError, AttributeError):
-                    logger.warning("Failed to show snackbar: page not available (RuntimeError/AttributeError)")
+                    logger.warning("Failed to show snackbar: page not available")
                     return
             if not page:
-                logger.warning("Failed to show snackbar: page is None")
                 return
 
-            page.snack_bar = ft.SnackBar(ft.Text(msg), bgcolor=color)
-            # Use newer API for showing snackbar
-            page.open(page.snack_bar)
+            # Create snackbar
+            sb = ft.SnackBar(ft.Text(msg), bgcolor=color)
+            page.snack_bar = sb
+
+            # Try modern API
+            if hasattr(page, 'open'):
+                try:
+                    page.open(sb)
+                    page.update()
+                    return
+                except Exception as e_modern:
+                    logger.debug(f"Modern snackbar open failed: {e_modern}")
+
+            # Fallback for older or specific builds
+            sb.open = True
+            page.update()
         except Exception as e:
             logger.warning(f"Failed to show snackbar: {e}", exc_info=True)
 
@@ -404,7 +416,7 @@ class ViewMixin:
     def _open_dialog_safe(self, dlg):
         """
         Open a dialog safely across Flet versions and environments.
-        Prioritizes modern 'page.open(dlg)' API, falls back to legacy 'page.dialog = dlg'.
+        Handles both modern 'page.open(dlg)' and legacy 'page.dialog = dlg'.
         """
         page = getattr(self, "app_page", None)
         if not page:
@@ -418,28 +430,24 @@ class ViewMixin:
              return False
 
         try:
-            # Method 1: Modern API (Preferred)
+            # 1. Try modern API (Preferred)
             if hasattr(page, 'open'):
                 try:
-                    logger.debug("Attempting to open dialog using page.open()...")
                     page.open(dlg)
                     page.update()
-                    logger.info("Dialog opened successfully using page.open()")
                     return True
-                except Exception as e:
-                    logger.warning(f"page.open(dlg) failed: {e}. Falling back to legacy mode.")
+                except Exception as e_modern:
+                    logger.debug(f"Modern dialog open failed: {e_modern}")
 
-            # Method 2: Legacy API (Fallback)
-            logger.debug("Attempting to open dialog using legacy page.dialog...")
+            # 2. Legacy Fallback
             page.dialog = dlg
             if hasattr(dlg, 'open'):
                 dlg.open = True
             page.update()
-            logger.info("Dialog opened using legacy page.dialog mode")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to open dialog in any mode: {e}", exc_info=True)
+            logger.error(f"Failed to open dialog in any mode: {e}")
             return False
 
     def _close_dialog(self, dialog=None):
@@ -634,3 +642,50 @@ class ViewMixin:
                 if error_msg:
                     self._show_snack(error_msg, "RED")
                 return False
+
+    def _copy_to_clipboard(self, text: str):
+        """Centralized robust clipboard copy with multiple fallbacks."""
+        if not text:
+            from switchcraft.utils.i18n import i18n
+            self._show_snack(i18n.get("nothing_to_copy") or "Nothing to copy", "ORANGE")
+            return
+
+        from switchcraft.utils.i18n import i18n
+        page = getattr(self, "app_page", None) or getattr(self, "page", None)
+
+        # 1. Try Flet Page (Best for Web/Standard Desktop)
+        if page:
+            try:
+                # set_clipboard is usually sync, but some async environments might need set_clipboard_async
+                if hasattr(page, 'set_clipboard_async'):
+                    async def _clip(): await page.set_clipboard_async(text)
+                    self._run_task_safe(_clip)
+                else:
+                    page.set_clipboard(text)
+
+                self._show_snack(i18n.get("copied_to_clipboard") or "Copied to clipboard!", "GREEN_700")
+                return
+            except Exception as e:
+                logger.debug(f"Flet clipboard failed: {e}")
+
+        # 2. Try Pyperclip (Desktop standard)
+        try:
+            import pyperclip
+            pyperclip.copy(text)
+            self._show_snack(i18n.get("copied_to_clipboard") or "Copied to clipboard!", "GREEN_700")
+            return
+        except Exception as e:
+            logger.debug(f"Pyperclip failed: {e}")
+
+        # 3. Fallback to Shell (Windows 'clip' or 'xdg-copy' etc via ShellUtils)
+        try:
+            from switchcraft.utils.shell_utils import ShellUtils
+            import sys
+            if sys.platform == "win32":
+                ShellUtils.run_command(['clip'], input=text.encode('utf-8'), check=False, silent=True)
+                self._show_snack(i18n.get("copied_to_clipboard") or "Copied to clipboard!", "GREEN_700")
+                return
+        except Exception as e:
+            logger.debug(f"Shell clipboard fallback failed: {e}")
+
+        self._show_snack("Failed to copy to clipboard", "RED")

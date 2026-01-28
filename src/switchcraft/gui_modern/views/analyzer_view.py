@@ -515,23 +515,29 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             try:
                 # Progress Adapter
                 def on_progress(pct, msg, eta=None):
-                    self.status_text.value = f"{msg} ({int(pct*100)}%)"
-                    self.progress_bar.value = pct
-                    if hasattr(self.app_page, "switchcraft_app"):
-                        self.app_page.switchcraft_app.set_progress(value=pct, visible=True)
-                    else:
-                        self.update()
+                    def update_ui():
+                        self.status_text.value = f"{msg} ({int(pct*100)}%)"
+                        self.progress_bar.value = pct
+                        if hasattr(self.app_page, "switchcraft_app"):
+                            self.app_page.switchcraft_app.set_progress(value=pct, visible=True)
+                        else:
+                            self._safe_update()
+                    self._run_task_safe(update_ui)
 
                 result = self.controller.analyze_file(filepath, progress_callback=on_progress)
-                self.status_text.value = "Analysis Complete"
-                self.progress_bar.visible = False
-                self.analyzing = False
 
-                # Update global progress
-                if hasattr(self.app_page, "switchcraft_app"):
-                    self.app_page.switchcraft_app.set_progress(visible=False)
+                def finish_analysis():
+                    self.status_text.value = "Analysis Complete"
+                    self.progress_bar.visible = False
+                    self.analyzing = False
 
-                self._show_results(result)
+                    # Update global progress
+                    if hasattr(self.app_page, "switchcraft_app"):
+                        self.app_page.switchcraft_app.set_progress(visible=False)
+
+                    self._show_results(result)
+
+                self._run_task_safe(finish_analysis)
 
                 # Trigger Desktop Notification
                 try:
@@ -547,15 +553,17 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                     logger.warning(f"Failed to trigger analysis notification: {n_ex}")
             except Exception as ex:
                 logger.exception("Analysis failed")
-                self.status_text.value = f"Error: {ex}"
-                self.status_text.color = "RED"
-                self.progress_bar.visible = False
-                self.analyzing = False
+                def handle_error():
+                    self.status_text.value = f"Error: {ex}"
+                    self.status_text.color = "RED"
+                    self.progress_bar.visible = False
+                    self.analyzing = False
 
-                if hasattr(self.app_page, "switchcraft_app"):
-                    self.app_page.switchcraft_app.set_progress(visible=False)
-                else:
-                    self.update()
+                    if hasattr(self.app_page, "switchcraft_app"):
+                        self.app_page.switchcraft_app.set_progress(visible=False)
+                    else:
+                        self._safe_update()
+                self._run_task_safe(handle_error)
 
             finally:
                 if cleanup_path:
@@ -647,9 +655,9 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             )
 
         action_buttons = ft.Row([
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.AUTO_FIX_HIGH), ft.Text(i18n.get("btn_auto_deploy") or "Auto Deploy (All-in-One)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE"), on_click=lambda _: self._run_all_in_one_flow(result)),
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text(i18n.get("btn_test_locally") or "Test Locally (Admin)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="GREEN_700", color="WHITE"), on_click=lambda _: self._run_local_test_action(info.file_path, info.install_switches)),
-            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.DESCRIPTION), ft.Text(i18n.get("btn_winget_manifest") or "Winget Manifest")], alignment=ft.MainAxisAlignment.CENTER), on_click=lambda _: self._open_manifest_dialog(info)),
+            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.AUTO_FIX_HIGH), ft.Text(i18n.get("btn_auto_deploy") or "Auto Deploy (All-in-One)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="RED_700", color="WHITE"), on_click=self._safe_event_handler(lambda _: self._run_all_in_one_flow(result), "Auto Deploy")),
+            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.PLAY_ARROW), ft.Text(i18n.get("btn_test_locally") or "Test Locally (Admin)")], alignment=ft.MainAxisAlignment.CENTER), style=ft.ButtonStyle(bgcolor="GREEN_700", color="WHITE"), on_click=self._safe_event_handler(lambda _: self._run_local_test_action(info.file_path, info.install_switches), "Run Local Test")),
+            ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.DESCRIPTION), ft.Text(i18n.get("btn_winget_manifest") or "Winget Manifest")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(lambda _: self._open_manifest_dialog(info), "Open Winget Manifest")),
         ], wrap=True)
         self.results_column.controls.append(action_buttons)
 
@@ -686,6 +694,27 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CODE), ft.Text(i18n.get("generate_intune_script") or "Generate Intune Script")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._on_click_create_script, "Generate Script")),
                 ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.INVENTORY), ft.Text(i18n.get("btn_create_intunewin") or "Create .intunewin")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._on_click_create_intunewin, "Create Intunewin")),
             ], wrap=True)
+        )
+
+        # 7b. Additional Actions (Winget Manifest, Local Test, Auto-Deploy)
+        self.results_column.controls.append(
+            ft.Row([
+                ft.FilledButton(
+                    content=ft.Row([ft.Icon(ft.Icons.DESCRIPTION), ft.Text(i18n.get("btn_winget_manifest") or "Winget Manifest")], alignment=ft.MainAxisAlignment.CENTER),
+                    on_click=self._safe_event_handler(lambda e: self._open_manifest_dialog(info), "Open Winget Manifest"),
+                    style=ft.ButtonStyle(bgcolor="BLUE_700")
+                ),
+                ft.FilledButton(
+                    content=ft.Row([ft.Icon(ft.Icons.PLAY_CIRCLE), ft.Text(i18n.get("btn_local_test") or "Lokal Testen")], alignment=ft.MainAxisAlignment.CENTER),
+                    on_click=self._safe_event_handler(lambda e: self._run_local_test_action(info.file_path, info.install_switches), "Run Local Test"),
+                    style=ft.ButtonStyle(bgcolor="ORANGE_700")
+                ),
+                ft.FilledButton(
+                    content=ft.Row([ft.Icon(ft.Icons.ROCKET_LAUNCH), ft.Text(i18n.get("btn_auto_deploy") or "Auto-Bereitstellung")], alignment=ft.MainAxisAlignment.CENTER),
+                    on_click=self._safe_event_handler(lambda e: self._run_all_in_one_flow(result), "Auto Deploy"),
+                    style=ft.ButtonStyle(bgcolor="GREEN_700")
+                ),
+            ], wrap=True, spacing=10)
         )
 
         # 8. Parameter Explanations
@@ -760,13 +789,13 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
             ft.ExpansionTile(
                 title=ft.Row([ft.Icon(ft.Icons.ZOOM_IN), ft.Text(i18n.get("view_full_params") or "Detailed Analysis Data")], alignment=ft.MainAxisAlignment.START),
                 controls=[
-                    ft.Text(f"Analysis Details for {Path(info.file_path).name}", weight=ft.FontWeight.BOLD, size=18, selectable=True),
-                    ft.Markdown(f"**Installer Type:** {info.installer_type}\n**Product:** {info.product_name}\n**Version:** {info.product_version}", selectable=True),
+                    ft.Text(f"{i18n.get('analysis_details_for') or 'Analysis Details for'} {Path(info.file_path).name}", weight=ft.FontWeight.BOLD, size=18, selectable=True),
+                    ft.Markdown(f"**{i18n.get('field_installer_type') or 'Installer Type'}:** {info.installer_type}\n**{i18n.get('field_product') or 'Product'}:** {info.product_name}\n**{i18n.get('field_version') or 'Version'}:** {info.product_version}", selectable=True),
                     ft.Divider(),
-                    ft.Text("Raw Analysis Output:", weight=ft.FontWeight.BOLD),
+                    ft.Text(i18n.get("raw_analysis_output") or "Raw Analysis Output:", weight=ft.FontWeight.BOLD),
                     ft.Container(
                         content=ft.Column([
-                            ft.Text(result.brute_force_data or "No raw data available.", font_family="Consolas", size=10, selectable=True),
+                            ft.Text(result.brute_force_data or (i18n.get("no_raw_data") or "No raw data available."), font_family="Consolas", size=10, selectable=True),
                         ], scroll=ft.ScrollMode.AUTO),
                         height=300, bgcolor="BLACK", padding=10, border_radius=5, width=float("inf")
                     )
@@ -783,10 +812,10 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 controls=[
                      ft.Container(
                          content=ft.Column([
-                            ft.Text("CMD / Batch:", weight=ft.FontWeight.BOLD),
-                            ft.TextField(value=f'"{path}" {switches}', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, cmd=f'"{path}" {switches}': self._copy_to_clipboard(cmd))),
-                            ft.Text("PowerShell:", weight=ft.FontWeight.BOLD),
-                            ft.TextField(value=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, cmd=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait': self._copy_to_clipboard(cmd))),
+                            ft.Text(i18n.get("cmd_batch_label") or "CMD / Batch:", weight=ft.FontWeight.BOLD),
+                            ft.TextField(value=f'"{path}" {switches}', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, c=f'"{path}" {switches}': self._copy_to_clipboard(c))),
+                            ft.Text(i18n.get("powershell_label") or "PowerShell:", weight=ft.FontWeight.BOLD),
+                            ft.TextField(value=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait', read_only=True, suffix=ft.IconButton(ft.Icons.COPY, on_click=lambda _, c=f'Start-Process -FilePath "{path}" -ArgumentList "{switches}" -Wait': self._copy_to_clipboard(c))),
                         ], spacing=10),
                         padding=10
                      )
@@ -1048,8 +1077,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 Parameters:
                     e: The confirmation event from the restart dialog (unused beyond dismissing the dialog).
                 """
-                restart_dlg.open = False
-                self.app_page.update()
+                self._close_dialog(restart_dlg)
 
                 # Restart as admin
                 try:
@@ -1103,8 +1131,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         # If already admin, proceed with normal confirmation
         def on_confirm(e):
-            local_dlg.open = False
-            self.app_page.update()
+            self._close_dialog(local_dlg)
 
             path_obj = Path(file_path)
             params_str = " ".join(switches) if switches else ""
@@ -1135,15 +1162,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 ft.FilledButton(content=ft.Text(i18n.get("btn_run_now") or "Run Now (Admin)"), bgcolor="GREEN_700", color="WHITE", on_click=on_confirm),
             ],
         )
-        if not self._open_dialog_safe(local_dlg):
-             # Defensive Fallback
-            try:
-                if self.app_page:
-                    self.app_page.open(local_dlg)
-                    self.app_page.update()
-            except Exception as e:
-                logger.error(f"Manual fallback test dialog open failed: {e}")
-                self._show_snack("Failed to open Test dialog", "RED")
+        self._open_dialog_safe(local_dlg)
 
     def _open_manifest_dialog(self, info):
         # Quick manifest generation using WingetManifestService
@@ -1196,51 +1215,15 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 ], vertical_alignment=ft.CrossAxisAlignment.CENTER)
             ], height=110, tight=True),
             actions=[
-                ft.TextButton("Cancel", on_click=lambda _: self._close_dialog(dlg)),
-                ft.TextButton("Open Manager", on_click=open_winget_manager),
-                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.BUILD), ft.Text("Generate Locals")], alignment=ft.MainAxisAlignment.CENTER), on_click=generate_local, bgcolor="BLUE_700", color="WHITE"),
+                ft.TextButton("Cancel", on_click=self._safe_event_handler(lambda _: self._close_dialog(dlg), "Cancel manifest dialog")),
+                ft.TextButton("Open Manager", on_click=self._safe_event_handler(open_winget_manager, "Open Winget Manager")),
+                ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.BUILD), ft.Text("Generate Locals")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(generate_local, "Generate local manifest"), bgcolor="BLUE_700", color="WHITE"),
             ],
         )
 
-        if not self._open_dialog_safe(dlg):
-            # Defensive Fallback if mixin failed silently
-            try:
-                if self.app_page:
-                    self.app_page.open(dlg)
-                    self.app_page.update()
-                elif self.page:
-                    self.page.open(dlg)
-                    self.page.update()
-            except Exception as e:
-                logger.error(f"Manual fallback dialog open failed: {e}")
-                self._show_snack("Failed to open Winget Manifest dialog", "RED")
+        self._open_dialog_safe(dlg)
 
 
-    def _copy_to_clipboard(self, text: str):
-        """Copy text to clipboard using Flet first, then fallbacks."""
-        # 1. Try Flet Page (Best for Web)
-        page = getattr(self, "app_page", None) or self.page
-        if page:
-            try:
-                page.set_clipboard(text)
-                self._show_snack(i18n.get("copied_to_clipboard") or "Copied to clipboard!", "GREEN_700")
-                return
-            except Exception as e:
-                logger.warning(f"Flet clipboard failed: {e}")
-
-        # 2. Try Pyperclip
-        try:
-            import pyperclip
-            pyperclip.copy(text)
-            self._show_snack(i18n.get("copied_to_clipboard") or "Copied to clipboard!", "GREEN_700")
-        except ImportError:
-            # 3. Fallback to Windows Clip via ShellUtils
-            try:
-                from switchcraft.utils.shell_utils import ShellUtils
-                ShellUtils.run_command(['clip'], input=text.encode('utf-8'), check=True, silent=True)
-                self._show_snack(i18n.get("copied_to_clipboard") or "Copied to clipboard!", "GREEN_700")
-            except Exception as ex:
-                self._show_snack(f"Failed to copy: {ex}", "RED")
 
     def _on_click_create_intunewin(self, e):
         # We need a source folder and output. For simplicity, use installer dir and create alongside.

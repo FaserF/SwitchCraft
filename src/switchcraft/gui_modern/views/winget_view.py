@@ -237,22 +237,21 @@ class ModernWingetView(ft.Row, ViewMixin):
 
                 if t.is_alive():
                     logger.warning(f"Winget search timeout after 60s for query: {query}")
-                    self.search_results.controls.clear()
-                    self.search_results.controls.append(
-                        ft.Container(
-                            content=ft.Column([
-                                ft.Icon(ft.Icons.WARNING, color="ORANGE", size=40),
-                                ft.Text(i18n.get("winget_search_timeout") or "Search is taking too long...", color="ORANGE"),
-                                ft.Text(i18n.get("winget_search_timeout_hint") or "Try a more specific search term or check your internet connection.", size=12, color="GREY_500")
-                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
-                            alignment=ft.Alignment(0, 0),
-                            padding=40
+                    def _show_timeout():
+                        self.search_results.controls.clear()
+                        self.search_results.controls.append(
+                            ft.Container(
+                                content=ft.Column([
+                                    ft.Icon(ft.Icons.WARNING, color="ORANGE", size=40),
+                                    ft.Text(i18n.get("winget_search_timeout") or "Search is taking too long...", color="ORANGE"),
+                                    ft.Text(i18n.get("winget_search_timeout_hint") or "Try a more specific search term or check your internet connection.", size=12, color="GREY_500")
+                                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                                alignment=ft.Alignment(0, 0),
+                                padding=40
+                            )
                         )
-                    )
-                    try:
                         self._safe_update()
-                    except Exception:
-                        pass
+                    self._run_task_safe(_show_timeout)
                     return
 
                 if result_holder["error"]:
@@ -266,21 +265,20 @@ class ModernWingetView(ft.Row, ViewMixin):
                 self._run_ui_update(_update_list)
             except Exception as ex:
                 logger.error(f"Winget search error: {ex}")
-                self.search_results.controls.clear()
-                self.search_results.controls.append(
-                    ft.Container(
-                        content=ft.Column([
-                            ft.Icon(ft.Icons.ERROR, color="RED", size=40),
-                            ft.Text(f"{i18n.get('error_prefix') or 'Error:'} {ex}", color="RED")
-                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
-                        alignment=ft.Alignment(0, 0),
-                        padding=40
+                def _show_error():
+                    self.search_results.controls.clear()
+                    self.search_results.controls.append(
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Icon(ft.Icons.ERROR, color="RED", size=40),
+                                ft.Text(f"{i18n.get('error_prefix') or 'Error:'} {ex}", color="RED")
+                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                            alignment=ft.Alignment(0, 0),
+                            padding=40
+                        )
                     )
-                )
-                try:
                     self._safe_update()
-                except Exception:
-                    pass
+                self._run_task_safe(_show_error)
 
         threading.Thread(target=_search, daemon=True).start()
 
@@ -842,18 +840,6 @@ class ModernWingetView(ft.Row, ViewMixin):
         except Exception as ex:
             logger.error(f"Failed to open URL: {ex}")
 
-    def _copy_to_clipboard(self, text: str):
-        """Copy text to clipboard."""
-        try:
-            import pyperclip
-            pyperclip.copy(text)
-        except ImportError:
-            # Fallback for systems without pyperclip
-            try:
-                import subprocess
-                subprocess.run(['clip'], input=text.encode('utf-8'), check=True)
-            except Exception:
-                pass
 
     def _open_deploy_menu(self, info):
         """
@@ -1008,8 +994,7 @@ class ModernWingetView(ft.Row, ViewMixin):
                 Parameters:
                     e: The event object from the confirmation button click that triggered the restart.
                 """
-                restart_dlg.open = False
-                self._safe_update(self.app_page)
+                self._close_dialog(restart_dlg)
                 try:
                     import sys
                     import time
@@ -1051,11 +1036,11 @@ class ModernWingetView(ft.Row, ViewMixin):
                 title=ft.Text(i18n.get("admin_required_title") or "Admin Rights Required"),
                 content=ft.Text(i18n.get("admin_required_msg") or "Local testing requires administrative privileges. Would you like to restart SwitchCraft as Administrator?"),
                 actions=[
-                    ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=self._safe_event_handler(lambda _: setattr(restart_dlg, "open", False) or self._safe_update(self.app_page), "Cancel elevation")),
+                    ft.TextButton(i18n.get("btn_cancel") or "Cancel", on_click=self._safe_event_handler(lambda _: self._close_dialog(restart_dlg), "Cancel elevation")),
                     ft.FilledButton(content=ft.Text(i18n.get("btn_restart_admin") or "Restart as Admin"), bgcolor="RED_700", color="WHITE", on_click=self._safe_event_handler(on_restart_confirm, "Confirm restart as admin")),
                 ],
             )
-            self.app_page.open(restart_dlg)
+            self._open_dialog_safe(restart_dlg)
             return
 
         pkg_id = self.current_pkg.get('Id')

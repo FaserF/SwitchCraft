@@ -119,10 +119,10 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
     def _build_nav_buttons(self):
         self.btn_prev = ft.FilledButton(
-            content=ft.Text(i18n.get("btn_back") or "Previous"), on_click=self._prev_step, disabled=True
+            content=ft.Text(i18n.get("btn_back") or "Previous"), on_click=self._safe_event_handler(self._prev_step, "Previous step"), disabled=True
         )
         self.btn_next = ft.FilledButton(
-            content=ft.Text(i18n.get("btn_next") or "Next"), on_click=self._next_step, bgcolor="BLUE", color="WHITE"
+            content=ft.Text(i18n.get("btn_next") or "Next"), on_click=self._safe_event_handler(self._next_step, "Next step"), bgcolor="BLUE", color="WHITE"
         )
         return ft.Row(
             [self.btn_prev, ft.Container(expand=True), self.btn_next],
@@ -284,7 +284,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
             i18n.get("wiz_autopilot") or "Auto-Pilot (Magic Mode) 🪄",
             icon=ft.Icons.AUTO_FIX_HIGH,
             style=ft.ButtonStyle(color="PURPLE_200"),
-            on_click=self._run_autopilot
+            on_click=self._safe_event_handler(self._run_autopilot, "Auto-Pilot")
         )
 
         return ft.Column([
@@ -332,17 +332,15 @@ class PackagingWizardView(ft.Column, ViewMixin):
                                  # self.download_progress.value = dl / total_length
                                  # self.update()
 
-                self.installer_path = str(target_path)
-                self.file_text.value = str(target_path) # sync with other tab
-                self.download_status.value = (i18n.get("wiz_download_success") or "Downloaded: {file}").format(file=filename)
-                self.download_status.color = "GREEN"
-                self.download_progress.visible = False
+                self._run_task_safe(lambda: setattr(self.download_status, "value", (i18n.get("wiz_download_success") or "Downloaded: {file}").format(file=filename)))
+                self._run_task_safe(lambda: setattr(self.download_status, "color", "GREEN"))
+                self._run_task_safe(lambda: setattr(self.download_progress, "visible", False))
             except Exception as ex:
-                self.download_status.value = f"Error: {ex}"
-                self.download_status.color = "RED"
-                self.download_progress.visible = False
+                self._run_task_safe(lambda: setattr(self.download_status, "value", f"Error: {ex}"))
+                self._run_task_safe(lambda: setattr(self.download_status, "color", "RED"))
+                self._run_task_safe(lambda: setattr(self.download_progress, "visible", False))
 
-            self.update()
+            self._run_task_safe(self._safe_update)
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -408,9 +406,11 @@ class PackagingWizardView(ft.Column, ViewMixin):
             try:
                 # Progress callback to update UI
                 def on_progress(pct, msg, eta=None):
-                    self.analysis_progress.value = pct
-                    self.analysis_status.value = msg
-                    self.update()
+                    def update_progress():
+                        self.analysis_progress.value = pct
+                        self.analysis_status.value = msg
+                        self._safe_update()
+                    self._run_task_safe(update_progress)
 
                 # Use the same analyze_file method as ModernAnalyzerView
                 res = self.analysis_controller.analyze_file(
@@ -421,64 +421,70 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
                 # Check for errors
                 if res.error:
-                    self.analysis_error_container.content = ft.Container(
-                        content=ft.Row([
-                            ft.Icon(ft.Icons.ERROR_OUTLINE, color="WHITE"),
-                            ft.Text(f"Error: {res.error}", color="WHITE")
-                        ]),
-                        bgcolor="RED_700",
-                        padding=10,
-                        border_radius=8
-                    )
-                    self.analysis_error_container.visible = True
-                    self.analysis_status.value = i18n.get("wiz_analysis_failed") or "Analysis failed"
-                    self.analysis_status.color = "RED"
-                    self.analysis_progress.visible = False
-                    self.update()
+                    def handle_error():
+                        self.analysis_error_container.content = ft.Container(
+                            content=ft.Row([
+                                ft.Icon(ft.Icons.ERROR_OUTLINE, color="WHITE"),
+                                ft.Text(f"Error: {res.error}", color="WHITE")
+                            ]),
+                            bgcolor="RED_700",
+                            padding=10,
+                            border_radius=8
+                        )
+                        self.analysis_error_container.visible = True
+                        self.analysis_status.value = i18n.get("wiz_analysis_failed") or "Analysis failed"
+                        self.analysis_status.color = "RED"
+                        self.analysis_progress.visible = False
+                        self._safe_update()
+                    self._run_task_safe(handle_error)
                     return
 
                 # Success - populate table
-                self.analysis_progress.visible = False
-                self.analysis_status.value = i18n.get("wiz_analysis_complete") or "Analysis Complete"
-                self.analysis_status.color = "GREEN"
+                def handle_success():
+                    self.analysis_progress.visible = False
+                    self.analysis_status.value = i18n.get("wiz_analysis_complete") or "Analysis Complete"
+                    self.analysis_status.color = "GREEN"
 
-                info = res.info
-                if info:
-                    rows = [
-                        ft.DataRow([
-                            ft.DataCell(ft.Text(i18n.get("field_product") or "Name")),
-                            ft.DataCell(ft.Text(info.product_name or "Unknown"))
-                        ]),
-                        ft.DataRow([
-                            ft.DataCell(ft.Text(i18n.get("field_manufacturer") or "Publisher")),
-                            ft.DataCell(ft.Text(info.manufacturer or "Unknown"))
-                        ]),
-                        ft.DataRow([
-                            ft.DataCell(ft.Text(i18n.get("field_version") or "Version")),
-                            ft.DataCell(ft.Text(info.product_version or "Unknown"))
-                        ]),
-                        ft.DataRow([
-                            ft.DataCell(ft.Text(i18n.get("field_type") or "Type")),
-                            ft.DataCell(ft.Text(info.installer_type or "Unknown"))
-                        ]),
-                        ft.DataRow([
-                            ft.DataCell(ft.Text(i18n.get("silent_switches") or "Switches")),
-                            ft.DataCell(ft.Text(
-                                " ".join(info.install_switches) if info.install_switches else "None detected",
-                                color="GREEN" if info.install_switches else "ORANGE"
-                            ))
-                        ]),
-                    ]
-                    self.analysis_dt.rows = rows
+                    info = res.info
+                    if info:
+                        rows = [
+                            ft.DataRow([
+                                ft.DataCell(ft.Text(i18n.get("field_product") or "Name")),
+                                ft.DataCell(ft.Text(info.product_name or "Unknown"))
+                            ]),
+                            ft.DataRow([
+                                ft.DataCell(ft.Text(i18n.get("field_manufacturer") or "Publisher")),
+                                ft.DataCell(ft.Text(info.manufacturer or "Unknown"))
+                            ]),
+                            ft.DataRow([
+                                ft.DataCell(ft.Text(i18n.get("field_version") or "Version")),
+                                ft.DataCell(ft.Text(info.product_version or "Unknown"))
+                            ]),
+                            ft.DataRow([
+                                ft.DataCell(ft.Text(i18n.get("field_type") or "Type")),
+                                ft.DataCell(ft.Text(info.installer_type or "Unknown"))
+                            ]),
+                            ft.DataRow([
+                                ft.DataCell(ft.Text(i18n.get("silent_switches") or "Switches")),
+                                ft.DataCell(ft.Text(
+                                    " ".join(info.install_switches) if info.install_switches else "None detected",
+                                    color="GREEN" if info.install_switches else "ORANGE"
+                                ))
+                            ]),
+                        ]
+                        self.analysis_dt.rows = rows
 
-                self.update()
+                    self._safe_update()
+                self._run_task_safe(handle_success)
 
             except Exception as ex:
                 logger.error(f"Analysis error: {ex}")
-                self.analysis_progress.visible = False
-                self.analysis_status.value = f"Error: {ex}"
-                self.analysis_status.color = "RED"
-                self.update()
+                def handle_final_error():
+                    self.analysis_progress.visible = False
+                    self.analysis_status.value = f"Error: {ex}"
+                    self.analysis_status.color = "RED"
+                    self._safe_update()
+                self._run_task_safe(handle_final_error)
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -572,7 +578,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
     def _step_package_ui(self):
         self.pkg_status = ft.Text(i18n.get("wiz_ready_pkg") or "Ready to package.", size=16)
         self.pkg_btn = ft.FilledButton(
-            content=ft.Text(i18n.get("wiz_start_pkg") or "Start Packaging"), on_click=self._run_packaging, bgcolor="GREEN", color="WHITE"
+            content=ft.Text(i18n.get("wiz_start_pkg") or "Start Packaging"), on_click=self._safe_event_handler(self._run_packaging, "Start packaging"), bgcolor="GREEN", color="WHITE"
         )
         return ft.Column([
             ft.Text(i18n.get("wiz_create_pkg") or "Create Intune Package (.intunewin)", size=20, weight=ft.FontWeight.BOLD),
@@ -693,12 +699,10 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                     try: shutil.rmtree(staging_dir, ignore_errors=True)
                     except: pass
 
-                self.pkg_btn.disabled = False
-                if self.page:
-                    try:
-                        self.update()
-                    except:
-                        pass
+                def finalize_pkg():
+                    self.pkg_btn.disabled = False
+                    self._safe_update()
+                self._run_task_safe(finalize_pkg)
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -721,8 +725,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         self.txt_desc = ft.TextField(label="Description", value=f"Packaged by SwitchCraft based on {Path(self.installer_path).name if self.installer_path else 'installer'}", multiline=True)
 
         self.upload_status = ft.Text(i18n.get("wiz_wait_auth") or "Waiting for authentication...", italic=True)
-        self.btn_upload = ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CLOUD_UPLOAD), ft.Text(i18n.get("wiz_btn_upload_intune") or "Upload to Intune")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._run_upload, disabled=True)
-        self.btn_connect = ft.FilledButton(content=ft.Text(i18n.get("wiz_btn_connect") or "Connect"), on_click=self._connect_intune)
+        self.btn_upload = ft.FilledButton(content=ft.Row([ft.Icon(ft.Icons.CLOUD_UPLOAD), ft.Text(i18n.get("wiz_btn_upload_intune") or "Upload to Intune")], alignment=ft.MainAxisAlignment.CENTER), on_click=self._safe_event_handler(self._run_upload, "Upload to Intune"), disabled=True)
+        self.btn_connect = ft.FilledButton(content=ft.Text(i18n.get("wiz_btn_connect") or "Connect"), on_click=self._safe_event_handler(self._connect_intune, "Connect to Intune"))
 
         return ft.Column([
             ft.Text(i18n.get("wiz_upload_title") or "Upload to Microsoft Intune", size=20, weight=ft.FontWeight.BOLD),
@@ -775,9 +779,11 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                      SwitchCraftConfig.set_value("IntuneClientID", client)
                      SwitchCraftConfig.set_secret("IntuneClientSecret", secret) # Use set_secret if available, else standard?
             except Exception as ex:
-                self.upload_status.value = (i18n.get("wiz_auth_failed") or "Auth Failed: {error}").format(error=ex)
-                self.upload_status.color = "RED"
-            self.update()
+                def handle_auth_fail():
+                    self.upload_status.value = (i18n.get("wiz_auth_failed") or "Auth Failed: {error}").format(error=ex)
+                    self.upload_status.color = "RED"
+                    self._safe_update()
+                self._run_task_safe(handle_auth_fail)
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -967,12 +973,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
             modal=True,
             on_dismiss=lambda e: logger.debug("Autopilot finished")
         )
-        if hasattr(self.app_page, "open"):
-            self.app_page.open(self.autopilot_dlg)
-        else:
-            self.app_page.dialog = self.autopilot_dlg
-            self.autopilot_dlg.open = True
-            self.app_page.update()
+        self._open_dialog_safe(self.autopilot_dlg)
 
         def _update_status(msg):
             # Hacky way to update dialog content if we don't have ref

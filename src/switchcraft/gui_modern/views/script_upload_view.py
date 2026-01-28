@@ -202,8 +202,10 @@ class ScriptUploadView(ft.Column, ViewMixin):
                 self.ps_status.value = f"{i18n.get('error') or 'Error'}: {ex}"
                 self.ps_status.color = "RED"
             finally:
-                self.ps_btn_upload.disabled = False
-                self.update()
+                def finalize_ps():
+                    self.ps_btn_upload.disabled = False
+                    self._safe_update()
+                self._run_task_safe(finalize_ps)
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -338,8 +340,10 @@ class ScriptUploadView(ft.Column, ViewMixin):
                 self.rem_status.value = f"{i18n.get('error') or 'Error'}: {ex}"
                 self.rem_status.color = "RED"
             finally:
-                self.rem_btn_upload.disabled = False
-                self.update()
+                def finalize_rem():
+                    self.rem_btn_upload.disabled = False
+                    self._safe_update()
+                self._run_task_safe(finalize_rem)
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -552,7 +556,9 @@ class ScriptUploadView(ft.Column, ViewMixin):
                 self.github_status.color = "RED"
                 logger.error(f"GitHub browse failed: {ex}")
             finally:
-                self.update()
+                def finalize_browse():
+                    self._safe_update()
+                self._run_task_safe(finalize_browse)
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -613,7 +619,9 @@ class ScriptUploadView(ft.Column, ViewMixin):
                 self.github_status.value = f"Import failed: {ex}"
                 self.github_status.color = "RED"
             finally:
-                self.update()
+                def finalize_import():
+                    self._safe_update()
+                self._run_task_safe(finalize_import)
 
         threading.Thread(target=_bg, daemon=True).start()
 
@@ -668,6 +676,8 @@ class ScriptUploadView(ft.Column, ViewMixin):
                 self.github_status.value = f"Deployment failed: {ex}"
                 self.github_status.color = "RED"
             finally:
-                self.update()
+                def finalize_deploy():
+                    self._safe_update()
+                self._run_task_safe(finalize_deploy)
 
         threading.Thread(target=_bg, daemon=True).start()

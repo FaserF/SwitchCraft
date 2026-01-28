@@ -86,7 +86,8 @@ class TestCrashView(unittest.TestCase):
         event.control.disabled = False
         event.control.text = "Close App"
 
-        with patch('threading.Thread') as mock_thread:
+        with patch('threading.Thread') as mock_thread, \
+             patch('switchcraft.gui_modern.views.crash_view.i18n.get', return_value="Closing...") as mock_get:
             view._close_app(event)
             self.assertTrue(event.control.disabled)
             self.assertEqual(event.control.text, "Closing...")
