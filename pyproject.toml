@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "switchcraft"
-version = "2026.1.5b4.dev0+4d8700a"
+version = "2026.2.0.dev0+1efea0e"
 description = "A comprehensive enterprise IT platform for software packaging, analysis, and Intune management."
 readme = "README.md"
 authors = [{ name = "FaserF" }]
