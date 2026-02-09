@@ -1,0 +1,23 @@
+{
+  "name": "SwitchCraft Demo PR-73",
+  "short_name": "build_web",
+  "id": "/",
+  "start_url": "./?pwa=1",
+  "display": "standalone",
+  "background_color": "#111315",
+  "theme_color": "#0066cc",
+  "description": "SwitchCraft - Enterprise Application Management",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "version": "2026.2.0.dev0+1efea0e"
+}
