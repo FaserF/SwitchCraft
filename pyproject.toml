@@ -36,10 +36,10 @@ gui = [
     "pillow",
     "plyer"
 ]
-modern = ["flet==0.80.4", "flet-desktop==0.80.4", "flet-charts==0.80.4"]
+modern = ["flet==0.81.0", "flet-desktop==0.81.0", "flet-charts==0.81.0"]
 test = [
     "pytest==9.0.2",
-    "flet-charts==0.80.4",
+    "flet-charts==0.81.0",
     "httpx>=0.28.1",
     "pytest-timeout"
 ]
