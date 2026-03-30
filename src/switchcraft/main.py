@@ -425,7 +425,10 @@ def main(page: ft.Page):
     # --- End Patching ---
 
     # --- Page Configuration ---
-    page.title = "SwitchCraft Web" if page.web and sys.platform == "emscripten" else "SwitchCraft"
+    if page.web and sys.platform == "emscripten":
+        page.title = "SwitchCraft Web (Demo)" if getattr(switchcraft, "IS_DEMO", False) else "SwitchCraft Web"
+    else:
+        page.title = "SwitchCraft"
 
     # Set favicon for web mode
     try:
@@ -770,9 +773,13 @@ def _ensure_pwa_manifest():
 
         # Define PWA Manifest content
         # Simplify icons to reduce 404/Cache errors
+        from switchcraft.utils.config import SwitchCraftConfig
+        is_demo = SwitchCraftConfig.is_demo_mode()
+        app_name = "SwitchCraft Web (Demo)" if is_demo else "SwitchCraft Web"
+
         manifest_data = {
-            "name": "SwitchCraft",
-            "short_name": "SwitchCraft",
+            "name": app_name,
+            "short_name": app_name,
             "id": "/",
             "start_url": "./?pwa=1",
             "display": "standalone",
