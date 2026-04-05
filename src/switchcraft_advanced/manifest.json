@@ -1,7 +1,7 @@
 {
     "id": "advanced",
     "name": "Advanced Features",
-    "version": "2026.2.0.dev0+1efea0e",
+    "version": "2026.4.0.dev0+f8b4a90",
     "author": "SwitchCraft Internal",
     "description": "Advanced management features for SwitchCraft."
 }

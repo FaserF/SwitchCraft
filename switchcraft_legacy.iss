@@ -6,13 +6,13 @@
 
 #define MyAppName "SwitchCraft Legacy"
 #ifndef MyAppVersion
-  #define MyAppVersion "2026.2.0.dev0+1efea0e"
+  #define MyAppVersion "2026.4.0.dev0+f8b4a90"
 #endif
 #ifndef MyAppVersionNumeric
-  #define MyAppVersionNumeric "2026.2.0"
+  #define MyAppVersionNumeric "2026.4.0"
 #endif
 #ifndef MyAppVersionInfo
-  #define MyAppVersionInfo "2026.2.0.52"
+  #define MyAppVersionInfo "2026.4.0.53"
 #endif
 #define MyAppPublisher "FaserF"
 #define MyAppURL "https://github.com/FaserF/SwitchCraft"
