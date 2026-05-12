@@ -1,8 +1,6 @@
 name: Maintenance Cleanup
 
 on:
-  schedule:
-    - cron: '0 0 * * 0' # Weekly
   workflow_dispatch:
 
 jobs:
