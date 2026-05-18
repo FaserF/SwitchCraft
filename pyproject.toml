@@ -44,7 +44,7 @@ test = [
     "pytest-timeout"
 ]
 build = [
-    "pyinstaller==6.18.0"
+    "pyinstaller==6.20.0"
 ]
 desktop = [
     "winotify",
