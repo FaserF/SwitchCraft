@@ -2,7 +2,6 @@ import os
 import shutil
 import subprocess
 import sys
-import site
 
 def build_web_demo():
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

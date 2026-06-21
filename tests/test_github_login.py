@@ -4,7 +4,6 @@ Tests for GitHub login functionality in Modern Settings View.
 import pytest
 import flet as ft
 from unittest.mock import MagicMock, patch
-import threading
 import time
 import os
 
@@ -158,7 +157,6 @@ def test_github_login_shows_error_on_failure(mock_page, mock_auth_service):
 def test_github_login_success_saves_token(mock_page, mock_auth_service):
     """Test that successful GitHub login saves token and updates UI."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-    import asyncio
 
     # Skip in CI to avoid long waits
     if os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true':

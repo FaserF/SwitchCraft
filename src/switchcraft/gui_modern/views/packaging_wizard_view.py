@@ -339,7 +339,7 @@ class PackagingWizardView(ft.Column, ViewMixin):
                 self._run_task_safe(lambda: setattr(self.download_status, "value", (i18n.get("wiz_download_success") or "Downloaded: {file}").format(file=filename)))
                 self._run_task_safe(lambda: setattr(self.download_status, "color", "GREEN"))
                 self._run_task_safe(lambda: setattr(self.download_progress, "visible", False))
-            except Exception as ex:
+            except Exception:
                 self._run_task_safe(lambda: setattr(self.download_status, "value", f"Error: {ex}"))
                 self._run_task_safe(lambda: setattr(self.download_status, "color", "RED"))
                 self._run_task_safe(lambda: setattr(self.download_progress, "visible", False))
@@ -782,7 +782,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                      SwitchCraftConfig.set_value("IntuneTenantID", tenant)
                      SwitchCraftConfig.set_value("IntuneClientID", client)
                      SwitchCraftConfig.set_secret("IntuneClientSecret", secret) # Use set_secret if available, else standard?
-            except Exception as ex:
+            except Exception:
                 def handle_auth_fail():
                     self.upload_status.value = (i18n.get("wiz_auth_failed") or "Auth Failed: {error}").format(error=ex)
                     self.upload_status.color = "RED"

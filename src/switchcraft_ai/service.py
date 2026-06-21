@@ -24,7 +24,6 @@ class SwitchCraftAI:
         # The addon may ship with a 'libs' folder containing google-generativeai and grpc.
         # We must add this to sys.path BEFORE trying to import them.
         import sys
-        import os
         from pathlib import Path
 
         # Calculate libs path relative to this file

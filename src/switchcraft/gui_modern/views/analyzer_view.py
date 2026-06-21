@@ -551,7 +551,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                     )
                 except Exception as n_ex:
                     logger.warning(f"Failed to trigger analysis notification: {n_ex}")
-            except Exception as ex:
+            except Exception:
                 logger.exception("Analysis failed")
                 def handle_error():
                     self.status_text.value = f"Error: {ex}"

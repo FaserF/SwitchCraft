@@ -122,7 +122,7 @@ def main():
         try:
             del_url = f"{base_del_url}/{vid}"
             requests.delete(del_url, headers=headers).raise_for_status()
-            print(f"  - Version deleted.")
+            print("  - Version deleted.")
         except Exception as e:
             print(f"  - Failed to delete version: {e}")
 

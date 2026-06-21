@@ -5,10 +5,9 @@ import pytest
 import flet as ft
 from unittest.mock import MagicMock, patch
 import time
-import os
 
 # Import CI detection helper and shared fixtures/helpers
-from conftest import is_ci_environment, skip_if_ci, poll_until, mock_page
+from conftest import skip_if_ci, poll_until
 
 
 @pytest.fixture

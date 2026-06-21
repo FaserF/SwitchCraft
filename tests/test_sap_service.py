@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch
 import sys
 import os
 from pathlib import Path
