@@ -38,7 +38,7 @@ gui = [
 ]
 modern = ["flet==0.80.4", "flet-desktop==0.80.4", "flet-charts==0.80.4"]
 test = [
-    "pytest==9.0.2",
+    "pytest==9.1.1",
     "flet-charts==0.80.4",
     "httpx>=0.28.1",
     "pytest-timeout"
