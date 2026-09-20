@@ -24,7 +24,7 @@ dependencies = [
     "defusedxml",
     "PyJWT",
     "anyio>=4.15.1",
-    "urllib3>=2.6.3,<3",
+    "urllib3>=2.8.0,<3",
     "packaging"
 ]
 requires-python = ">=3.12"
