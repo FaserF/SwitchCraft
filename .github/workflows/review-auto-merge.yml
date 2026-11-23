@@ -15,7 +15,7 @@ jobs:
   auto-merge-review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Check Criteria and Merge
         env:
