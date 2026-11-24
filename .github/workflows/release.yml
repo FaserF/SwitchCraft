@@ -1,439 +1,100 @@
-name: Release Build
+name: Release
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       release_type:
-        description: 'Release type'
+        description: "Version bump level"
         required: true
+        default: "patch"
         type: choice
         options:
-          - stable
-          - prerelease
-          - development
-        default: 'stable'
+          - patch
+          - minor
+          - major
+      draft:
+        description: "Create as draft release"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
 
 jobs:
-  prepare_release:
-    name: Prepare Release
+  prepare:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      docker_version: ${{ steps.version.outputs.docker_version }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      tag_name: ${{ steps.bump.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v6
+      - name: Generate Bot Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        continue-on-error: true
         with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.15.2'
-
-      - name: Generate Version
-        id: version
+      - name: Bump Version & Push Tag
+        id: bump
         run: |
-          VERSION=$(python .github/scripts/generate_release_version.py --type ${{ github.event.inputs.release_type }})
-          # Fallback to 2026.1.2 if version generation fails or returns invalid version
-          # Strict regex: PEP 440 compliant format
-          # Matches MAJOR.MINOR.PATCH with optional pre-release (.dev0, .a1, .b1, .rc1) and build (+build) suffixes
-          # Examples: 2026.1.2, 2026.1.2.dev0+9d07a00, 2026.1.2b1, 2026.1.2+9d07a00
-          # Pattern: ^[0-9]+\.[0-9]+\.[0-9]+(\.[a-z]+[0-9]+|[a-z]+[0-9]+)?(\+[a-zA-Z0-9.-]+)?$
-          if [ -z "$VERSION" ] || [ "$VERSION" = "0.0.0" ] || ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.[a-z]+[0-9]+|[a-z]+[0-9]+)?(\+[a-zA-Z0-9.-]+)?$'; then
-            echo "Warning: Version generation failed or returned invalid version '$VERSION', using fallback: 2026.1.2"
-            VERSION="2026.1.2"
-          fi
-
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-          # Sanitize version for Docker (Docker tags cannot contain '+', replace with '-')
-          DOCKER_VERSION=$(echo "$VERSION" | tr '+' '-')
-          echo "docker_version=$DOCKER_VERSION" >> $GITHUB_OUTPUT
-
-          echo "is_prerelease=${{ github.event.inputs.release_type != 'stable' }}" >> $GITHUB_OUTPUT
-          echo "Generated version: $VERSION (Docker safe: $DOCKER_VERSION)"
-
-      - name: Update Version in Files
-        run: |
-          export VERSION="${{ steps.version.outputs.version }}"
-          echo "Updating version to $VERSION"
-
-          # Update pyproject.toml
-          sed -i "s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml
-
-          # Update __init__.py
-          sed -i "s/__version__ = \".*\"/__version__ = \"$VERSION\"/" src/switchcraft/__init__.py
-
-          # Update file_version_info.txt
-          python .github/scripts/update_version_info.py "$VERSION" --build ${{ github.run_number }}
-
-          # Update Addon Manifests
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_advanced/manifest.json
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_ai/manifest.json
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src/switchcraft_winget/manifest.json
-
-          # JSON-safe update for main asset manifest
-          python -c "import json, os; p='src/switchcraft/assets/manifest.json'; d=json.load(open(p)) if os.path.exists(p) else {}; d.update({'version': os.environ['VERSION'], 'description': 'SwitchCraft - Enterprise Application Management'}); json.dump(d, open(p, 'w'), indent=4)"
-
-
-
-          # Update .iss files (Inno Setup installer scripts)
-          # Extract numeric version only (remove .dev0, +build, etc.) for VersionInfoVersion
-          BASE_VERSION=$(echo "$VERSION" | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-          # VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
-          # Use GitHub Run Number as the Build component to ensure unique, increasing versions for upgrades
-          VERSION_INFO="${BASE_VERSION}.${{ github.run_number }}"
-          # For MyAppVersion: use full version for dev (with commit ID), but remove commit ID for beta/stable
-          if [[ "${{ github.event.inputs.release_type }}" == "development" ]]; then
-            # Dev release: keep full version with commit ID (e.g., "2026.1.2.dev0+9d07a00")
-            APP_VERSION="$VERSION"
+          if [ -f .github/scripts/version_manager.py ]; then
+            NEW_VER=$(python3 .github/scripts/version_manager.py bump --type stable --level "${{ inputs.release_type }}")
           else
-            # Beta/Stable: remove commit ID if present (e.g., "2026.1.2b1" or "2026.1.2")
-            APP_VERSION=$(echo "$VERSION" | sed -E 's/\+[a-zA-Z0-9.-]+$//')
+            NEW_VER=$(python3 - <<'PY'
+          import glob, json, os, re, subprocess
+          level = os.environ.get("RELEASE_TYPE", "patch")
+          tags = subprocess.check_output(["git", "tag", "--sort=-version:refname"], text=True).splitlines()
+          latest = next((t.lstrip("v") for t in tags if re.match(r"^v?\d+\.\d+\.\d+$", t.strip())), "1.0.0")
+          maj, min_, pat = (int(x) for x in latest.split("."))
+          if level == "major":
+              maj, min_, pat = maj + 1, 0, 0
+          elif level == "minor":
+              min_, pat = min_ + 1, 0
+          else:
+              pat += 1
+          ver = f"{maj}.{min_}.{pat}"
+          for mf in glob.glob("custom_components/*/manifest.json"):
+              data = json.load(open(mf, encoding="utf-8"))
+              data["version"] = ver
+              with open(mf, "w", encoding="utf-8") as fh:
+                  json.dump(data, fh, indent=2)
+                  fh.write("\n")
+          if os.path.exists("pyproject.toml"):
+              txt = open("pyproject.toml", encoding="utf-8").read()
+              txt = re.sub(r'^version\s*=\s*".*?"', f'version = "{ver}"', txt, count=1, flags=re.MULTILINE)
+              open("pyproject.toml", "w", encoding="utf-8").write(txt)
+          print(ver)
+          PY
+          )
           fi
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$APP_VERSION\"/" switchcraft.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$APP_VERSION\"/" switchcraft_legacy.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_legacy.iss
-
-      - name: Generate Changelog
-        id: changelog
-        run: |
-          python .github/scripts/generate_changelog.py --output changelog.md --type ${{ github.event.inputs.release_type }}
-          # Read changelog content into a variable safely (multiline)
-          {
-            echo 'CHANGELOG_BODY<<EOF'
-            cat changelog.md
-            echo ""
-            echo 'EOF'
-          } >> "$GITHUB_ENV"
-
-      - name: Generate Summary Table
-        id: summary
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
-          python .github/scripts/release_summary.py "$VERSION" "$REPO_URL" > summary.md
-          # Read summary content into a variable safely (multiline)
-          {
-            echo 'SUMMARY_BODY<<EOF'
-            cat summary.md
-            echo ""
-            echo 'EOF'
-          } >> "$GITHUB_ENV"
-
-      - name: Commit and Tag
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft.iss switchcraft_legacy.iss src/switchcraft_advanced/manifest.json src/switchcraft_ai/manifest.json src/switchcraft_winget/manifest.json src/switchcraft/assets/manifest.json
-
-
-          # Only commit if there are changes
-          if ! git diff --cached --quiet; then
-            echo "Changes detected, committing version bump..."
-            git commit -m "chore(release): bump version to $VERSION [skip ci]"
-            git push origin main
-          else
-            echo "No changes detected, version files are already up to date."
-          fi
-
-          # Always tag and push the tag
-          git tag "v$VERSION"
-          git push origin "v$VERSION"
-
-      - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: ${{ github.event.inputs.release_type == 'stable' && format('Release v{0}', steps.version.outputs.version) || github.event.inputs.release_type == 'prerelease' && format('Pre-release v{0}', steps.version.outputs.version) || format('Development Build v{0}', steps.version.outputs.version) }}
-          body: |
-            [![GitHub all releases](https://img.shields.io/github/downloads/${{ github.repository }}/total?color=blue&style=flat-square&logo=github&label=Total%20Downloads)](https://github.com/${{ github.repository }}/releases)
-            ![Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/v${{ steps.version.outputs.version }}/total?color=blue&style=flat-square)
-
-            ${{ env.CHANGELOG_BODY }}
-
-            ---
-
-            ${{ env.SUMMARY_BODY }}
-
-          draft: false
-          prerelease: ${{ github.event.inputs.release_type != 'stable' }}
-          generate_release_notes: true
-          # Note: If release_type is 'development', Docker build is skipped.
+          TAG="v${NEW_VER}"
+          git config user.name "faserf-hermes-agent[bot]"
+          git config user.email "342667397+faserf-hermes-agent[bot]@users.noreply.github.com"
+          git add custom_components/*/manifest.json pyproject.toml 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "chore(release): ${TAG} [skip ci]"
+          git tag -f "${TAG}"
+          git push origin "HEAD:${{ github.ref_name }}"
+          git push origin "${TAG}" --force
+          echo "tag_name=${TAG}" >> "$GITHUB_OUTPUT"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
 
-      - name: Update Main Branch to Dev Version
-        if: ${{ github.event.inputs.release_type == 'stable' }}
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          # Calculate next dev version (increment patch and use PEP 440 compliant format)
-          MAJOR=$(echo $VERSION | cut -d. -f1)
-          MINOR=$(echo $VERSION | cut -d. -f2)
-          PATCH=$(echo $VERSION | cut -d. -f3)
-          NEXT_PATCH=$((PATCH + 1))
-
-          # Get commit SHA for build metadata (PEP 440: X.Y.Z.dev0+sha)
-          SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "")
-          if [ -n "$SHA" ]; then
-            DEV_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}.dev0+${SHA}"
-          else
-            DEV_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}.dev0"
-          fi
-
-          # Use release version as fallback (without .dev0 suffix)
-          FALLBACK_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-
-          echo "Setting development version to $DEV_VERSION"
-          echo "Updating fallback versions to $FALLBACK_VERSION"
-
-          # Update version files
-          sed -i "s/version = \".*\"/version = \"$DEV_VERSION\"/" pyproject.toml
-          sed -i "s/__version__ = \".*\"/__version__ = \"$DEV_VERSION\"/" src/switchcraft/__init__.py
-          python .github/scripts/update_version_info.py "$DEV_VERSION" --build ${{ github.run_number }}
-
-          # Update .iss files (Inno Setup installer scripts)
-          # Extract numeric version only (remove .dev0, +build, etc.) for VersionInfoVersion
-          BASE_VERSION=$(echo "$DEV_VERSION" | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-          # VersionInfoVersion requires 4 numeric components (Major.Minor.Patch.Build)
-          # Use GitHub Run Number as the Build component to ensure unique, increasing versions for upgrades
-          VERSION_INFO="${BASE_VERSION}.${{ github.run_number }}"
-          # For dev releases: MyAppVersion should include commit ID (full DEV_VERSION)
-          # MyAppVersionNumeric should be numeric only (BASE_VERSION)
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$DEV_VERSION\"/" switchcraft.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersion \".*\"/\1#define MyAppVersion \"$DEV_VERSION\"/" switchcraft_legacy.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionNumeric \".*\"/\1#define MyAppVersionNumeric \"$BASE_VERSION\"/" switchcraft_legacy.iss
-          sed -i "s/^\([[:space:]]*\)#define MyAppVersionInfo \".*\"/\1#define MyAppVersionInfo \"$VERSION_INFO\"/" switchcraft_legacy.iss
-
-          # Update fallback versions in build scripts and version generator
-          # Update build_release.ps1 fallback
-          sed -i "s/\$AppVersion = \".*\"/\$AppVersion = \"$FALLBACK_VERSION\"/" scripts/build_release.ps1
-          sed -i "s/\$AppVersionNumeric = \".*\"/\$AppVersionNumeric = \"$FALLBACK_VERSION\"/" scripts/build_release.ps1
-
-          # Update generate_release_version.py fallback
-          sed -i "s/FALLBACK_VERSION = \".*\"/FALLBACK_VERSION = \"$FALLBACK_VERSION\"/" .github/scripts/generate_release_version.py
-
-          # Commit
-          git add pyproject.toml src/switchcraft/__init__.py file_version_info.txt switchcraft.iss switchcraft_legacy.iss scripts/build_release.ps1 .github/scripts/generate_release_version.py
-          git commit -m "chore: bump version to $DEV_VERSION and update fallback versions to $FALLBACK_VERSION [skip ci]"
-          git push origin main
-
-  build:
-    name: Build Artifacts
-    needs: prepare_release
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            build_flags: "-All"
-            asset_path: "dist/SwitchCraft-windows.exe"
-            asset_name: "SwitchCraft-windows.exe"
-          - os: ubuntu-latest
-            build_flags: "-Modern"
-            asset_path: "dist/SwitchCraft-linux"
-            asset_name: "SwitchCraft-linux"
-          - os: macos-latest
-            build_flags: "-Modern"
-            asset_path: "dist/SwitchCraft"
-            asset_name: "SwitchCraft-macos"
-
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        ref: v${{ needs.prepare_release.outputs.version }}
-
-    - name: Set up Python
-      uses: actions/setup-python@v6
-      with:
-        python-version: '3.15.2'
-
-    # Cache PyInstaller
-    - uses: actions/cache@v5
-      with:
-        path: build
-        key: ${{ matrix.os }}-build-${{ hashFiles('**/pyproject.toml') }}
-        restore-keys: |
-            ${{ matrix.os }}-build-
-
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install ".[modern,gui]"
-        pip install pyinstaller build
-
-    - name: Build with Script
-      run: |
-        # Call the unified build script
-        pwsh ./scripts/build_release.ps1 ${{ matrix.build_flags }}
-      env:
-        TERM: xterm
-
-    - name: Rename MacOS Artifact (if needed)
-      if: matrix.os == 'macos-latest'
-      run: |
-        # Script produces 'dist/SwitchCraft' on Mac.
-        # We might want to rename it to match asset_name expected
-        mv dist/SwitchCraft dist/${{ matrix.asset_name }} || true
-      shell: bash
-
-    # --- Windows Specific Signing & Uploads ---
-
-    - name: Decode Signing Certificate
-      if: matrix.os == 'windows-latest'
-      env:
-        SIGNING_CERT: ${{ secrets.SIGNING_CERT }}
-      run: |
-        if ($env:SIGNING_CERT) {
-          $certBytes = [System.Convert]::FromBase64String($env:SIGNING_CERT)
-          [System.IO.File]::WriteAllBytes("cert.pfx", $certBytes)
-        }
-      shell: pwsh
-
-    - name: Sign Windows Artifacts
-      if: matrix.os == 'windows-latest'
-      env:
-        SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-      run: |
-        if (Test-Path "cert.pfx") {
-            $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Include signtool.exe -Recurse | Select-Object -Last 1
-            if ($signtool) {
-                # Sign everything executable in dist
-                Get-ChildItem dist\*.exe | ForEach-Object {
-                    Write-Host "Signing $_..."
-                    & $signtool.FullName sign /f "cert.pfx" /p "$env:SIGNING_PASSWORD" /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName
-                }
-            }
-        }
-      shell: pwsh
-
-    - name: Upload Core Assets
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: v${{ needs.prepare_release.outputs.version }}
-        files: |
-            dist/${{ matrix.asset_name }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Upload Windows Extras (Legacy, CLIs, Installers, Addons)
-      if: matrix.os == 'windows-latest'
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: v${{ needs.prepare_release.outputs.version }}
-        files: |
-            dist/SwitchCraft-Legacy.exe
-            dist/SwitchCraft-CLI-windows.exe
-            dist/SwitchCraft-Setup.exe
-            dist/SwitchCraft-Legacy-Setup.exe
-            dist/*.zip
-            dist/*.whl
-            dist/*.tar.gz
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Cleanup Certificate
-      if: always() && matrix.os == 'windows-latest'
-      run: |
-        if (Test-Path "cert.pfx") { Remove-Item "cert.pfx" -Force }
-
-  docker_build:
-    name: Build Docker Image
-    needs: prepare_release
-    # Skip Docker build for development (nightly) builds to save space
-    if: github.event.inputs.release_type != 'development'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: v${{ needs.prepare_release.outputs.version }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Lowercase Repository Owner
-        id: owner
-        run: |
-          owner=${GITHUB_REPOSITORY_OWNER,,}
-          echo "owner=$owner" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Build and push
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
-          tags: |
-            ghcr.io/${{ steps.owner.outputs.owner }}/switchcraft:${{ needs.prepare_release.outputs.docker_version }}
-            ghcr.io/${{ steps.owner.outputs.owner }}/switchcraft:${{ needs.prepare_release.outputs.is_prerelease == 'true' && 'prerelease' || 'latest' }}
-
-
-  winget_manifests:
-    name: Generate Winget Manifests
-    needs: [prepare_release, build]
-    if: github.event.inputs.release_type == 'stable'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.15.2'
-
-      - name: Install Dependencies
-        run: pip install requests pyyaml
-
-      - name: Generate Manifests
-        run: |
-          VERSION="${{ needs.prepare_release.outputs.version }}"
-          python .github/scripts/generate_winget_manifests.py --version "$VERSION" >> "$GITHUB_STEP_SUMMARY"
-
-  cleanup_docker:
-    name: Cleanup Old Docker Images
-    needs: [docker_build]
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    steps:
-      - uses: actions/checkout@v6
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.15.2'
-      - name: Install Dependencies
-        run: pip install requests
-      - name: Cleanup Old Docker Versions
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-          python .github/scripts/cleanup_docker_images.py
+  release:
+    needs: prepare
+    if: always() && (github.event_name == 'push' || needs.prepare.result == 'success')
+    uses: FaserF/repo-template/.github/workflows/reusable-release.yml@v1
+    with:
+      tag_name: ${{ github.event_name == 'workflow_dispatch' && needs.prepare.outputs.tag_name || github.ref_name }}
+      draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
+    secrets: inherit

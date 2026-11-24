@@ -110,8 +110,8 @@ jobs:
           comment: |
             🚀 **PR Preview is ready!**
 
-            - 📄 [Documentation Preview](https://switchcraft.fabiseitz.de/pr-preview/pr-${{ github.event.pull_request.number }}/)
-            - 🎮 [Web Demo Preview](https://switchcraft.fabiseitz.de/pr-preview/pr-${{ github.event.pull_request.number }}/demo/)
+            - 📄 [Documentation Preview](https://github.com/apps/faserf-hermes-agent)
+            - 🎮 [Web Demo Preview](https://github.com/apps/faserf-hermes-agent)
 
             *Built with love and GitHub Actions.*
 

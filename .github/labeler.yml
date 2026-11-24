@@ -1,21 +1,21 @@
-backend:
-  - changed-files:
-    - any-glob-to-any-file: 'src/**/*'
-    - any-glob-to-any-file: 'tests/**/*'
-    - any-glob-to-any-file: 'pyproject.toml'
-    - any-glob-to-any-file: 'setup.py'
-    - any-glob-to-any-file: 'requirements.txt'
+# Pull Request Labeler configuration
+enhancement:
+  - head-branch: ['^feat/', '^feature/']
 
-frontend:
-  - changed-files:
-    - any-glob-to-any-file: 'frontend/**/*'
+bug:
+  - head-branch: ['^fix/', '^bugfix/']
 
-ci-cd:
-  - changed-files:
-    - any-glob-to-any-file: '.github/**/*'
+dependencies:
+  - head-branch: ['^renovate/', '^deps/']
 
 documentation:
   - changed-files:
-    - any-glob-to-any-file: '**/*.md'
-    - any-glob-to-any-file: 'docs/**/*'
-    - any-glob-to-any-file: 'LICENSE'
+    - any-glob-to-any-file: ['**/*.md', 'docs/**']
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file: ['.github/**', 'scripts/**']
+
+tests:
+  - changed-files:
+    - any-glob-to-any-file: ['tests/**', '**/*test*']
