@@ -177,6 +177,7 @@ export default defineConfig({
             cors: false
         },
         build: {
+            target: 'es2022',
             rollupOptions: {
                 output: {
                     // Ensure images are copied as static assets
