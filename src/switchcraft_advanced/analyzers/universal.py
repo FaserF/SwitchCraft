@@ -1,11 +1,11 @@
 import logging
-import subprocess
+import os
 import re
 import shutil
+import subprocess
 import tempfile
-import os
 from pathlib import Path
-from typing import Optional, List, Dict, Tuple
+
 try:
     import py7zr
     PY7ZR_AVAILABLE = True
@@ -52,7 +52,7 @@ class UniversalAnalyzer:
 
 
 
-    def check_corruption(self, file_path: Path) -> Tuple[bool, Optional[str]]:
+    def check_corruption(self, file_path: Path) -> tuple[bool, str | None]:
         """
         Checks for basic file corruption using header validation.
         Returns (is_corrupted, reason).
@@ -78,7 +78,7 @@ class UniversalAnalyzer:
         except Exception as e:
             return True, f"Read error: {e}"
 
-    def check_wrapper(self, file_path: Path) -> Optional[str]:
+    def check_wrapper(self, file_path: Path) -> str | None:
         """
         Inspects the file to see if it wraps an MSI.
         Returns 'MSI Wrapper' if detected, else None.
@@ -112,7 +112,7 @@ class UniversalAnalyzer:
 
         return None
 
-    def brute_force_help(self, file_path: Path) -> Dict[str, any]:
+    def brute_force_help(self, file_path: Path) -> dict[str, any]:
         """
         Runs the executable with various help arguments and captures output.
         Returns a dictionary with 'output' (combined stdout/stderr), 'detected_type', and 'suggested_switches'.
@@ -238,7 +238,7 @@ class UniversalAnalyzer:
 
         return result
 
-    def _analyze_help_text(self, text: str) -> Tuple[Optional[str], List[str]]:
+    def _analyze_help_text(self, text: str) -> tuple[str | None, list[str]]:
         """Analyzes help text for known patterns."""
         lower_text = text.lower()
 
@@ -319,7 +319,7 @@ class UniversalAnalyzer:
 
         return None, []
 
-    def _extract_switches_from_text(self, text: str) -> List[str]:
+    def _extract_switches_from_text(self, text: str) -> list[str]:
         """Extract potential switches from help text using regex patterns."""
         switches = []
 
@@ -346,7 +346,7 @@ class UniversalAnalyzer:
 
         return switches[:5]  # Limit to 5 most relevant switches
 
-    def extract_and_analyze_nested(self, file_path: Path, depth: int = 1, max_depth: int = 2, progress_callback=None) -> Dict:
+    def extract_and_analyze_nested(self, file_path: Path, depth: int = 1, max_depth: int = 2, progress_callback=None) -> dict:
         """
         Attempts to extract the archive (SFX or otherwise) and analyze nested executables.
         Uses 7-Zip command line for maximum compatibility.
@@ -528,7 +528,7 @@ class UniversalAnalyzer:
 
         return result
 
-    def detect_silent_disabled(self, file_path: Path, brute_force_output: str = "") -> Dict:
+    def detect_silent_disabled(self, file_path: Path, brute_force_output: str = "") -> dict:
         """
         Attempts to detect if silent installation has been intentionally disabled.
 

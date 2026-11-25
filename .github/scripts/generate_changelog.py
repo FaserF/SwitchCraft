@@ -1,7 +1,7 @@
 import argparse
-import subprocess
 import os
 import re
+import subprocess
 import sys
 
 # Constants
@@ -27,7 +27,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
 
-from git_utils import get_last_tag, get_last_stable_tag
+from git_utils import get_last_stable_tag, get_last_tag  # noqa: E402
 
 
 def get_commits(since_tag=None):

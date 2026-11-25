@@ -1,6 +1,7 @@
 import flet as ft
-from switchcraft.utils.i18n import i18n
+
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.utils.i18n import i18n
 
 DESCRIPTION_MAP = {
     "Home": "desc_home",

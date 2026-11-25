@@ -1,5 +1,6 @@
 import logging
 import re
+
 from switchcraft.services.addon_service import AddonService
 from switchcraft.utils.i18n import i18n
 

@@ -1,13 +1,15 @@
-import customtkinter as ctk
-import webbrowser
-import logging
 import json
-from tkinter import messagebox
-from switchcraft.utils.i18n import i18n
-from switchcraft.utils.config import SwitchCraftConfig
-from switchcraft.utils.app_updater import UpdateChecker
-from switchcraft import __version__
+import logging
+import webbrowser
 from pathlib import Path
+from tkinter import messagebox
+
+import customtkinter as ctk
+
+from switchcraft import __version__
+from switchcraft.utils.app_updater import UpdateChecker
+from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -124,9 +126,10 @@ class SettingsView(ctk.CTkFrame):
 
     def _setup_cloudsync(self, parent):
         """Setup GitHub CloudSync section."""
+        import threading
+
         from switchcraft.services.auth_service import AuthService
         from switchcraft.services.sync_service import SyncService
-        import threading
 
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=10, pady=10)
@@ -301,8 +304,9 @@ class SettingsView(ctk.CTkFrame):
 
     def _start_github_login(self, callback):
         """Initiate GitHub OAuth device flow."""
-        from switchcraft.services.auth_service import AuthService
         import threading
+
+        from switchcraft.services.auth_service import AuthService
 
         def _login():
             flow = AuthService.initiate_device_flow()
@@ -381,7 +385,7 @@ class SettingsView(ctk.CTkFrame):
             path = ctk.filedialog.askopenfilename(filetypes=[("JSON", "*.json")])
             if path:
                 try:
-                    with open(path, "r", encoding="utf-8") as f:
+                    with open(path, encoding="utf-8") as f:
                         data = json.load(f)
                     SwitchCraftConfig.import_preferences(data)
                     if hasattr(self.app, '_show_restart_countdown'):

@@ -1,25 +1,28 @@
-import flet as ft
-import threading
+import ctypes
 import logging
 import shutil
-import ctypes
-
-import requests
 import tempfile
+import threading
 from pathlib import Path
 
-from switchcraft.controllers.analysis_controller import AnalysisController, AnalysisResult
-from switchcraft.utils.i18n import i18n
-from switchcraft.utils.config import SwitchCraftConfig
-from switchcraft.services.notification_service import NotificationService
-from switchcraft.services.signing_service import SigningService
-from switchcraft.utils.templates import TemplateGenerator
-from switchcraft.services.intune_service import IntuneService
-from switchcraft.services.winget_manifest_service import WingetManifestService
-from switchcraft.services.addon_service import AddonService
+import flet as ft
+import requests
+
+from switchcraft.controllers.analysis_controller import (
+    AnalysisController,
+    AnalysisResult,
+)
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.gui_modern.utils.flet_compat import create_tabs
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.services.addon_service import AddonService
+from switchcraft.services.intune_service import IntuneService
+from switchcraft.services.notification_service import NotificationService
+from switchcraft.services.signing_service import SigningService
+from switchcraft.services.winget_manifest_service import WingetManifestService
+from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
+from switchcraft.utils.templates import TemplateGenerator
 
 # Try to import flet_dropzone for native file DnD
 try:
@@ -551,10 +554,11 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                     )
                 except Exception as n_ex:
                     logger.warning(f"Failed to trigger analysis notification: {n_ex}")
-            except Exception:
+            except Exception as ex:
                 logger.exception("Analysis failed")
+                err_msg = str(ex)
                 def handle_error():
-                    self.status_text.value = f"Error: {ex}"
+                    self.status_text.value = f"Error: {err_msg}"
                     self.status_text.color = "RED"
                     self.progress_bar.visible = False
                     self.analyzing = False

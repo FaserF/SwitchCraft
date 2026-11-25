@@ -1,8 +1,9 @@
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Dict, List
+
 import bcrypt
+
 from switchcraft.utils.crypto import SimpleCrypto
 
 logger = logging.getLogger("UserManager")
@@ -10,7 +11,7 @@ logger = logging.getLogger("UserManager")
 class UserManager:
     """Manages users for the SwitchCraft Server (stored in users.json)."""
 
-    def __init__(self, data_dir: Optional[Path] = None):
+    def __init__(self, data_dir: Path | None = None):
         if data_dir:
             self.data_dir = data_dir
         else:
@@ -22,7 +23,7 @@ class UserManager:
         self.crypto = SimpleCrypto()
         self._ensure_users_file()
 
-    def _hash_password(self, password: str) -> Optional[str]:
+    def _hash_password(self, password: str) -> str | None:
         """Hash a password using bcrypt (Python 3.14 compatible)."""
         if password is None:
             return None
@@ -68,24 +69,24 @@ class UserManager:
             }
             self._save_data(initial_data)
 
-    def _load_data(self) -> Dict:
+    def _load_data(self) -> dict:
         try:
             if self.users_file.exists():
-                with open(self.users_file, "r") as f:
+                with open(self.users_file) as f:
                     return json.load(f)
         except Exception as e:
             logger.error(f"Failed to load users: {e}")
         return {"users": {}}
 
-    def _save_data(self, data: Dict):
+    def _save_data(self, data: dict):
         with open(self.users_file, "w") as f:
             json.dump(data, f, indent=4)
 
-    def get_user(self, username: str) -> Optional[Dict]:
+    def get_user(self, username: str) -> dict | None:
         data = self._load_data()
         return data.get("users", {}).get(username)
 
-    def list_users(self) -> List[Dict]:
+    def list_users(self) -> list[dict]:
         data = self._load_data()
         result = []
         for uname, info in data.get("users", {}).items():
@@ -165,7 +166,7 @@ class UserManager:
             data["users"][username]["totp_secret"] = ciphertext
             self._save_data(data)
 
-    def get_totp_secret(self, username: str) -> Optional[str]:
+    def get_totp_secret(self, username: str) -> str | None:
         """Retrieve and decrypt the TOTP secret for the given user."""
         user = self.get_user(username)
         ciphertext = user.get("totp_secret") if user else None

@@ -1,17 +1,18 @@
-import flet as ft
 import logging
-import threading
-import requests
-import tempfile
 import subprocess
+import tempfile
+import threading
 from pathlib import Path
 
+import flet as ft
+import requests
+
 from switchcraft.controllers.analysis_controller import AnalysisController
-from switchcraft.services.intune_service import IntuneService
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
-from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
@@ -339,8 +340,9 @@ class PackagingWizardView(ft.Column, ViewMixin):
                 self._run_task_safe(lambda: setattr(self.download_status, "value", (i18n.get("wiz_download_success") or "Downloaded: {file}").format(file=filename)))
                 self._run_task_safe(lambda: setattr(self.download_status, "color", "GREEN"))
                 self._run_task_safe(lambda: setattr(self.download_progress, "visible", False))
-            except Exception:
-                self._run_task_safe(lambda: setattr(self.download_status, "value", f"Error: {ex}"))
+            except Exception as ex:
+                err_msg = str(ex)
+                self._run_task_safe(lambda err=err_msg: setattr(self.download_status, "value", f"Error: {err}"))
                 self._run_task_safe(lambda: setattr(self.download_status, "color", "RED"))
                 self._run_task_safe(lambda: setattr(self.download_progress, "visible", False))
 
@@ -483,9 +485,10 @@ class PackagingWizardView(ft.Column, ViewMixin):
 
             except Exception as ex:
                 logger.error(f"Analysis error: {ex}")
+                err_msg = str(ex)
                 def handle_final_error():
                     self.analysis_progress.visible = False
-                    self.analysis_status.value = f"Error: {ex}"
+                    self.analysis_status.value = f"Error: {err_msg}"
                     self.analysis_status.color = "RED"
                     self._safe_update()
                 self._run_task_safe(handle_final_error)
@@ -620,7 +623,8 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                     self.pkg_status.color = "BLUE"
                     try:
                         self.update()
-                    except: pass
+                    except Exception as exc:
+                        logger.debug(f"Status update failed: {exc}")
 
                     staging_dir = Path(tempfile.mkdtemp(prefix="SC_Pkg_"))
 
@@ -646,19 +650,21 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                        self.pkg_status.color = "ORANGE"
                        try:
                            self.update()
-                       except: pass
+                       except Exception as exc:
+                           logger.debug(f"Large package status update failed: {exc}")
                 except Exception as e:
                     logger.warning(f"Failed to check package size: {e}")
 
                 def on_progress(line):
                     text = line.strip()
                     if text:
-                        if len(text) > 80: text = text[:77] + "..."
+                        if len(text) > 80:
+                            text = text[:77] + "..."
                         self.pkg_status.value = f"Running: {text}"
                         try:
                             self.update()
-                        except:
-                            pass
+                        except Exception as exc:
+                            logger.debug(f"Progress update failed: {exc}")
 
                 self.intune_service.create_intunewin(
                     str(source_dir),
@@ -700,8 +706,10 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                 self.pkg_status.color = "RED"
             finally:
                 if staging_dir:
-                    try: shutil.rmtree(staging_dir, ignore_errors=True)
-                    except: pass
+                    try:
+                        shutil.rmtree(staging_dir, ignore_errors=True)
+                    except OSError as exc:
+                        logger.debug(f"Staging cleanup failed: {exc}")
 
                 def finalize_pkg():
                     self.pkg_btn.disabled = False
@@ -782,9 +790,10 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
                      SwitchCraftConfig.set_value("IntuneTenantID", tenant)
                      SwitchCraftConfig.set_value("IntuneClientID", client)
                      SwitchCraftConfig.set_secret("IntuneClientSecret", secret) # Use set_secret if available, else standard?
-            except Exception:
+            except Exception as ex:
+                err_msg = str(ex)
                 def handle_auth_fail():
-                    self.upload_status.value = (i18n.get("wiz_auth_failed") or "Auth Failed: {error}").format(error=ex)
+                    self.upload_status.value = (i18n.get("wiz_auth_failed") or "Auth Failed: {error}").format(error=err_msg)
                     self.upload_status.color = "RED"
                     self._safe_update()
                 self._run_task_safe(handle_auth_fail)

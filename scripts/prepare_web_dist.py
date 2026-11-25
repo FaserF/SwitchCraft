@@ -2,6 +2,7 @@ import json
 import sys
 from pathlib import Path
 
+
 def bake_translations():
     print("Baking translations...")
     lang_dir = Path("src/switchcraft/assets/lang")
@@ -9,7 +10,7 @@ def bake_translations():
     for lang in ["en", "de"]:
         path = lang_dir / f"{lang}.json"
         if path.exists():
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 translations[lang] = json.load(f)
         else:
             print(f"Warning: Translation file missing: {path}")
@@ -27,7 +28,7 @@ def patch_index_html(dist_dir):
         print(f"Error: {path} not found")
         return
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         content = f.read()
 
     custom_css = """

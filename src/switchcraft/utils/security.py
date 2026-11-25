@@ -1,7 +1,7 @@
 import importlib.metadata
-import requests
 import logging
-from typing import List, Dict
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ class SecurityChecker:
     OSV_BATCH_URL = "https://api.osv.dev/v1/querybatch"
 
     @staticmethod
-    def get_installed_packages() -> List[Dict[str, str]]:
+    def get_installed_packages() -> list[dict[str, str]]:
         """
         Returns a list of installed packages and their versions.
         Format compatible with OSV batch query.
@@ -30,7 +30,7 @@ class SecurityChecker:
         return packages
 
     @classmethod
-    def check_vulnerabilities(cls) -> List[Dict]:
+    def check_vulnerabilities(cls) -> list[dict]:
         """
         Queries OSV.dev for vulnerabilities in installed packages.
         Returns a list of finding dicts:
@@ -48,8 +48,9 @@ class SecurityChecker:
             return []
 
         # Rate Limiting: Check once every 7 days
-        from switchcraft.utils.config import SwitchCraftConfig
         import time
+
+        from switchcraft.utils.config import SwitchCraftConfig
 
         last_check = SwitchCraftConfig.get_value("LastSecurityCheck", 0)
         try:

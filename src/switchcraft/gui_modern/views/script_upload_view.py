@@ -1,13 +1,15 @@
+import logging
+import threading
+from pathlib import Path
+
 import flet as ft
+import requests
+
+from switchcraft.gui_modern.utils.flet_compat import create_tabs
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
-from switchcraft.gui_modern.utils.flet_compat import create_tabs
-import logging
-from pathlib import Path
-import threading
-import requests
-from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +191,7 @@ class ScriptUploadView(ft.Column, ViewMixin):
                 token = self.intune_service.authenticate(tenant, client, secret)
 
                 content = ""
-                with open(self.script_path, "r", encoding="utf-8") as f:
+                with open(self.script_path, encoding="utf-8") as f:
                     content = f.read()
 
                 self.intune_service.upload_powershell_script(
@@ -324,9 +326,9 @@ class ScriptUploadView(ft.Column, ViewMixin):
             try:
                 token = self.intune_service.authenticate(tenant, client, secret)
 
-                with open(self.detect_path, "r", encoding="utf-8") as f:
+                with open(self.detect_path, encoding="utf-8") as f:
                     det_content = f.read()
-                with open(self.remediate_path, "r", encoding="utf-8") as f:
+                with open(self.remediate_path, encoding="utf-8") as f:
                     rem_content = f.read()
 
                 self.intune_service.upload_remediation_script(

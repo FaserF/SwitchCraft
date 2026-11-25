@@ -6,10 +6,12 @@ Simulates the user journey:
 3. Select a package from results
 4. Verify details panel loads correct data
 """
-import pytest
 from unittest.mock import MagicMock, patch
+
 import flet as ft
-from conftest import poll_until, _create_mock_page
+import pytest
+from conftest import _create_mock_page, poll_until
+
 
 @pytest.fixture
 def mock_winget_deps():
@@ -81,7 +83,8 @@ def test_winget_e2e_flow(mock_winget_deps):
 
     def tiles_loaded():
         controls = view.search_results.controls
-        if len(controls) == 0: return False
+        if len(controls) == 0:
+            return False
         # Check if first item is a ListTile or if we have >1 item (if results > 0)
         # OR check if "Searching..." text is gone.
         return len(controls) == 2 and isinstance(controls[0], ft.ListTile)
@@ -118,8 +121,6 @@ def test_winget_e2e_flow(mock_winget_deps):
 
     # Verify details content
     # We look for the description text in the details area
-    found_description = False
-
     def find_text(control, target_text):
         if isinstance(control, ft.Text) and control.value and target_text in control.value:
             return True

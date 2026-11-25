@@ -1,9 +1,9 @@
 import logging
 import os
-import sys
 import shutil
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 
 # Module-level logger
 logger = logging.getLogger(__name__)
@@ -147,6 +147,7 @@ class SessionLogHandler(logging.Handler):
             str: The URL to create a new GitHub issue with a prepopulated title, body, and labels, or the base new-issue URL on failure.
         """
         import platform
+
         from switchcraft import __version__
 
         base_url = "https://github.com/FaserF/SwitchCraft/issues/new"

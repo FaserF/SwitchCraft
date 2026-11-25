@@ -1,9 +1,12 @@
-import customtkinter as ctk
-import webbrowser
-from switchcraft.utils.i18n import i18n
-from switchcraft.services.addon_service import AddonService
-from tkinter import messagebox
 import threading
+import webbrowser
+from tkinter import messagebox
+
+import customtkinter as ctk
+
+from switchcraft.services.addon_service import AddonService
+from switchcraft.utils.i18n import i18n
+
 
 class MissingAddonView(ctk.CTkFrame):
     def __init__(self, parent, app, addon_id, addon_name, description):

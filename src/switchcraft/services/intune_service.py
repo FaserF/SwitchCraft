@@ -1,17 +1,19 @@
-import sys
-import stat
+import base64
 import logging
 import os
+import stat
 import subprocess
-import requests
-import base64
-from pathlib import Path
+import sys
 import zipfile
-from typing import Optional, Callable
+from collections.abc import Callable
+from pathlib import Path
+
+import jwt
+import requests
+from defusedxml import ElementTree as DefusedET
+
 from switchcraft.utils.i18n import i18n
 from switchcraft.utils.shell_utils import ShellUtils
-from defusedxml import ElementTree as DefusedET
-import jwt
 
 logger = logging.getLogger(__name__)
 
@@ -135,8 +137,9 @@ class IntuneService:
         due to mismatch between GitHub Tag (v1.8.5) and internal FileVersion (1.8.4.0).
         """
         try:
-            from switchcraft.services.notification_service import NotificationService
             from packaging import version
+
+            from switchcraft.services.notification_service import NotificationService
 
             # Path to sidecar version file
             version_file = self.tools_dir / (self.TOOL_FILENAME + ".version")
@@ -226,7 +229,8 @@ class IntuneService:
                          # If FileVersion is 1.8.4.0 and Remote is 1.8.4, we write 1.8.4 to sidecar.
                          try:
                              version_file.write_text(remote_tag, encoding="utf-8")
-                         except: pass
+                         except OSError as exc:
+                             logger.debug(f"Failed to write version sidecar: {exc}")
 
             except Exception as e:
                 logger.debug(f"Version comparison failed: {e}")
@@ -234,7 +238,7 @@ class IntuneService:
         except Exception as e:
             logger.warning(f"Error checking for Intune tool updates: {e}")
 
-    def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str, catalog_folder: str = None, quiet: bool = True, progress_callback: Optional[Callable[[str], None]] = None) -> str:
+    def create_intunewin(self, source_folder: str, setup_file: str, output_folder: str, catalog_folder: str = None, quiet: bool = True, progress_callback: Callable[[str], None] | None = None) -> str:
         """
         Runs the IntuneWinAppUtil to generate the .intunewin package.
         Returns the output text from the tool.

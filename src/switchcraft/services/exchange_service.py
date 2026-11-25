@@ -1,7 +1,8 @@
-import logging
-import requests
 import datetime
-from typing import Dict, Any, List
+import logging
+from typing import Any
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ class ExchangeService:
             logger.error(f"Failed to send email: {e}")
             raise e
 
-    def search_messages(self, token: str, mailbox: str, query: str = None) -> List[Dict[str, Any]]:
+    def search_messages(self, token: str, mailbox: str, query: str = None) -> list[dict[str, Any]]:
         """
         Search for messages in a mailbox.
         Requires 'Mail.Read.All' or 'Mail.ReadWrite.All'.
@@ -97,7 +98,7 @@ class ExchangeService:
             logger.error(f"Failed to search messages for {mailbox}: {e}")
             raise e
 
-    def get_oof_settings(self, token: str, mailbox: str) -> Dict[str, Any]:
+    def get_oof_settings(self, token: str, mailbox: str) -> dict[str, Any]:
         """
         Get Out of Office settings.
         Requires 'MailboxSettings.Read'.
@@ -112,7 +113,7 @@ class ExchangeService:
             logger.error(f"Failed to get OOF for {mailbox}: {e}")
             raise e
 
-    def set_oof_settings(self, token: str, mailbox: str, oof_data: Dict[str, Any]) -> bool:
+    def set_oof_settings(self, token: str, mailbox: str, oof_data: dict[str, Any]) -> bool:
         """
         Update Out of Office settings.
         Requires 'MailboxSettings.ReadWrite'.
@@ -131,7 +132,7 @@ class ExchangeService:
             logger.error(f"Failed to set OOF for {mailbox}: {e}")
             raise e
 
-    def get_delegates(self, token: str, mailbox: str) -> List[Dict[str, Any]]:
+    def get_delegates(self, token: str, mailbox: str) -> list[dict[str, Any]]:
         """
         List delegates for a mailbox.
         Requires 'User.ReadWrite.All' or 'Directory.ReadWrite.All' in some cases.
@@ -151,7 +152,7 @@ class ExchangeService:
         except Exception:
             return []
 
-    def get_mail_traffic_stats(self, days: int = 7) -> List[Dict[str, Any]]:
+    def get_mail_traffic_stats(self, days: int = 7) -> list[dict[str, Any]]:
         """
         Fetches simplified mail traffic stats.
         Dummy implementation for now, preserved for compatibility.

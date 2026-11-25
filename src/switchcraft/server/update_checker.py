@@ -3,8 +3,10 @@ Docker Update Checker for SwitchCraft Web.
 Checks GitHub releases for newer versions.
 """
 import logging
+
 import httpx
 from packaging import version
+
 from switchcraft import __version__
 
 logger = logging.getLogger(__name__)

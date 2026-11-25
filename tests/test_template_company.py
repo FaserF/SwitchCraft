@@ -2,6 +2,7 @@ import os
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+
 from switchcraft.utils.templates import TemplateGenerator
 
 # Import CI detection helper

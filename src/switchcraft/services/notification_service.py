@@ -1,20 +1,20 @@
-import logging
-import uuid
-from datetime import datetime
-from typing import List, Dict, Callable
 import json
+import logging
 import os
+import uuid
+from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 class NotificationService:
     _instance = None
-    _listeners: List[Callable] = []
+    _listeners: list[Callable] = []
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(NotificationService, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance.notifications = []
             cls._instance._load_notifications()
         return cls._instance
@@ -34,7 +34,7 @@ class NotificationService:
         try:
             path = self._get_storage_path()
             if path.exists():
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     data = json.load(f)
                     # Restore timestamp objects
                     for n in data:
@@ -63,7 +63,7 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to save notifications: {e}")
 
-    def add_notification(self, title: str, message: str, type: str = "info", notify_system: bool = None, data: Dict = None):
+    def add_notification(self, title: str, message: str, type: str = "info", notify_system: bool = None, data: dict = None):
         """
         Adds a notification.
         type: info, success, warning, error
@@ -112,7 +112,7 @@ class NotificationService:
     def get_unread_count(self) -> int:
         return sum(1 for n in self.notifications if not n["read"])
 
-    def get_notifications(self) -> List[Dict]:
+    def get_notifications(self) -> list[dict]:
         return self.notifications
 
     def add_listener(self, callback: Callable):

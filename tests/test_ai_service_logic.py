@@ -1,14 +1,15 @@
-import unittest
-from unittest.mock import patch
-import sys
 import os
+import sys
+import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 # Fix path to basic source
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from switchcraft.services.ai_service import SwitchCraftAI
 from switchcraft.analyzers.universal import UniversalAnalyzer
+from switchcraft.services.ai_service import SwitchCraftAI
+
 
 class TestPhase2Features(unittest.TestCase):
 

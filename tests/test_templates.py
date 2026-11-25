@@ -1,8 +1,9 @@
 
-import unittest
-import tempfile
 import shutil
+import tempfile
+import unittest
 from pathlib import Path
+
 from switchcraft.utils.templates import TemplateGenerator
 
 # Mock context

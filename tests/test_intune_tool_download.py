@@ -1,12 +1,13 @@
 
-import unittest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.services.notification_service import NotificationService
+
 
 class TestPhase4Features(unittest.TestCase):
 

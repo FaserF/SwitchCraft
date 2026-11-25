@@ -1,9 +1,9 @@
-import sys
 import logging
 import os
-from typing import Optional, Any, Dict
-from contextvars import ContextVar
+import sys
 from abc import ABC, abstractmethod
+from contextvars import ContextVar
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class ConfigBackend(ABC):
         pass
 
     @abstractmethod
-    def get_secure_value(self, value_name: str) -> Optional[str]:
+    def get_secure_value(self, value_name: str) -> str | None:
         pass
 
     @abstractmethod
@@ -35,11 +35,11 @@ class ConfigBackend(ABC):
         pass
 
     @abstractmethod
-    def export_all(self) -> Dict[str, Any]:
+    def export_all(self) -> dict[str, Any]:
         pass
 
     @abstractmethod
-    def get_value_with_source(self, value_name: str) -> Optional[Dict[str, Any]]:
+    def get_value_with_source(self, value_name: str) -> dict[str, Any] | None:
         """Returns { 'value': any, 'source': str } or None."""
         pass
 
@@ -71,20 +71,24 @@ class RegistryBackend(ConfigBackend):
 
         # 1. HKLM Policy
         val = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.POLICY_PATH, value_name)
-        if val is not None: return val
+        if val is not None:
+            return val
         # 2. HKCU Policy
         val = self._read_registry(winreg.HKEY_CURRENT_USER, self.POLICY_PATH, value_name)
-        if val is not None: return val
+        if val is not None:
+            return val
         # 3. HKCU Preference
         val = self._read_registry(winreg.HKEY_CURRENT_USER, self.PREFERENCE_PATH, value_name)
-        if val is not None: return val
+        if val is not None:
+            return val
         # 4. HKLM Preference
         val = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.PREFERENCE_PATH, value_name)
-        if val is not None: return val
+        if val is not None:
+            return val
 
         return default
 
-    def get_value_with_source(self, value_name: str) -> Optional[Dict[str, Any]]:
+    def get_value_with_source(self, value_name: str) -> dict[str, Any] | None:
         if sys.platform != 'win32':
             return None
 
@@ -95,37 +99,45 @@ class RegistryBackend(ConfigBackend):
 
         # 1. HKLM Policy (GPO)
         val = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.POLICY_PATH, value_name)
-        if val is not None: return {"value": val, "source": "GPO (Local Machine)"}
+        if val is not None:
+            return {"value": val, "source": "GPO (Local Machine)"}
 
         # 2. HKCU Policy (GPO)
         val = self._read_registry(winreg.HKEY_CURRENT_USER, self.POLICY_PATH, value_name)
-        if val is not None: return {"value": val, "source": "GPO (Current User)"}
+        if val is not None:
+            return {"value": val, "source": "GPO (Current User)"}
 
         # 3. Intune OMA-URI
         val = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.INTUNE_OMA_PATH, value_name)
-        if val is not None: return {"value": val, "source": "Intune OMA-URI"}
+        if val is not None:
+            return {"value": val, "source": "Intune OMA-URI"}
 
         # 4. HKCU Preference (User Registry)
         val = self._read_registry(winreg.HKEY_CURRENT_USER, self.PREFERENCE_PATH, value_name)
-        if val is not None: return {"value": val, "source": "User Registry (HKCU)"}
+        if val is not None:
+            return {"value": val, "source": "User Registry (HKCU)"}
 
         # 5. HKLM Preference (System Registry)
         val = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.PREFERENCE_PATH, value_name)
-        if val is not None: return {"value": val, "source": "System Registry (HKLM)"}
+        if val is not None:
+            return {"value": val, "source": "System Registry (HKLM)"}
 
         return None
 
     def is_managed(self, key: str = None) -> bool:
         """Check if a specific key (or any key) is managed by GPO."""
-        if sys.platform != 'win32': return False
+        if sys.platform != 'win32':
+            return False
         try:
             import winreg
             if key:
                 # Check if specific key exists in policy
                 val = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.POLICY_PATH, key)
-                if val is not None: return True
+                if val is not None:
+                    return True
                 val = self._read_registry(winreg.HKEY_CURRENT_USER, self.POLICY_PATH, key)
-                if val is not None: return True
+                if val is not None:
+                    return True
                 return False
             else:
                 # Check if ANY policy exists
@@ -144,7 +156,8 @@ class RegistryBackend(ConfigBackend):
         return False
 
     def set_value(self, value_name: str, value: Any, value_type: int = None):
-        if sys.platform != 'win32': return
+        if sys.platform != 'win32':
+            return
         try:
             import winreg
             if value_type is None:
@@ -153,11 +166,13 @@ class RegistryBackend(ConfigBackend):
                     value = 1 if value else 0
                 elif isinstance(value, int):
                     value_type = winreg.REG_DWORD
-                    if value < 0 or value > 0xFFFFFFFF: raise ValueError("REG_DWORD out of range")
+                    if value < 0 or value > 0xFFFFFFFF:
+                        raise ValueError("REG_DWORD out of range")
                 elif isinstance(value, float):
                     value_type = winreg.REG_DWORD
                     value = int(value)
-                    if value < 0 or value > 0xFFFFFFFF: raise ValueError("REG_DWORD out of range")
+                    if value < 0 or value > 0xFFFFFFFF:
+                        raise ValueError("REG_DWORD out of range")
                 else:
                     value_type = winreg.REG_SZ
                     value = str(value)
@@ -168,16 +183,18 @@ class RegistryBackend(ConfigBackend):
         except Exception as e:
             logger.error(f"Registry set failed: {e}")
 
-    def get_secure_value(self, value_name: str) -> Optional[str]:
+    def get_secure_value(self, value_name: str) -> str | None:
         # Check policies first (legacy GPO support)
         if sys.platform == 'win32':
              try:
                 import winreg
                 # Plain
                 val = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.POLICY_PATH, value_name)
-                if val is not None: return val
+                if val is not None:
+                    return val
                 val = self._read_registry(winreg.HKEY_CURRENT_USER, self.POLICY_PATH, value_name)
-                if val is not None: return val
+                if val is not None:
+                    return val
 
                 # 2. Encrypted Policy (HKLM then HKCU) - Suffix _ENC
                 from switchcraft.utils.crypto import SimpleCrypto
@@ -186,12 +203,14 @@ class RegistryBackend(ConfigBackend):
                 val_enc = self._read_registry(winreg.HKEY_LOCAL_MACHINE, self.POLICY_PATH, enc_name)
                 if val_enc is not None:
                     dec = SimpleCrypto.decrypt(str(val_enc))
-                    if dec is not None: return dec
+                    if dec is not None:
+                        return dec
 
                 val_enc = self._read_registry(winreg.HKEY_CURRENT_USER, self.POLICY_PATH, enc_name)
                 if val_enc is not None:
                     dec = SimpleCrypto.decrypt(str(val_enc))
-                    if dec is not None: return dec
+                    if dec is not None:
+                        return dec
 
              except Exception as e:
                  logger.debug(f"Secure lookup failed: {e}")
@@ -232,8 +251,10 @@ class RegistryBackend(ConfigBackend):
         try:
              import keyring
              if value is None:
-                 try: keyring.delete_password("SwitchCraft", value_name)
-                 except: pass
+                 try:
+                     keyring.delete_password("SwitchCraft", value_name)
+                 except Exception as exc:
+                     logger.debug(f"Keyring delete skipped for {value_name}: {exc}")
                  return
              keyring.set_password("SwitchCraft", value_name, value)
         except Exception as e:
@@ -243,11 +264,12 @@ class RegistryBackend(ConfigBackend):
         try:
             import keyring
             keyring.delete_password("SwitchCraft", value_name)
-        except:
-            pass
+        except Exception as exc:
+            logger.debug(f"Keyring delete skipped for {value_name}: {exc}")
 
-    def export_all(self) -> Dict[str, Any]:
-        if sys.platform != 'win32': return {}
+    def export_all(self) -> dict[str, Any]:
+        if sys.platform != 'win32':
+            return {}
         prefs = {}
         try:
             import winreg
@@ -271,9 +293,12 @@ class RegistryBackend(ConfigBackend):
                 value, val_type = winreg.QueryValueEx(key, value_name)
                 if val_type == winreg.REG_SZ or val_type == winreg.REG_EXPAND_SZ:
                     v_lower = str(value).lower()
-                    if v_lower == "true": return True
-                    if v_lower == "false": return False
-                    if v_lower.isdigit(): return int(v_lower)
+                    if v_lower == "true":
+                        return True
+                    if v_lower == "false":
+                        return False
+                    if v_lower.isdigit():
+                        return int(v_lower)
                     return value
                 if val_type == winreg.REG_DWORD:
                     return int(value)
@@ -299,7 +324,7 @@ class JsonFileBackend(ConfigBackend):
         try:
             import json
             if os.path.exists(self.file_path):
-                with open(self.file_path, "r", encoding="utf-8") as f:
+                with open(self.file_path, encoding="utf-8") as f:
                     self._cache = json.load(f)
             else:
                 self._cache = {}
@@ -323,7 +348,7 @@ class JsonFileBackend(ConfigBackend):
         self._cache[value_name] = value
         self._save()
 
-    def get_secure_value(self, value_name: str) -> Optional[str]:
+    def get_secure_value(self, value_name: str) -> str | None:
         # JSON is not secure for secrets unless encrypted, but for server-side
         # protected by ACLs it's often acceptable or we use a separate vault.
         # Here we just prefix to obscure.
@@ -347,10 +372,10 @@ class JsonFileBackend(ConfigBackend):
     def is_managed(self, key: str = None) -> bool:
         return False
 
-    def export_all(self) -> Dict[str, Any]:
+    def export_all(self) -> dict[str, Any]:
         return self._cache.copy()
 
-    def get_value_with_source(self, value_name: str) -> Optional[Dict[str, Any]]:
+    def get_value_with_source(self, value_name: str) -> dict[str, Any] | None:
         val = self.get_value(value_name)
         if val is not None:
             return {"value": val, "source": "Server Profile"}
@@ -368,9 +393,12 @@ class EnvBackend(ConfigBackend):
 
         if val is not None:
             # Type casting
-            if val.lower() == 'true': return True
-            if val.lower() == 'false': return False
-            if val.isdigit(): return int(val)
+            if val.lower() == 'true':
+                return True
+            if val.lower() == 'false':
+                return False
+            if val.isdigit():
+                return int(val)
             return val
         return default
 
@@ -378,7 +406,7 @@ class EnvBackend(ConfigBackend):
         # Ephemeral set for runtime, doesn't persist to OS env
         os.environ["SC_" + value_name.upper()] = str(value)
 
-    def get_secure_value(self, value_name: str) -> Optional[str]:
+    def get_secure_value(self, value_name: str) -> str | None:
         return self.get_value(value_name)
 
     def set_secure_value(self, value_name: str, value: str):
@@ -386,16 +414,18 @@ class EnvBackend(ConfigBackend):
 
     def delete_secure_value(self, value_name: str):
         k = "SC_" + value_name.upper()
-        if k in os.environ: del os.environ[k]
-        if value_name in os.environ: del os.environ[value_name]
+        if k in os.environ:
+            del os.environ[k]
+        if value_name in os.environ:
+            del os.environ[value_name]
 
     def is_managed(self, key: str = None) -> bool:
         return False
 
-    def export_all(self) -> Dict[str, Any]:
+    def export_all(self) -> dict[str, Any]:
         return {k: v for k, v in os.environ.items() if k.startswith("SC_")}
 
-    def get_value_with_source(self, value_name: str) -> Optional[Dict[str, Any]]:
+    def get_value_with_source(self, value_name: str) -> dict[str, Any] | None:
         val = self.get_value(value_name)
         if val is not None:
             return {"value": val, "source": "Environment Variable"}
@@ -412,7 +442,8 @@ class SessionStoreBackend(ConfigBackend):
         try:
             if hasattr(self.session, 'get'):
                  val = self.session.get(f"sc_conf_{value_name}")
-                 if val is not None: return val
+                 if val is not None:
+                     return val
         except Exception:
             pass # Session access blocked (e.g. tracking prevention)
 
@@ -427,7 +458,7 @@ class SessionStoreBackend(ConfigBackend):
 
         self.store[value_name] = value
 
-    def get_secure_value(self, value_name: str) -> Optional[str]:
+    def get_secure_value(self, value_name: str) -> str | None:
         # Simple storage for secure values in session memory (encrypted by TLS in transit)
         return self.get_value(f"SECURE_{value_name}")
 
@@ -438,8 +469,10 @@ class SessionStoreBackend(ConfigBackend):
         key = f"SECURE_{value_name}"
         try:
             if hasattr(self.session, 'remove'):
-                try: self.session.remove(f"sc_conf_{key}")
-                except: pass
+                try:
+                    self.session.remove(f"sc_conf_{key}")
+                except Exception as exc:
+                    logger.debug(f"Session remove skipped: {exc}")
         except Exception:
             pass
 
@@ -449,11 +482,11 @@ class SessionStoreBackend(ConfigBackend):
     def is_managed(self, key: str = None) -> bool:
         return False
 
-    def export_all(self) -> Dict[str, Any]:
+    def export_all(self) -> dict[str, Any]:
         # Not easily exportable from Flet session without iteration keys
         return self.store
 
-    def get_value_with_source(self, value_name: str) -> Optional[Dict[str, Any]]:
+    def get_value_with_source(self, value_name: str) -> dict[str, Any] | None:
         val = self.get_value(value_name)
         if val is not None:
             return {"value": val, "source": "Web Session"}
@@ -487,7 +520,7 @@ class ClientStorageBackend(ConfigBackend):
         except Exception:
             pass
 
-    def get_secure_value(self, value_name: str) -> Optional[str]:
+    def get_secure_value(self, value_name: str) -> str | None:
         # Web storage is NOT secure, but it's isolated by origin.
         # We perform simple obfuscation if needed, or just store plainly.
         # For a demo, plain storage is acceptable given HTTPS.
@@ -507,10 +540,10 @@ class ClientStorageBackend(ConfigBackend):
     def is_managed(self, key: str = None) -> bool:
         return False
 
-    def export_all(self) -> Dict[str, Any]:
+    def export_all(self) -> dict[str, Any]:
         return {} # Hard to enumerate client storage without known keys
 
-    def get_value_with_source(self, value_name: str) -> Optional[Dict[str, Any]]:
+    def get_value_with_source(self, value_name: str) -> dict[str, Any] | None:
         val = self.get_value(value_name)
         if val is not None:
              return {"value": val, "source": "Browser Storage"}
@@ -518,7 +551,7 @@ class ClientStorageBackend(ConfigBackend):
 
 # Global context variable to hold the active backend logic
 # If None, falls back to default logic (Registry on Win, Env on Linux)
-_config_context: ContextVar[Optional[ConfigBackend]] = ContextVar("config_context", default=None)
+_config_context: ContextVar[ConfigBackend | None] = ContextVar("config_context", default=None)
 
 class SwitchCraftConfig:
     @staticmethod
@@ -562,7 +595,7 @@ class SwitchCraftConfig:
         cls._get_active_backend().set_value(value_name, value, value_type)
 
     @classmethod
-    def get_secure_value(cls, value_name: str) -> Optional[str]:
+    def get_secure_value(cls, value_name: str) -> str | None:
         return cls._get_active_backend().get_secure_value(value_name)
 
     @classmethod
@@ -571,7 +604,7 @@ class SwitchCraftConfig:
 
     # Aliases for backwards compatibility
     @classmethod
-    def get_secret(cls, value_name: str) -> Optional[str]:
+    def get_secret(cls, value_name: str) -> str | None:
         """Alias for get_secure_value()."""
         return cls.get_secure_value(value_name)
 
@@ -594,14 +627,14 @@ class SwitchCraftConfig:
         return cls._get_active_backend().export_all()
 
     @classmethod
-    def get_value_with_source(cls, value_name: str) -> Optional[Dict[str, Any]]:
+    def get_value_with_source(cls, value_name: str) -> dict[str, Any] | None:
         """Returns the value and its source (GPO, Registry, etc.)."""
         return cls._get_active_backend().get_value_with_source(value_name)
 
     @classmethod
     def import_preferences(cls, data: dict):
-        # Import to current backend
         backend = cls._get_active_backend()
+        # Import to current backend
         for k, v in data.items():
             backend.set_value(k, v)
 
@@ -610,15 +643,15 @@ class SwitchCraftConfig:
         """
         Factory Reset: Removes all data, secrets, and configuration.
         """
-        backend = cls._get_active_backend()
         cleaned_up = []
 
         # 1. Platform independent cleanup (if any generic caches exist)
         # ...
 
         if sys.platform == 'win32':
-             import winreg
              import shutil
+             import winreg
+
              import keyring
 
              # A. Delete Registry Preferences (HKCU\Software\FaserF\SwitchCraft)
@@ -640,7 +673,8 @@ class SwitchCraftConfig:
              for sec in known_secrets:
                  try:
                      keyring.delete_password("SwitchCraft", sec)
-                 except: pass
+                 except Exception as exc:
+                     logger.debug(f"Keyring delete skipped for {sec}: {exc}")
              cleaned_up.append("Stored Credentials")
 
              # C. Delete AppData (%APPDATA%\FaserF\SwitchCraft)
@@ -668,15 +702,18 @@ class SwitchCraftConfig:
     # --- Helpers ---
     @classmethod
     def is_debug_mode(cls) -> bool:
-        if '--debug' in sys.argv: return True
-        if os.environ.get("SWITCHCRAFT_DEBUG") == "1": return True
+        if '--debug' in sys.argv:
+            return True
+        if os.environ.get("SWITCHCRAFT_DEBUG") == "1":
+            return True
         return cls.get_value("DebugMode", 0) == 1
 
     @classmethod
     def is_demo_mode(cls) -> bool:
         """Check if demo mode is enabled via config or CLI."""
-        if '--demo' in sys.argv: return True
-        return cls.get_value("DemoMode", 0) == 1 or cls.get_value("demo_mode", False) == True
+        if '--demo' in sys.argv:
+            return True
+        return cls.get_value("DemoMode", 0) == 1 or bool(cls.get_value("demo_mode", False))
 
     @classmethod
     def get_update_channel(cls) -> str:

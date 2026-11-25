@@ -1,11 +1,13 @@
-import flet as ft
 import json
 import logging
 import threading
 from pathlib import Path
-from switchcraft.utils.i18n import i18n
-from switchcraft.services.notification_service import NotificationService
+
+import flet as ft
+
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.services.notification_service import NotificationService
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +169,7 @@ class StackManagerView(ft.Column, ViewMixin):
         if not self.stacks_file.exists():
             return {}
         try:
-            with open(self.stacks_file, "r") as f:
+            with open(self.stacks_file) as f:
                 return json.load(f)
         except Exception:
             return {}
@@ -177,7 +179,7 @@ class StackManagerView(ft.Column, ViewMixin):
             self.stacks_file.parent.mkdir(parents=True, exist_ok=True)
             with open(self.stacks_file, "w") as f:
                 json.dump(self.stacks, f, indent=4)
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.error(f"Failed to save stacks: {e}")
             self._show_snack(f"{i18n.get('save_failed') or 'Failed to save'}: {e}", "RED")
 

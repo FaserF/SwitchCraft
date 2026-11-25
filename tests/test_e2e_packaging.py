@@ -7,9 +7,11 @@ Simulates the user journey:
 4. Build Package
 5. Verify Output/Success
 """
+from unittest.mock import MagicMock, PropertyMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
-from conftest import poll_until, _create_mock_page
+from conftest import _create_mock_page, poll_until
+
 
 # Mock Dependencies
 @pytest.fixture

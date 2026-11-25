@@ -1,6 +1,8 @@
-from click.testing import CliRunner
 import click
+from click.testing import CliRunner
+
 from switchcraft.cli.commands import cli
+
 
 def get_all_commands(cli_obj, ctx):
     """Recursively yield all command paths and command objects."""

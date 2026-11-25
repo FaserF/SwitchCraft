@@ -1,15 +1,14 @@
-import re
 import logging
+import re
 from pathlib import Path
-from typing import Dict
 
 logger = logging.getLogger(__name__)
 
 class TemplateGenerator:
     """Generates PowerShell scripts from templates."""
 
-    import sys
     import os
+    import sys
     if getattr(sys, 'frozen', False):
          # PyInstaller: assets/templates
          DEFAULT_TEMPLATE_PATH = Path(sys._MEIPASS) / "assets" / "templates" / "DefaultIntuneTemplate.ps1"
@@ -37,7 +36,7 @@ class TemplateGenerator:
         self.template_path = self.DEFAULT_TEMPLATE_PATH
         self.is_custom = False
 
-    def generate(self, context: Dict[str, str], output_path: str) -> bool:
+    def generate(self, context: dict[str, str], output_path: str) -> bool:
         """
         Generates the script.
         context keys expected:
@@ -72,8 +71,9 @@ class TemplateGenerator:
                  context["SWITCHCRAFT_GITHUB"] = "https://github.com/FaserF/SwitchCraft"
 
             # --- New Context Variables ---
-            from switchcraft.utils.config import SwitchCraftConfig
             import os
+
+            from switchcraft.utils.config import SwitchCraftConfig
 
             if "COMPANY_NAME" not in context:
                 context["COMPANY_NAME"] = SwitchCraftConfig.get_company_name() or ""

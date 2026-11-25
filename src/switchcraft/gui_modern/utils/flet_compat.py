@@ -1,6 +1,7 @@
 
-import flet as ft
 import logging
+
+import flet as ft
 
 logger = logging.getLogger(__name__)
 

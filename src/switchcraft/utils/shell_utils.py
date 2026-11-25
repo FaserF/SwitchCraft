@@ -1,8 +1,7 @@
+import logging
+import os
 import subprocess
 import sys
-import os
-import logging
-from typing import List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,7 @@ class ShellUtils:
         return shutil.which("wine") is not None
 
     @staticmethod
-    def run_command(cmd: Union[str, List[str]], capture_output: bool = True, text: bool = True, timeout: Optional[int] = None, silent: bool = False, **kwargs) -> Optional[subprocess.CompletedProcess]:
+    def run_command(cmd: str | list[str], capture_output: bool = True, text: bool = True, timeout: int | None = None, silent: bool = False, **kwargs) -> subprocess.CompletedProcess | None:
         """
         Runs a system command, automatically prefixing with 'wine' if on Linux and it's a Windows executable.
         Handles Web/WASM by returning a mock failure.
@@ -96,7 +95,7 @@ class ShellUtils:
             return subprocess.CompletedProcess(args=cmd_list, returncode=1, stdout="", stderr=str(e))
 
     @staticmethod
-    def Popen(cmd: Union[str, List[str]], silent: bool = False, **kwargs) -> Optional[subprocess.Popen]:
+    def Popen(cmd: str | list[str], silent: bool = False, **kwargs) -> subprocess.Popen | None:
         """
         Wraps subprocess.Popen with Wine awareness.
         Returns None in WASM environment.

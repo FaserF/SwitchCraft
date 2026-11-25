@@ -1,8 +1,10 @@
+import sys  # Added for sys.path and sys.modules cleanup
+from unittest.mock import patch
+
 import pytest
+
 from switchcraft.services.addon_service import AddonService
 
-from unittest.mock import patch
-import sys # Added for sys.path and sys.modules cleanup
 
 class TestAddonService:
     @pytest.fixture(autouse=True)
@@ -53,8 +55,8 @@ class TestAddonService:
         assert mod.DATA == 'hello'
 
     def test_install_addon_mock(self, tmp_path):
-        import zipfile
         import json
+        import zipfile
         zip_path = tmp_path / "test.zip"
         with zipfile.ZipFile(zip_path, 'w') as z:
             z.writestr("manifest.json", json.dumps({"id": "new_addon", "name": "New"}))
@@ -72,8 +74,8 @@ class TestAddonService:
 
     def test_extract_and_install_zip_backslashes(self):
         """Test extraction of zip with backslash paths (Windows style)."""
-        import zipfile
         import io
+        import zipfile
 
         # Create a mock zip with backslash names
         bio = io.BytesIO()

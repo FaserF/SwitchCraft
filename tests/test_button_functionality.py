@@ -2,11 +2,12 @@
 Comprehensive test to verify button functionality across all views.
 Tests that buttons actually work when clicked.
 """
-import pytest
-import flet as ft
-from unittest.mock import MagicMock, patch
 import asyncio
 import inspect
+from unittest.mock import MagicMock, patch
+
+import flet as ft
+import pytest
 
 
 @pytest.fixture

@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 from switchcraft_winget.utils.winget import WingetHelper
+
 
 class TestWinget(unittest.TestCase):
     @patch('subprocess.run')

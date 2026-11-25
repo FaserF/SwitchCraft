@@ -1,8 +1,9 @@
+import os
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
+
 import flet as ft
-import sys
-import os
 
 # Add src to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
@@ -49,7 +50,7 @@ class TestCrashView(unittest.TestCase):
 
         # Try to import pyperclip, skip test if not available
         try:
-            import pyperclip
+            import pyperclip  # noqa: F401
         except ImportError:
             self.skipTest("pyperclip not available")
 
@@ -65,7 +66,7 @@ class TestCrashView(unittest.TestCase):
 
         # Try to import pyperclip, skip test if not available
         try:
-            import pyperclip
+            import pyperclip  # noqa: F401
             with patch('pyperclip.copy', side_effect=Exception("pyperclip failed")):
                 event = MagicMock()
                 view._copy_error(event)
@@ -86,8 +87,8 @@ class TestCrashView(unittest.TestCase):
         event.control.disabled = False
         event.control.text = "Close App"
 
-        with patch('threading.Thread') as mock_thread, \
-             patch('switchcraft.gui_modern.views.crash_view.i18n.get', return_value="Closing...") as mock_get:
+        with patch('threading.Thread'), \
+             patch('switchcraft.gui_modern.views.crash_view.i18n.get', return_value="Closing..."):
             view._close_app(event)
             self.assertTrue(event.control.disabled)
             self.assertEqual(event.control.text, "Closing...")

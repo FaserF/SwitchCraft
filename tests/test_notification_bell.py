@@ -1,11 +1,12 @@
 """
 Tests for notification bell button functionality.
 """
-import pytest
-import flet as ft
-from unittest.mock import MagicMock, patch
-import time
 import os
+import time
+from unittest.mock import MagicMock, patch
+
+import flet as ft
+import pytest
 
 
 def test_notification_bell_opens_drawer(mock_page):

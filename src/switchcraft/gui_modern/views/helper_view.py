@@ -1,13 +1,13 @@
-import flet as ft
-import threading
 import logging
+import threading
 
-logger = logging.getLogger(__name__)
-
-
+import flet as ft
 
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
 from switchcraft.utils.i18n import i18n
+
+logger = logging.getLogger(__name__)
+
 
 class ModernHelperView(ft.Column, ViewMixin):
     """
@@ -175,8 +175,8 @@ class ModernHelperView(ft.Column, ViewMixin):
         )
         try:
             self._safe_update()
-        except:
-            pass
+        except Exception as exc:
+            logger.debug(f"HelperView UI update failed: {exc}")
 
     def send_message(self, e):
         user_msg = self.input_field.value

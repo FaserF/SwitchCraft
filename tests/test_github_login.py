@@ -1,15 +1,16 @@
 """
 Tests for GitHub login functionality in Modern Settings View.
 """
-import pytest
-import flet as ft
-from unittest.mock import MagicMock, patch
-import time
 import os
+import time
+from unittest.mock import MagicMock, patch
+
+import flet as ft
+import pytest
 
 # Import CI detection helper and shared fixtures
 try:
-    from conftest import is_ci_environment, skip_if_ci, mock_page
+    from conftest import is_ci_environment, mock_page, skip_if_ci
 except ImportError:
     # Fallback if conftest not available
     def is_ci_environment():

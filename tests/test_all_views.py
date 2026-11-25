@@ -1,7 +1,8 @@
 
-import pytest
-import flet as ft
 from unittest.mock import MagicMock
+
+import flet as ft
+import pytest
 
 # Mock imports that might be troublesome if environment is partial
 # (Though we prefer testing real imports to catch the bugs!)
@@ -67,12 +68,16 @@ class TestAllViews:
         assert view is not None
 
     def test_view_instantiation_wizard(self, page):
-        from switchcraft.gui_modern.views.packaging_wizard_view import PackagingWizardView
+        from switchcraft.gui_modern.views.packaging_wizard_view import (
+            PackagingWizardView,
+        )
         view = PackagingWizardView(page)
         assert view is not None
 
     def test_view_instantiation_tester(self, page):
-        from switchcraft.gui_modern.views.detection_tester_view import DetectionTesterView
+        from switchcraft.gui_modern.views.detection_tester_view import (
+            DetectionTesterView,
+        )
         view = DetectionTesterView(page)
         assert view is not None
 

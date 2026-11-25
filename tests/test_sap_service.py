@@ -1,13 +1,14 @@
-import unittest
-from unittest.mock import MagicMock, patch
-import sys
 import os
+import sys
+import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # Add src to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
 from switchcraft.services.sap_service import SapService
+
 
 class TestSapService(unittest.TestCase):
     def setUp(self):
