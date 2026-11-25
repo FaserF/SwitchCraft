@@ -25,13 +25,13 @@ jobs:
       - name: Set condition variable
         id: should_run
         run: |
-          if [[ "${{ matrix.python-version }}" == "3.14" ]] || \
-             ([[ "${{ matrix.python-version }}" == "3.15" ]] && \
-              [[ "${{ github.event_name }}" == "push" ]] && \
-              [[ "${{ github.ref }}" == "refs/heads/main" ]]); then
-            echo "should_run=true" >> $GITHUB_OUTPUT
+          if [[ "${{ matrix.python-version }}" == "3.14" ]] || { \
+             [[ "${{ matrix.python-version }}" == "3.15" ]] && \
+             [[ "${{ github.event_name }}" == "push" ]] && \
+             [[ "${{ github.ref }}" == "refs/heads/main" ]]; }; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
-            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
           fi
         shell: bash
 
