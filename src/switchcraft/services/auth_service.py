@@ -1,8 +1,10 @@
-import time
-import requests
 import logging
 import os
-from typing import Optional, Dict, Any
+import time
+from typing import Any
+
+import requests
+
 from switchcraft.utils.config import SwitchCraftConfig
 
 logger = logging.getLogger(__name__)
@@ -41,7 +43,7 @@ class AuthService:
         return cid
 
     @classmethod
-    def initiate_device_flow(cls) -> Optional[Dict[str, Any]]:
+    def initiate_device_flow(cls) -> dict[str, Any] | None:
         """
         Step 1: Request a device code from GitHub.
         Returns a dictionary containing 'device_code', 'user_code', 'verification_uri', etc.
@@ -70,7 +72,7 @@ class AuthService:
             return None
 
     @classmethod
-    def check_token_once(cls, device_code: str) -> Optional[str]:
+    def check_token_once(cls, device_code: str) -> str | None:
         """
         Performs a single check for the access token.
         Returns token if successful, None otherwise.
@@ -109,7 +111,7 @@ class AuthService:
             return None
 
     @classmethod
-    def poll_for_token(cls, device_code: str, interval: int = 5, expires_in: int = 900) -> Optional[str]:
+    def poll_for_token(cls, device_code: str, interval: int = 5, expires_in: int = 900) -> str | None:
         """
         Step 2: Poll GitHub for the access token until the user authorizes or the code expires.
         """
@@ -160,7 +162,7 @@ class AuthService:
         SwitchCraftConfig.set_secret(cls.KEYRING_SERVICE_NAME, token)
 
     @classmethod
-    def get_token(cls) -> Optional[str]:
+    def get_token(cls) -> str | None:
         """Retrieves the token from the secure keyring."""
         return SwitchCraftConfig.get_secret(cls.KEYRING_SERVICE_NAME)
 
@@ -175,7 +177,7 @@ class AuthService:
         return cls.get_token() is not None
 
     @classmethod
-    def get_user_info(cls) -> Optional[Dict[str, Any]]:
+    def get_user_info(cls) -> dict[str, Any] | None:
         """
         Fetches the authenticated user's profile info.
         """

@@ -4,12 +4,14 @@ Tests for critical UI interaction features:
 - Language change and UI refresh
 - Notification drawer toggle
 """
-import pytest
-import flet as ft
-from unittest.mock import MagicMock, patch
-import os
 import asyncio
+import os
+from unittest.mock import MagicMock, patch
+
+import flet as ft
+import pytest
 from conftest import poll_until
+
 
 @pytest.fixture
 def mock_page():
@@ -39,7 +41,7 @@ def mock_page():
             except RuntimeError:
                 # Event loop already running, create task
                 try:
-                    loop = asyncio.get_running_loop()
+                    asyncio.get_running_loop()
                     asyncio.create_task(func())
                 except RuntimeError:
                     asyncio.run(func())
@@ -243,7 +245,7 @@ def test_github_login_button_exists(mock_page):
         mock_page.add(view)
 
     # Get the login button from cloud sync section
-    cloud_sync = view._build_cloud_sync_section()
+    view._build_cloud_sync_section()
 
     assert hasattr(view, 'login_btn'), "Login button should exist"
     assert view.login_btn is not None, "Login button should not be None"

@@ -1,21 +1,22 @@
-import customtkinter as ctk
-from tkinterdnd2 import TkinterDnD
-import threading
-from pathlib import Path
-from PIL import Image
-import webbrowser
+import ctypes
 import logging
-from tkinter import messagebox
 import os
 import sys
-import ctypes
+import threading
+import webbrowser
+from pathlib import Path
+from tkinter import messagebox
 
-from switchcraft.utils.logging_handler import setup_session_logging
-from switchcraft.utils.i18n import i18n
+import customtkinter as ctk
+from PIL import Image
+from tkinterdnd2 import TkinterDnD
+
+from switchcraft import __version__
 from switchcraft.utils.app_updater import UpdateChecker
 from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
+from switchcraft.utils.logging_handler import setup_session_logging
 from switchcraft.utils.security import SecurityChecker
-from switchcraft import __version__
 
 # Setup session logging early to capture all events
 setup_session_logging()
@@ -199,10 +200,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             logger.exception(f"Critical error during background init: {e}")
             # Write crash dump
             try:
+                import os
                 import traceback
                 from datetime import datetime
                 from pathlib import Path
-                import os
 
                 app_data = os.getenv('APPDATA')
                 if app_data:
@@ -391,12 +392,12 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
             Performs a best-effort relaunch that handles both frozen (PyInstaller) executables and running scripts: it prepares a cleaned environment, spawns a detached child process with the same invocation, allows it to start, then terminates the current process. On failure, logs the error and shows an error dialog prompting the user to restart manually.
             """
-            import sys
-            import subprocess
-            import os
-            import logging
-            import time
             import gc
+            import logging
+            import os
+            import subprocess
+            import sys
+            import time
 
             logger.info("Restarting application...")
 
@@ -513,9 +514,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         if not AuthService.is_authenticated():
             return
 
-        import time
         import json
         import threading
+        import time
 
         last_backup = SwitchCraftConfig.get_value("LastCloudBackup", 0)
         now = time.time()
@@ -1150,10 +1151,10 @@ def main(splash_proc=None):
 
         app.mainloop()
     except Exception as e:
+        import os
         import traceback
         from datetime import datetime
         from pathlib import Path
-        import os
 
         traceback.print_exc()
 
@@ -1184,7 +1185,7 @@ def main(splash_proc=None):
             error_msg = f"SwitchCraft crashed on startup:\n{str(e)}\n\nSee console for details."
 
         try:
-            from tkinter import messagebox, Tk
+            from tkinter import Tk, messagebox
             # Attempt to create a root for messagebox if app failed
             root = Tk()
             root.withdraw()

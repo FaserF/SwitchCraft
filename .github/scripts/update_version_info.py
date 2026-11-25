@@ -1,6 +1,7 @@
-import sys
-import re
 import argparse
+import re
+import sys
+
 
 def update_version_info(version_str, build_number=None, file_path='file_version_info.txt'):
     """
@@ -46,7 +47,7 @@ def update_version_info(version_str, build_number=None, file_path='file_version_
 
     # 4. Read and Update the File
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             content = f.read()
     except FileNotFoundError:
         print(f"Error: {file_path} not found.")

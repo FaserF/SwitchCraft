@@ -1,9 +1,12 @@
-import customtkinter as ctk
 import hashlib
 import threading
 from pathlib import Path
 from tkinter import messagebox
+
+import customtkinter as ctk
+
 from switchcraft.services.winget_manifest_service import WingetManifestService
+
 
 class ManifestDialog(ctk.CTkToplevel):
     def __init__(self, parent, installer_info):

@@ -1,6 +1,6 @@
-import unittest
-import sys
 import os
+import sys
+import unittest
 from pathlib import Path
 
 # Add src to path
@@ -22,7 +22,7 @@ class TestLegacyStartupCritical(unittest.TestCase):
         app_path = Path(__file__).parent.parent / "src" / "switchcraft" / "gui" / "app.py"
         self.assertTrue(app_path.exists(), "app.py should exist")
 
-        with open(app_path, "r", encoding="utf-8") as f:
+        with open(app_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check for loading screen indicators
@@ -45,7 +45,7 @@ class TestLegacyStartupCritical(unittest.TestCase):
     def test_legacy_app_error_handling(self):
         """Test that Legacy app has error handling in main()."""
         app_path = Path(__file__).parent.parent / "src" / "switchcraft" / "gui" / "app.py"
-        with open(app_path, "r", encoding="utf-8") as f:
+        with open(app_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check for error handling
@@ -56,7 +56,7 @@ class TestLegacyStartupCritical(unittest.TestCase):
     def test_legacy_app_uses_static_addon_method(self):
         """Test that Legacy app uses is_addon_installed_static instead of instance method."""
         app_path = Path(__file__).parent.parent / "src" / "switchcraft" / "gui" / "app.py"
-        with open(app_path, "r", encoding="utf-8") as f:
+        with open(app_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check that we use the static method, not the instance method
@@ -76,7 +76,7 @@ class TestLegacyStartupCritical(unittest.TestCase):
     def test_legacy_app_loading_screen_update(self):
         """Test that loading screen calls update() to be visible immediately."""
         app_path = Path(__file__).parent.parent / "src" / "switchcraft" / "gui" / "app.py"
-        with open(app_path, "r", encoding="utf-8") as f:
+        with open(app_path, encoding="utf-8") as f:
             content = f.read()
 
         # Check that update() is called in __init__ after creating loading screen
@@ -101,7 +101,7 @@ class TestLegacyStartupCritical(unittest.TestCase):
         app_path = Path(__file__).parent.parent / "src" / "switchcraft" / "gui" / "app.py"
 
         try:
-            with open(app_path, "r", encoding="utf-8") as f:
+            with open(app_path, encoding="utf-8") as f:
                 code = f.read()
 
             # Try to compile the code to check for syntax errors

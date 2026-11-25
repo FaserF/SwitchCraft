@@ -1,8 +1,10 @@
-import flet as ft
-from switchcraft import IS_WEB
-import logging
 import asyncio
 import inspect
+import logging
+
+import flet as ft
+
+from switchcraft import IS_WEB
 from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
@@ -23,6 +25,7 @@ class ViewMixin:
         """
         try:
             import traceback
+
             from switchcraft.gui_modern.views.crash_view import CrashDumpView
 
             page = getattr(self, "app_page", None)
@@ -173,11 +176,11 @@ class ViewMixin:
         Restarts the current application with administrator privileges on Windows.
         Handles both development (python) and production (frozen exe) environments.
         """
-        import sys
-        import time
+        import ctypes
         import gc
         import logging
-        import ctypes
+        import sys
+        import time
 
         if sys.platform != "win32":
             self._show_snack("Elevation is only supported on Windows.", "RED")
@@ -222,10 +225,11 @@ class ViewMixin:
 
     def _show_restricted_hint(self, feature_name: str = None):
         """Show a customized snackbar hint for features restricted in Demo or due to missing dependencies."""
-        from switchcraft import IS_DEMO
         import sys
-        from switchcraft.utils.shell_utils import ShellUtils
+
+        from switchcraft import IS_DEMO
         from switchcraft.utils.i18n import i18n
+        from switchcraft.utils.shell_utils import ShellUtils
 
         msg = ""
         if sys.platform in ["emscripten", "wasi"] or IS_DEMO:
@@ -546,8 +550,8 @@ class ViewMixin:
                 dialog.open = False
                 try:
                     dialog.update()
-                except:
-                    pass
+                except Exception as exc:
+                    logger.debug(f"Failed to update dialog while closing: {exc}")
 
             # Use modern API if available
             if hasattr(page, "close") and dialog:
@@ -606,7 +610,7 @@ class ViewMixin:
                 is_fallback_coroutine = inspect.iscoroutinefunction(fallback_func) if fallback_func else False
                 if is_fallback_coroutine:
                     try:
-                        loop = asyncio.get_running_loop()
+                        asyncio.get_running_loop()
                         task = asyncio.create_task(fallback_func())
                         def handle_task_exception(task):
                             try:
@@ -642,7 +646,7 @@ class ViewMixin:
                 # Fallback: handle coroutine functions properly
                 try:
                     try:
-                        loop = asyncio.get_running_loop()
+                        asyncio.get_running_loop()
                         # Store task reference and add exception handling to avoid silent failures
                         task = asyncio.create_task(fallback_func())
                         # Add exception handler to catch and log exceptions from the task
@@ -674,7 +678,7 @@ class ViewMixin:
                     # Check if fallback_func is async and handle accordingly
                     if is_fallback_coroutine:
                         try:
-                            loop = asyncio.get_running_loop()
+                            asyncio.get_running_loop()
                             task = asyncio.create_task(fallback_func())
                             def handle_task_exception(task):
                                 try:
@@ -700,7 +704,7 @@ class ViewMixin:
                 if is_fallback_coroutine:
                     # Fallback is async, need to run it
                     try:
-                        loop = asyncio.get_running_loop()
+                        asyncio.get_running_loop()
                         # Store task reference and add exception handling to avoid silent failures
                         task = asyncio.create_task(fallback_func())
                         # Add exception handler to catch and log exceptions from the task
@@ -759,8 +763,9 @@ class ViewMixin:
 
         # 3. Fallback to Shell (Windows 'clip' or 'xdg-copy' etc via ShellUtils)
         try:
-            from switchcraft.utils.shell_utils import ShellUtils
             import sys
+
+            from switchcraft.utils.shell_utils import ShellUtils
             if sys.platform == "win32":
                 ShellUtils.run_command(['clip'], input=text.encode('utf-8'), check=False, silent=True)
                 self._show_snack(i18n.get("copied_to_clipboard") or "Copied to clipboard!", "GREEN_700")

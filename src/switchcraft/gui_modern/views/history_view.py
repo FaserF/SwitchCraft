@@ -1,9 +1,11 @@
-import flet as ft
-from datetime import datetime
 import logging
+from datetime import datetime
+
+import flet as ft
+
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 from switchcraft.services.history_service import HistoryService
 from switchcraft.utils.i18n import i18n
-from switchcraft.gui_modern.utils.view_utils import ViewMixin
 
 logger = logging.getLogger(__name__)
 

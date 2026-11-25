@@ -4,8 +4,9 @@ import re
 import sys
 from pathlib import Path
 
+
 def load_json(path):
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, encoding='utf-8') as f:
         return json.load(f)
 
 def flatten_dict(d, parent_key='', sep='.'):
@@ -66,7 +67,7 @@ def scan_for_hardcoded_strings(src_dir):
 
             path = Path(root) / file
             try:
-                with open(path, 'r', encoding='utf-8') as f:
+                with open(path, encoding='utf-8') as f:
                     content = f.read()
 
                 lines = content.splitlines()

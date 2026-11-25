@@ -1,12 +1,14 @@
-import flet as ft
-from switchcraft.utils.i18n import i18n
-from switchcraft.gui_modern.nav_constants import NavIndex
 import logging
 import threading
+
+import flet as ft
 import requests
+
+from switchcraft.gui_modern.nav_constants import NavIndex
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
-from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 

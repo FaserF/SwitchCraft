@@ -1,8 +1,10 @@
-import pytest
-from unittest.mock import MagicMock, patch
 import asyncio
-import inspect
 import importlib
+import inspect
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 
 def find_all_clickables(control, clickables):
     """Recursively find all clickable controls (buttons, cards with on_click, etc.)."""

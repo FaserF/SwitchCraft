@@ -1,7 +1,7 @@
+import os
+import sys
 import unittest
 from unittest.mock import patch
-import sys
-import os
 
 # Add src to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
@@ -71,10 +71,12 @@ class TestSettingsLanguage(unittest.TestCase):
     @unittest.skipIf(os.environ.get('GITHUB_ACTIONS') == 'true', "Hangs in CI due to timing/headless issues")
     def test_language_switch_functionality(self):
         """Test that language switch actually changes language (Interaction Test)."""
-        from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-        import flet as ft
         import time
         from unittest.mock import MagicMock
+
+        import flet as ft
+
+        from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
         view = ModernSettingsView(self.page)
         # Manually add view to page controls to satisfy Flet's requirement

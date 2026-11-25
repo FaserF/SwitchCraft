@@ -3,13 +3,14 @@ Regression tests for recent break-fixes:
 1. Group Manager View: Dialog opening logic and threading safety.
 2. Addon Service: Manifest discovery (recursive, case-insensitive).
 """
-import pytest
-from unittest.mock import MagicMock, patch
+import shutil
 import tempfile
 import zipfile
-import shutil
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import flet as ft
+import pytest
 
 # --- Group Manager Tests ---
 

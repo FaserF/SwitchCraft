@@ -1,12 +1,12 @@
+import os
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
-import sys
-import os
 
 # Mocking winreg before importing config if possible
 # But we can patch it inside the test methods
-
 from switchcraft.utils.config import SwitchCraftConfig
+
 
 class TestSwitchCraftConfig(unittest.TestCase):
 

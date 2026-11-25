@@ -1,23 +1,26 @@
-import pytest
 from unittest.mock import MagicMock, patch
+
 import flet as ft
+import pytest
+
 from switchcraft.gui_modern.app import ModernApp
+from switchcraft.gui_modern.views.analyzer_view import ModernAnalyzerView
+from switchcraft.gui_modern.views.dashboard_view import DashboardView
+from switchcraft.gui_modern.views.detection_tester_view import DetectionTesterView
+from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
 
 # Import ALL Views to check types
 from switchcraft.gui_modern.views.home_view import ModernHomeView
-from switchcraft.gui_modern.views.winget_view import ModernWingetView
-from switchcraft.gui_modern.views.analyzer_view import ModernAnalyzerView
-from switchcraft.gui_modern.views.intune_view import ModernIntuneView
 from switchcraft.gui_modern.views.intune_store_view import ModernIntuneStoreView
-from switchcraft.gui_modern.views.script_upload_view import ScriptUploadView
-from switchcraft.gui_modern.views.macos_wizard_view import MacOSWizardView
-from switchcraft.gui_modern.views.settings_view import ModernSettingsView
-from switchcraft.gui_modern.views.packaging_wizard_view import PackagingWizardView
-from switchcraft.gui_modern.views.detection_tester_view import DetectionTesterView
-from switchcraft.gui_modern.views.stack_manager_view import StackManagerView
-from switchcraft.gui_modern.views.dashboard_view import DashboardView
+from switchcraft.gui_modern.views.intune_view import ModernIntuneView
 from switchcraft.gui_modern.views.library_view import LibraryView
-from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
+from switchcraft.gui_modern.views.macos_wizard_view import MacOSWizardView
+from switchcraft.gui_modern.views.packaging_wizard_view import PackagingWizardView
+from switchcraft.gui_modern.views.script_upload_view import ScriptUploadView
+from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+from switchcraft.gui_modern.views.stack_manager_view import StackManagerView
+from switchcraft.gui_modern.views.winget_view import ModernWingetView
+
 
 @pytest.fixture
 def app_instance(monkeypatch):

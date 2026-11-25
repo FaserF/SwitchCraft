@@ -1,5 +1,6 @@
 from switchcraft.services.exchange_service import ExchangeService
 
+
 def test_mail_flow_service():
     service = ExchangeService()
 

@@ -1,5 +1,5 @@
-import locale
 import json
+import locale
 import logging
 
 logger = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ class I18n:
                 file_path = lang_dir / f"{lang_code}.json"
                 if file_path.exists():
                     try:
-                        with open(file_path, "r", encoding="utf-8") as f:
+                        with open(file_path, encoding="utf-8") as f:
                             self.translations[lang_code] = json.load(f)
                     except Exception as e:
                          logger.error(f"Failed to load {lang_code} translation: {e}")
@@ -221,8 +221,8 @@ class I18n:
                  # Use the language from the current context (User Session)
                  # This allows multi-user language support despite Singleton pattern
                  lang = ctx_lang
-        except:
-            pass
+        except Exception as exc:
+            logger.debug(f"Context language lookup failed: {exc}")
 
         target_lang = lang if lang else self.language
 

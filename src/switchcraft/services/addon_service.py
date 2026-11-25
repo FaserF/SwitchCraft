@@ -1,10 +1,10 @@
+import importlib.util
 import json
 import logging
-import importlib.util
-import shutil
-import zipfile
-import tempfile
 import os
+import shutil
+import tempfile
+import zipfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class AddonService:
             return None
 
         try:
-            with open(manifest, "r") as f:
+            with open(manifest) as f:
                 data = json.load(f)
                 if "id" in data:
                     return data
@@ -288,10 +288,10 @@ class AddonService:
         Determine whether an addon with the given id is installed.
 
         Parameters:
-        	addon_id (str): The addon identifier to look for.
+            addon_id (str): The addon identifier to look for.
 
         Returns:
-        	`true` if an addon with the given id is installed, `false` otherwise.
+            `true` if an addon with the given id is installed, `false` otherwise.
         """
         for _, data in self._iter_addons():
             if data.get("id") == addon_id:

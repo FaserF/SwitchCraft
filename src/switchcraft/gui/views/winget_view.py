@@ -1,13 +1,15 @@
-import customtkinter as ctk
-from tkinter import messagebox
-import threading
 import logging
 import shutil
 import tempfile
+import threading
 import webbrowser
 from pathlib import Path
+from tkinter import messagebox
+
+import customtkinter as ctk
 
 from switchcraft.utils.i18n import i18n
+
 # from switchcraft.utils.winget import WingetHelper # Moved to Addon
 
 logger = logging.getLogger(__name__)

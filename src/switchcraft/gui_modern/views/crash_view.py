@@ -1,7 +1,10 @@
-import flet as ft
 import traceback
-from switchcraft.utils.i18n import i18n
+
+import flet as ft
+
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.utils.i18n import i18n
+
 
 class CrashDumpView(ft.Container, ViewMixin):
     def __init__(self, page: ft.Page, error: Exception, traceback_str: str = None):
@@ -93,8 +96,8 @@ class CrashDumpView(ft.Container, ViewMixin):
         started to terminate the process after a short delay so the UI update can be shown.
         @param e: Event object from the triggering UI action; may contain a `control` attribute whose `disabled` and `text` properties will be modified if present.
         """
-        import sys
         import ctypes
+        import sys
         import threading
 
         # Disable button to prevent multiple clicks
@@ -139,12 +142,12 @@ class CrashDumpView(ft.Container, ViewMixin):
         Parameters:
             page (ft.Page): The current Flet page used to display the "Reloading..." message and any error snack bar.
         """
-        import sys
-        import os
-        import subprocess
-        import time
         import gc
         import logging
+        import os
+        import subprocess
+        import sys
+        import time
 
         page.clean()
         page.add(ft.Text(i18n.get("reloading") or "Reloading...", size=20))

@@ -1,10 +1,13 @@
-import flet as ft
-from switchcraft.services.history_service import HistoryService
-from switchcraft.utils.i18n import i18n
 from collections import defaultdict
 from datetime import datetime, timedelta
-from switchcraft.services.exchange_service import ExchangeService
+
+import flet as ft
+
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.services.exchange_service import ExchangeService
+from switchcraft.services.history_service import HistoryService
+from switchcraft.utils.i18n import i18n
+
 
 class DashboardView(ft.Column, ViewMixin):
     def __init__(self, page: ft.Page):
@@ -225,13 +228,13 @@ class DashboardView(ft.Column, ViewMixin):
         Create a styled statistic card container used in the dashboard.
 
         Parameters:
-        	label (str): Text label shown under the main value (e.g., "Analyzed").
-        	value (str | int): Primary statistic displayed prominently.
-        	icon: Icon identifier used for the leading icon.
-        	color (str): Color applied to the leading icon.
+            label (str): Text label shown under the main value (e.g., "Analyzed").
+            value (str | int): Primary statistic displayed prominently.
+            icon: Icon identifier used for the leading icon.
+            color (str): Color applied to the leading icon.
 
         Returns:
-        	ft.Container: A container holding an icon at the left and a column with the value and label, styled for dashboard stat display.
+            ft.Container: A container holding an icon at the left and a column with the value and label, styled for dashboard stat display.
         """
         return ft.Container(
             content=ft.Row([

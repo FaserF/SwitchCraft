@@ -1,6 +1,8 @@
 import logging
 from pathlib import Path
+
 import olefile
+
 from switchcraft.analyzers.base import BaseAnalyzer
 from switchcraft.models import InstallerInfo
 

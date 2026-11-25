@@ -4,18 +4,19 @@ MacOS Package Wizard - Deploy DMG/PKG files via Intune Shell Scripts.
 Supports both URL downloads and local file selection.
 """
 
+import logging
+import shlex
+import threading
+from pathlib import Path
+
 import flet as ft
+
+from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+from switchcraft.gui_modern.utils.flet_compat import create_tabs
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
-from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
-from switchcraft.gui_modern.utils.flet_compat import create_tabs
-import logging
-import threading
-from switchcraft.gui_modern.utils.view_utils import ViewMixin
-
-from pathlib import Path
-import shlex
 
 logger = logging.getLogger(__name__)
 

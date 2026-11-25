@@ -1,7 +1,10 @@
 
-import pytest
 import importlib
+
+import pytest
+
 from switchcraft.gui_modern.app import ModernApp
+
 
 def test_modern_app_import():
     """Simple smoke test to ensure module can be imported without error."""

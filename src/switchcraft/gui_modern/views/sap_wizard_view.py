@@ -1,10 +1,13 @@
-import flet as ft
 import logging
 import os
 from pathlib import Path
+
+import flet as ft
+
+from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
-from switchcraft.utils.i18n import i18n
 from switchcraft.services.sap_service import SapService
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -128,8 +131,8 @@ class SapWizardView(ft.Column, ViewMixin):
         packages = []
         try:
             packages = self.sap_service.list_packages(self.server_path)
-        except:
-            pass
+        except Exception as exc:
+            logger.debug(f"Failed to list SAP packages: {exc}")
 
         opts = [ft.dropdown.Option(p['name']) for p in packages]
         # Default to first if available, else standard SAPGUI

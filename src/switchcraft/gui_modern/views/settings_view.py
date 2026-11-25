@@ -1,18 +1,22 @@
-import flet as ft
-import threading
-import logging
 import json
+import logging
 import os
+import threading
+
+import flet as ft
+
+from switchcraft import (
+    IS_WEB,  # Fix: Import IS_WEB correctly from switchcraft
+    __version__,
+)
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.services.addon_service import AddonService
+from switchcraft.services.auth_service import AuthService
+from switchcraft.services.intune_service import IntuneService
+from switchcraft.services.sync_service import SyncService
+from switchcraft.utils.app_updater import UpdateChecker
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
-from switchcraft import __version__
-from switchcraft.utils.app_updater import UpdateChecker
-from switchcraft.services.auth_service import AuthService
-from switchcraft.services.sync_service import SyncService
-from switchcraft.services.intune_service import IntuneService
-from switchcraft.services.addon_service import AddonService
-from switchcraft.gui_modern.utils.view_utils import ViewMixin
-from switchcraft import IS_WEB  # Fix: Import IS_WEB correctly from switchcraft
 
 logger = logging.getLogger(__name__)
 
@@ -344,8 +348,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
         try:
             self.sync_section_container.update()
-        except:
-            pass
+        except Exception as exc:
+            logger.debug(f"Sync section update failed: {exc}")
 
     def _build_ai_config_section(self):
         provider = ft.Dropdown(
@@ -957,6 +961,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 # We run this in a thread executor if it's synchronous, or directly if async
                 # AuthService.initiate_device_flow is likely sync (requests), so we wrap it
                 import asyncio
+
                 from switchcraft.services.auth_service import AuthService
 
                 logger.debug("Starting GitHub login flow (Async)...")
@@ -1046,19 +1051,21 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         if cancel_event.is_set():
                             logger.info("Login cancelled by user")
                             return
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         continue # Interval passed, poll again
 
             except Exception as ex:
                 logger.exception(f"[CRITICAL] Error in GitHub Login Flow: {ex}")
                 try:
                     self._close_dialog(loading_dlg)
-                except: pass
+                except Exception as exc:
+                    logger.debug(f"Closing loading dialog failed: {exc}")
                 # Ensure dlg is closed if open
                 if 'dlg' in locals():
                     try:
                         self._close_dialog(dlg)
-                    except: pass
+                    except Exception as exc:
+                        logger.debug(f"Closing login dialog failed: {exc}")
 
                 self._show_snack(f"Login Error: {ex}", "RED")
                 self._restore_login_button(original_text, original_icon)
@@ -1118,8 +1125,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
         """
         Export settings via FilePicker (Desktop) or Download (Web).
         """
-        from switchcraft import IS_WEB
         import base64
+
+        from switchcraft import IS_WEB
 
         prefs = SwitchCraftConfig.export_preferences()
         json_str = json.dumps(prefs, indent=4)
@@ -1171,7 +1179,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
             fpath = path[0] if isinstance(path, list) else path
 
             try:
-                with open(fpath, "r", encoding="utf-8") as f:
+                with open(fpath, encoding="utf-8") as f:
                     data = json.load(f)
 
                 SwitchCraftConfig.import_preferences(data)
@@ -1184,11 +1192,12 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     async def _export_logs(self, e):
         """Export logs to a file. Includes current session log and recent log files."""
+        import base64
         import datetime
         import os
         from pathlib import Path
+
         from switchcraft import IS_WEB
-        import base64
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"SwitchCraft_Debug_{timestamp}.log"
@@ -1602,7 +1611,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     # Fallback: execute synchronously if run_task not available
                     import asyncio
                     try:
-                        loop = asyncio.get_running_loop()
+                        asyncio.get_running_loop()
                         task = asyncio.create_task(_ui_update())
                         # Add exception handler to catch and log exceptions from the task
                         def handle_task_exception(task):
@@ -1665,12 +1674,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
         """
         Fallback: Download source code from main branch and extract specific addon folder.
         """
-        import requests
+        import shutil
         import tempfile
         import zipfile
-        import shutil
-        from switchcraft.services.addon_service import AddonService
         from pathlib import Path
+
+        import requests
+
+        from switchcraft.services.addon_service import AddonService
 
         repo = "FaserF/SwitchCraft"
         # Download main branch zip
@@ -1720,12 +1731,14 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     def _download_and_install_github(self, addon_id):
         """Helper to download/install without UI code mixed in."""
-        import requests
         import tempfile
+        from pathlib import Path
+
+        import requests
+
+        from switchcraft import __version__
         from switchcraft.services.addon_service import AddonService
         from switchcraft.utils.config import SwitchCraftConfig
-        from switchcraft import __version__
-        from pathlib import Path
 
         repo = "FaserF/SwitchCraft"
         channel = SwitchCraftConfig.get_update_channel()
@@ -1795,14 +1808,16 @@ class ModernSettingsView(ft.Column, ViewMixin):
         if channel == "stable":
             # Attempt 1: Stable Latest
             try:
-                if res := try_latest(): return res
+                if res := try_latest():
+                    return res
             except Exception as e:
                 logger.warning(f"Stable download failed: {e}")
                 last_error = e
 
             # Attempt 2: Beta/Pre-release Fallback
             try:
-                if res := try_newest_release(): return res
+                if res := try_newest_release():
+                    return res
             except Exception as e:
                 logger.warning(f"Beta fallback failed: {e}")
                 last_error = e
@@ -1818,7 +1833,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
         elif channel == "beta":
             # Attempt 1: Newest Release (Beta)
             try:
-                if res := try_newest_release(): return res
+                if res := try_newest_release():
+                    return res
             except Exception as e:
                 logger.warning(f"Beta download failed: {e}")
                 last_error = e
@@ -1840,7 +1856,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
             # Attempt 2: Newest Release Fallback
             try:
-                if res := try_newest_release(): return res
+                if res := try_newest_release():
+                    return res
             except Exception as e:
                 raise last_error or e
 
@@ -1908,8 +1925,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
     def _upload_custom_addon(self, e):
         """Upload and install a custom addon from a .zip file."""
-        from switchcraft.services.addon_service import AddonService
         from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+        from switchcraft.services.addon_service import AddonService
 
         path = FilePickerHelper.pick_file(allowed_extensions=["zip"])
         if path:
@@ -1938,9 +1955,10 @@ class ModernSettingsView(ft.Column, ViewMixin):
             self._show_snack(f"{i18n.get('addon_downloading') or 'Downloading addon'}...", "BLUE")
 
             def _run():
-                import tempfile
                 import os
+                import tempfile
                 import urllib.request
+
                 from switchcraft.services.addon_service import AddonService
 
                 try:
@@ -2264,8 +2282,8 @@ class ModernSettingsView(ft.Column, ViewMixin):
             A string containing the build date/time in "YYYY-MM-DD HH:MM:SS" format, or "Unknown" if unavailable.
         """
         try:
-            import sys
             import os
+            import sys
             from datetime import datetime
 
             # Try to get build date from __init__.py modification time

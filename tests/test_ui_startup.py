@@ -1,14 +1,16 @@
-import unittest
-import flet as ft
-from unittest.mock import MagicMock
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import MagicMock
+
+import flet as ft
 
 # Add src to path
 sys.path.insert(0, os.path.abspath("src"))
 
-from switchcraft.gui_modern.views.helper_view import ModernHelperView
 from switchcraft.gui_modern.app import ModernApp
+from switchcraft.gui_modern.views.helper_view import ModernHelperView
+
 
 class TestUIIntegrity(unittest.TestCase):
     def setUp(self):

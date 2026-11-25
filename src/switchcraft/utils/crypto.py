@@ -1,5 +1,6 @@
 import base64
 
+
 class SimpleCrypto:
     """
     Simple obfuscation for registry values to avoid plaintext storage.

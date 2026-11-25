@@ -13,8 +13,8 @@ def main():
     if "--splash-internal" in sys.argv:
         try:
             # Setup extremely early logging to catch import errors
-            import traceback
             import tempfile
+            import traceback
             debug_log = Path(tempfile.gettempdir()) / "switchcraft_splash_startup.log"
 
             with open(debug_log, "a") as f:
@@ -62,8 +62,8 @@ def main():
         # FIX: We now run splash in a separate process to avoid these conflicts AND show it immediately.
         splash_proc = None
         try:
-            import subprocess
             import os
+            import subprocess
 
             # Determine how to launch splash based on environment (Source vs Frozen)
             is_frozen = getattr(sys, 'frozen', False)

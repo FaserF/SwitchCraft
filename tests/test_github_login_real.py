@@ -1,18 +1,19 @@
 """
 Real test for GitHub login - ensures dialog actually opens.
 """
-import pytest
-import flet as ft
-from unittest.mock import MagicMock, patch
 import os
+from unittest.mock import MagicMock, patch
+
+import flet as ft
+import pytest
 
 # Import shared fixtures and helpers from conftest
 try:
-    from .utils import poll_until
+    from .utils import poll_until  # noqa: F401
 except ImportError:
     # Fallback if run as script
-    import sys
     import os
+    import sys
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 

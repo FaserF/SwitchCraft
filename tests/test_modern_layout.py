@@ -1,7 +1,10 @@
 
-import flet as ft
 from unittest.mock import MagicMock
+
+import flet as ft
+
 from switchcraft.gui_modern.app import ModernApp
+
 
 class TestModernLayout:
     def test_sidebar_initialization(self):

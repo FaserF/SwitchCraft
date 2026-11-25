@@ -1,5 +1,6 @@
-import subprocess
 import re
+import subprocess
+
 
 def get_last_tag():
     """Returns the most recent git tag."""

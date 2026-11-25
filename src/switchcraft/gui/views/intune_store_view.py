@@ -1,6 +1,8 @@
-import customtkinter as ctk
-import threading
 import logging
+import threading
+
+import customtkinter as ctk
+
 from switchcraft.services.intune_service import IntuneService
 from switchcraft.utils.config import SwitchCraftConfig
 

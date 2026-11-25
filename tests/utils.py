@@ -3,7 +3,9 @@ Shared utilities for tests.
 """
 import os
 import time
+
 import pytest
+
 
 def is_ci_environment():
     """

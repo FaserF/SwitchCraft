@@ -4,10 +4,11 @@ Tests for critical UI interaction features:
 - Language change and UI refresh
 - Notification drawer toggle
 """
-import pytest
-import flet as ft
-from unittest.mock import MagicMock, patch
 import os
+from unittest.mock import MagicMock, patch
+
+import flet as ft
+import pytest
 
 # Import shared fixtures and helpers from conftest
 # Import shared fixtures and helpers
@@ -15,8 +16,8 @@ try:
     from .utils import poll_until
 except ImportError:
     # Fallback if run as script
-    import sys
     import os
+    import sys
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from tests.utils import poll_until
 
@@ -214,7 +215,7 @@ def test_github_login_button_exists(mock_page):
         mock_page.add(view)
 
         # Get the login button from cloud sync section
-        cloud_sync = view._build_cloud_sync_section()
+        view._build_cloud_sync_section()
 
         assert hasattr(view, 'login_btn'), "Login button should exist"
         assert view.login_btn is not None, "Login button should not be None"

@@ -1,7 +1,10 @@
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from switchcraft.utils.app_updater import UpdateChecker
+
 
 @pytest.fixture
 def mock_requests():

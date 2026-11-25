@@ -1,7 +1,9 @@
-import yaml
 import logging
 import subprocess
 from pathlib import Path
+
+import yaml
+
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.shell_utils import ShellUtils
 

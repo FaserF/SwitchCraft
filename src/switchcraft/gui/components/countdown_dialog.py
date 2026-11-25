@@ -1,5 +1,7 @@
 import customtkinter as ctk
+
 from switchcraft.utils.i18n import i18n
+
 
 class CountdownDialog(ctk.CTkToplevel):
     """
