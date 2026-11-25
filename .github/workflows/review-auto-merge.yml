@@ -90,8 +90,6 @@ jobs:
           # Aggregate all pages before filtering and counting
           CODERABBIT_PR_COMMENTS=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq '.[] | select(.user.login == "coderabbitai[bot]" and (.body | test("suggestion|review|feedback|issue|problem|error|warning"; "i"))) | .id' | wc -l)
 
-          TOTAL_CODERABBIT_COMMENTS=$((CODERABBIT_INLINE + CODERABBIT_PR_COMMENTS))
-
           # If there are any inline review comments (from any reviewer, especially CodeRabbit), skip auto-merge
           if [[ "$INLINE_REVIEW_COMMENTS" -gt 0 ]] || [[ "$CODERABBIT_PR_COMMENTS" -gt 0 ]]; then
              echo "::notice::Review comments found ($INLINE_REVIEW_COMMENTS inline, $CODERABBIT_INLINE from CodeRabbit inline, $CODERABBIT_PR_COMMENTS from CodeRabbit PR comments). Auto-merge skipped."
