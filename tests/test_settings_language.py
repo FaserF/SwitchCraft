@@ -129,6 +129,7 @@ class TestSettingsLanguage(unittest.TestCase):
         from unittest.mock import MagicMock
 
         import flet as ft
+
         from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
         view = ModernSettingsView(self.page)

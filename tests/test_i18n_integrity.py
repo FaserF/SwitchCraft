@@ -130,7 +130,7 @@ class TestI18nIntegrity(unittest.TestCase):
             'error_description', 'import_settings', 'created_at', 'export_settings', 'export_logs',
             'admin_password', 'config_path', 'admin_password_hash', 'first_run', 'demo_mode',
             'current_password', 'new_password', 'confirm_password', 'update_exe', 'banner_container',
-            'file_picker'
+            'file_picker', 'show_dialog', 'show_drawer', 'show_end_drawer'
         }
 
         for k in found_keys:
