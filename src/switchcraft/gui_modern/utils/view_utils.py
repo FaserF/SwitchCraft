@@ -145,7 +145,16 @@ class ViewMixin:
             sb = ft.SnackBar(ft.Text(str(msg)), bgcolor=color)
             page.snack_bar = sb
 
-            # Try modern API
+            # Flet 0.80+ API
+            if hasattr(page, 'show_dialog'):
+                try:
+                    page.show_dialog(sb)
+                    page.update()
+                    return
+                except Exception as e_show:
+                    logger.debug(f"show_dialog snackbar open failed: {e_show}")
+
+            # Flet 0.21-0.79 API
             if hasattr(page, 'open'):
                 try:
                     page.open(sb)
@@ -499,7 +508,19 @@ class ViewMixin:
              return False
 
         try:
-            # 1. Try modern API (Preferred)
+            # 1. Try Flet 0.80+ API (Preferred)
+            if hasattr(page, 'show_dialog'):
+                try:
+                    page.dialog = dlg
+                    if hasattr(dlg, 'open'):
+                        dlg.open = True
+                    page.show_dialog(dlg)
+                    page.update()
+                    return True
+                except Exception as e_show:
+                    logger.debug(f"show_dialog open failed: {e_show}")
+
+            # 2. Try Flet 0.21-0.79 API
             if hasattr(page, 'open'):
                 try:
                     page.open(dlg)

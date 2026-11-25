@@ -363,7 +363,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
 
             self._safe_update()
 
-        self.supersede_options.on_change = self._safe_event_handler(on_app_select, "Supersede app select")
+        self.supersede_options.on_select = self._safe_event_handler(on_app_select, "Supersede app select")
 
         def pick_intunewin(e):
             """
@@ -682,7 +682,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                     actions=[ft.FilledButton(content=ft.Text(i18n.get("open_folder") or "Open Folder"), on_click=self._safe_event_handler(open_folder, "Open folder from created package"))]
                 )
                 def show_dialog():
-                    self.app_page.open(dlg)
+                    self._open_dialog_safe(dlg)
                 self._run_task_safe(show_dialog)
 
             except Exception as ex:
@@ -777,4 +777,4 @@ class ModernIntuneView(ft.Column, ViewMixin):
             content=ft.Text((i18n.get("msg_app_id_sup") or "App ID: {id}\nSupersedence configured if selected.").format(id=app_id)),
             actions=[ft.TextButton(i18n.get("btn_close") or "Close", on_click=self._safe_event_handler(lambda e: self._close_dialog(dlg), "Close upload success dialog"))]
         )
-        self.app_page.open(dlg)
+        self._open_dialog_safe(dlg)

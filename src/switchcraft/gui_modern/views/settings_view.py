@@ -244,7 +244,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
             except Exception as ex:
                 logger.exception(f"Error in language change handler: {ex}")
                 self._show_error_view(ex, "Language dropdown change")
-        lang_dd.on_change = safe_lang_handler
+        lang_dd.on_select = safe_lang_handler
         # Language is usually not managed via GPO in this app context, but could be
 
         # Winget Toggle
@@ -361,7 +361,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.dropdown.Option("gemini"),
             ],
         )
-        provider.on_change = lambda e: SwitchCraftConfig.set_user_preference("AIProvider", e.control.value)
+        provider.on_select = lambda e: SwitchCraftConfig.set_user_preference("AIProvider", e.control.value)
         provider_ctrl = self._create_managed_control(provider, "AIProvider")
 
         api_key = ft.TextField(
@@ -389,7 +389,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 ft.dropdown.Option("dev"),
             ],
         )
-        channel.on_change = lambda e: self._on_channel_change(e.control.value)
+        channel.on_select = lambda e: self._on_channel_change(e.control.value)
         channel_ctrl = self._create_managed_control(channel, "UpdateChannel")
 
         cached = getattr(self.app_page, "update_check_result", None)
@@ -779,7 +779,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
         # Clear current latest if switching
         self.latest_version_text.value = i18n.get("unknown") or "Unknown"
         self.changelog_text.value = i18n.get("update_loading_changelog") or "Loading changelog..."
-        self.update()
+        self._safe_update()
         # Trigger re-check
         self._check_updates(None, only_changelog=True)
 
@@ -1250,7 +1250,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
             # Save preference & reload translations
             SwitchCraftConfig.set_user_preference("Language", val)
-            i18n.load_language(val)
+            i18n.set_language(val)
             logger.debug(f"Language preference saved: {val}")
 
             # Show Restart Dialog

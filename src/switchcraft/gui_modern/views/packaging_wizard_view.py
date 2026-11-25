@@ -804,7 +804,7 @@ Start-Process -FilePath "$PSScriptRoot\\$Installer" -ArgumentList $Args -Wait -P
         self.search_supersede_field = ft.TextField(label=i18n.get("wiz_search_supersede") or "Search App to Replace", height=40, expand=True)
         self.supersede_status = ft.Text(i18n.get("wiz_none_selected") or "None selected", italic=True, size=12)
         self.supersede_option = ft.Dropdown(label=i18n.get("wiz_select_app") or "Select App", options=[], visible=False)
-        self.supersede_option.on_change = self._on_supersede_select
+        self.supersede_option.on_select = self._on_supersede_select
         self.supersede_uninstall = ft.Switch(label=i18n.get("wiz_uninstall_prev") or "Uninstall previous version?", value=True)
 
         return ft.Column([

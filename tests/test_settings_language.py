@@ -107,7 +107,8 @@ class TestSettingsLanguage(unittest.TestCase):
         lang_dd = find_dropdown(general_tab)
 
         assert lang_dd is not None, "Language dropdown should exist"
-        assert lang_dd.on_change is not None, "Language dropdown should have on_change handler"
+        handler = getattr(lang_dd, "on_select", None) or getattr(lang_dd, "on_change", None)
+        assert handler is not None, "Language dropdown should have on_select handler"
 
         # Simulate language change
         mock_event = MagicMock()
@@ -115,12 +116,50 @@ class TestSettingsLanguage(unittest.TestCase):
         lang_dd.value = "de"
 
         # Call handler
-        lang_dd.on_change(mock_event)
+        handler(mock_event)
 
         # Verify language was changed or UI was reloaded
         # Wait a bit for async operations
         time.sleep(0.2)
         assert self.page.switchcraft_app.goto_tab.called or self.page.dialog.open, "Language change should trigger UI reload or dialog"
+
+    @patch('switchcraft.utils.config.SwitchCraftConfig.set_user_preference')
+    def test_update_channel_dropdown_uses_on_select(self, mock_set_pref):
+        """Test that Update Channel dropdown wires Flet 0.86 on_select handler and persists channel."""
+        from unittest.mock import MagicMock
+
+        import flet as ft
+        from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+
+        view = ModernSettingsView(self.page)
+        updates_tab = view._build_updates_tab()
+
+        def find_channel_dd(ctrl):
+            if isinstance(ctrl, ft.Dropdown):
+                keys = [opt.key if hasattr(opt, "key") else str(opt) for opt in (ctrl.options or [])]
+                if "beta" in keys and "dev" in keys:
+                    return ctrl
+            for attr in ("controls",):
+                if hasattr(ctrl, attr) and getattr(ctrl, attr):
+                    for child in getattr(ctrl, attr):
+                        found = find_channel_dd(child)
+                        if found:
+                            return found
+            if hasattr(ctrl, "content") and ctrl.content is not None:
+                return find_channel_dd(ctrl.content)
+            return None
+
+        channel_dd = find_channel_dd(updates_tab)
+        assert channel_dd is not None
+        handler = getattr(channel_dd, "on_select", None)
+        assert callable(handler)
+
+        event = MagicMock()
+        channel_dd.value = "beta"
+        event.control = channel_dd
+        with patch.object(view, "_check_updates"):
+            handler(event)
+        mock_set_pref.assert_called_with("UpdateChannel", "beta")
 
 
 if __name__ == '__main__':

@@ -109,7 +109,8 @@ def test_language_change_updates_ui(mock_page):
     lang_dd = find_dropdown(general_tab)
 
     assert lang_dd is not None, "Language dropdown should exist"
-    assert lang_dd.on_change is not None, "Language dropdown should have on_change handler"
+    handler = getattr(lang_dd, "on_select", None) or getattr(lang_dd, "on_change", None)
+    assert handler is not None, "Language dropdown should have on_select handler"
 
     # Simulate language change
     mock_event = MagicMock()
@@ -121,8 +122,7 @@ def test_language_change_updates_ui(mock_page):
         pytest.skip("Skipping test with time.sleep in CI environment")
 
     # Call the handler directly
-    if lang_dd.on_change:
-        lang_dd.on_change(mock_event)
+    handler(mock_event)
 
     # Wait for restart dialog using polling
     assert poll_until(
@@ -193,10 +193,11 @@ def test_language_dropdown_handler_exists(mock_page):
     lang_dd = find_dropdown(general_tab)
 
     assert lang_dd is not None, "Language dropdown should exist"
-    assert lang_dd.on_change is not None, "Language dropdown must have on_change handler"
+    handler = getattr(lang_dd, "on_select", None) or getattr(lang_dd, "on_change", None)
+    assert handler is not None, "Language dropdown must have on_select handler"
 
     # Verify handler is callable
-    assert callable(lang_dd.on_change), "on_change handler must be callable"
+    assert callable(handler), "on_select handler must be callable"
 
 
 def test_github_login_button_exists(mock_page):

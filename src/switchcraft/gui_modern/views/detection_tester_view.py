@@ -40,7 +40,7 @@ class DetectionTesterView(ft.Column, ViewMixin):
             value="File",
             label=i18n.get("det_type") or "Detection Type",
         )
-        self.rule_type.on_change = self._safe_event_handler(self._on_type_change, "Detection type change")
+        self.rule_type.on_select = self._safe_event_handler(self._on_type_change, "Detection type change")
 
         # Input Fields
         self.path_field = ft.TextField(label=i18n.get("lbl_path_key_code") or "Path / Key / Code", expand=True)

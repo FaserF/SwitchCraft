@@ -472,17 +472,27 @@ class ModernApp:
                 on_dismiss=self._on_drawer_dismiss
             )
 
-            # Try modern page.open() if available (Flet 0.21+)
+            # Open end drawer across Flet 0.80+ (show_end_drawer), 0.21-0.79 (page.open), and legacy/mock APIs
+            self.page.end_drawer = drawer
+            opened = False
             if hasattr(self.page, "open"):
-                self.page.end_drawer = drawer
-                self.page.open(drawer)
-                logger.info("Notification drawer opened using page.open()")
-            else:
-                # Legacy Mode
-                self.page.end_drawer = drawer
+                try:
+                    self.page.open(drawer)
+                    opened = True
+                    logger.info("Notification drawer opened using page.open()")
+                except (AttributeError, RuntimeError):
+                    pass
+            elif hasattr(self.page, "show_end_drawer") and hasattr(self.page, "run_task"):
+                try:
+                    self.page.run_task(self.page.show_end_drawer)
+                    opened = True
+                    logger.info("Notification drawer opened using page.show_end_drawer()")
+                except (AttributeError, RuntimeError):
+                    pass
+            if not opened:
                 drawer.open = True
                 self.page.update()
-                logger.info("Notification drawer opened successfully (Legacy Mode)")
+                logger.info("Notification drawer opened successfully (Fallback Mode)")
 
             # Mark all as read after opening
             self.notification_service.mark_all_read()
@@ -927,7 +937,23 @@ class ModernApp:
             ],
             modal=True,
         )
-        self.page.open(dlg)
+        self._show_dialog(dlg)
+
+    def _show_dialog(self, dlg):
+        """Open a dialog across Flet 0.80+ (show_dialog) and older/mock Flet APIs."""
+        self.page.dialog = dlg
+        if hasattr(self.page, "show_dialog"):
+            try:
+                self.page.show_dialog(dlg)
+                self.page.update()
+                return
+            except (AttributeError, RuntimeError):
+                pass
+        if hasattr(self.page, "open"):
+            self.page.open(dlg)
+        else:
+            dlg.open = True
+            self.page.update()
 
     def toggle_theme(self, e):
         """
@@ -1318,9 +1344,20 @@ class ModernApp:
             ],
         )
 
-        # In modern Flet, the drawer can be opened via page.open()
+        # Open drawer across Flet versions (0.80+ show_drawer, 0.21-0.79 page.open, or legacy drawer.open)
         self._active_drawer = drawer
-        self.page.open(drawer)
+        self.page.drawer = drawer
+        if hasattr(self.page, "open"):
+            self.page.open(drawer)
+        elif hasattr(self.page, "show_drawer"):
+            if hasattr(self.page, "run_task"):
+                self.page.run_task(self.page.show_drawer)
+            else:
+                drawer.open = True
+                self.page.update()
+        else:
+            drawer.open = True
+            self.page.update()
         self.notification_service.mark_all_read()
 
 
@@ -2104,7 +2141,7 @@ class ModernApp:
                             ),
                         ]
                     )
-                    self.page.open(dlg)
+                    self._show_dialog(dlg)
 
                 # Show dialog on UI thread
                 import inspect
@@ -2193,7 +2230,7 @@ class ModernApp:
                             ft.FilledButton(content=ft.Text("Open Download Page"), on_click=open_download, bgcolor="BLUE_700", color="WHITE"),
                         ]
                     )
-                    self.page.open(dlg)
+                    self._show_dialog(dlg)
 
                 # Wrap sync function in async wrapper for run_task
                 import inspect

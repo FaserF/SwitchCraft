@@ -160,7 +160,7 @@ class ExchangeView(ft.Column, ViewMixin):
             ],
             width=150
         )
-        self.mf_range_dd.on_change = self._safe_event_handler(self._on_date_range_change, "Mail flow range change")
+        self.mf_range_dd.on_select = self._safe_event_handler(self._on_date_range_change, "Mail flow range change")
 
         return ft.Column([
             ft.Row([

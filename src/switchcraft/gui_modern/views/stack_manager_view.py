@@ -333,7 +333,7 @@ class StackManagerView(ft.Column, ViewMixin):
                 )
             ]
         )
-        self.app_page.open(dlg)
+        self._open_dialog_safe(dlg)
 
     def _execute_deploy(self, dlg):
         """Simulate a batch deployment of the stack items."""
