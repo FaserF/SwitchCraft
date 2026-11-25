@@ -23,7 +23,7 @@ dependencies = [
     "PyYAML",
     "defusedxml",
     "PyJWT",
-    "anyio>=4.15.1",
+    "anyio>=4.16.0",
     "urllib3>=2.8.0,<3",
     "packaging"
 ]
