@@ -786,12 +786,6 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
 
 
-    def _on_lang_change(self, val):
-        self._ensure_backend()
-        SwitchCraftConfig.set_user_preference("Language", val)
-        i18n.load_language(val)
-        self._show_snack(f"Language set to {val}. Please restart app to apply fully.", "BLUE")
-
     def _on_theme_change(self, val):
         SwitchCraftConfig.set_user_preference("Theme", val)
         self.app_page.theme_mode = ft.ThemeMode.DARK if val == "Dark" else ft.ThemeMode.LIGHT if val == "Light" else ft.ThemeMode.SYSTEM
@@ -906,19 +900,15 @@ class ModernSettingsView(ft.Column, ViewMixin):
         logger.info("GitHub login button clicked, starting device flow...")
 
         # Store original button state for restoration
-        original_text = None
+        original_content = None
         original_icon = None
         if hasattr(self, 'login_btn'):
-            if hasattr(self.login_btn, 'text'):
-                original_text = self.login_btn.text
-                self.login_btn.text = i18n.get("starting") or "Starting..."
-            else:
-                original_text = self.login_btn.content
-                self.login_btn.content = i18n.get("starting") or "Starting..."
-
-            original_icon = self.login_btn.icon
-            self.login_btn.icon = ft.Icons.HOURGLASS_EMPTY
-            if self.page:
+            original_content = self.login_btn.content
+            original_icon = getattr(self.login_btn, 'icon', None)
+            self.login_btn.content = ft.Text(i18n.get("starting") or "Starting...")
+            if hasattr(self.login_btn, 'icon'):
+                self.login_btn.icon = ft.Icons.HOURGLASS_EMPTY
+            if getattr(self.login_btn, 'page', None):
                 self.login_btn.update()
 
         # Show loading dialog immediately on main thread using safe dialog opening
@@ -936,19 +926,12 @@ class ModernSettingsView(ft.Column, ViewMixin):
             if not self._open_dialog_safe(loading_dlg):
                 logger.error("Failed to open loading dialog for GitHub login")
                 self._show_snack("Failed to open login dialog", "RED")
-                # Restore button state on early failure
-                if hasattr(self, 'login_btn'):
-                    if hasattr(self.login_btn, 'text'):
-                        self.login_btn.text = original_text
-                    else:
-                        self.login_btn.content = original_text
-                    self.login_btn.icon = original_icon
-                    if self.page:
-                        self.login_btn.update()
+                self._restore_login_button(original_content, original_icon)
                 return
         except Exception as ex:
             logger.exception(f"Error opening loading dialog: {ex}")
             self._show_snack(f"Error opening dialog: {ex}", "RED")
+            self._restore_login_button(original_content, original_icon)
             return
 
         # Force update to show loading dialog
@@ -972,7 +955,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 if not flow:
                     self._close_dialog(loading_dlg)
                     self._show_snack("Login init failed", "RED")
-                    self._restore_login_button(original_text, original_icon)
+                    self._restore_login_button(original_content, original_icon)
                     return
 
                 # 2. Show Dialog
@@ -991,7 +974,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                 def on_cancel(e):
                     cancel_event.set()
                     self._close_dialog(dlg)
-                    self._restore_login_button(original_text, original_icon)
+                    self._restore_login_button(original_content, original_icon)
 
                 btn_cancel = ft.TextButton("Cancel", on_click=on_cancel)
 
@@ -1009,12 +992,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
 
                 self._close_dialog(loading_dlg)
 
-                # Fix: Use modern open() method directly for better visibility/reliability
-                try:
-                    self.page.open(dlg)
-                except Exception as e:
-                    logger.warning(f"Failed to open GitHub login dialog via page.open: {e}")
-                    self._open_dialog_safe(dlg) # Fallback
+                self._open_dialog_safe(dlg)
 
                 # 3. Poll for Token (Async Loop)
                 device_code = flow.get("device_code")
@@ -1027,7 +1005,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                     if asyncio.get_event_loop().time() - start_time > expires_in:
                         self._close_dialog(dlg)
                         self._show_snack("Login timed out", "RED")
-                        self._restore_login_button(original_text, original_icon)
+                        self._restore_login_button(original_content, original_icon)
                         return
 
                     # Poll
@@ -1042,7 +1020,7 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         AuthService.save_token(token)
                         self._update_sync_ui()
                         self._show_snack(i18n.get("login_success") or "Login Successful!", "GREEN")
-                        self._restore_login_button(original_text, original_icon)
+                        self._restore_login_button(original_content, original_icon)
                         return
 
                     # Wait for interval
@@ -1068,19 +1046,18 @@ class ModernSettingsView(ft.Column, ViewMixin):
                         logger.debug(f"Closing login dialog failed: {exc}")
 
                 self._show_snack(f"Login Error: {ex}", "RED")
-                self._restore_login_button(original_text, original_icon)
+                self._restore_login_button(original_content, original_icon)
 
         logger.info("[DEBUG] Scheduling GitHub login flow task...")
         self._run_task_safe(_run_login_flow)
 
-    def _restore_login_button(self, text, icon):
+    def _restore_login_button(self, content, icon):
         if hasattr(self, 'login_btn'):
-            if hasattr(self.login_btn, 'text'):
-                self.login_btn.text = text
-            else:
-                self.login_btn.content = text
-            self.login_btn.icon = icon
-            self.login_btn.update()
+            self.login_btn.content = content
+            if hasattr(self.login_btn, 'icon'):
+                self.login_btn.icon = icon
+            if getattr(self.login_btn, 'page', None):
+                self.login_btn.update()
 
     def _logout_github(self, e):
         """
@@ -1271,8 +1248,9 @@ class ModernSettingsView(ft.Column, ViewMixin):
         try:
             from switchcraft.utils.config import SwitchCraftConfig
 
-            # Save preference
+            # Save preference & reload translations
             SwitchCraftConfig.set_user_preference("Language", val)
+            i18n.load_language(val)
             logger.debug(f"Language preference saved: {val}")
 
             # Show Restart Dialog
