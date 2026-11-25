@@ -2,10 +2,11 @@
 import logging
 import os
 import subprocess
-import requests
 from pathlib import Path
-from defusedxml import ElementTree as DefusedET
+
 import jwt
+import requests
+from defusedxml import ElementTree as DefusedET
 
 logger = logging.getLogger(__name__)
 

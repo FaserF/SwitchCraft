@@ -1,11 +1,11 @@
-import logging
 import json
+import logging
+import re
 import subprocess
-import requests
 import time
 from pathlib import Path
-from typing import Optional, List, Dict
-import re
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ WINGET_API_TIMEOUT = 20  # seconds
 
 class WingetHelper:
     # Class-level cache for search results
-    _search_cache: Dict[str, tuple] = {}  # {query: (timestamp, results)}
+    _search_cache: dict[str, tuple] = {}  # {query: (timestamp, results)}
     _cache_ttl = 300  # 5 minutes
 
     def __init__(self, auto_install_winget: bool = True, github_token: str = None):
@@ -31,7 +31,7 @@ class WingetHelper:
         if self.is_wasm:
             logger.info("WingetHelper running in WASM mode. Subprocess dependent features are disabled.")
 
-    def search_by_name(self, product_name: str) -> Optional[str]:
+    def search_by_name(self, product_name: str) -> str | None:
         """Search for a product name using PowerShell module or CLI."""
         if not product_name:
             return None
@@ -52,7 +52,7 @@ class WingetHelper:
                 return f"https://github.com/microsoft/winget-pkgs/search?q={pkg_id}"
         return None
 
-    def search_packages(self, query: str) -> List[Dict[str, str]]:
+    def search_packages(self, query: str) -> list[dict[str, str]]:
         """
         Search for Winget packages matching a query using multiple sources and cache results.
 
@@ -109,7 +109,7 @@ class WingetHelper:
 
         return results
 
-    def _search_via_github(self, query: str) -> List[Dict[str, str]]:
+    def _search_via_github(self, query: str) -> list[dict[str, str]]:
         """
         Search the official microsoft/winget-pkgs repository via GitHub API.
         Requires self.github_token to be set to avoid strict rate limits.
@@ -166,7 +166,7 @@ class WingetHelper:
 
         return []
 
-    def _search_via_api(self, query: str) -> List[Dict[str, str]]:
+    def _search_via_api(self, query: str) -> list[dict[str, str]]:
         """Search using winget.run v2 API for comprehensive Winget package data."""
         try:
             # winget.run search endpoint
@@ -189,7 +189,8 @@ class WingetHelper:
                     name = latest.get("Name")
 
                     # Some packages might be missing Latest info, try top level or skip
-                    if not name: name = pkg_id
+                    if not name:
+                        name = pkg_id
 
                     versions = pkg.get("Versions", [])
                     version = versions[0] if versions else "Latest"
@@ -215,7 +216,7 @@ class WingetHelper:
         # Fallback to static dataset if API fails completely
         return self._search_via_static_dataset(query)
 
-    def _search_via_static_dataset(self, query: str) -> List[Dict[str, str]]:
+    def _search_via_static_dataset(self, query: str) -> list[dict[str, str]]:
         """Search using a static dataset of popular packages as fallback.
 
         The GitHub code search API requires authentication, and other APIs
@@ -229,7 +230,7 @@ class WingetHelper:
                 return []
 
             import json
-            with open(static_file, "r", encoding="utf-8") as f:
+            with open(static_file, encoding="utf-8") as f:
                 popular_packages = json.load(f)
 
             query_lower = query.lower()
@@ -250,7 +251,7 @@ class WingetHelper:
             logger.debug(f"Static fallback search failed: {ex}")
         return []
 
-    def _search_via_powershell(self, query: str) -> List[Dict[str, str]]:
+    def _search_via_powershell(self, query: str) -> list[dict[str, str]]:
         """
         Perform a Winget package search via PowerShell and return normalized results.
 
@@ -323,7 +324,7 @@ class WingetHelper:
             logger.error(f"Winget PS Search Error: {e}")
             return []
 
-    def get_package_details(self, package_id: str) -> Dict[str, str]:
+    def get_package_details(self, package_id: str) -> dict[str, str]:
         """
         Get detailed package information using PowerShell Get-WinGetPackage cmdlet (primary) or 'winget show' (fallback).
         This provides full manifest details including Description, License, Homepage, etc.
@@ -383,7 +384,7 @@ class WingetHelper:
             logger.error(f"Winget show error: {e}")
             raise Exception(f"Error getting package details: {str(e)}")
 
-    def _parse_winget_show_output(self, output: str) -> Dict[str, str]:
+    def _parse_winget_show_output(self, output: str) -> dict[str, str]:
         """
         Parse the output of 'winget show' command into a dictionary.
         Handles multi-line values like Description and nested structure.
@@ -496,7 +497,7 @@ class WingetHelper:
             logger.error(f"Winget install exception: {e}")
             return False
 
-    def download_package(self, package_id: str, dest_dir: Path) -> Optional[Path]:
+    def download_package(self, package_id: str, dest_dir: Path) -> Path | None:
         """Download a package installer to dest_dir using PowerShell (primary) or Winget CLI (fallback). Returns path to installer if found."""
         # Try PowerShell first (preferred method) - verify package exists
         try:
@@ -526,7 +527,7 @@ class WingetHelper:
             return None
 
 
-    def _parse_search_results(self, stdout: str) -> List[Dict[str, str]]:
+    def _parse_search_results(self, stdout: str) -> list[dict[str, str]]:
         """Parse the standard output from winget search command."""
         try:
              # Skip any leading empty lines/garbage
@@ -635,7 +636,7 @@ class WingetHelper:
             logger.debug(f"Winget CLI parsing failed: {e}")
             return []
 
-    def _search_via_cli(self, query: str) -> List[Dict[str, str]]:
+    def _search_via_cli(self, query: str) -> list[dict[str, str]]:
         """Fallback search using winget CLI with robust table parsing."""
         if self.is_wasm:
             return []
@@ -708,7 +709,7 @@ class WingetHelper:
             logger.debug(f"WinGet module check exception: {e}")
             return False
 
-    def _get_package_details_via_powershell(self, package_id: str) -> Dict[str, str]:
+    def _get_package_details_via_powershell(self, package_id: str) -> dict[str, str]:
         """Get package details using PowerShell Get-WinGetPackage cmdlet."""
         try:
             # Ensure module is available

@@ -1,20 +1,22 @@
-import customtkinter as ctk
-from tkinterdnd2 import DND_FILES
-import threading
-from pathlib import Path
-import webbrowser
+import ctypes
 import logging
-from tkinter import messagebox
 import os
 import shutil
-import ctypes
+import threading
 import time
+import webbrowser
+from pathlib import Path
+from tkinter import messagebox
+
+import customtkinter as ctk
+from tkinterdnd2 import DND_FILES
+
+from switchcraft.services.notification_service import NotificationService
+from switchcraft.services.signing_service import SigningService
+from switchcraft.utils.config import SwitchCraftConfig
 
 # WingetHelper imported dynamically from addon
 from switchcraft.utils.i18n import i18n
-from switchcraft.utils.config import SwitchCraftConfig
-from switchcraft.services.notification_service import NotificationService
-from switchcraft.services.signing_service import SigningService
 from switchcraft.utils.templates import TemplateGenerator
 
 logger = logging.getLogger(__name__)

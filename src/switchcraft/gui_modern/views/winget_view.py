@@ -1,14 +1,15 @@
-import flet as ft
-import threading
 import logging
-
-from switchcraft.utils.config import SwitchCraftConfig
-from switchcraft.services.addon_service import AddonService
-from switchcraft.utils.i18n import i18n
+import threading
 from pathlib import Path
-from switchcraft.services.notification_service import NotificationService
-from switchcraft.gui_modern.utils.view_utils import ViewMixin
+
+import flet as ft
+
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.services.addon_service import AddonService
+from switchcraft.services.notification_service import NotificationService
+from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -265,13 +266,14 @@ class ModernWingetView(ft.Row, ViewMixin):
                 self._run_ui_update(_update_list)
             except Exception as ex:
                 logger.error(f"Winget search error: {ex}")
+                err_msg = str(ex)
                 def _show_error():
                     self.search_results.controls.clear()
                     self.search_results.controls.append(
                         ft.Container(
                             content=ft.Column([
                                 ft.Icon(ft.Icons.ERROR, color="RED", size=40),
-                                ft.Text(f"{i18n.get('error_prefix') or 'Error:'} {ex}", color="RED")
+                                ft.Text(f"{i18n.get('error_prefix') or 'Error:'} {err_msg}", color="RED")
                             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                             alignment=ft.Alignment(0, 0),
                             padding=40
@@ -894,9 +896,9 @@ class ModernWingetView(ft.Row, ViewMixin):
 
 
     def _deploy_package(self, info):
-        import tempfile
         import shutil
         import subprocess
+        import tempfile
 
         pkg_id = info.get('Id')
         self._show_snack((i18n.get("loading_package_details") or "Downloading {name} for packaging...").format(name=pkg_id), "BLUE")

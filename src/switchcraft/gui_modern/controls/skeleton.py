@@ -1,7 +1,10 @@
-import flet as ft
-import time
 import threading
+import time
+
+import flet as ft
+
 from switchcraft import IS_WEB
+
 
 class SkeletonContainer(ft.Container):
     """

@@ -4,9 +4,6 @@ Tests for language change functionality in settings.
 from unittest.mock import MagicMock, patch
 
 
-
-
-
 def test_language_change_updates_config(mock_page):
     """Test that language change updates config and shows restart dialog."""
     from switchcraft.gui_modern.views.settings_view import ModernSettingsView

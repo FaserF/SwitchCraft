@@ -1,6 +1,7 @@
-import unittest
-import sys
 import subprocess
+import sys
+import unittest
+
 
 class TestSmoke(unittest.TestCase):
     """Smoke tests to ensure no immediate crash on startup."""

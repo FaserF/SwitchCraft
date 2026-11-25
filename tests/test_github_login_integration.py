@@ -2,15 +2,17 @@
 Integration test for GitHub login button - tests actual button click behavior.
 This test ensures the button actually works when clicked in the UI.
 """
-import pytest
-import flet as ft
-from unittest.mock import MagicMock, patch
-import time
+import logging
 import os
+import time
+from unittest.mock import MagicMock, patch
+
+import flet as ft
+import pytest
 
 # Import CI detection helper
 try:
-    from conftest import is_ci_environment, skip_if_ci, poll_until, mock_page
+    from conftest import is_ci_environment, mock_page, poll_until, skip_if_ci
 except ImportError:
     def is_ci_environment():
         return (
@@ -71,11 +73,15 @@ except ImportError:
         def add(*controls):
             import weakref
             def set_structure_recursive(ctrl, parent):
-                try: ctrl._parent = weakref.ref(parent)
-                except Exception: pass
+                try:
+                    ctrl._parent = weakref.ref(parent)
+                except Exception as exc:
+                    logging.debug(f"Parent ref skipped: {exc}")
 
-                try: ctrl._page = page
-                except AttributeError: pass
+                try:
+                    ctrl._page = page
+                except AttributeError as exc:
+                    logging.debug(f"Page attr skipped: {exc}")
 
                 if hasattr(ctrl, 'controls') and ctrl.controls:
                     for child in ctrl.controls:
@@ -166,8 +172,9 @@ def test_github_login_button_click_integration(mock_page, mock_auth_service):
 
 def test_github_login_button_handler_wrapped(mock_page):
     """Test that GitHub login button handler is properly wrapped with _safe_event_handler."""
-    from switchcraft.gui_modern.views.settings_view import ModernSettingsView
     from unittest.mock import patch
+
+    from switchcraft.gui_modern.views.settings_view import ModernSettingsView
 
     with patch('switchcraft.gui_modern.views.settings_view.AuthService.is_authenticated', return_value=False):
         view = ModernSettingsView(mock_page)

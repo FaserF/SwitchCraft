@@ -1,7 +1,7 @@
+import hashlib
 import json
 import logging
 from pathlib import Path
-import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class CommunityDBService:
                 }
             }
         try:
-            with open(self.db_path, "r") as f:
+            with open(self.db_path) as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Failed to load DB: {e}")
@@ -60,6 +60,6 @@ class CommunityDBService:
                 while chunk := f.read(8192):
                     h.update(chunk)
             return h.hexdigest()
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.warning(f"Could not hash file {filepath}: {e}")
             return None

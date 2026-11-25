@@ -1,14 +1,16 @@
-import unittest
-from unittest.mock import patch, MagicMock
-from click.testing import CliRunner
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import MagicMock, patch
+
+from click.testing import CliRunner
 
 # Ensure src is in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from switchcraft.cli.commands import cli
 from switchcraft import __version__
+from switchcraft.cli.commands import cli
+
 
 class TestCliCore(unittest.TestCase):
     def setUp(self):

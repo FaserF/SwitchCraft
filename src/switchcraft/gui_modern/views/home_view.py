@@ -1,14 +1,15 @@
-import flet as ft
 import datetime
 import random
-from switchcraft.gui_modern.nav_constants import NavIndex
-from switchcraft.utils.i18n import i18n
-from switchcraft.services.intune_service import IntuneService
 import threading
 
-from switchcraft import IS_WEB, IS_DEMO
+import flet as ft
 
+from switchcraft import IS_DEMO, IS_WEB
+from switchcraft.gui_modern.nav_constants import NavIndex
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.services.intune_service import IntuneService
+from switchcraft.utils.i18n import i18n
+
 
 class ModernHomeView(ft.Container, ViewMixin):
     """Enhanced Modern Dashboard with Quick Actions and Recents."""
@@ -135,8 +136,10 @@ class ModernHomeView(ft.Container, ViewMixin):
                      u = self.app_page.auth.user
                      val = None
                      # Could be dict or object depending on provider
-                     if hasattr(u, "name"): val = u.name
-                     elif hasattr(u, "get"): val = u.get("name")
+                     if hasattr(u, "name"):
+                         val = u.name
+                     elif hasattr(u, "get"):
+                         val = u.get("name")
 
                      if isinstance(val, str) and val:
                          username = val

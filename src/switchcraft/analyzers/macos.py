@@ -1,12 +1,11 @@
 import logging
-import zipfile
+import plistlib
+import shutil
 import subprocess
 import tempfile
-import shutil
-import plistlib
 import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
-from typing import Optional, List, Dict
 
 from switchcraft.analyzers.base import BaseAnalyzer
 from switchcraft.models import InstallerInfo
@@ -142,7 +141,7 @@ class MacOSAnalyzer(BaseAnalyzer):
                 self._populate_from_plist(data, info)
                 info.confidence = 1.0
 
-    def _extract_with_7z(self, archive: Path, out_dir: Path, files: List[str], recursive=False) -> bool:
+    def _extract_with_7z(self, archive: Path, out_dir: Path, files: list[str], recursive=False) -> bool:
         """Run 7z to extract specific files."""
         # Assume 7z in path or typical location
         seven_z = self._find_7z()
@@ -163,7 +162,7 @@ class MacOSAnalyzer(BaseAnalyzer):
         except subprocess.CalledProcessError:
             return False
 
-    def _find_7z(self) -> Optional[str]:
+    def _find_7z(self) -> str | None:
         # Check PATH
         path = shutil.which("7z")
         if path:
@@ -179,7 +178,7 @@ class MacOSAnalyzer(BaseAnalyzer):
                 return p
         return None
 
-    def _parse_plist(self, path: Path) -> Dict:
+    def _parse_plist(self, path: Path) -> dict:
         try:
             with open(path, 'rb') as f:
                 return plistlib.load(f)
@@ -187,7 +186,7 @@ class MacOSAnalyzer(BaseAnalyzer):
             logger.debug(f"Failed to parse plist {path}: {e}")
             return {}
 
-    def _populate_from_plist(self, data: Dict, info: InstallerInfo):
+    def _populate_from_plist(self, data: dict, info: InstallerInfo):
         info.bundle_id = data.get('CFBundleIdentifier')
         info.product_version = data.get('CFBundleShortVersionString') or data.get('CFBundleVersion')
         info.product_name = data.get('CFBundleName') or data.get('CFBundleDisplayName')

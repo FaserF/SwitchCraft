@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+
 import requests
 
 # Usage: python generate_winget_manifests.py --version 1.2.3

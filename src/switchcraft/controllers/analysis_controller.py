@@ -1,15 +1,15 @@
-from dataclasses import dataclass
-from typing import Optional, Dict, Callable
-from pathlib import Path
-import time
 import logging
+import time
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
 
-from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.exe import ExeAnalyzer
 from switchcraft.analyzers.macos import MacOSAnalyzer
+from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.universal import UniversalAnalyzer
-from switchcraft.services.community_db_service import CommunityDBService
 from switchcraft.models import InstallerInfo
+from switchcraft.services.community_db_service import CommunityDBService
 from switchcraft.utils.config import SwitchCraftConfig
 
 logger = logging.getLogger(__name__)
@@ -18,14 +18,14 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AnalysisResult:
     info: InstallerInfo
-    winget_url: Optional[str] = None
-    winget_id: Optional[str] = None
-    winget_reason: Optional[str] = None
-    brute_force_data: Optional[str] = None
-    nested_data: Optional[Dict] = None
-    silent_disabled_info: Optional[Dict] = None
+    winget_url: str | None = None
+    winget_id: str | None = None
+    winget_reason: str | None = None
+    brute_force_data: str | None = None
+    nested_data: dict | None = None
+    silent_disabled_info: dict | None = None
     community_match: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class AnalysisController:
@@ -39,7 +39,7 @@ class AnalysisController:
         self.community_db = CommunityDBService()
 
     def analyze_file(
-        self, file_path_str: str, progress_callback: Callable[[float, str, Optional[float]], None] = None
+        self, file_path_str: str, progress_callback: Callable[[float, str, float | None], None] = None
     ) -> AnalysisResult:
         """
         Execute the full installer analysis pipeline for the given file.

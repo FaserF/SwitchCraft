@@ -1,13 +1,14 @@
 """
 Tests for Winget Explorer app details display.
 """
-import pytest
-import flet as ft
-from unittest.mock import MagicMock, patch
 import time
+from unittest.mock import MagicMock, patch
+
+import flet as ft
+import pytest
 
 # Import CI detection helper and shared fixtures/helpers
-from conftest import skip_if_ci, poll_until
+from conftest import poll_until, skip_if_ci
 
 
 @pytest.fixture

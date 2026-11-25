@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import sys
 
+
 def build_web_demo():
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -128,7 +129,8 @@ anyio>=4.12.1
         shutil.copy(os.path.join(assets_dir, "favicon.png"), os.path.join(dist_dir, "favicon.png"))
         try:
              shutil.copy(os.path.join(assets_dir, "apple-touch-icon.png"), os.path.join(dist_dir, "apple-touch-icon.png"))
-        except: pass
+        except OSError as exc:
+             print(f"Skipping apple-touch-icon.png copy: {exc}")
 
         # We need to copy contents of dist to docs/public/demo
         shutil.copytree(dist_dir, docs_public_dir)

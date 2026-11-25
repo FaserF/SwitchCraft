@@ -1,24 +1,24 @@
 import logging
 import os
+import shutil
+import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+import flet as ft
+import flet.fastapi as flet_fastapi
+import httpx
+import pyotp
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import URLSafeTimedSerializer
-import httpx
-import tempfile
-import shutil
 
-import flet as ft
-import pyotp
-
+import switchcraft
 from switchcraft.main import main as flet_main
 from switchcraft.server.auth_config import AuthConfigManager
-from switchcraft.server.user_manager import UserManager
-import switchcraft
 from switchcraft.server.update_checker import check_for_updates
+from switchcraft.server.user_manager import UserManager
 
 # Configuration
 auth_manager = AuthConfigManager()
@@ -150,7 +150,7 @@ app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 # --- Explicit Manifest Handlers to prevent SPA Fallback (HTML) ---
 # Flet engine requests these. If missing, Flet's SPA router returns index.html which causes FormatException.
-from fastapi.responses import JSONResponse
+
 
 @app.get("/AssetManifest.json")
 async def get_asset_manifest():
@@ -205,7 +205,8 @@ def admin_required(request: Request):
     if not u_info or u_info.get("role") != "admin":
          # Allow fallback if using auth_disabled (which implies admin rights for simplicity)
          conf = auth_manager.load_config()
-         if conf.get("auth_disabled"): return "admin"
+         if conf.get("auth_disabled"):
+             return "admin"
 
          raise HTTPException(status_code=403, detail="Admin privileges required")
     return user_name
@@ -559,7 +560,6 @@ async def oauth_callback(code: str, state: str, request: Request):
     base_url = f"{scheme}://{request.headers.get('host')}"
     redirect_uri = f"{base_url}/oauth_callback"
 
-    user_email = None
     username = None
 
     async with httpx.AsyncClient() as client:
@@ -592,7 +592,6 @@ async def oauth_callback(code: str, state: str, request: Request):
             )
             gh_user = user_resp.json()
             username = gh_user.get("login")
-            user_email = gh_user.get("email")
 
         elif state == "entra":
             client_id = os.environ.get("SC_ENTRA_CLIENT_ID")
@@ -625,7 +624,6 @@ async def oauth_callback(code: str, state: str, request: Request):
             )
             ms_user = user_resp.json()
             username = ms_user.get("userPrincipalName").split("@")[0] # Use part before @ as username?
-            user_email = ms_user.get("mail") or ms_user.get("userPrincipalName")
 
     if not username:
         return RedirectResponse("/login?sso_failed=1")
@@ -760,7 +758,8 @@ async def logout():
 @app.get("/login/github")
 async def login_github():
     client_id = os.environ.get("SC_GITHUB_CLIENT_ID")
-    if not client_id: raise HTTPException(404, "GitHub Auth not configured")
+    if not client_id:
+        raise HTTPException(404, "GitHub Auth not configured")
     scope = "read:user user:email"
     return RedirectResponse(f"https://github.com/login/oauth/authorize?client_id={client_id}&scope={scope}")
 
@@ -768,7 +767,8 @@ async def login_github():
 async def login_entra():
     client_id = os.environ.get("SC_ENTRA_CLIENT_ID")
     tenant_id = os.environ.get("SC_ENTRA_TENANT_ID", "common")
-    if not client_id: raise HTTPException(404, "Entra Auth not configured")
+    if not client_id:
+        raise HTTPException(404, "Entra Auth not configured")
     scope = "User.Read"
     return RedirectResponse(f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize?client_id={client_id}&response_type=code&scope={scope}&response_mode=query&redirect_uri={os.environ.get('SC_BASE_URL', 'http://localhost:8080')}/oauth_callback/entra")
 
@@ -801,7 +801,8 @@ async def entra_callback(code: str, request: Request):
             me = me_resp.json()
 
             email = me.get("mail") or me.get("userPrincipalName")
-            if not email: return HTMLResponse("Could not identify user email", 400)
+            if not email:
+                return HTMLResponse("Could not identify user email", 400)
 
             # Auto-Provision Logic
             if not user_manager.get_user(email):
@@ -915,7 +916,6 @@ async def admin_page(request: Request, user: str = Depends(admin_required)):
 
     # SSO Configuration section
     entra_client = os.environ.get("SC_ENTRA_CLIENT_ID", "")
-    entra_tenant = os.environ.get("SC_ENTRA_TENANT_ID", "")
     github_client = os.environ.get("SC_GITHUB_CLIENT_ID", "")
 
     return f"""
@@ -1072,7 +1072,8 @@ async def add_user(username: str = Form(...), password: str = Form(...), role: s
 
 @app.post("/admin/users/delete")
 async def delete_user_route(username: str = Form(...), u: str = Depends(admin_required)):
-    if username == "admin": return HTMLResponse("Cannot delete root admin", 400)
+    if username == "admin":
+        return HTMLResponse("Cannot delete root admin", 400)
     user_manager.delete_user(username)
     return RedirectResponse("/admin", status_code=303)
 
@@ -1114,6 +1115,7 @@ async def admin_backup(user: str = Depends(admin_required)):
     """Export all server configuration as a ZIP file."""
     import io
     import zipfile
+
     from fastapi.responses import StreamingResponse
 
     zip_buffer = io.BytesIO()
@@ -1351,7 +1353,7 @@ async def before_main(page: ft.Page):
         page.switchcraft_session['username'] = "User"
 
 # Mount Flet with before_main handler
-import flet.fastapi as flet_fastapi
+
 flet_app = flet_fastapi.app(
     flet_main,
     before_main,

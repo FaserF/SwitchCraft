@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 from switchcraft.utils.security import SecurityChecker
+
 
 class TestSecurityChecker(unittest.TestCase):
 

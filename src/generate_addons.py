@@ -1,6 +1,7 @@
-import zipfile
 import json
+import zipfile
 from pathlib import Path
+
 
 def create_addon(name, addon_id, files):
     base_dir = Path("src/switchcraft/assets/addons")
@@ -35,7 +36,7 @@ def main():
         files = {
             "service.py": ai_service.read_text(encoding="utf-8")
         }
-        with open(ai_manifest, "r", encoding="utf-8") as f:
+        with open(ai_manifest, encoding="utf-8") as f:
             manifest = json.load(f)
 
         # We use a custom manifest in create_addon, but we can bypass it

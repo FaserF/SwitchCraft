@@ -1,12 +1,15 @@
-import flet as ft
-from switchcraft.utils.i18n import i18n
-from switchcraft.gui_modern.nav_constants import NavIndex
 import logging
 import threading
+
+import flet as ft
+
+from switchcraft.gui_modern.nav_constants import NavIndex
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
+
 # Use ft.* directly
 from switchcraft.services.exchange_service import ExchangeService
 from switchcraft.utils.config import SwitchCraftConfig
-from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -262,7 +265,8 @@ class ExchangeView(ft.Column, ViewMixin):
 
     def _load_oof_data(self):
         mailbox = self.oof_mailbox.value.strip()
-        if not mailbox: return
+        if not mailbox:
+            return
 
         def _load():
             try:
@@ -282,7 +286,8 @@ class ExchangeView(ft.Column, ViewMixin):
 
     def _save_oof_data(self, e):
         mailbox = self.oof_mailbox.value.strip()
-        if not mailbox: return
+        if not mailbox:
+            return
         oof_data = {
             "status": self.oof_status.value,
             "internalReplyMessage": self.oof_internal.value,
@@ -322,7 +327,8 @@ class ExchangeView(ft.Column, ViewMixin):
 
     def _load_delegation_data(self):
         mailbox = self.del_mailbox.value.strip()
-        if not mailbox: return
+        if not mailbox:
+            return
 
         def _load():
             try:
@@ -390,7 +396,8 @@ class ExchangeView(ft.Column, ViewMixin):
 
     def _update_ui(self):
         """Update all UI components from loaded data."""
-        if not self._ui_initialized: return
+        if not self._ui_initialized:
+            return
         self._update_stats()
         self._update_chart()
         try:
@@ -402,7 +409,8 @@ class ExchangeView(ft.Column, ViewMixin):
 
     def _update_stats(self):
         """Calculate and display statistics summary."""
-        if not self.mail_flow_data: return
+        if not self.mail_flow_data:
+            return
 
         total_sent = sum(d["sent"] for d in self.mail_flow_data)
         total_recv = sum(d["received"] for d in self.mail_flow_data)
@@ -429,7 +437,8 @@ class ExchangeView(ft.Column, ViewMixin):
 
     def _update_chart(self):
         """Draw a custom bar chart using simple containers."""
-        if not self.mail_flow_data: return
+        if not self.mail_flow_data:
+            return
 
         self.mail_chart.controls = []
         max_val = max(max(d["sent"], d["received"]) for d in self.mail_flow_data) or 1

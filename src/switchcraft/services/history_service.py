@@ -24,7 +24,7 @@ class HistoryService:
         if not self.history_file.exists():
             return []
         try:
-            with open(self.history_file, 'r', encoding='utf-8') as f:
+            with open(self.history_file, encoding='utf-8') as f:
                  data = json.load(f)
                  return sorted(data, key=lambda x: x.get('timestamp', ''), reverse=True)
         except json.JSONDecodeError:

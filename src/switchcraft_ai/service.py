@@ -1,6 +1,7 @@
-import re
 import json
 import logging
+import re
+
 from switchcraft.utils.config import SwitchCraftConfig
 from switchcraft.utils.i18n import i18n
 

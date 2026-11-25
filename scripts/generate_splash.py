@@ -1,8 +1,10 @@
-from PIL import Image, ImageDraw, ImageFont
-import os
-from pathlib import Path
 import argparse
+import os
 import re
+from pathlib import Path
+
+from PIL import Image, ImageDraw, ImageFont
+
 
 def generate_splash(version=None, output_path=None):
     # Paths

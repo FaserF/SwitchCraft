@@ -1,10 +1,8 @@
-import os
-import zipfile
-import shutil
-import tempfile
 import logging
-from pathlib import Path
 import sys
+import tempfile
+import zipfile
+from pathlib import Path
 
 # Setup logging to STDOUT
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
@@ -38,14 +36,13 @@ def test_nested_manifest_install():
             service.addons_dir = Path(temp_install_dir)
             print(f"Install Dir: {service.addons_dir}")
 
-            try:
-                service.install_addon(str(zip_path))
+            service.install_addon(str(zip_path))
 
-                addon_path = service.addons_dir / "test.addon"
+            addon_path = service.addons_dir / "test.addon"
 
-                assert addon_path.exists(), f"Addon path does not exist. Contents of install dir: {list(service.addons_dir.iterdir())}"
-                assert (addon_path / "manifest.json").exists(), f"manifest.json missing. Contents: {list(addon_path.rglob('*'))}"
-                assert (addon_path / "script.py").exists(), "script.py missing."
+            assert addon_path.exists(), f"Addon path does not exist. Contents of install dir: {list(service.addons_dir.iterdir())}"
+            assert (addon_path / "manifest.json").exists(), f"manifest.json missing. Contents: {list(addon_path.rglob('*'))}"
+            assert (addon_path / "script.py").exists(), "script.py missing."
 
 def test_root_manifest_install():
     print("\n--- Testing Root Manifest Install ---")

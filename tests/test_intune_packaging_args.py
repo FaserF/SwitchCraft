@@ -1,8 +1,10 @@
 
 import unittest
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 from switchcraft.services.intune_service import IntuneService
+
 
 class TestIntuneService(unittest.TestCase):
     def setUp(self):

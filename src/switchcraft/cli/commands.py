@@ -1,18 +1,20 @@
 
-import logging
-import sys
-import os
 import json
+import logging
+import os
+import sys
 from pathlib import Path
+
 import click
 from rich import print
 from rich.panel import Panel
 from rich.table import Table
 
 from switchcraft import __version__
-from switchcraft.analyzers.msi import MsiAnalyzer
 from switchcraft.analyzers.exe import ExeAnalyzer
 from switchcraft.analyzers.macos import MacOSAnalyzer
+from switchcraft.analyzers.msi import MsiAnalyzer
+
 # WingetHelper imported dynamically if needed
 from switchcraft.utils.config import SwitchCraftConfig
 
@@ -1031,13 +1033,20 @@ def _test_file_version(file_path, operator, target_version):
     target_parts = target_version.split('.')
     target = tuple(int(p) for p in target_parts) + (0,) * (4 - len(target_parts))
 
-    ops = {'eq': '==', 'ge': '>=', 'le': '<=', 'gt': '>', 'lt': '<'}
-    result = eval(f"actual {ops[operator]} target")
+    ops = {
+        'eq': ('==', lambda a, b: a == b),
+        'ge': ('>=', lambda a, b: a >= b),
+        'le': ('<=', lambda a, b: a <= b),
+        'gt': ('>', lambda a, b: a > b),
+        'lt': ('<', lambda a, b: a < b),
+    }
+    symbol, comparator = ops[operator]
+    result = comparator(actual, target)
 
     if result:
-        print(f"[green]✓ DETECTED[/green] - Version {actual_str} {ops[operator]} {target_version}")
+        print(f"[green]✓ DETECTED[/green] - Version {actual_str} {symbol} {target_version}")
     else:
-        print(f"[yellow]✗ NOT DETECTED[/yellow] - Version {actual_str} not {ops[operator]} {target_version}")
+        print(f"[yellow]✗ NOT DETECTED[/yellow] - Version {actual_str} not {symbol} {target_version}")
 
 def _test_script(script_file):
     """Test PowerShell script detection."""
@@ -1047,7 +1056,7 @@ def _test_script(script_file):
 
     import subprocess
 
-    with open(script_file, 'r', encoding='utf-8') as f:
+    with open(script_file, encoding='utf-8') as f:
         script_content = f.read()
 
     try:
@@ -1478,7 +1487,7 @@ def _load_stacks():
     """Load stacks from file."""
     sf = _get_stacks_file()
     if sf.exists():
-        with open(sf, 'r', encoding='utf-8') as f:
+        with open(sf, encoding='utf-8') as f:
             return json.load(f)
     return {}
 
@@ -1753,6 +1762,7 @@ def library_info(intunewin_file, output_json):
         switchcraft library info C:\\Packages\\app.intunewin --json
     """
     import zipfile
+
     from defusedxml import ElementTree as ET
 
     path = Path(intunewin_file)

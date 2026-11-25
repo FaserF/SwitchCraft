@@ -1,18 +1,17 @@
 import json
+import logging
 import secrets
 from pathlib import Path
-from typing import Optional, Dict
-import logging
 
-import pyotp
 import bcrypt
+import pyotp
 
 logger = logging.getLogger("AuthConfig")
 
 class AuthConfigManager:
     """Manages server-side authentication configuration with modern security."""
 
-    def __init__(self, config_dir: Optional[Path] = None):
+    def __init__(self, config_dir: Path | None = None):
         if config_dir:
             self.config_dir = config_dir
         else:
@@ -46,12 +45,12 @@ class AuthConfigManager:
     def _ensure_dir(self):
         self.config_dir.mkdir(parents=True, exist_ok=True)
 
-    def load_config(self) -> Dict:
+    def load_config(self) -> dict:
         if not self.config_file.exists():
             return self._create_default_config()
 
         try:
-            with open(self.config_file, "r") as f:
+            with open(self.config_file) as f:
                 data = json.load(f)
                 # Migration/Ensuring new fields exist
                 if "admin_password_hash" not in data and "admin_password" in data:
@@ -84,11 +83,11 @@ class AuthConfigManager:
         except Exception:
             return self._create_default_config()
 
-    def save_config(self, config: Dict):
+    def save_config(self, config: dict):
         with open(self.config_file, "w") as f:
             json.dump(config, f, indent=4)
 
-    def _create_default_config(self) -> Dict:
+    def _create_default_config(self) -> dict:
         # User requested default "admin"
         default_hash = self._hash_password("admin")
 

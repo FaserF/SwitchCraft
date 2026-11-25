@@ -6,9 +6,11 @@ Simulates the user journey:
 3. Change Date Range Filter
 4. Verify data refresh/update logic
 """
-import pytest
 from unittest.mock import MagicMock, patch
-from conftest import poll_until, _create_mock_page
+
+import pytest
+from conftest import _create_mock_page, poll_until
+
 
 def test_exchange_e2e_flow():
     """

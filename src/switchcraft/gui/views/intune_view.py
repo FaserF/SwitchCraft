@@ -1,11 +1,13 @@
-import customtkinter as ctk
 import logging
-import threading
 import os
+import threading
 from pathlib import Path
 from tkinter import messagebox
-from switchcraft.utils.i18n import i18n
+
+import customtkinter as ctk
+
 from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 

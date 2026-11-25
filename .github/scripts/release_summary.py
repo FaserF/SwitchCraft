@@ -1,5 +1,6 @@
 import sys
 
+
 def main():
     if len(sys.argv) < 3:
         print("Usage: python release_summary.py <version> <repo_url>")

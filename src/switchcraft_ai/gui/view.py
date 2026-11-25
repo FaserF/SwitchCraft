@@ -1,7 +1,9 @@
-import customtkinter as ctk
 import logging
-from switchcraft.utils.i18n import i18n
+
+import customtkinter as ctk
+
 from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 

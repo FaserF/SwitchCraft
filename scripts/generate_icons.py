@@ -1,7 +1,8 @@
 
 # Script to generate PWA icons from source logo
-from PIL import Image
 import os
+
+from PIL import Image
 
 source_path = "src/switchcraft/assets/switchcraft_logo.png"
 assets_dir = "src/switchcraft/assets"

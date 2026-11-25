@@ -1,9 +1,9 @@
-import sys
 import os
+import sys
 
 if getattr(sys, 'frozen', False):
     try:
-        import switchcraft.gui.app # noqa: F401
+        import switchcraft.gui.app  # noqa: F401
     except ImportError:
         pass
 
@@ -12,7 +12,6 @@ if not getattr(sys, 'frozen', False):
     sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from switchcraft.main_legacy import main
-
 
 if __name__ == '__main__':
     try:

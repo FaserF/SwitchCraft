@@ -1,13 +1,14 @@
+import os
 import subprocess
 import sys
-import os
 
 # Ensure the script's directory is in sys.path for git_utils import
 script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
 
-from git_utils import get_last_tag
+from git_utils import get_last_tag  # noqa: E402
+
 
 def has_relevant_changes(since_tag):
     if not since_tag:
@@ -24,7 +25,8 @@ def has_relevant_changes(since_tag):
         ignored_prefixes = [".github/", "docs/", "tests/", "README.md", ".gitignore", "LICENSE", "TODO.md"]
 
         for f in changed_files:
-            if not f: continue
+            if not f:
+                continue
             is_ignored = False
             for prefix in ignored_prefixes:
                 if f.startswith(prefix) or f == prefix:

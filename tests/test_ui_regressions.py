@@ -1,8 +1,11 @@
-import pytest
-import flet as ft
 from unittest.mock import MagicMock
+
+import flet as ft
+import pytest
+
 from switchcraft.gui_modern.app import ModernApp
 from switchcraft.gui_modern.controls.sidebar import HoverSidebar
+
 
 class TestUIRegressions:
     def test_app_icon_is_set(self):
