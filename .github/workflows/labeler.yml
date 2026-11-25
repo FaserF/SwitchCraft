@@ -1,19 +1,57 @@
-name: Pull Request Labeler
+name: Labeler
 
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
+  issues:
+    types: [opened, edited]
 
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
   label:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event.repository.private == true || vars.FORCE_SELF_HOSTED_RUNNER == 'true' || vars.USE_SELF_HOSTED_RUNNERS == 'true' || vars.USE_GITHUB_RUNNERS == 'false') && fromJSON('["self-hosted", "linux"]') || 'ubuntu-latest' }}
     steps:
-      - uses: actions/labeler@v6
+      - uses: actions/labeler@v7
+        if: github.event_name == 'pull_request_target'
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           configuration-path: .github/labeler.yml
           sync-labels: true
+
+      - name: Label Issues
+        if: github.event_name == 'issues'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (!issue) return;
+            if (issue.user && (issue.user.type === "Bot" || issue.user.login.endsWith("[bot]") || issue.user.login.startsWith("app/"))) {
+              return;
+            }
+            const title = (issue.title || "").toLowerCase();
+            if (title.includes("dependency dashboard")) return;
+            const body = (issue.body || "").toLowerCase();
+            const labels = [];
+
+            if (title.includes("bug") || body.includes("bug") || body.includes("fehler")) {
+              labels.push("bug");
+            }
+            if (title.includes("feature") || title.includes("request") || body.includes("wunsch")) {
+              labels.push("enhancement");
+            }
+            if (title.includes("documentation") || title.includes("docs") || body.includes("doku")) {
+              labels.push("documentation");
+            }
+
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels,
+              });
+            }
