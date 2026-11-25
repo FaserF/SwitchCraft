@@ -1,8 +1,7 @@
 name: PR Assistant (The Janitor)
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,7 +10,6 @@ permissions:
 jobs:
   auto-fix:
     runs-on: ubuntu-latest
-    if: false # github.actor != 'github-actions[bot]'
     steps:
       - uses: actions/checkout@v6
         with:
