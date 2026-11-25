@@ -1,8 +1,9 @@
-import unittest
 import json
-import re
 import os
+import re
+import unittest
 from pathlib import Path
+
 
 class TestI18nIntegrity(unittest.TestCase):
     def setUp(self):
@@ -12,9 +13,9 @@ class TestI18nIntegrity(unittest.TestCase):
         self.lang_dir = base_dir / "src" / "switchcraft" / "assets" / "lang"
         self.src_dir = base_dir / "src" # Broaden to all src, including addons
 
-        with open(self.lang_dir / "en.json", "r", encoding="utf-8") as f:
+        with open(self.lang_dir / "en.json", encoding="utf-8") as f:
             self.en = json.load(f)
-        with open(self.lang_dir / "de.json", "r", encoding="utf-8") as f:
+        with open(self.lang_dir / "de.json", encoding="utf-8") as f:
             self.de = json.load(f)
 
     def test_keys_symmetry(self):
@@ -48,7 +49,7 @@ class TestI18nIntegrity(unittest.TestCase):
 
         def find_duplicates(filepath):
 
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, encoding="utf-8") as f:
                 # We need to manually parse or hook into load
                 # Standard json.load objects_pairs_hook can detect duplicates if we check keys list
                 raw_content = f.read()
@@ -93,7 +94,7 @@ class TestI18nIntegrity(unittest.TestCase):
                 if file.endswith(".py"):
                     path = Path(root) / file
                     try:
-                        with open(path, "r", encoding="utf-8") as f:
+                        with open(path, encoding="utf-8") as f:
                             content = f.read()
                             # 1. Catch explicit i18n.get calls
                             for m in get_pattern.findall(content):

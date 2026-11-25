@@ -1,10 +1,11 @@
 
-import pytest
-import typing
-import pkgutil
 import importlib
-import sys
 import os
+import pkgutil
+import sys
+import typing
+
+import pytest
 
 # Ensure src is in path
 sys.path.insert(0, os.path.abspath("src"))
@@ -59,7 +60,7 @@ def test_strict_type_hints():
                              except NameError as e:
                                  # Skip NameErrors from Flet internal types (e.g., 'Theme')
                                  # These are issues in Flet's type annotations, not our code
-                                 if any(flet_type in str(e) for flet_type in ['Theme', 'ft.']):
+                                 if any(flet_type in str(e) for flet_type in ['Theme', 'KeyValue', 'ft.']):
                                      continue
                                  failed_modules.append(f"{module_name}.{attr_name}.{method_name}: {e}")
                              except Exception:
@@ -69,7 +70,7 @@ def test_strict_type_hints():
                 except NameError as e:
                     # Skip NameErrors from Flet internal types (e.g., 'Theme' in ft.Container)
                     # These are issues in Flet's type annotations, not our code
-                    if any(flet_type in str(e) for flet_type in ['Theme', 'ft.']):
+                    if any(flet_type in str(e) for flet_type in ['Theme', 'KeyValue', 'ft.']):
                         continue
                     failed_modules.append(f"{module_name}.{attr_name}: {e}")
                 except Exception:

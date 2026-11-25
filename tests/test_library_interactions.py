@@ -1,10 +1,12 @@
 """
 Tests for Library View interactions (Folder button, Refresh button, etc.).
 """
-import flet as ft
-from unittest.mock import MagicMock, patch
 import time
-from conftest import poll_until, _create_mock_page
+from unittest.mock import MagicMock, patch
+
+import flet as ft
+from conftest import _create_mock_page, poll_until
+
 
 def test_library_view_folder_button():
     """Test that Library View folder button opens dialog."""

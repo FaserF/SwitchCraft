@@ -1,7 +1,8 @@
-import sys
 import json
 import re
+import sys
 from pathlib import Path
+
 
 def parse_issue_body(body):
     """
@@ -46,7 +47,7 @@ def update_db(new_entry):
         sys.exit(1)
 
     try:
-        with open(db_path, "r", encoding="utf-8") as f:
+        with open(db_path, encoding="utf-8") as f:
             db = json.load(f)
     except json.JSONDecodeError:
         print("Database JSON is corrupt.")
@@ -83,7 +84,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     body_file = sys.argv[1]
-    with open(body_file, "r", encoding="utf-8") as f:
+    with open(body_file, encoding="utf-8") as f:
         content = f.read()
 
     data = parse_issue_body(content)

@@ -1,6 +1,7 @@
 
 import requests
 
+
 def test_api(name, url, params):
     try:
         print(f"Testing {name}...")

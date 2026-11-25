@@ -1,14 +1,15 @@
-import flet as ft
-from switchcraft.utils.config import SwitchCraftConfig
-from switchcraft.utils.i18n import i18n
-from switchcraft.gui_modern.utils.view_utils import ViewMixin
-
 import logging
-from datetime import datetime
-from pathlib import Path
 import os
 import sys
 import threading
+from datetime import datetime
+from pathlib import Path
+
+import flet as ft
+
+from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -313,7 +314,6 @@ class LibraryView(ft.Column, ViewMixin):
         filename = item.get('filename', 'Unknown')
         size_bytes = item.get('size', 0)
         modified = item.get('modified', datetime.now())
-        directory = item.get('directory', '')
 
         # Format size
         if size_bytes < 1024:

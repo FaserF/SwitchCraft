@@ -1,7 +1,9 @@
-import requests
 import logging
 import sys
+
+import requests
 from packaging import version
+
 from switchcraft import __version__
 
 logger = logging.getLogger(__name__)

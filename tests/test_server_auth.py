@@ -1,17 +1,17 @@
+import os
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 # Mock flet.fastapi to avoid ModuleNotFoundError: flet_web in terminal environment
 flet_fastapi_mock = MagicMock()
 flet_fastapi_mock.app.return_value = FastAPI()
 sys.modules["flet.fastapi"] = flet_fastapi_mock
 
-import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
-import os
-import switchcraft
+import switchcraft  # noqa: E402
 
 # Needed for FletApp mount to work without GUI
 os.environ["FLET_PLATFORM"] = "web"

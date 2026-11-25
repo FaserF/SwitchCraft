@@ -1,5 +1,5 @@
-import sys
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +60,8 @@ class FilePickerHelper:
         finally:
             try:
                 root.destroy()
-            except:
-                pass
+            except Exception as exc:
+                logger.debug(f"Failed to destroy file dialog root: {exc}")
 
     @staticmethod
     def pick_directory():
@@ -84,8 +84,8 @@ class FilePickerHelper:
         finally:
             try:
                 root.destroy()
-            except:
-                pass
+            except Exception as exc:
+                logger.debug(f"Failed to destroy file dialog root: {exc}")
 
     @staticmethod
     def save_file(dialog_title: str = "Save File", file_name: str = "untitled", allowed_extensions: list[str] = None, initial_directory: str = None):
@@ -123,5 +123,5 @@ class FilePickerHelper:
         finally:
              try:
                 root.destroy()
-             except:
-                pass
+             except Exception as exc:
+                logger.debug(f"Failed to destroy save file dialog root: {exc}")

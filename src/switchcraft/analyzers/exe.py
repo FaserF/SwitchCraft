@@ -1,7 +1,8 @@
 import logging
 from pathlib import Path
+
 import pefile
-from typing import List
+
 from switchcraft.analyzers.base import BaseAnalyzer
 from switchcraft.models import InstallerInfo
 
@@ -449,7 +450,7 @@ class ExeAnalyzer(BaseAnalyzer):
             pass
         return False
 
-    def _scan_strings(self, file_path: Path) -> List[str]:
+    def _scan_strings(self, file_path: Path) -> list[str]:
         """Scan for common silent switch strings in the binary."""
         found_switches = []
 

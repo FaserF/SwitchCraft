@@ -1,31 +1,32 @@
 from dataclasses import dataclass, field
-from typing import Dict, Optional, List, Any
+from typing import Any
+
 
 @dataclass
 class InstallerInfo:
     file_path: str
     installer_type: str = "Unknown"
-    product_name: Optional[str] = None
-    product_version: Optional[str] = None
-    manufacturer: Optional[str] = None
-    product_code: Optional[str] = None  # MSI GUID
-    install_path: Optional[str] = None  # Inferred Install Path
-    install_switches: List[str] = field(default_factory=list)
-    uninstall_switches: List[str] = field(default_factory=list)
-    properties: Dict[str, str] = field(default_factory=dict)
-    website: Optional[str] = None
+    product_name: str | None = None
+    product_version: str | None = None
+    manufacturer: str | None = None
+    product_code: str | None = None  # MSI GUID
+    install_path: str | None = None  # Inferred Install Path
+    install_switches: list[str] = field(default_factory=list)
+    uninstall_switches: list[str] = field(default_factory=list)
+    properties: dict[str, str] = field(default_factory=dict)
+    website: str | None = None
     confidence: float = 0.0
 
     # MacOS specific
-    bundle_id: Optional[str] = None
-    min_os_version: Optional[str] = None
-    package_ids: List[str] = field(default_factory=list)
+    bundle_id: str | None = None
+    min_os_version: str | None = None
+    package_ids: list[str] = field(default_factory=list)
 
     # Validation
     is_corrupted: bool = False
-    corruption_reason: Optional[str] = None
+    corruption_reason: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "file_path": self.file_path,
             "installer_type": self.installer_type,

@@ -1,20 +1,20 @@
-from pathlib import Path
+import logging
 import os
-import threading
 import sys
+import threading
+import time
+from pathlib import Path
 
 import flet as ft
-from switchcraft import __version__, IS_WEB, IS_DEMO
-from switchcraft.utils.config import SwitchCraftConfig
-from switchcraft.utils.i18n import i18n
 
-from switchcraft.services.notification_service import NotificationService
-from switchcraft.services.addon_service import AddonService
+from switchcraft import IS_DEMO, IS_WEB, __version__
 from switchcraft.gui_modern.controls.sidebar import HoverSidebar
 from switchcraft.gui_modern.nav_constants import NavIndex
+from switchcraft.services.addon_service import AddonService
 from switchcraft.services.intune_service import IntuneService
-import logging
-import time
+from switchcraft.services.notification_service import NotificationService
+from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
 
 try:
     from winotify import Notification, audio
@@ -42,6 +42,7 @@ class ModernApp:
         """
         try:
             import traceback as tb
+
             from switchcraft.gui_modern.views.crash_view import CrashDumpView
 
             # Get traceback from the passed exception object
@@ -689,8 +690,9 @@ class ModernApp:
 
     def _check_startup_updates(self):
         """Checks for updates in background and notifies user if available."""
-        from switchcraft.utils.app_updater import UpdateChecker
         import threading
+
+        from switchcraft.utils.app_updater import UpdateChecker
 
         def _run():
             try:
@@ -1001,8 +1003,9 @@ class ModernApp:
         """
         Show a prominent banner for development or beta builds.
         """
-        from switchcraft.utils.i18n import i18n
         from packaging import version
+
+        from switchcraft.utils.i18n import i18n
 
         try:
             v = version.parse(__version__)
@@ -1679,32 +1682,42 @@ class ModernApp:
         elif idx == NavIndex.SETTINGS_UPDATES:
              # Updates (Settings sub)
              def _f():
-                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+                from switchcraft.gui_modern.views.settings_view import (
+                    ModernSettingsView,
+                )
                 return ModernSettingsView(self.page, initial_tab_index=1)
              load_view(_f)
         elif idx == NavIndex.SETTINGS_GRAPH:
              # Deployment/Graph (Settings sub)
              def _f():
-                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+                from switchcraft.gui_modern.views.settings_view import (
+                    ModernSettingsView,
+                )
                 return ModernSettingsView(self.page, initial_tab_index=2)
              load_view(_f)
         elif idx == NavIndex.ADDON_MANAGER:
              # Help (Settings sub) - Contains Addon Manager
              def _f():
-                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+                from switchcraft.gui_modern.views.settings_view import (
+                    ModernSettingsView,
+                )
                 return ModernSettingsView(self.page, initial_tab_index=4)
              load_view(_f)
         elif idx == NavIndex.SETTINGS_POLICIES:
              # Policies (Settings sub)
              def _f():
-                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+                from switchcraft.gui_modern.views.settings_view import (
+                    ModernSettingsView,
+                )
                 return ModernSettingsView(self.page, initial_tab_index=3)
              load_view(_f)
         elif idx == NavIndex.WINGET:
             # Apps (Winget)
             def _f():
                 if 'winget' not in self._view_cache:
-                    from switchcraft.gui_modern.views.winget_view import ModernWingetView
+                    from switchcraft.gui_modern.views.winget_view import (
+                        ModernWingetView,
+                    )
                     self._view_cache['winget'] = ModernWingetView(self.page)
                 return self._view_cache['winget']
             load_view(_f)
@@ -1712,7 +1725,9 @@ class ModernApp:
             # Analyzer
             def _f():
                 if 'analyzer' not in self._view_cache:
-                    from switchcraft.gui_modern.views.analyzer_view import ModernAnalyzerView
+                    from switchcraft.gui_modern.views.analyzer_view import (
+                        ModernAnalyzerView,
+                    )
                     self._view_cache['analyzer'] = ModernAnalyzerView(self.page)
                 return self._view_cache['analyzer']
             load_view(_f)
@@ -1720,7 +1735,9 @@ class ModernApp:
             # Generate (Helper)
             def _f():
                 if 'helper' not in self._view_cache:
-                    from switchcraft.gui_modern.views.helper_view import ModernHelperView
+                    from switchcraft.gui_modern.views.helper_view import (
+                        ModernHelperView,
+                    )
                     self._view_cache['helper'] = ModernHelperView(self.page)
                 return self._view_cache['helper']
             load_view(_f)
@@ -1733,14 +1750,18 @@ class ModernApp:
         elif idx == NavIndex.INTUNE_STORE:
             # Intune Store
             def _f():
-                from switchcraft.gui_modern.views.intune_store_view import ModernIntuneStoreView
+                from switchcraft.gui_modern.views.intune_store_view import (
+                    ModernIntuneStoreView,
+                )
                 return ModernIntuneStoreView(self.page)
             load_view(_f)
         elif idx == NavIndex.SCRIPTS:
             # Scripts
             def _f():
                 if 'scripts' not in self._view_cache:
-                    from switchcraft.gui_modern.views.script_upload_view import ScriptUploadView
+                    from switchcraft.gui_modern.views.script_upload_view import (
+                        ScriptUploadView,
+                    )
                     self._view_cache['scripts'] = ScriptUploadView(self.page)
                 return self._view_cache['scripts']
             load_view(_f)
@@ -1748,7 +1769,9 @@ class ModernApp:
             # MacOS
             def _f():
                 if 'macos' not in self._view_cache:
-                    from switchcraft.gui_modern.views.macos_wizard_view import MacOSWizardView
+                    from switchcraft.gui_modern.views.macos_wizard_view import (
+                        MacOSWizardView,
+                    )
                     self._view_cache['macos'] = MacOSWizardView(self.page)
                 return self._view_cache['macos']
             load_view(_f)
@@ -1756,33 +1779,43 @@ class ModernApp:
             # History
             def _f():
                 if 'history' not in self._view_cache:
-                    from switchcraft.gui_modern.views.history_view import ModernHistoryView
+                    from switchcraft.gui_modern.views.history_view import (
+                        ModernHistoryView,
+                    )
                     self._view_cache['history'] = ModernHistoryView(self.page)
                 return self._view_cache['history']
             load_view(_f)
         elif idx == NavIndex.SETTINGS:
             # Settings (General)
             def _f():
-                from switchcraft.gui_modern.views.settings_view import ModernSettingsView
+                from switchcraft.gui_modern.views.settings_view import (
+                    ModernSettingsView,
+                )
                 # Tab 0 is General
                 return ModernSettingsView(self.page, initial_tab_index=0)
             load_view(_f)
         elif idx == NavIndex.PACKAGING_WIZARD:
             # Wizard
             def _f():
-                from switchcraft.gui_modern.views.packaging_wizard_view import PackagingWizardView
+                from switchcraft.gui_modern.views.packaging_wizard_view import (
+                    PackagingWizardView,
+                )
                 return PackagingWizardView(self.page)
             load_view(_f)
         elif idx == NavIndex.DETECTION_TESTER:
             # Tester
             def _f():
-                from switchcraft.gui_modern.views.detection_tester_view import DetectionTesterView
+                from switchcraft.gui_modern.views.detection_tester_view import (
+                    DetectionTesterView,
+                )
                 return DetectionTesterView(self.page)
             load_view(_f)
         elif idx == NavIndex.STACK_MANAGER:
             # Stacks
             def _f():
-                from switchcraft.gui_modern.views.stack_manager_view import StackManagerView
+                from switchcraft.gui_modern.views.stack_manager_view import (
+                    StackManagerView,
+                )
                 return StackManagerView(self.page)
             load_view(_f)
         elif idx == NavIndex.DASHBOARD:
@@ -1800,7 +1833,9 @@ class ModernApp:
         elif idx == NavIndex.GROUP_MANAGER:
             # Groups
             def _f():
-                from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
+                from switchcraft.gui_modern.views.group_manager_view import (
+                    GroupManagerView,
+                )
                 return GroupManagerView(self.page)
             load_view(_f)
         elif idx == NavIndex.EXCHANGE:
@@ -1813,7 +1848,9 @@ class ModernApp:
         elif idx == NavIndex.WINGET_CREATE:
             # WingetCreate Manager
             def _f():
-                from switchcraft.gui_modern.views.wingetcreate_view import WingetCreateView
+                from switchcraft.gui_modern.views.wingetcreate_view import (
+                    WingetCreateView,
+                )
                 return WingetCreateView(self.page)
             load_view(_f)
 
@@ -2018,9 +2055,10 @@ class ModernApp:
 
         If the stored "FirstRun" flag is true, this method sets it to false. When running from source (not a frozen/packaged build), it opens a modal dialog offering to start a demo analysis; choosing to start the demo navigates to the Analyzer tab and initiates the demo analysis, while choosing to defer simply closes the dialog.
         """
+        import sys
+
         from switchcraft.utils.config import SwitchCraftConfig
         from switchcraft.utils.i18n import i18n
-        import sys
 
         if SwitchCraftConfig.get_value("FirstRun", True):
             SwitchCraftConfig.set_user_preference("FirstRun", False)
@@ -2085,9 +2123,11 @@ class ModernApp:
         """
         import tempfile
         import threading
+
         import requests
-        from switchcraft.utils.i18n import i18n
+
         from switchcraft.gui_modern.nav_constants import NavIndex
+        from switchcraft.utils.i18n import i18n
 
         def download_and_analyze():
             """

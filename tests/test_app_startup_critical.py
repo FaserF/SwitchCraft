@@ -1,6 +1,6 @@
+import sys
 import unittest
 from pathlib import Path
-import sys
 from unittest.mock import MagicMock, patch
 
 # Add src to path
@@ -14,7 +14,7 @@ class TestAppStartupCritical(unittest.TestCase):
     def test_main_module_exists(self):
         """Test that switchcraft.main module exists."""
         try:
-            import switchcraft.main
+            import switchcraft.main  # noqa: F401
         except ImportError:
             self.fail("switchcraft.main module not found")
 
@@ -33,7 +33,7 @@ class TestAppStartupCritical(unittest.TestCase):
         import flet as ft
 
         # Mock dependencies in main
-        with patch("switchcraft.main.ModernApp") as mock_app_cls, \
+        with patch("switchcraft.main.ModernApp"), \
              patch("switchcraft.main.is_protocol_registered", return_value=True), \
              patch("switchcraft.main.register_protocol_handler"), \
              patch("switchcraft.utils.config.SwitchCraftConfig"), \

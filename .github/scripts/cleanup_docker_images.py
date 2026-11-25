@@ -1,6 +1,8 @@
 import os
-import requests
 import sys
+
+import requests
+
 
 def main():
     token = os.environ.get("GITHUB_TOKEN")
@@ -58,10 +60,6 @@ def main():
             # For now, let's treat them as nightly or just ignore if they are the latest
             nightly_versions.append(v)
             continue
-
-        # Check if 'latest' or 'prerelease' tags exist - these are pointers, usually keep
-        is_latest = "latest" in tags
-        is_prerelease_ptr = "prerelease" in tags
 
         # Use first specific version tag for categorization
         # Example: 2026.1.5.dev0-32a44e0

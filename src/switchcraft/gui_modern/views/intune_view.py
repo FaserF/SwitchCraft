@@ -1,16 +1,17 @@
-import flet as ft
-import threading
 import logging
 import os
+import threading
 from pathlib import Path
 
-from switchcraft.services.intune_service import IntuneService
-from switchcraft.services.notification_service import NotificationService
+import flet as ft
+
 from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
-from switchcraft.utils.config import SwitchCraftConfig
-from switchcraft.utils.i18n import i18n
 from switchcraft.gui_modern.utils.flet_compat import create_tabs
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.services.intune_service import IntuneService
+from switchcraft.services.notification_service import NotificationService
+from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 
@@ -458,8 +459,8 @@ class ModernIntuneView(ft.Column, ViewMixin):
             intunewin_path (str | pathlib.Path): Filesystem path to the .intunewin archive to inspect.
         """
         try:
-            import zipfile
             import json
+            import zipfile
 
             # .intunewin files are ZIP archives
             with zipfile.ZipFile(intunewin_path, 'r') as zip_ref:
@@ -470,7 +471,7 @@ class ModernIntuneView(ft.Column, ViewMixin):
                 for file_name in file_list:
                     if 'detection.xml' in file_name.lower():
                         try:
-                            detection_content = zip_ref.read(file_name).decode('utf-8')
+                            zip_ref.read(file_name).decode('utf-8')
                             # Parse XML to extract info if needed
                             # For now, we'll focus on the manifest if available
                         except Exception:

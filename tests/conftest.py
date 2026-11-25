@@ -1,12 +1,15 @@
 """
 Pytest configuration and shared fixtures.
 """
+import asyncio
+import logging
 import os
 import sys
-import asyncio
-import pytest
+import time
 from unittest.mock import MagicMock
+
 import flet as ft
+import pytest
 
 # Make local tests helper module importable when running in CI or from repo root
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -28,8 +31,6 @@ def skip_if_ci(reason="Test not suitable for CI environment"):
     if is_ci_environment():
         pytest.skip(reason)
 
-
-import time
 
 def poll_until(condition, timeout=5.0, interval=0.1):
     """
@@ -55,6 +56,8 @@ def _create_mock_page():
             # Do not call super().__init__ as it requires connection
             self._c = "Page"
             self._i = "page"
+            self._values = {}
+            self._dirty = {}
 
             # Initialize Mock logic (backing fields)
             self._dialog = None
@@ -154,11 +157,15 @@ def _create_mock_page():
         def add(self, *controls):
             import weakref
             def set_structure_recursive(ctrl, parent):
-                try: ctrl._parent = weakref.ref(parent)
-                except Exception: pass
+                try:
+                    ctrl._parent = weakref.ref(parent)
+                except Exception as exc:
+                    logging.debug(f"Parent ref skipped: {exc}")
 
-                try: ctrl._page = self
-                except AttributeError: pass
+                try:
+                    ctrl._page = self
+                except AttributeError as exc:
+                    logging.debug(f"Page attr skipped: {exc}")
 
                 # Recurse
                 if hasattr(ctrl, 'controls') and ctrl.controls:
@@ -220,16 +227,17 @@ def _create_mock_page():
 def mock_blocking_calls(monkeypatch, request):
     """Global fixture to mock all blocking OS/UI/Network calls."""
     import os
-    import webbrowser
-    import requests
     import subprocess
+    import webbrowser
+
+    import requests
     try:
         import keyring
     except ImportError:
         keyring = MagicMock()
 
-    from switchcraft.utils.config import SwitchCraftConfig
     from switchcraft.gui_modern.utils.file_picker_helper import FilePickerHelper
+    from switchcraft.utils.config import SwitchCraftConfig
 
     test_path = str(request.node.path)
 

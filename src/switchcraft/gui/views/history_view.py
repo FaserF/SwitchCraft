@@ -1,6 +1,8 @@
-import customtkinter as ctk
 from datetime import datetime
 from pathlib import Path
+
+import customtkinter as ctk
+
 
 class HistoryView(ctk.CTkFrame):
     def __init__(self, parent, history_service, app):

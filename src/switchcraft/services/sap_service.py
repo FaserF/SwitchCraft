@@ -1,9 +1,9 @@
-import os
 import logging
-from pathlib import Path
-from typing import List, Optional
-from switchcraft.utils.shell_utils import ShellUtils
+import os
 import xml.etree.ElementTree as ET
+from pathlib import Path
+
+from switchcraft.utils.shell_utils import ShellUtils
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class SapService:
     def __init__(self):
         pass
 
-    def detect_admin_tool(self, server_path: str) -> Optional[Path]:
+    def detect_admin_tool(self, server_path: str) -> Path | None:
         """Tries to find NwSapSetupAdmin.exe in the given server path."""
         p = Path(server_path)
         # Usually in /Setup/NwSapSetupAdmin.exe or directly in root
@@ -52,7 +52,7 @@ class SapService:
         logger.error(f"SAP Merge failed: {error_msg}")
         raise RuntimeError(f"Failed to merge SAP update: {error_msg}")
 
-    def customize_server(self, server_path: str, logo_path: Optional[str] = None, use_webview2: bool = True) -> bool:
+    def customize_server(self, server_path: str, logo_path: str | None = None, use_webview2: bool = True) -> bool:
         """
         Customizes the SAP Installation Server.
         - Logo: Copies the logo and updates config if necessary.
@@ -95,7 +95,7 @@ class SapService:
 
         return True
 
-    def list_packages(self, server_path: str) -> List[dict]:
+    def list_packages(self, server_path: str) -> list[dict]:
         """
         Parses SapSetup.xml or SapGuiSetup.xml to list available products/packages.
         Returns list of dicts: {'name': 'Package Name', 'id': 'Guid'}
@@ -147,8 +147,8 @@ class SapService:
             output_path.mkdir(parents=True, exist_ok=True)
 
         # Use a temporary batch file to guarantee exact quoting behavior.
-        import tempfile
         import os
+        import tempfile
 
         # Ensure output_dir is the directory
         output_dir = Path(output_path)

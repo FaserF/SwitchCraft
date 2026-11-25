@@ -2,13 +2,14 @@
 Comprehensive test to verify ALL buttons in the application work correctly.
 This test systematically checks every button in every view.
 """
-import pytest
-import flet as ft
-from unittest.mock import MagicMock
-import inspect
-import importlib
-import os
 import asyncio
+import importlib
+import inspect
+import os
+from unittest.mock import MagicMock
+
+import flet as ft
+import pytest
 
 # Import CI detection helper
 try:

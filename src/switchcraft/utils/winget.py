@@ -1,6 +1,7 @@
+import logging
 import re
 import subprocess
-import logging
+
 from switchcraft.utils.shell_utils import ShellUtils
 
 logger = logging.getLogger(__name__)
@@ -65,7 +66,8 @@ class WingetHelper:
             return {}
 
     def _parse_table(self, output):
-        if not output: return []
+        if not output:
+            return []
         lines = output.splitlines()
         results = []
 
@@ -94,7 +96,8 @@ class WingetHelper:
     def _parse_details(self, output):
         """Parse 'winget show' output into a dictionary."""
         details = {}
-        if not output: return details
+        if not output:
+            return details
         for line in output.splitlines():
             if ":" in line:
                 key, val = line.split(":", 1)

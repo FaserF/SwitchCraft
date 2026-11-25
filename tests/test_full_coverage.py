@@ -1,10 +1,12 @@
-import pytest
-from unittest.mock import MagicMock, patch
 import sys
 from pathlib import Path
-from switchcraft.services.winget_manifest_service import WingetManifestService
-from switchcraft.services.intune_service import IntuneService
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from switchcraft.services.addon_service import AddonService
+from switchcraft.services.intune_service import IntuneService
+from switchcraft.services.winget_manifest_service import WingetManifestService
 from switchcraft.utils.config import SwitchCraftConfig
 
 # --- Winget Manifest Service Tests ---
@@ -106,7 +108,7 @@ def test_addon_detection(mock_open_key):
 def test_entry_points_import():
     """Ensure entry points can at least check dependencies without crashing."""
     try:
-        import switchcraft.main
+        import switchcraft.main  # noqa: F401
     except ImportError:
         # Flet might be missing in test env, which is 'valid' but we catch it
         pytest.skip("Flet not installed")

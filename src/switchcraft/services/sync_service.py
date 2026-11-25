@@ -1,9 +1,11 @@
 import json
 import logging
+from typing import Any
+
 import requests
-from typing import Optional, Dict, Any
-from switchcraft.utils.config import SwitchCraftConfig
+
 from switchcraft.services.auth_service import AuthService
+from switchcraft.utils.config import SwitchCraftConfig
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +19,7 @@ class SyncService:
     GIST_DESCRIPTION = "SwitchCraft CloudSync Settings"
 
     @classmethod
-    def _get_headers(cls) -> Optional[Dict[str, str]]:
+    def _get_headers(cls) -> dict[str, str] | None:
         token = AuthService.get_token()
         if not token:
             logger.warning("No auth token found. Cannot sync.")
@@ -28,7 +30,7 @@ class SyncService:
         }
 
     @classmethod
-    def find_sync_gist(cls) -> Optional[str]:
+    def find_sync_gist(cls) -> str | None:
         """
         Finds the Gist ID for SwitchCraft settings.
         Iterates through user's gists to find one with the specific filename.
@@ -55,7 +57,7 @@ class SyncService:
             return None
 
     @classmethod
-    def create_sync_gist(cls, content: Dict[str, Any]) -> Optional[str]:
+    def create_sync_gist(cls, content: dict[str, Any]) -> str | None:
         """
         Creates a new Gist with the settings.
         """
@@ -83,7 +85,7 @@ class SyncService:
             return None
 
     @classmethod
-    def update_sync_gist(cls, gist_id: str, content: Dict[str, Any]) -> bool:
+    def update_sync_gist(cls, gist_id: str, content: dict[str, Any]) -> bool:
         """
         Updates an existing Gist with new settings.
         """
@@ -109,7 +111,7 @@ class SyncService:
             return False
 
     @classmethod
-    def get_remote_settings(cls, gist_id: str) -> Optional[Dict[str, Any]]:
+    def get_remote_settings(cls, gist_id: str) -> dict[str, Any] | None:
         """
         Retrieves settings from the Gist.
         """
@@ -141,7 +143,7 @@ class SyncService:
             return None
 
     @classmethod
-    def get_backup_metadata(cls, gist_id: str) -> Optional[Dict[str, Any]]:
+    def get_backup_metadata(cls, gist_id: str) -> dict[str, Any] | None:
         """
         Retrieves metadata about the Gist (e.g., updated_at).
         """

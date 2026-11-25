@@ -52,8 +52,8 @@ if sys.platform == "emscripten":
     # ============================================================
     # GLOBAL THREADING MONKEYPATCH FOR WASM
     # ============================================================
-    import threading
     import asyncio
+    import threading
 
     class WASMThread(threading.Thread):
         """Bridge between standard threading and WASM-friendly asyncio tasks."""
@@ -82,9 +82,10 @@ if sys.platform == "emscripten":
 # ============================================================
 # Normal imports AFTER ssl patching
 # ============================================================
-import flet as ft
+import flet as ft  # noqa: E402
+
 sys.path.insert(0, os.getcwd())
-import switchcraft.main
+import switchcraft.main  # noqa: E402
 
 if __name__ == "__main__":
     # Use ft.run for modern Flet (0.80.0+)

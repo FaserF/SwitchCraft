@@ -13,8 +13,8 @@ The protocol is registered in HKEY_CURRENT_USER\Software\Classes\switchcraft
 """
 
 import logging
-import sys
 import os
+import sys
 
 logger = logging.getLogger(__name__)
 

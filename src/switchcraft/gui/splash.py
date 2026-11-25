@@ -1,9 +1,9 @@
-import tkinter as tk
-from tkinter import ttk
+import logging
 import os
 import sys
-import logging
 import tempfile
+import tkinter as tk
+from tkinter import ttk
 
 # Setup debug logging for splash process
 log_file = os.path.join(tempfile.gettempdir(), "switchcraft_splash_debug.log")

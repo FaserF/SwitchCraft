@@ -9,17 +9,18 @@ allowing users to:
 - Save manifests to SwitchCraft subdirectory
 """
 
-import flet as ft
 import logging
-import subprocess
-import threading
 import os
+import subprocess
 import sys
+import threading
 from pathlib import Path
-from switchcraft.utils.i18n import i18n
+
+import flet as ft
+
 from switchcraft.gui_modern.utils.flet_compat import create_tabs
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
-
+from switchcraft.utils.i18n import i18n
 
 logger = logging.getLogger(__name__)
 

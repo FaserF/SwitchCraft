@@ -1,6 +1,6 @@
-import sys
 import os
 import subprocess
+import sys
 
 # Add src to path BEFORE importing switchcraft modules
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -19,8 +19,9 @@ def start_splash():
 
     global splash_proc
     try:
-        from switchcraft.utils.shell_utils import ShellUtils
         from pathlib import Path
+
+        from switchcraft.utils.shell_utils import ShellUtils
 
         # Resolve path to splash.py (shared with Legacy)
         base_dir = Path(__file__).resolve().parent
@@ -93,7 +94,7 @@ if __name__ == "__main__":
     start_splash()
 
 # Now do heavy imports
-import flet as ft # noqa: E402
+import flet as ft  # noqa: E402
 
 # Monkey patch removed - using standard methods
 
@@ -132,19 +133,18 @@ _IMPORT_EXC_INFO = None
 
 try:
     # Explicitly import updater to ensure PyInstaller bundles it
-    import switchcraft.utils.app_updater # noqa: F401
+    import switchcraft.utils.app_updater  # noqa: F401
+    from switchcraft.gui_modern.app import ModernApp  # noqa: E402
 
     # Import i18n early for loading screen text
     from switchcraft.utils.i18n import i18n  # noqa: E402
-
-    from switchcraft.gui_modern.app import ModernApp  # noqa: E402
     from switchcraft.utils.logging_handler import setup_session_logging  # noqa: E402
-    from switchcraft.utils.shell_utils import ShellUtils # noqa: E402
     from switchcraft.utils.protocol_handler import (
-        register_protocol_handler,
+        is_protocol_registered,
         parse_protocol_url,
-        is_protocol_registered
+        register_protocol_handler,
     )  # noqa: E402
+    from switchcraft.utils.shell_utils import ShellUtils  # noqa: E402
     # Setup session logging
     setup_session_logging()
 except Exception:
@@ -237,6 +237,7 @@ def write_crash_dump(exc_info):
         f.write("="*60 + "\n")
         try:
             import pkgutil
+
             import switchcraft.gui_modern.views
             f.write(f"Views Package Path: {switchcraft.gui_modern.views.__path__}\n")
             f.write("Available Modules in 'switchcraft.gui_modern.views':\n")
@@ -272,7 +273,11 @@ def main(page: ft.Page):
     # --- Config Backend Initialization ---
     import sys  # Ensure sys is available for platform checks below
     try:
-        from switchcraft.utils.config import SwitchCraftConfig, RegistryBackend, EnvBackend
+        from switchcraft.utils.config import (
+            EnvBackend,
+            RegistryBackend,
+            SwitchCraftConfig,
+        )
 
         # Determine Backend Mode
         if page.web:
@@ -425,6 +430,8 @@ def main(page: ft.Page):
     # --- End Patching ---
 
     # --- Page Configuration ---
+    import switchcraft
+
     if page.web and sys.platform == "emscripten":
         page.title = "SwitchCraft Web (Demo)" if getattr(switchcraft, "IS_DEMO", False) else "SwitchCraft Web"
     else:
@@ -444,7 +451,6 @@ def main(page: ft.Page):
         pass
 
     # --- Initialize Global App State ---
-    import switchcraft
     switchcraft.IS_DEMO = SwitchCraftConfig.is_demo_mode()
 
     page.theme_mode = ft.ThemeMode.SYSTEM
@@ -819,7 +825,7 @@ if __name__ == "__main__":
         try:
             import ctypes
             # Unique ID for the app - allows Taskbar to group windows and use correct icon
-            myappid = u'FaserF.SwitchCraft.Modern.Release'
+            myappid = 'FaserF.SwitchCraft.Modern.Release'
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         except Exception:
             pass

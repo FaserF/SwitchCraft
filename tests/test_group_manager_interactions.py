@@ -1,10 +1,12 @@
 """
 Tests for Group Manager View interactions (Create, Members, Delete, etc.).
 """
-import flet as ft
-from unittest.mock import MagicMock, patch
 import time
-from conftest import poll_until, _create_mock_page
+from unittest.mock import MagicMock, patch
+
+import flet as ft
+from conftest import _create_mock_page, poll_until
+
 
 def test_group_manager_create_button():
     """Test that Group Manager create button opens dialog."""

@@ -1,13 +1,14 @@
 
-import unittest
-from unittest.mock import patch, MagicMock
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import MagicMock, patch
 
 # Ensure we load from local src, not installed site-packages
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from switchcraft.utils.config import SwitchCraftConfig, RegistryBackend
+from switchcraft.utils.config import RegistryBackend, SwitchCraftConfig
+
 
 class TestSecureConfig(unittest.TestCase):
 

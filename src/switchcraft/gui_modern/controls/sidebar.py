@@ -1,6 +1,8 @@
 import flet as ft
+
 from switchcraft.gui_modern.nav_constants import NavIndex
 from switchcraft.utils.i18n import i18n
+
 
 class HoverSidebar(ft.Stack):
     def __init__(self, app, destinations, on_navigate):

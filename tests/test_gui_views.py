@@ -1,7 +1,8 @@
 
-import pytest
-import flet as ft
 from unittest.mock import MagicMock, patch
+
+import flet as ft
+import pytest
 
 # Mocks
 mock_page = MagicMock(spec=ft.Page)
@@ -49,7 +50,7 @@ def test_instantiate_dashboard_view(page):
 
 def test_instantiate_analyzer_view(page):
     from switchcraft.gui_modern.views.analyzer_view import ModernAnalyzerView
-    view = ModernAnalyzerView(page)
+    ModernAnalyzerView(page)
 
 def test_dialog_opening_safety(page):
     """Test that dialogs can be opened safely without 'Control must be added to page first' errors."""
@@ -85,12 +86,13 @@ def test_dialog_opening_safety(page):
 
 def test_group_manager_members_dialog(page):
     """Test that the members dialog in GroupManagerView opens safely."""
-    from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
     from unittest.mock import MagicMock, patch
+
+    from switchcraft.gui_modern.views.group_manager_view import GroupManagerView
 
     # Mock the required dependencies
     with patch('switchcraft.gui_modern.views.group_manager_view.IntuneService') as mock_intune, \
-         patch('switchcraft.gui_modern.views.group_manager_view.SwitchCraftConfig') as mock_config:
+         patch('switchcraft.gui_modern.views.group_manager_view.SwitchCraftConfig'):
 
         # Setup mocks
         mock_intune_instance = MagicMock()

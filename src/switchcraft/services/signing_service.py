@@ -1,8 +1,9 @@
 import logging
 import subprocess
-from switchcraft.utils.shell_utils import ShellUtils
 from pathlib import Path
+
 from switchcraft.utils.config import SwitchCraftConfig
+from switchcraft.utils.shell_utils import ShellUtils
 
 logger = logging.getLogger(__name__)
 

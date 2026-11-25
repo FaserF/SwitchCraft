@@ -1,6 +1,8 @@
 import logging
-import flet as ft
 import traceback
+
+import flet as ft
+
 logger = logging.getLogger(__name__)
 
 def _create_broken_view(name, exc):

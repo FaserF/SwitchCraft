@@ -1,17 +1,18 @@
 """
 Tests for Intune Store search functionality with timeout handling.
 """
-import pytest
-import flet as ft
-from unittest.mock import MagicMock, patch
+import os
 import threading
 import time
+from unittest.mock import MagicMock, patch
+
+import flet as ft
+import pytest
 import requests
-import os
 
 # Import CI detection helper and shared fixtures/helpers
 try:
-    from conftest import is_ci_environment, skip_if_ci, poll_until, mock_page
+    from conftest import is_ci_environment, mock_page, poll_until, skip_if_ci
 except ImportError:
     # Fallback if conftest not available
     def is_ci_environment():
@@ -228,13 +229,11 @@ def test_intune_search_timeout_mechanism(mock_page, mock_intune_service):
     def mock_thread(target=None, daemon=False, **kwargs):
         thread = original_thread(target=target, daemon=daemon, **kwargs)
         # Override join to simulate timeout
-        original_join = thread.join
         def mock_join(timeout=None):
             # Simulate timeout by returning immediately (thread still alive)
             return None
         thread.join = mock_join
         # Make is_alive return True to simulate timeout
-        original_is_alive = thread.is_alive
         def mock_is_alive():
             # Return True to simulate thread still running (timeout occurred)
             return True

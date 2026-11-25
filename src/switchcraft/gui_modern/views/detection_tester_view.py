@@ -1,11 +1,13 @@
-import flet as ft
 import logging
-import subprocess
 import os
-from pathlib import Path
+import subprocess
 import sys
-from switchcraft.utils.i18n import i18n
+from pathlib import Path
+
+import flet as ft
+
 from switchcraft.gui_modern.utils.view_utils import ViewMixin
+from switchcraft.utils.i18n import i18n
 
 # Windows-specific imports (lazy loaded when needed)
 winreg = None
@@ -13,6 +15,7 @@ win32api = None
 if sys.platform == 'win32':
     try:
         import winreg
+
         import win32api
     except ImportError:
         pass  # Will show error when feature is used
