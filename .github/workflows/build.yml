@@ -16,7 +16,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.15.2'
 
@@ -29,3 +29,65 @@ jobs:
     - name: Build with PyInstaller
       run: |
         pyinstaller switchcraft.spec
+
+    - name: Detect Code Signing Configuration
+      id: detect_signing
+      if: ${{ runner.os == 'Windows' }}
+      shell: pwsh
+      env:
+        AZURE_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+        PFX_B64: ${{ secrets.WINDOWS_SIGNING_CERT_B64 }}
+        PFX_PASS: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+      run: |
+        if (-not [string]::IsNullOrEmpty($env:AZURE_ENDPOINT)) {
+          "mode=azure" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        } elseif ((-not [string]::IsNullOrEmpty($env:PFX_B64)) -and (-not [string]::IsNullOrEmpty($env:PFX_PASS))) {
+          "mode=pfx" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        } else {
+          "mode=none" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        }
+
+    - name: Sign Windows Executables (Azure Trusted Signing)
+      if: ${{ runner.os == 'Windows' && steps.detect_signing.outputs.mode == 'azure' }}
+      uses: azure/trusted-signing-action@v0
+      with:
+        azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+        endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+        trusted-signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+        certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE }}
+        files-folder: dist
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+
+    - name: Sign Windows Executables (PFX Certificate)
+      if: ${{ runner.os == 'Windows' && steps.detect_signing.outputs.mode == 'pfx' }}
+      shell: pwsh
+      env:
+        CERT_B64: ${{ secrets.WINDOWS_SIGNING_CERT_B64 }}
+        CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+      run: |
+        $pfxPath = Join-Path $env:RUNNER_TEMP "signing_cert.pfx"
+        [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:CERT_B64))
+        $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+        if (-not $signtool) { throw "signtool.exe not found on runner" }
+        Get-ChildItem -Path "dist" -Filter "*.exe" -Recurse | ForEach-Object {
+          & $signtool sign /f $pfxPath /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $_.FullName
+          if ($LASTEXITCODE -ne 0) { throw "Signing failed for $($_.FullName)" }
+        }
+
+    - name: Cleanup Signing Certificate
+      if: ${{ always() && runner.os == 'Windows' }}
+      shell: pwsh
+      run: |
+        $pfxPath = Join-Path $env:RUNNER_TEMP "signing_cert.pfx"
+        if (Test-Path $pfxPath) { Remove-Item -Force $pfxPath }
+
+    - name: Notice Unsigned Build
+      if: ${{ runner.os == 'Windows' && steps.detect_signing.outputs.mode == 'none' }}
+      shell: pwsh
+      run: |
+        Write-Host "::notice::No code signing secrets configured (AZURE_SIGNING_ENDPOINT or WINDOWS_SIGNING_CERT_B64). Skipping Authenticode signing."

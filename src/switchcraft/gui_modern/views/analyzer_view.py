@@ -1,5 +1,7 @@
 import ctypes
+import hashlib
 import logging
+import re
 import shutil
 import tempfile
 import threading
@@ -27,7 +29,7 @@ from switchcraft.utils.templates import TemplateGenerator
 # Try to import flet_dropzone for native file DnD
 try:
     import flet_dropzone as ftd
-    HAS_DROPZONE = False # Forced False to fix compiled exe issues
+    HAS_DROPZONE = True
 except ImportError:
     HAS_DROPZONE = False
     ftd = None
@@ -268,6 +270,7 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
                 logger.warning(f"Failed to parse server upload response: {ex}")
 
         # Fallback to local reconstruction if server response missing/invalid
+        if not analysis_path:
             # Reconstruct (Basic cleanup matching app.py logic)
             import uuid
             fname = e.file_name
@@ -1155,30 +1158,77 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
         )
         self._open_dialog_safe(local_dlg)
 
+    @staticmethod
+    def _compute_file_sha256(file_path: str | None) -> str:
+        """Compute uppercase SHA256 hex digest for an installer file if readable."""
+        if file_path:
+            p = Path(file_path)
+            if p.is_file():
+                digest = hashlib.sha256()
+                with p.open("rb") as fh:
+                    for chunk in iter(lambda: fh.read(65536), b""):
+                        digest.update(chunk)
+                return digest.hexdigest().upper()
+        return "0" * 64
+
+    @staticmethod
+    def _normalize_winget_installer_type(raw_type: str | None) -> str:
+        """Map detected installer type string to a valid Winget InstallerType."""
+        val = (raw_type or "exe").strip().lower()
+        mapping = {
+            "msi": "msi",
+            "msix": "msix",
+            "appx": "msix",
+            "inno": "inno",
+            "inno setup": "inno",
+            "nsis": "nullsoft",
+            "nullsoft": "nullsoft",
+            "burn": "burn",
+            "wix": "wix",
+            "exe": "exe",
+        }
+        return mapping.get(val, "exe")
+
+    @staticmethod
+    def _sanitize_winget_identifier(value: str, fallback: str = "Unknown.App") -> str:
+        """Sanitize Winget PackageIdentifier or Publisher for safe filenames and manifests."""
+        cleaned = re.sub(r"[^A-Za-z0-9._-]", "", value.replace(" ", ""))
+        return cleaned.strip(".") or fallback
+
     def _open_manifest_dialog(self, info):
         logger.info(f"Open Winget Manifest clicked. Info: {info}")
+        installer_sha256 = self._compute_file_sha256(getattr(info, "file_path", None))
+        has_real_sha = installer_sha256 != "0" * 64
+        installer_type = self._normalize_winget_installer_type(
+            getattr(info, "installer_type", None)
+        )
+        raw_publisher = info.manufacturer or "Unknown"
+        raw_product = info.product_name or "App"
+        pkg_id = self._sanitize_winget_identifier(f"{raw_publisher}.{raw_product}")
+        publisher = self._sanitize_winget_identifier(raw_publisher, "Unknown")
+
         # Quick manifest generation using WingetManifestService
         def generate_local(e):
             try:
-                # Prepare metadata for service
+                file_url = (
+                    f"file:///{info.file_path.replace(chr(92), '/')}"
+                    if getattr(info, "file_path", None)
+                    else "https://example.com/installer.exe"
+                )
                 meta = {
-                    "PackageIdentifier": f"{info.manufacturer or 'Unknown'}.{info.product_name or 'App'}",
+                    "PackageIdentifier": pkg_id,
                     "PackageVersion": info.product_version or "1.0.0",
-                    "Publisher": info.manufacturer or "Unknown",
-                    "PackageName": info.product_name or "App",
-                    "InstallerType": info.installer_type or "exe",
+                    "Publisher": publisher,
+                    "PackageName": raw_product,
+                    "InstallerType": installer_type,
                     "Installers": [{
                         "Architecture": "x64",
-                        "InstallerUrl": f"file:///{info.file_path.replace('\\', '/')}",
-                        "InstallerSha256": "0000000000000000000000000000000000000000000000000000000000000000", # Placeholder
-                        "InstallerType": info.installer_type or "exe",
+                        "InstallerUrl": file_url,
+                        "InstallerSha256": installer_sha256,
+                        "InstallerType": installer_type,
                         "Scope": "machine"
                     }]
                 }
-
-                # Sanitize PackageIdentifier (winget prefers no spaces)
-                meta["PackageIdentifier"] = meta["PackageIdentifier"].replace(" ", "")
-                meta["Publisher"] = meta["Publisher"].replace(" ", "")
 
                 out_dir = self.winget_service.generate_manifests(meta)
                 self._show_snack(f"Manifests generated in: {out_dir}", "GREEN")
@@ -1192,19 +1242,34 @@ class ModernAnalyzerView(ft.Column, ViewMixin):
 
         def open_winget_manager(e):
             self._close_dialog(dlg)
-            # If we had a router, we would navigate. For now, we just suggest it
+            nav_cb = getattr(self, "on_navigate", None) or getattr(
+                self.app_page, "switchcraft_navigate", None
+            )
+            if callable(nav_cb):
+                from switchcraft.gui_modern.nav_constants import NavIndex
+                nav_cb(NavIndex.WINGET_CREATE)
+                return
             self._show_snack("Please use the 'WingetCreate Manager' from the side menu for advanced options.", "BLUE")
+
+        status_row = (
+            ft.Row([
+                ft.Icon(ft.Icons.CHECK_CIRCLE, color="GREEN", size=16),
+                ft.Text(f"SHA256: {installer_sha256[:16]}...", size=11, color="GREEN")
+            ], vertical_alignment=ft.CrossAxisAlignment.CENTER)
+            if has_real_sha
+            else ft.Row([
+                ft.Icon(ft.Icons.WARNING_AMBER, color="ORANGE", size=16),
+                ft.Text("Note: Manifests use a placeholder SHA256. Manual update required before submission.", size=11, color="ORANGE", italic=True)
+            ], vertical_alignment=ft.CrossAxisAlignment.CENTER)
+        )
 
         dlg = ft.AlertDialog(
             title=ft.Row([ft.Icon(ft.Icons.DESCRIPTION, color="BLUE"), ft.Text("Winget Manifest Creation")]),
             content=ft.Column([
                 ft.Text("Quickly generate a local manifest structure based on analysis results."),
-                ft.Text(f"Target: {info.manufacturer}.{info.product_name}", size=12, italic=True),
+                ft.Text(f"Target: {pkg_id}", size=12, italic=True),
                 ft.Container(height=5),
-                ft.Row([
-                    ft.Icon(ft.Icons.WARNING_AMBER, color="ORANGE", size=16),
-                    ft.Text("Note: Manifests use a placeholder SHA256. Manual update required before submission.", size=11, color="ORANGE", italic=True)
-                ], vertical_alignment=ft.CrossAxisAlignment.CENTER)
+                status_row,
             ], height=110, tight=True),
             actions=[
                 ft.TextButton("Cancel", on_click=self._safe_event_handler(lambda _: self._close_dialog(dlg), "Cancel manifest dialog")),
